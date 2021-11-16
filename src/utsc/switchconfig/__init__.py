@@ -9,7 +9,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    import templates
+    from tests.switchconfig import templates
     TemplatesModule = templates
 
 __version__ = '0.1.2'
@@ -51,7 +51,7 @@ class Config:
         
         sys.path.insert(0, str(path))
         try:
-            import templates # noqa
+            import templates # type: ignore # noqa
         except ImportError as e:
             # Do the import by hand
             module_name = 'templates'

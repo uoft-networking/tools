@@ -1,0 +1,25 @@
+hostname {{ d.hostname }}
+
+vtp domain {{ d.building_code }}
+
+{% if d.is_podium %}
+#podium vlan config
+{% endif %}
+
+ip default-gateway {{ d.network | gateway_ip }}
+
+site-id "{{ d.hostname }}"
+
+{% if d.is_podium %}
+#podium interface config
+{% else %}
+#access interface config
+{% endif %}
+
+switchport trunk allowed vlan 100,305,{%if d.is_podium %}310,{%endif%}900
+
+ip address {{ d.ip }} {{ d.network | network_mask }}
+
+
+snmp-server location {{ d.building_code }}{{ d.room_code }}
+
