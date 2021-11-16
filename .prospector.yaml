@@ -8,6 +8,9 @@ max-line-length: 120
 pep8:
   disable:
     - N815
+    - E203
+    - E266
+    - B950
   
 pyflakes:
   disable:
@@ -17,6 +20,12 @@ pylint:
   disable:
     - no-else-break
     - no-else-continue
+  options:
+    max-locals: 15
+
+mccabe:
+  options:
+    max-complexity: 18
 
 # [flake8]
 # extend-ignore = E203, E266, B950

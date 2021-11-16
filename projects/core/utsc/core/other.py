@@ -214,7 +214,7 @@ def model_to_yaml(model: "BaseModel"):
     return doc
 
 
-def bump_version(): # noqa
+def bump_version():
     """
     bump a project's version number.
     bumps the __version__ var in the project's __init__.py
