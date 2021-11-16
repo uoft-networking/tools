@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "utsc.switchconfig"
-version = "0.1.2"
+version = "0.1.3"
 description = "A tool to easily provision switches on the bench"
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"
