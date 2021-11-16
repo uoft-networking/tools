@@ -1,6 +1,6 @@
 [run]
-source = at_utils
-omit = at_utils/_vendor/*
+source = src/utsc
+omit = src/utsc/core/_vendor/*
 
 [report]
 show_missing = True
