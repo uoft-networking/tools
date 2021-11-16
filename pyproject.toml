@@ -14,7 +14,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-# "utsc.core" = {version = "*", optional = true}
+"utsc.core" = {version = "*", optional = true}
 loguru = {version = "*"}
 typer = {version = "*"}
 
