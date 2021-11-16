@@ -41,10 +41,10 @@ class Config:
     def templates(self) -> 'TemplatesModule':
         orig_sys_path = sys.path.copy()
         if (local := Path("templates")).exists():
-            logger.info(f"Loading templates from current directory: {Path().resolve()}")
+            logger.debug(f"Loading templates from current directory: {Path().resolve()}")
             path = local
         elif self.data.templates_dir.exists():
-            logger.info(f"Loading templates from site template directory: {self.data.templates_dir}")
+            logger.debug(f"Loading templates from site template directory: {self.data.templates_dir}")
             path = self.data.templates_dir
         else:
             raise FileNotFoundError('No templates directory found. ')
