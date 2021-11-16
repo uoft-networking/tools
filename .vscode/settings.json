@@ -1,0 +1,8 @@
+{
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    "python.linting.flake8Enabled": false,
+    "python.linting.mypyEnabled": false,
+    "python.linting.enabled": true,
+    "python.linting.prospectorEnabled": true,
+    "python.linting.prospectorPath": ".venv/bin/prospector"
+}

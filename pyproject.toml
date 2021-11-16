@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "utsc"
+version = "0.0.2"
+description = "Root package for the utsc namespace of python packages. This package only provides the `utsc` command line tool as a namespaced wrapper around all the other `utsc.*` packages"
+authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+license = "MIT"
+packages = [
+  { include = "utsc/__main__.py", from = "src" }
+]
+
+
+[tool.poetry.scripts]
+"utsc" = "utsc.__main__:cli"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+# "utsc.core" = {version = "*", optional = true}
+loguru = {version = "*"}
+typer = {version = "*"}
+
+[tool.poetry.dev-dependencies]
+"utsc.core" = {path = "projects/core", extras = ["all"], develop = true}
+pytest = "*"
+mypy = "*"
+flake8 = "*"
+poethepoet = "*"
+flake8-bugbear = "*"
+pytest-cov = "*"
+prospector = ">=1.5"
+typer-cli = "*"
+mkdocs = "*"
+mkdocstrings = "*"
+mkdocs-material = "*"
+black = {version = "^21.9b0", allow-prereleases = true}
+pytest-mock = ">=3.6"
+
+
+[tool.poe.tasks]
+cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
+publish.cmd = "git push origin main --tags"
+check.shell = """\
+    black .
+    mypy .
+    prospector .
+    pytest .
+    """
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

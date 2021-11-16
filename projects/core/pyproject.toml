@@ -1,0 +1,55 @@
+[tool.poetry]
+name = "utsc.core"
+version = "0.5.2"
+description = "an opinionated set of utilities designed to be easily included in any number of projects"
+readme = "README.md"
+authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+license = "MIT"
+packages = [
+  { include = "utsc/core" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+loguru = {version = "*"}
+typer = {version = "*"}
+rich = {version = "*"}
+pydantic = {version = ">=1.8", optional = true}
+jinja2 = {version = ">=3.0", optional = true}
+sentry-sdk = {version = ">=1.4", optional = true}
+semver = {version = "*", optional = true}
+pytest = {version = ">=6.0", optional = true}
+prompt-toolkit = {version = ">=3.0.0", optional = true}
+
+[tool.poetry.extras]
+all = ["pydantic", "jinja2", "sentry-sdk", "semver", "pytest", "prompt-toolkit"]
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+mypy = "*"
+flake8 = "*"
+poethepoet = "*"
+flake8-bugbear = "*"
+pytest-cov = "*"
+prospector = "*"
+mock = "^4.0.3"
+black = {version = "^21.9b0", allow-prereleases = true}
+pytest-mock = "^3.6.1"
+
+[tool.poe.tasks]
+cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
+bump-version.script = "at_utils.dev_utils:bump_version"
+vendor.shell = "vendy"
+sudo-install.shell = """\
+    rm -f dist/*
+	poetry build
+	sudo /usr/local/bin/pip3 install dist/*.whl
+    """
+publish.shell = """\
+    git push --follow-tags
+    poetry build
+    poetry publish"""
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

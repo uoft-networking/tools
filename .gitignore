@@ -1,0 +1,7 @@
+__pycache__
+dist/
+*.dist-info.coverage
+.*_cache/
+cov.xml
+.coverage
+deleteme.py

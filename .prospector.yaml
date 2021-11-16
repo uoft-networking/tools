@@ -1,0 +1,25 @@
+strictness: medium
+test-warnings: true
+
+autodetect: false
+
+max-line-length: 120
+
+pep8:
+  disable:
+    - N815
+  
+pyflakes:
+  disable:
+    - F401
+
+pylint:
+  disable:
+    - no-else-break
+    - no-else-continue
+
+# [flake8]
+# extend-ignore = E203, E266, B950
+# max-line-length = 88
+# max-complexity = 18
+# select = B,C,E,F,W,T4,B9
