@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 import logging
 from pathlib import Path
+import os
 
 from . import MockFolders
 
@@ -12,6 +13,16 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
     from _pytest.logging import LogCaptureFixture
     from _pytest.fixtures import FixtureRequest
+
+if os.getenv("VSCODE_DEBUGGER"):
+    # set up hooks for VSCode debugger to break on exceptions
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_exception_interact(call):
+        raise call.excinfo.value
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_internalerror(excinfo):
+        raise excinfo.value
 
 @pytest.fixture
 def caplog(caplog: "LogCaptureFixture"):
