@@ -1,27 +1,32 @@
 [tool.poetry]
-name = "utsc"
-version = "0.0.2"
-description = "Root package for the utsc namespace of python packages. This package only provides the `utsc` command line tool as a namespaced wrapper around all the other `utsc.*` packages"
+name = "utsc.switchconfig"
+version = "0.1.2"
+description = "A tool to easily provision switches on the bench"
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"
 packages = [
-  { include = "utsc/__main__.py", from = "src" }
+  { include = "utsc/switchconfig" }
 ]
 
 
 [tool.poetry.scripts]
-"utsc" = "utsc.__main__:cli"
+"utsc.switchconfig" = "utsc.switchconfig.__main__:cli"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-"utsc.core" = {version = "*", optional = true}
-# "utsc.switchconfig" = {version = "*", optional = true}
-loguru = {version = "*"}
-typer = {version = "*"}
+"utsc.core" = ">=0.5.0"
+Jinja2 = "^3.0.1"
+pydantic = "*"
+arrow = "^1.1.1"
+prompt-toolkit = "^3.0.19"
+paramiko = "^2.7.2"
+pexpect = "^4.8.0"
+rich = "^10.7.0"
+hier-config = "^2.1.0"
+ipdb = "^0.13.9"
 
 [tool.poetry.dev-dependencies]
-"utsc.core" = {path = "projects/core", extras = ["all"], develop = true}
-"utsc.switchconfig" = {path = "projects/switchconfig", develop = true}
+"utsc.core" = {path = "../core", develop = true}
 pytest = "*"
 mypy = "*"
 flake8 = "*"
@@ -33,12 +38,14 @@ typer-cli = "*"
 mkdocs = "*"
 mkdocstrings = "*"
 mkdocs-material = "*"
+types-paramiko = "^0.1.9"
 black = {version = "^21.9b0", allow-prereleases = true}
 pytest-mock = ">=3.6"
 
 
 [tool.poe.tasks]
 cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
+bump-version.script = "si_utils.dev_utils:bump_version"
 publish.cmd = "git push origin main --tags"
 check.shell = """\
     black .
