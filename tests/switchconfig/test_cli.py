@@ -1,10 +1,10 @@
 # pylint: disable=unused-argument
 from typing import TYPE_CHECKING
-from at.switchconfig.__main__ import template_name_completion, console_name_completion
-from at.utils import txt
+from utsc.switchconfig.__main__ import template_name_completion, console_name_completion
+from utsc.core import txt
 
 if TYPE_CHECKING:
-    from at.utils.fixtures import MockFolders
+    from .. import MockFolders
     from _pytest.logging import LogCaptureFixture
 
 

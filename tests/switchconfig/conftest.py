@@ -26,7 +26,7 @@ def mock_config(mocker: "MockerFixture", mock_folders: "MockUtilFolders"):
     from . import templates # noqa
 
     mocker.patch.object(config, "util", util)
-    mocker.patch("at.switchconfig.Config.templates", templates)
+    mocker.patch("utsc.switchconfig.Config.templates", templates)
     config.mock_folders = folders # type: ignore
 
     yield folders

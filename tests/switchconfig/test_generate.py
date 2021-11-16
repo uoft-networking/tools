@@ -2,8 +2,8 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from at.switchconfig.generate import render_template, model_questionnaire
-from at.utils import txt, StrEnum
+from utsc.switchconfig.generate import render_template, model_questionnaire
+from utsc.core import txt
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch

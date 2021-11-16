@@ -14,8 +14,8 @@ from ipaddress import IPv4Network, IPv4Address
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
 
-from at.utils import StrEnum
-from at.switchconfig.generate import model_questionnaire, validate_data_from_comment_block_schema, Choice
+from utsc.core import StrEnum
+from utsc.switchconfig.generate import model_questionnaire, validate_data_from_comment_block_schema, Choice
 from pydantic import BaseModel, Field, validator, root_validator
 
 PATH = Path(__file__).parent
