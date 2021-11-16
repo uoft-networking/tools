@@ -948,7 +948,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
 name = "utsc.core"
-version = "0.5.1"
+version = "0.5.2"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 category = "dev"
 optional = false
