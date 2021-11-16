@@ -4,4 +4,3 @@ dist/
 .*_cache/
 cov.xml
 .coverage
-deleteme.py
