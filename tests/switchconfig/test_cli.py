@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from utsc.switchconfig.__main__ import template_name_completion, console_name_completion
 from utsc.core import txt
 
-if TYPE_CHECKING:
+if TYPE_CHECKING: 
     from .. import MockFolders
     from _pytest.logging import LogCaptureFixture
 
@@ -12,7 +12,8 @@ def test_template_name_completion(mock_config):
 
     res = template_name_completion("")
     assert res == [
-        "test.j2",
+        "comment-block-schema-test.j2",
+        "data-model-test.j2",
         "subdirectory/template.j2",
         "subdirectory/other_template.j2",
     ]
