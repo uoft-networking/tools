@@ -1,11 +1,15 @@
 from functools import cached_property
 import sys
+from importlib.metadata import version
 
 from utsc.core import Util, shell
 
+from loguru import logger
 from pydantic import BaseModel
 
-__version__ = '0.1.2'
+__version__ = version(__package__)
+
+logger.disable(__name__)
 
 APP_NAME = 'scripts'
 

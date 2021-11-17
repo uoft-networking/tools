@@ -2,6 +2,7 @@ from functools import cached_property
 from pathlib import Path
 import sys
 from typing import TYPE_CHECKING
+from importlib.metadata import version
 
 from utsc.core import Util
 
@@ -12,7 +13,9 @@ if TYPE_CHECKING:
     from tests.switchconfig import templates
     TemplatesModule = templates
 
-__version__ = '0.1.2'
+__version__ = version(__package__)
+
+logger.disable(__name__)
 
 APP_NAME = 'switchconfig'
 
