@@ -1,0 +1,57 @@
+[tool.poetry]
+name = "utsc.scripts"
+version = "0.1.0"
+description = "a collection of scripts and one-off tools"
+authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+license = "MIT"
+packages = [
+  { include = "utsc/scripts", from = "src" }
+]
+
+
+[tool.poetry.scripts]
+"utsc.scripts" = "utsc.scripts.__main__:cli"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+"utsc.core" = ">=0.5.4"
+pydantic = "*"
+prompt-toolkit = "^3.0.19"
+rich = "^10.7.0"
+BlueCatAPIClient = "^0.0.1"
+
+[tool.poetry.dev-dependencies]
+"utsc.core" = {path = "../core", develop = true}
+pytest = "*"
+mypy = "*"
+flake8 = "*"
+poethepoet = "*"
+flake8-bugbear = "*"
+pytest-cov = "*"
+prospector = ">=1.5"
+typer-cli = "*"
+mkdocs = "*"
+mkdocstrings = "*"
+mkdocs-material = "*"
+black = {version = "^21.9b0", allow-prereleases = true}
+pytest-mock = ">=3.6"
+
+
+[tool.poe.tasks]
+cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
+publish.cmd = "git push origin main --tags"
+sudo-install.shell = """\
+    rm -f dist/*
+    poetry build
+    sudo /usr/local/bin/pip3 install dist/*.whl
+    """
+check.shell = """\
+    black .
+    mypy .
+    prospector .
+    pytest .
+    """
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
