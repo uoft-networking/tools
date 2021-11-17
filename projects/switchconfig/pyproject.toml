@@ -5,7 +5,7 @@ description = "A tool to easily provision switches on the bench"
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"
 packages = [
-  { include = "utsc/switchconfig" }
+  { include = "utsc/switchconfig", from = "src" }
 ]
 
 

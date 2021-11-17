@@ -6,7 +6,7 @@ readme = "README.md"
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"
 packages = [
-  { include = "utsc/core" }
+  { include = "utsc/core", from = "src" }
 ]
 
 [tool.poetry.dependencies]
