@@ -102,16 +102,18 @@ def add_comments_to_yaml_doc(doc: str, model: "BaseModel", indent=0):
 
 class Prompt:
     def __init__(self, util: "Util"):
-        from prompt_toolkit import prompt  # noqa
+        from prompt_toolkit import prompt, PromptSession  # noqa
         from prompt_toolkit.history import FileHistory  # noqa
         from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # noqa
         from prompt_toolkit.formatted_text import HTML  # noqa
         from prompt_toolkit.completion import WordCompleter  # noqa
         from prompt_toolkit.validation import Validator, ValidationError  # noqa
         from prompt_toolkit.key_binding import KeyBindings  # noqa
+        from prompt_toolkit.output.defaults import create_output  # noqa
 
         self.util = util
         self.prompt = prompt
+        self.PromptSession = PromptSession
         self.FileHistory = FileHistory
         self.AutoSuggestFromHistory = AutoSuggestFromHistory
         self.HTML = HTML
@@ -119,6 +121,7 @@ class Prompt:
         self.Validator = Validator
         self.ValidationError = ValidationError
         self.KeyBindings = KeyBindings
+        self.output = create_output(stdout=sys.stderr)
 
     def string(
         self,
@@ -132,7 +135,6 @@ class Prompt:
         history = self.FileHistory(str(self.util.history_cache / quote(var)))
         opts: dict[str, Any] = dict(
             message=message,
-            history=history,
             auto_suggest=self.AutoSuggestFromHistory(),
             mouse_support=True,
             bottom_toolbar="",
@@ -143,7 +145,7 @@ class Prompt:
 
             opts["bottom_toolbar"] = self.HTML(f"<b>{description}</b>")
         opts.update(kwargs)
-        return self.prompt(**opts)
+        return self.PromptSession(history=history, output=self.output).prompt(**opts)
 
     def select(
         self,
