@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "utsc.core"
-version = "0.5.4"
+version = "0.5.5"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
