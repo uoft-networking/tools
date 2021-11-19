@@ -65,7 +65,7 @@ def txt(s: str) -> str:
 def chomptxt(s: str) -> str:
     """
     dedents a triple-quoted indented string, and replaces all single newlines with spaces.
-    replaces as double newlines (\n\n) with single newlines
+    replaces all double newlines (\\n\\n) with single newlines
     Converts this:
     txt('''
         hello
@@ -75,7 +75,7 @@ def chomptxt(s: str) -> str:
         line
         ''')
     into this:
-    "hello world\nhere's another line"
+    "hello world\\nhere's another line"
     """
     res = dedent(s)
     res = res.replace("\n\n", "[PRESERVEDNEWLINE]")
