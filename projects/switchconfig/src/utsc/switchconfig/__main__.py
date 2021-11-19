@@ -1,3 +1,5 @@
+# pylint: disable=unused-argument, import-outside-toplevel
+import os
 import sys
 import traceback
 from typing import Optional
@@ -16,6 +18,15 @@ app = typer.Typer(name="switchdeploy")
 
 def version_callback(value: bool):
     if value:
+        from . import __version__
+        from sys import version_info as v, platform, executable
+
+        print(
+            f"Switchdeploy v{__version__} \nPython {v.major}.{v.minor} ({executable}) on {platform}"
+        )
+        raise typer.Exit()
+
+
 def init_config_callback(value: bool):
     if value:
         from . import ConfigModel
@@ -49,6 +60,12 @@ def init_config_callback(value: bool):
 def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
+    version: Optional[bool] = typer.Option(
+        None,
+        "--version",
+        callback=version_callback,
+        help="Show version information and exit",
+    ),
     init_config: Optional[bool] = typer.Option(
         None,
         "--init-config",
@@ -59,7 +76,7 @@ def callback(
     """
     UTSC NetMgmt Switch Deploy tool
     """
-        
+
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
@@ -83,7 +100,7 @@ def template_name_completion(partial: str):
             yield path
 
     return list(template_names())
-    
+
 
 @app.command()
 def generate(
@@ -136,19 +153,18 @@ def cli():
     except Exception as e:
         # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
         if config.data.debug:
-            import ipdb # noqa
+            import ipdb
+
             ipdb.set_trace()
         logger.error(e)
         logger.debug(traceback.format_exc())
 
 
 if __name__ == "__main__":
-    import os, sys  # noqa
 
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
 
-        res = render_template("2960CX.cisco.j2")
-        res
+        init_config_callback(True)
         sys.exit()
     cli()
