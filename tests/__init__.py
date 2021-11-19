@@ -1,9 +1,6 @@
-from typing import TYPE_CHECKING, Tuple
 import logging
 from pathlib import Path
-
-if TYPE_CHECKING:
-    from utsc.core import Util
+from utsc.core import Util
 
 
 class PropogateHandler(logging.Handler):
@@ -22,32 +19,32 @@ class MockFolders:
 
     def __init__(self, tmp_path: Path, app_name: str) -> None:
         self.root = tmp_path
-        self.site_config = MockFolders.ConfDir(tmp_path / "etc/xdg/at-utils", app_name)
+        self.site_config = MockFolders.ConfDir(tmp_path / "etc/xdg/utsc-tools", app_name)
         # This would be:
-        # - /Library/Application Support/at-utils on MacOS,
-        # - /etc/xdg/at-utils on Linux,
-        # - C:\ProgramData\at-utils on Win 7+
+        # - /Library/Application Support/utsc-tools on MacOS,
+        # - /etc/xdg/utsc-tools on Linux,
+        # - C:\ProgramData\utsc-tools on Win 7+
 
         # an alternative site config path, used to test the *_SITE_CONFIG env var logic
         self.site_config_env = MockFolders.ConfDir(tmp_path / "etc/alternate", app_name)
 
         self.user_config = MockFolders.ConfDir(
-            tmp_path / "home/user/.config/at-utils", app_name
+            tmp_path / "home/user/.config/utsc-tools", app_name
         )
         # This would be:
-        # - ~/Library/Application Support/at-utils on MacOS,
-        # - ~/.config/at-utils on Linux,
-        # - C:\Users\<username>\AppData\Local\at-utils on Win 7+
+        # - ~/Library/Application Support/utsc-tools on MacOS,
+        # - ~/.config/utsc-tools on Linux,
+        # - C:\Users\<username>\AppData\Local\utsc-tools on Win 7+
 
         # an alternative user config path, used to test the *_USER_CONFIG env var logic
         self.user_config_env = MockFolders.ConfDir(
             tmp_path / "home/alternate", app_name
         )
 
-        self.site_cache = tmp_path / f"usr/local/share/at-utils/{app_name}"
-        self.user_cache = tmp_path / f"home/user/.local/share/at-utils/{app_name}"
-        self.site_cache_env = tmp_path / "usr/local/share/at-utils/alternate"
-        self.user_cache_env = tmp_path / "home/user/.local/share/at-utils/alternate"
+        self.site_cache = tmp_path / f"usr/local/share/utsc-tools/{app_name}"
+        self.user_cache = tmp_path / f"home/user/.local/share/utsc-tools/{app_name}"
+        self.site_cache_env = tmp_path / "usr/local/share/utsc-tools/alternate"
+        self.user_cache_env = tmp_path / "home/user/.local/share/utsc-tools/alternate"
 
         # create the folders
         self.site_config.dir.mkdir(parents=True)
@@ -58,4 +55,5 @@ class MockFolders:
         self.user_cache.mkdir(parents=True)
 
 
-MockUtilFolders = Tuple["Util", MockFolders]
+class MockedUtil(Util):
+    mock_folders: MockFolders

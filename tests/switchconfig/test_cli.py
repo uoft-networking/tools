@@ -4,41 +4,42 @@ from utsc.switchconfig.__main__ import template_name_completion, console_name_co
 from utsc.core import txt
 
 if TYPE_CHECKING:
-    from .. import MockFolders
+    from . import MockedConfig
     from _pytest.logging import LogCaptureFixture
 
 
 def test_template_name_completion(mock_config):
 
     res = template_name_completion("")
-    assert res == [
+    assert set(res) == set([
         "comment-block-schema-test.j2",
         "data-model-test.j2",
         "subdirectory/template.j2",
         "subdirectory/other_template.j2",
-    ]
+    ])
 
     res = template_name_completion("subdir")
-    assert res == [
+    assert set(res) == set([
         "subdirectory/template.j2",
         "subdirectory/other_template.j2",
-    ]
+    ])
 
     res = template_name_completion("subdirectory/tem")
-    assert res == [
+    assert set(res) == set([
         "subdirectory/template.j2",
-    ]
+    ])
 
 
-def test_console_name_completion(mock_config: "MockFolders"):
-    mock_config.site_config.toml_file.write_text(
+def test_console_name_completion(mock_config: 'MockedConfig'):
+    mock_config.util.mock_folders.site_config.toml_file.write_text(
         txt(
             """
+            [deploy]
             ssh_pass_cmd = ""
             terminal_pass_cmd = ""
             enable_pass_cmd = ""
 
-            [deploy_targets]
+            [deploy.targets]
             airconsole1 = "airconsole:4001"
             airconsole2 = "airconsole:4002"
             airconsole3 = "airconsole:4003"
@@ -53,7 +54,7 @@ def test_console_name_completion(mock_config: "MockFolders"):
     )
 
     res = console_name_completion("")
-    assert res == [
+    assert set(res) == set([
         "airconsole1",
         "airconsole2",
         "airconsole3",
@@ -63,7 +64,7 @@ def test_console_name_completion(mock_config: "MockFolders"):
         "airconsole7",
         "airconsole8",
         "newconsole",
-    ]
+    ])
 
     res = console_name_completion("newco")
     assert res == ["newconsole"]

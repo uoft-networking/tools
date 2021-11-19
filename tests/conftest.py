@@ -45,7 +45,7 @@ def caplog(caplog: "LogCaptureFixture"):
 
 
 @pytest.fixture()
-def mock_folders(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"):
+def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"):
     marker = request.node.get_closest_marker("app_name")
     app_name = marker.args[0] if marker else "example_app"
 
@@ -74,11 +74,15 @@ def mock_folders(tmp_path: Path, mocker: "MockerFixture", request: "FixtureReque
     util = utsc.core.Util(app_name)  # create the Util instance to be tested
 
     mocker.patch.object(util.config, "common_user_config_dir", folders.user_config.dir)
-    yield util, folders
+    
+    util.mock_folders = folders  # type: ignore
+
+    yield util
 
     # clean up the file permissions so that the tmp_path directory can be cleaned up
     for f in folders.root.rglob("*"):
         f.chmod(0o777)
 
     # clean up the Util instance
+    del util.mock_folders  # type: ignore
     util._clear_caches()  # noqa

@@ -7,8 +7,7 @@ from utsc.core import txt
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
-    from .conftest import MockedConfig
-    from .conftest import MockPTApp
+    from . import MockedConfig, MockPTApp
 
 template_dir = Path(__file__).parent.joinpath("templates")
 
