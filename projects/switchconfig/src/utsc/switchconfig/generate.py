@@ -9,6 +9,7 @@ from . import config
 from utsc.core import StrEnum
 from utsc.core.other import Prompt
 from pydantic import BaseModel
+from pydantic.types import DirectoryPath
 from loguru import logger  # noqa
 from jinja2 import Environment, StrictUndefined, FileSystemLoader
 from arrow import now
@@ -146,6 +147,11 @@ def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | N
     prompt user for inputs matching fields on that model, 
     and return an instance of that model 
     """
+    def _is_maybe_subclass(type_, class_):
+        try:
+            return issubclass(type_, class_)
+        except TypeError:
+            return False
 
     input_data = input_data or {}
     for name, field in model.__fields__.items():
@@ -155,15 +161,31 @@ def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | N
         desc = field.field_info.description
         default = field.default
         
+        if (field.required is False) and (prompt.bool_(f"include {name}?", desc) is False):
+            continue
         if (choices := discriminated_union_choices(field)):
             choice = prompt.select(name, list(choices.keys()), desc)
             input_data[name] = model_questionnaire(choices[choice], {'kind': choice})
             continue
-        elif issubclass(field.type_, StrEnum):
+        elif _is_maybe_subclass(field.type_, StrEnum):
             choices = list(field.type_.__members__.keys())
             input_data[name] = prompt.select(name, choices, desc)
             continue
-        # TODO: add handlers for fields of type list[str], Literal['string1','string2'], etc.
+        elif get_origin(field.type_) is Literal:
+            choices = list(get_args(field.type_))
+            input_data[name] = prompt.select(name, choices, desc)
+            continue
+        elif _is_maybe_subclass(field.type_, BaseModel):
+            input_data[name] = model_questionnaire(field.type_)
+            continue
+        elif _is_maybe_subclass(field.type_, Path):
+            only_directories = issubclass(field.type_, DirectoryPath)
+            input_data[name] = prompt.path(name, desc, only_directories=only_directories)
+            continue
+        if field.key_field:
+            # only dict[str,str] supported for now
+            input_data[name] = prompt.dict_(name, desc)
+        # TODO: add handlers for fields of type list[str] etc.
         else:
             # prompt for str, and let pydantic's validators sort it out
             validator = ValidatorWrapper(field, input_data)
@@ -194,10 +216,10 @@ def render_template(template_name: str, input_data: dict[str, Any] | None = None
     )
     # Add filter functions from the Filters class to the environment for use inside the templates
     if hasattr(templates, 'Filters'):
-    for funcname in dir(templates.Filters):
-        func = getattr(templates.Filters, funcname)
-        if callable(func) and not funcname.startswith("__"):
-            jinja.filters[funcname] = func
+        for funcname in dir(templates.Filters):
+            func = getattr(templates.Filters, funcname)
+            if callable(func) and not funcname.startswith("__"):
+                jinja.filters[funcname] = func
 
     # make all useable data available to the template
     jinja.globals.update(DEFAULT_GLOBALS)
