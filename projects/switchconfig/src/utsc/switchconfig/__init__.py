@@ -4,7 +4,8 @@ import sys
 from typing import TYPE_CHECKING
 from importlib.metadata import version
 
-from utsc.core import Util
+from pydantic.types import DirectoryPath
+
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -22,12 +23,18 @@ APP_NAME = 'switchconfig'
 def _default_templates_dir():
     return config.util.cache_dir / 'templates'
 
-class ConfigModel(BaseModel):
+class ConfigGenerateModel(BaseModel):
+    templates_dir: DirectoryPath = Field(default_factory=_default_templates_dir)
+
+class ConfigDeployModel(BaseModel):
     ssh_pass_cmd: str
     terminal_pass_cmd: str
     enable_pass_cmd: str
-    deploy_targets: dict[str, str]
-    templates_dir: Path = Field(default_factory=_default_templates_dir)
+    targets: dict[str, str]
+
+class ConfigModel(BaseModel):
+    generate: Optional[ConfigGenerateModel]
+    deploy: Optional[ConfigDeployModel]
     debug: bool = False
 
 class Config:
