@@ -125,9 +125,7 @@ def test_timeit():
 
 
 class TestUtil:
-    def test_config_files(
-        self, mock_util: "MockedUtil", caplog: "LogCaptureFixture"
-    ):
+    def test_config_files(self, mock_util: "MockedUtil", caplog: "LogCaptureFixture"):
         """
         the `config_files` property of the `Util` class should return a list of (path, state) pairs
         for all possible config files in the site-wide config dir and user config dir combined
@@ -135,32 +133,75 @@ class TestUtil:
 
         res = mock_util.config.files
         expected_output = [
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.ini", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.yaml", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.json", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.toml", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.ini", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.yaml", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.json", File.creatable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.toml", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.yaml", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.json", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.toml", File.creatable),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.ini",
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.ini",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.yaml",
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.yaml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.json",
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.json",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.toml",
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.toml",
                 File.creatable,
             ),
         ]
@@ -183,12 +224,16 @@ class TestUtil:
         should override default site and user config directories if present.
 
         """
-        
+
         mocker.patch.dict(
             "os.environ",
             {
-                "EXAMPLE_APP_SITE_CONFIG": str(mock_util.mock_folders.site_config_env.dir),
-                "EXAMPLE_APP_USER_CONFIG": str(mock_util.mock_folders.user_config_env.dir),
+                "EXAMPLE_APP_SITE_CONFIG": str(
+                    mock_util.mock_folders.site_config_env.dir
+                ),
+                "EXAMPLE_APP_USER_CONFIG": str(
+                    mock_util.mock_folders.user_config_env.dir
+                ),
             },
         )
 
@@ -198,38 +243,90 @@ class TestUtil:
             (mock_util.mock_folders.root / "etc/alternate/shared.yaml", File.creatable),
             (mock_util.mock_folders.root / "etc/alternate/shared.json", File.creatable),
             (mock_util.mock_folders.root / "etc/alternate/shared.toml", File.creatable),
-            (mock_util.mock_folders.root / "etc/alternate/example_app.ini", File.creatable),
-            (mock_util.mock_folders.root / "etc/alternate/example_app.yaml", File.creatable),
-            (mock_util.mock_folders.root / "etc/alternate/example_app.json", File.creatable),
-            (mock_util.mock_folders.root / "etc/alternate/example_app.toml", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.yaml", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.json", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.toml", File.creatable),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.ini",
+                mock_util.mock_folders.root / "etc/alternate/example_app.ini",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.yaml",
+                mock_util.mock_folders.root / "etc/alternate/example_app.yaml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.json",
+                mock_util.mock_folders.root / "etc/alternate/example_app.json",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.toml",
+                mock_util.mock_folders.root / "etc/alternate/example_app.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.toml",
                 File.creatable,
             ),
             (mock_util.mock_folders.root / "home/alternate/shared.ini", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/shared.yaml", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/shared.json", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/shared.toml", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/example_app.ini", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/example_app.yaml", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/example_app.json", File.creatable),
-            (mock_util.mock_folders.root / "home/alternate/example_app.toml", File.creatable),
+            (
+                mock_util.mock_folders.root / "home/alternate/shared.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/alternate/shared.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/alternate/shared.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/alternate/example_app.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/alternate/example_app.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/alternate/example_app.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/alternate/example_app.toml",
+                File.creatable,
+            ),
         ]
         for expected, actual in zip(expected_output, res):
             expected_path, expected_state = expected
@@ -247,7 +344,7 @@ class TestUtil:
         )
 
     def test_config_files_states(self, mock_util: "MockedUtil"):
-        
+
         # set up the file permissions
         mock_util.mock_folders.site_config.dir.chmod(0o444)
         mock_util.mock_folders.user_config.json_file.touch(0o444)
@@ -255,32 +352,75 @@ class TestUtil:
 
         res = mock_util.config.files
         expected_output = [
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.ini", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.yaml", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.json", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.toml", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.ini", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.yaml", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.json", File.unusable),
-            (mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.toml", File.unusable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.yaml", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.json", File.creatable),
-            (mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.toml", File.creatable),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.ini",
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.ini",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.yaml",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.json",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.toml",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.ini",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.yaml",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.json",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.toml",
+                File.unusable,
+            ),
+            (
+                mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.yaml",
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.yaml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.json",
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/shared.toml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.ini",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.yaml",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.json",
                 File.readable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/example_app.toml",
+                mock_util.mock_folders.root
+                / "home/user/.config/utsc-tools/example_app.toml",
                 File.writable,
             ),
         ]
@@ -397,7 +537,7 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):  # sourcery skip: extract-duplicate-method
-        
+
         # test config file missing
         with pytest.raises(UTSCCoreError):
             mock_util.config.get_key_or_fail("key1")
@@ -410,7 +550,9 @@ class TestUtil:
 
         # test the happy path
         mock_util._clear_caches()  # noqa
-        mock_util.mock_folders.user_config.json_file.write_text('{"key1": "val1", "key2": "val2"}')
+        mock_util.mock_folders.user_config.json_file.write_text(
+            '{"key1": "val1", "key2": "val2"}'
+        )
         result = mock_util.config.get_key_or_fail("key1")
         assert result == "val1"
 
@@ -426,7 +568,7 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        
+
         # if both user and site caches exist, prefer site cache
         assert mock_util.mock_folders.site_cache.exists()
         assert mock_util.mock_folders.user_cache.exists()
@@ -438,7 +580,7 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        
+
         # if site cache is unavailable, return user cache
         mock_util.mock_folders.site_cache.rmdir()
         mock_util.mock_folders.site_cache.parent.chmod(0o444)
@@ -451,10 +593,11 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        
+
         # if both user and site caches exist, prefer site cache
         mocker.patch.dict(
-            "os.environ", {"EXAMPLE_APP_SITE_CACHE": mock_util.mock_folders.site_cache_env.__str__()}
+            "os.environ",
+            {"EXAMPLE_APP_SITE_CACHE": mock_util.mock_folders.site_cache_env.__str__()},
         )
         assert mock_util.cache_dir == mock_util.mock_folders.site_cache_env
 
@@ -464,12 +607,13 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        
+
         # if site cache is unavailable, return user cache
         mock_util.mock_folders.site_cache.rmdir()
         mock_util.mock_folders.site_cache.parent.chmod(0o444)
         mocker.patch.dict(
-            "os.environ", {"EXAMPLE_APP_SITE_CACHE": mock_util.mock_folders.user_cache_env.__str__()}
+            "os.environ",
+            {"EXAMPLE_APP_SITE_CACHE": mock_util.mock_folders.user_cache_env.__str__()},
         )
         assert mock_util.cache_dir == mock_util.mock_folders.user_cache_env
 

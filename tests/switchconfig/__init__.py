@@ -16,8 +16,6 @@ if TYPE_CHECKING:
         util: MockedUtil
 
 
-
-
 # region interactive fixture
 class CapturedOutput(DummyOutput):
     "Emulate an stdout object."

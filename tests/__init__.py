@@ -19,7 +19,9 @@ class MockFolders:
 
     def __init__(self, tmp_path: Path, app_name: str) -> None:
         self.root = tmp_path
-        self.site_config = MockFolders.ConfDir(tmp_path / "etc/xdg/utsc-tools", app_name)
+        self.site_config = MockFolders.ConfDir(
+            tmp_path / "etc/xdg/utsc-tools", app_name
+        )
         # This would be:
         # - /Library/Application Support/utsc-tools on MacOS,
         # - /etc/xdg/utsc-tools on Linux,

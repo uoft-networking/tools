@@ -74,7 +74,7 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
     util = utsc.core.Util(app_name)  # create the Util instance to be tested
 
     mocker.patch.object(util.config, "common_user_config_dir", folders.user_config.dir)
-    
+
     util.mock_folders = folders  # type: ignore
 
     yield util

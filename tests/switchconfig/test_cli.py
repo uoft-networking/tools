@@ -11,26 +11,32 @@ if TYPE_CHECKING:
 def test_template_name_completion(mock_config):
 
     res = template_name_completion("")
-    assert set(res) == set([
-        "comment-block-schema-test.j2",
-        "data-model-test.j2",
-        "subdirectory/template.j2",
-        "subdirectory/other_template.j2",
-    ])
+    assert set(res) == set(
+        [
+            "comment-block-schema-test.j2",
+            "data-model-test.j2",
+            "subdirectory/template.j2",
+            "subdirectory/other_template.j2",
+        ]
+    )
 
     res = template_name_completion("subdir")
-    assert set(res) == set([
-        "subdirectory/template.j2",
-        "subdirectory/other_template.j2",
-    ])
+    assert set(res) == set(
+        [
+            "subdirectory/template.j2",
+            "subdirectory/other_template.j2",
+        ]
+    )
 
     res = template_name_completion("subdirectory/tem")
-    assert set(res) == set([
-        "subdirectory/template.j2",
-    ])
+    assert set(res) == set(
+        [
+            "subdirectory/template.j2",
+        ]
+    )
 
 
-def test_console_name_completion(mock_config: 'MockedConfig'):
+def test_console_name_completion(mock_config: "MockedConfig"):
     mock_config.util.mock_folders.site_config.toml_file.write_text(
         txt(
             """
@@ -54,17 +60,19 @@ def test_console_name_completion(mock_config: 'MockedConfig'):
     )
 
     res = console_name_completion("")
-    assert set(res) == set([
-        "airconsole1",
-        "airconsole2",
-        "airconsole3",
-        "airconsole4",
-        "airconsole5",
-        "airconsole6",
-        "airconsole7",
-        "airconsole8",
-        "newconsole",
-    ])
+    assert set(res) == set(
+        [
+            "airconsole1",
+            "airconsole2",
+            "airconsole3",
+            "airconsole4",
+            "airconsole5",
+            "airconsole6",
+            "airconsole7",
+            "airconsole8",
+            "newconsole",
+        ]
+    )
 
     res = console_name_completion("newco")
     assert res == ["newconsole"]

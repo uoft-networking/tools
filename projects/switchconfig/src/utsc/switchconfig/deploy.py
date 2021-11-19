@@ -22,7 +22,9 @@ def deploy_to_console(target: str):
     host, _, port = target.partition(":")
     if (deploy_cfg := config.data.deploy) is None:
         # TODO: improve this exception type / message
-        raise Exception('`deploy` subsection of configuration is undefined, but required')
+        raise Exception(
+            "`deploy` subsection of configuration is undefined, but required"
+        )
     ssh_pass = shell(deploy_cfg.ssh_pass_cmd)
     terminal_pass = shell(deploy_cfg.terminal_pass_cmd)
     enable_pass = shell(deploy_cfg.enable_pass_cmd)
