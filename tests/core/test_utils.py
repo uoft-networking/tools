@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 from typing import TYPE_CHECKING
 
-from utsc.core import AtUtilsError, __version__, File, Timeit, txt, lst, chomptxt
+from utsc.core import UTSCCoreError, __version__, File, Timeit, txt, lst, chomptxt
 
 import pytest
 
@@ -295,7 +295,7 @@ class TestUtil:
     def test_get_config_file(self, mock_folders: "MockUtilFolders"):
         util, folders = mock_folders
         # Test the failure condition
-        with pytest.raises(AtUtilsError) as exc_info:
+        with pytest.raises(UTSCCoreError) as exc_info:
             util.config.get_file_or_fail()
         assert "Could not find a valid config file" in exc_info.value.args[0]
 
@@ -409,7 +409,7 @@ class TestUtil:
         util, folders = mock_folders
 
         # test config file missing
-        with pytest.raises(AtUtilsError):
+        with pytest.raises(UTSCCoreError):
             util.config.get_key_or_fail("key1")
 
         # test key missing from config file
