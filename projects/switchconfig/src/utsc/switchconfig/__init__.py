@@ -51,7 +51,7 @@ class Config:
     def templates(self) -> 'TemplatesModule':
         orig_sys_path = sys.path.copy()
         if (local := Path("templates")).exists():
-            logger.debug(f"Loading templates from current directory: {Path().resolve()}")
+            logger.debug(f"Loading templates from current directory: {Path('templates').resolve()}")
             path = local
         elif self.data.generate and (templates_dir := self.data.generate.templates_dir).exists():
             logger.debug(f"Loading templates from site template directory: {templates_dir}")
@@ -59,9 +59,13 @@ class Config:
         elif (default_templates_dir := _default_templates_dir()).exists():
             path = default_templates_dir
         else:
-            raise FileNotFoundError('No templates directory found. ')
+            raise FileNotFoundError(chomptxt(
+                f'''
+                No templates directory found in the current 
+                working directory or at {default_templates_dir.parent}.
+                '''))
         
-        sys.path.insert(0, str(path))
+        sys.path.insert(0, str(path.parent))
         try:
             import templates # type: ignore # noqa
         except ImportError as e:
@@ -69,7 +73,7 @@ class Config:
             module_name = 'templates'
             from importlib.util import spec_from_file_location, module_from_spec # noqa
             if module_name not in sys.modules:
-                spec = spec_from_file_location(module_name, str(path / 'templates.py'))
+                spec = spec_from_file_location(module_name, str(path / '__init__.py'))
                 if spec is None:
                     raise FileNotFoundError('No templates directory found. ') from e
                 module = module_from_spec(spec)
