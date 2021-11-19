@@ -148,6 +148,37 @@ def parse_config_file(file: Path):
         )
     return obj
 
+def write_config_file(file: Path, obj: dict[str, Any]):
+    file.parent.mkdir(parents=True, exist_ok=True)
+    if file.suffix == ".ini":
+        import configparser  # noqa
+
+        cfp = configparser.ConfigParser()
+        for k, v in obj.items():
+            # this implementation is fragile and likely to break, but it's good enough for now
+            cfp[k] = v 
+            cfp.write(file.open('w'))
+    elif file.suffix == ".json":
+        import json  # noqa
+
+        file.write_text(json.dumps(obj, indent=4))
+    elif file.suffix == ".toml":
+        from . import toml
+
+        file.write_text(toml.dumps(obj))
+    elif file.suffix == ".yaml":
+        from . import yaml
+
+        file.write_text(yaml.dumps(obj))
+    else:
+        raise UTSCCoreError(
+            chomptxt(
+                f"""Failed to parse {file}. 
+                Config file type {file.suffix} not supported.
+                Only .ini, .json, .toml, and .yaml files are supported"""
+            )
+        )
+
 class Timeit:
     """
     Wall-clock timer for performance profiling. makes it really easy to see
