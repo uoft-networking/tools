@@ -139,7 +139,7 @@ def parse_config_file(file: Path):
 
         obj = dict(yaml.loads(content))
     else:
-        raise AtUtilsError(
+        raise UTSCCoreError(
             chomptxt(
                 f"""Failed to parse {file}. 
                 Config file type {file.suffix} not supported.
@@ -193,7 +193,7 @@ class Timeit:
         return self
 
 
-class AtUtilsError(Exception):
+class UTSCCoreError(Exception):
     pass
 
 
@@ -295,7 +295,7 @@ class Util:
 
         def __init__(self, parent: "Util") -> None:
             self.parent = parent
-            self.common_user_config_dir = Path.home() / ".config/at-utils"
+            self.common_user_config_dir = Path.home() / ".config/utsc-tools"
 
         def dirs_generator(self):
             """generate a list of folders in which to look for config files
@@ -306,10 +306,10 @@ class Util:
             Note:
                 config files from high-priority directory should be selected first.
                 priority list (low to high):
-                - default os-specific site config folder (/etc/xdg/at-utils/ on Linux, /Library/Application Support/at-utils/ on OSX, etc)
+                - default os-specific site config folder (/etc/xdg/utsc-tools/ on Linux, /Library/Application Support/utsc-tools/ on OSX, etc)
                 - directory pointed to by {self.app_name}_SITE_CONFIG environment variable if set
-                - cross-platform user config folder (~/.config/at-utils/ on all operating systems)
-                - default os-specific user config folder (~/.config/at_utils on Linux, ~/Library/Application Support/at-utils/ on OSX, etc)
+                - cross-platform user config folder (~/.config/utsc-tools/ on all operating systems)
+                - default os-specific user config folder (~/.config/at_utils on Linux, ~/Library/Application Support/utsc-tools/ on OSX, etc)
                 - directory pointed to by {self.app_name}_USER_CONFIG environment variable if set
 
             """
@@ -342,30 +342,30 @@ class Util:
                 and user = 'alex'
                 this method would yield the following:
 
-                - (PosixPath('/Library/Preferences/at-utils/shared.ini'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/shared.yaml'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/shared.json'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/shared.toml'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/example.ini'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/example.yaml'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/example.json'), File.unusable)
-                - (PosixPath('/Library/Preferences/at-utils/example.toml'), File.unusable)
-                - (PosixPath('/Users/alex/.config/at-utils/shared.ini'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/shared.yaml'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/shared.json'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/shared.toml'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/example.ini'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/example.yaml'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/example.json'), File.creatable)
-                - (PosixPath('/Users/alex/.config/at-utils/example.toml'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/shared.ini'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/shared.yaml'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/shared.json'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/shared.toml'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/example.ini'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/example.yaml'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/example.json'), File.creatable)
-                - (PosixPath('/Users/alex/Library/Preferences/at-utils/example.toml'), File.creatable)
+                - (PosixPath('/Library/Preferences/utsc-tools/shared.ini'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/shared.yaml'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/shared.json'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/shared.toml'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/example.ini'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/example.yaml'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/example.json'), File.unusable)
+                - (PosixPath('/Library/Preferences/utsc-tools/example.toml'), File.unusable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/shared.ini'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/shared.yaml'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/shared.json'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/shared.toml'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/example.ini'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/example.yaml'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/example.json'), File.creatable)
+                - (PosixPath('/Users/alex/.config/utsc-tools/example.toml'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/shared.ini'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/shared.yaml'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/shared.json'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/shared.toml'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/example.ini'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/example.yaml'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/example.json'), File.creatable)
+                - (PosixPath('/Users/alex/Library/Preferences/utsc-tools/example.toml'), File.creatable)
 
             """
 
@@ -397,11 +397,15 @@ class Util:
         def writable_files(self):
             return [file for file, state in self.files if state == File.writable]
 
+        @property
+        def writable_or_creatable_files(self):
+            return [file for file, state in self.files if state in [File.writable, File.creatable]]
+
         def get_file_or_fail(self):
             """
             Find a valid config file.
-            File can be stored in a site-wide directory (ex. /etc/xdg/at-utils)
-            or a user-local directory (ex. ~/.config/at-utils)
+            File can be stored in a site-wide directory (ex. /etc/xdg/utsc-tools)
+            or a user-local directory (ex. ~/.config/utsc-tools)
             File must have basename matching either the `app_name` attribute of this class, or the word "shared"
             File must have one of the following extensions: ['.ini', '.yaml', '.json', '.toml']
             If an environment variable like {self.app_name}_CONFIG_FILE exists and points
@@ -427,7 +431,7 @@ class Util:
                 )
                 return last_file
             except IndexError:
-                raise AtUtilsError(
+                raise UTSCCoreError(
                     chomptxt(
                         f"""
                     Could not find a valid config file for application {self.parent.app_name} 
@@ -444,7 +448,7 @@ class Util:
                 logger.trace(f"Adding {custom_config_file} to list of config files to load")
                 files.append(Path(custom_config_file))
             if not files:
-                raise AtUtilsError(
+                raise UTSCCoreError(
                     chomptxt(
                         f"""
                     Could not find a valid config file for application {self.parent.app_name} 
@@ -565,7 +569,7 @@ class Util:
                 else:
                     syslog_address = ("localhost", 514)  # Syslog daemon
                 handler = logging.handlers.SysLogHandler(address=syslog_address)
-                handler.ident = "at-utils: "
+                handler.ident = "utsc-tools: "
 
             options = dict(level=level, format=self.syslog_format)
             options.update(kwargs)
@@ -636,14 +640,14 @@ class Util:
 
     def __init__(self, app_name: str) -> None:
         self.app_name = app_name
-        self.dirs: PlatformDirs = PlatformDirs("at-utils")
+        self.dirs: PlatformDirs = PlatformDirs("utsc-tools")
         self.console: Console = Console(stderr=True)
         self.logging: 'Util.Logging' = self.Logging(self)
         self.config: 'Util.Config' = self.Config(self)
         # there should be one config path which is common to all OS platforms,
         # so that users who sync configs betweeen multiple computers can sync
         # those configs to the same directory across machines and have it *just work*
-        # By convention, this path is ~/.config/at-utils
+        # By convention, this path is ~/.config/utsc-tools
 
     # region util
     def get_env_var(self, property):
@@ -712,7 +716,7 @@ class Util:
             user_cache.mkdir(parents=True, exist_ok=True)
             return user_cache
         except OSError:
-            raise AtUtilsError(
+            raise UTSCCoreError(
                 chomptxt(
                     f"""
                 Neither site-wide cache directory ({site_cache}) nor 
@@ -733,6 +737,6 @@ from .nested_data import * # noqa
 
 if __name__ == "__main__":
     from .other import * # noqa
-    u = Util(app_name="at-utils")
-    v = Prompt(u).list(var="test", description="hello description")
+    u = Util(app_name="utsc-tools")
+    v = Prompt(u).list_(var="test", description="hello description")
     print(v)
