@@ -18,7 +18,18 @@
             "name": "Python: Module: __main__",
             "type": "python",
             "request": "launch",
-            "module": "at.scripts.__main__",
+            "module": "utsc.__main__",
+            "console": "integratedTerminal",
+            "env": {
+                "PYDEBUG": "1"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Module: utsc.switchconfig.__main__",
+            "type": "python",
+            "request": "launch",
+            "module": "utsc.switchconfig.__main__",
             "console": "integratedTerminal",
             "env": {
                 "PYDEBUG": "1"
