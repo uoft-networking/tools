@@ -106,7 +106,7 @@ class Prompt:
         from prompt_toolkit.history import FileHistory  # noqa
         from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # noqa
         from prompt_toolkit.formatted_text import HTML  # noqa
-        from prompt_toolkit.completion import WordCompleter  # noqa
+        from prompt_toolkit.completion import WordCompleter, PathCompleter  # noqa
         from prompt_toolkit.validation import Validator, ValidationError  # noqa
         from prompt_toolkit.key_binding import KeyBindings  # noqa
         from prompt_toolkit.output.defaults import create_output  # noqa
@@ -118,6 +118,7 @@ class Prompt:
         self.AutoSuggestFromHistory = AutoSuggestFromHistory
         self.HTML = HTML
         self.WordCompleter = WordCompleter
+        self.PathCompleter = PathCompleter
         self.Validator = Validator
         self.ValidationError = ValidationError
         self.KeyBindings = KeyBindings
@@ -170,7 +171,26 @@ class Prompt:
         opts.update(kwargs)
         return self.string(var, description, default_value, **opts)
 
-    def bool(
+    def path( # pylint: disable=too-many-arguments
+        self,
+        var: str,
+        description: str | None,
+        default_value: str | None = None,
+        only_directories = False,
+        completer_opts: dict | None = None,
+        **kwargs,
+    ) -> Path:
+        completer_opts = completer_opts or {}
+        opts = dict(
+            completer=self.PathCompleter(
+                only_directories=only_directories, **completer_opts
+            ),
+            complete_while_typing=True,
+        )
+        opts.update(kwargs)
+        return Path(self.string(var, description, default_value, **opts))
+
+    def bool_(
         self,
         var: str,
         description: str | None,
