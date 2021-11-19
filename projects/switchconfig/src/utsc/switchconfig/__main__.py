@@ -1,4 +1,4 @@
-# pylint: disable=unused-argument, import-outside-toplevel
+# pylint: disable=unused-argument, import-outside-toplevel, unspecified-encoding
 import os
 import sys
 import traceback
@@ -6,17 +6,20 @@ from typing import Optional
 from pathlib import Path
 import json
 
+from utsc.core.other import Prompt
+
 from . import config
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
 
-from utsc.core import UTSCCoreError, parse_config_file, write_config_file
+from utsc.core import UTSCCoreError, chomptxt, parse_config_file, write_config_file
 
 import typer
 from loguru import logger
 
 app = typer.Typer(name="switchdeploy")
 
+prompt = Prompt(config.util)
 
 def version_callback(value: bool):
     if value:
@@ -29,11 +32,10 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
-def initialize_config():
+def initialize_config(value: bool):
+    if not value:
+        return
     from . import ConfigModel
-    from utsc.core.other import Prompt
-
-    prompt = Prompt(config.util)
     config_files = [str(x) for x in config.util.config.writable_or_creatable_files]
     try:
         existing_config = config.util.config.merged_data
@@ -57,6 +59,32 @@ def initialize_config():
     raise typer.Exit()
 
 
+def initialize_templates(value: bool):
+    if not value:
+        return
+    templates = Path("templates")
+    logger.debug(f"preparing to initialize {templates.resolve()}")
+    if templates.exists() and templates.joinpath("__init__.py").exists():
+        overwrite = prompt.bool_(
+            "overwrite?",
+            "Do you wish to overwrite / reset the existing __init__.py file in `./templates`?",
+        )
+        if not overwrite:
+            logger.error("Cancelled")
+            raise typer.Exit()
+    templates.mkdir(exist_ok=True)
+    logger.debug("created templates directory")
+    example_templates = Path(__file__).parent.joinpath('example_template_dir')
+    logger.debug(f"copying content from {example_templates.resolve()}")
+    for file in example_templates.iterdir():
+        templates.joinpath(file.name).write_text(file.read_text())
+    config.util.console.print(chomptxt("""
+        [green]Done![/green] you may now start adding templates to the 
+        `templates` folder and adding logic to the `__init__.py` file within
+        """))
+    raise typer.Exit()
+
+
 @app.callback(
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
 )
@@ -72,7 +100,14 @@ def callback(
     init_config: Optional[bool] = typer.Option(
         None,
         "--init-config",
+        callback=initialize_config,
         help="Create the configuration file for this application and fill it out interactively",
+    ),
+    init_templates: Optional[bool] = typer.Option(
+        None,
+        "--init-templates",
+        callback=initialize_templates,
+        help="Create a template project/folder to put templates into",
     ),
 ):
     """
@@ -88,8 +123,6 @@ def callback(
     config.util.logging.enable()
     config.util.logging.add_stderr_rich_sink(log_level)
     config.util.logging.add_syslog_sink()
-    if init_config:
-        initialize_config()
 
 
 def template_name_completion(partial: str):
@@ -177,6 +210,6 @@ if __name__ == "__main__":
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
 
-        initialize_config()
+        initialize_templates(True)
         sys.exit()
     cli()

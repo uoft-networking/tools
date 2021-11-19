@@ -209,10 +209,13 @@ def model_questionnaire(
 
 def render_template(template_name: str, input_data: dict[str, Any] | None = None):
     input_data = input_data or {}
+    logger.trace(f'input data: {input_data}')
     templates = config.templates
     if hasattr(templates, "process_template_data"):
+        logger.trace("Found `process_template_data` function in templates module, passing input data through that")
         template_data = templates.process_template_data(template_name, input_data)
     else:
+        logger.trace("No `process_template_data` function defined in templates module")
         template_data = input_data
     if hasattr(templates, "PATH"):
         template_dir = templates.PATH
@@ -229,6 +232,7 @@ def render_template(template_name: str, input_data: dict[str, Any] | None = None
     )
     # Add filter functions from the Filters class to the environment for use inside the templates
     if hasattr(templates, "Filters"):
+        logger.trace("Loading filters from `Filters` class in templates module")
         for funcname in dir(templates.Filters):
             func = getattr(templates.Filters, funcname)
             if callable(func) and not funcname.startswith("__"):
@@ -237,8 +241,10 @@ def render_template(template_name: str, input_data: dict[str, Any] | None = None
     # make all useable data available to the template
     jinja.globals.update(DEFAULT_GLOBALS)
     if hasattr(templates, "GLOBALS"):
+        logger.trace("loading `GLOBALS` from templates module")
         jinja.globals.update(templates.GLOBALS)
     jinja.globals.update(template_data)
+    logger.trace(f"jinja environment globals: {jinja.globals}")
 
     # Fetch and render the template
     rendered = jinja.get_template(template_name).render()

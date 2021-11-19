@@ -1,0 +1,25 @@
+hostname {{ switch.hostname }}
+
+vtp domain {{ switch.building_code }}
+
+{% if switch.is_podium %}
+#podium vlan config
+{% endif %}
+
+ip default-gateway {{ switch.network | gateway_ip }}
+
+site-id "{{ switch.hostname }}"
+
+{% if switch.is_podium %}
+#podium interface config
+{% else %}
+#access interface config
+{% endif %}
+
+switchport trunk allowed vlan 100,305,{%if switch.is_podium %}310,{%endif%}900
+
+ip address {{ switch.ip }} {{ switch.network | network_mask }}
+
+
+snmp-server location {{ switch.building_code }}{{ switch.room_code }}
+

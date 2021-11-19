@@ -1,0 +1,43 @@
+{#
+# variable_name | description | default_value
+usage | One of: (deskswitch/podium/access), Example: deskswitch | 
+building_code | (aka alpha code) Example: SW | 
+room_code | Example: 254A | 
+tr_code | (Optional, only applicable if usage is access) Telecom Room code, Example: 2r | 
+user_id | (Optional, only applicable if usage is deskswitch) UTSCID of the person this switch is for, Example: someuser | 
+network | network address of the mgmt network in CIDR notation, Example: 10.14.1.0/24 | 
+ip | IP address of this switch on the mgmt network, Example: 10.14.1.33 |
+#}
+{% macro hostname_partial() -%}
+{# in a hostname like 'av-ac254a', 'a1-ic2r', or 'a1-someuser', this is the part that comes after the dash #}
+    {% if usage == 'deskswitch' %}{{ user_id }}{% endif %}
+    {% if usage == 'podium' %}{{ building_code | lower }}{{ room_code | lower }}{% endif %}
+    {% if usage == 'access' %}{{ building_code | lower }}{{ tr_code }}{% endif %}
+{%- endmacro %}
+{% macro hostname() %}{{ usage | remap("usages") }}-{{ hostname_partial() }}{% endmacro %}
+
+hostname {{ hostname() }}
+
+vtp domain {{ building_code }}
+
+{% if usage == 'podium' %}
+#podium vlan config
+{% endif %}
+
+ip default-gateway {{ network | gateway_ip }}
+
+site-id "{{ hostname() }}"
+
+{% if usage == 'podium' %}
+#podium interface config
+{% else %}
+#access interface config
+{% endif %}
+
+switchport trunk allowed vlan 100,305,{%if usage=='podium'%}310,{%endif%}900
+
+ip address {{ ip }} {{ network | network_mask }}
+
+
+snmp-server location {{ building_code }}{{ room_code }}
+
