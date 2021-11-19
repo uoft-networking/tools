@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any, Literal, Optional, Union
 
 from utsc.core import StrEnum
-from utsc.switchconfig.generate import model_questionnaire, validate_data_from_comment_block_schema, Choice
+from utsc.switchconfig.generate import (
+    model_questionnaire,
+    validate_data_from_comment_block_schema,
+    Choice,
+)
 from pydantic import BaseModel, Field, validator, root_validator
 
 PATH = Path(__file__).parent
@@ -67,17 +71,18 @@ GLOBALS = {}
 
 
 class DeskSwitch(Choice):
-    kind: Literal['deskswitch']
+    kind: Literal["deskswitch"]
     user_id: str = Field(
         description="user_id of the person this deskswitch is for, Example: someuser"
     )
 
+
 class Podium(Choice):
-    kind: Literal['podium']
+    kind: Literal["podium"]
 
 
 class Access(Choice):
-    kind: Literal['access']
+    kind: Literal["access"]
     tr_code: str = Field(description="Telecom Room code, Example: 2r")
 
 
@@ -94,14 +99,14 @@ class ExampleModel(BaseModel):
 
     @property
     def hostname(self):
-        prefix = Filters.remap(self.usage.kind, 'usages')
+        prefix = Filters.remap(self.usage.kind, "usages")
         res = f"{prefix}-"
         if isinstance(self.usage, DeskSwitch):
             res += self.usage.user_id
         elif isinstance(self.usage, Podium):
-            res += self.building_code+self.room_code
+            res += self.building_code + self.room_code
         elif isinstance(self.usage, Access):
-            res += self.building_code+self.usage.tr_code
+            res += self.building_code + self.usage.tr_code
         return res.lower()
 
     @property
@@ -111,12 +116,15 @@ class ExampleModel(BaseModel):
     @property
     def is_deskswitch(self):
         return isinstance(self.usage, DeskSwitch)
-    
+
     @property
     def is_access(self):
         return isinstance(self.usage, Access)
 
-def process_template_data(template_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+
+def process_template_data(
+    template_name: str, input_data: dict[str, Any]
+) -> dict[str, Any]:
     template_file = PATH / template_name
     if template_name == "comment-block-schema-test.j2":
         return validate_data_from_comment_block_schema(template_file, input_data)

@@ -18,15 +18,19 @@ from .version import __version__, __version_info__
 def _set_platform_dir_class() -> Type[PlatformDirsABC]:
     if os.getenv("ANDROID_DATA") == "/data" and os.getenv("ANDROID_ROOT") == "/system":
         from .android import Android  # type: ignore # noqa: F401
+
         result = Android
     elif sys.platform == "win32":
         from .windows import Windows  # type: ignore # noqa: F401
+
         result = Windows
     elif sys.platform == "darwin":
         from .macos import MacOS  # type: ignore # noqa: F401
+
         result = MacOS
     else:
         from .unix import Unix  # type: ignore # noqa: F401
+
         result = Unix
     result: Type[PlatformDirsABC]
     return result

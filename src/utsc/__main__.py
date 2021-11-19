@@ -13,10 +13,13 @@ app = typer.Typer(name=__package__)
 
 util = Util(__package__)
 
+
 def version_callback(value: bool):
     if value:
         v = version_info
-        print(f"utsc wrapper command v{version(__package__)}\nPython {v.major}.{v.minor} ({executable}) on {platform}")
+        print(
+            f"utsc wrapper command v{version(__package__)}\nPython {v.major}.{v.minor} ({executable}) on {platform}"
+        )
         raise typer.Exit()
 
 
@@ -27,14 +30,16 @@ def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
     version: Optional[bool] = typer.Option(  # pylint: disable=unused-argument
-        None, "--version", callback=version_callback,
-        help="Show version information and exit"
-    )
+        None,
+        "--version",
+        callback=version_callback,
+        help="Show version information and exit",
+    ),
 ):
     """
     Command-line namespace for all utsc command-line utilities. makes each utsc.* command available as a subcommand.
     """
-        
+
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
@@ -62,7 +67,6 @@ if __name__ == "__main__":
 
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
-        
-        
+
         sys.exit()
     cli()

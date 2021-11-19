@@ -1678,6 +1678,7 @@ class YAMLObject(with_metaclass(YAMLObjectMetaclass)):  # type: ignore
 # at.utils additions #
 ######################
 
+
 def loads(doc: str) -> dict:
     y = YAML(typ="safe")
     y.indent(mapping=2, sequence=4, offset=2)

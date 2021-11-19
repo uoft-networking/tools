@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
     from .. import MockFolders
 
-def test_bluecat(mock_folders: 'MockFolders', monkeypatch: 'MonkeyPatch') -> None:
+
+def test_bluecat(mock_folders: "MockFolders", monkeypatch: "MonkeyPatch") -> None:
     """Test bluecat."""
     bluecat.collect()

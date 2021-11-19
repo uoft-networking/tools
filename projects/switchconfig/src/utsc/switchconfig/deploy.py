@@ -1,4 +1,3 @@
-
 import time
 
 from . import config
@@ -6,7 +5,6 @@ from . import config
 from utsc.core import shell
 import pexpect
 from rich.progress import Progress, SpinnerColumn, TaskID
-
 
 
 def login(p: pexpect.spawn, ssh_pass: str, status: Progress, task_id: TaskID):

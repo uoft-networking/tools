@@ -113,7 +113,6 @@ def shell(cmd: str) -> str:
     return run(cmd, shell=True, capture_output=True, check=True).stdout.decode().strip()
 
 
-
 def parse_config_file(file: Path):
     obj: Dict[str, Any]
     content = file.read_text()
@@ -148,6 +147,7 @@ def parse_config_file(file: Path):
         )
     return obj
 
+
 def write_config_file(file: Path, obj: dict[str, Any]):
     file.parent.mkdir(parents=True, exist_ok=True)
     if file.suffix == ".ini":
@@ -156,8 +156,8 @@ def write_config_file(file: Path, obj: dict[str, Any]):
         cfp = configparser.ConfigParser()
         for k, v in obj.items():
             # this implementation is fragile and likely to break, but it's good enough for now
-            cfp[k] = v 
-            cfp.write(file.open('w'))
+            cfp[k] = v
+            cfp.write(file.open("w"))
     elif file.suffix == ".json":
         import json  # noqa
 
@@ -178,6 +178,7 @@ def write_config_file(file: Path, obj: dict[str, Any]):
                 Only .ini, .json, .toml, and .yaml files are supported"""
             )
         )
+
 
 class Timeit:
     """
@@ -247,6 +248,8 @@ class InterceptHandler(logging.Handler):
         logger.opt(depth=depth, exception=record.exc_info).log(
             level, record.getMessage()
         )
+
+
 # endregion !SECTION util functions & classes
 
 # region types
@@ -256,7 +259,7 @@ class StrEnum(str, Enum):
 
     def __str__(self) -> str:
         return self.name
-    
+
     @property
     def str(self):
         return self.__str__()
@@ -305,22 +308,26 @@ class File(StrEnum):
         else:
             return cls.unusable
 
+
 # endregion types
+
 
 class Util:
     """
     Core class for CLI apps to simplify access to config files, cache directories, and logging configuration
     """
+
     app_name: str
     dirs: PlatformDirs
     console: Console
-    logging: 'Util.Logging'
-    config: 'Util.Config'
+    logging: "Util.Logging"
+    config: "Util.Config"
 
     class Config:
         """
         Container class for all functionality related to retrieving and working with configuration data
         """
+
         parent: "Util"
         common_user_config_dir: Path
 
@@ -357,7 +364,9 @@ class Util:
             if custom_user_config := self.parent.get_env_var("user_config"):
                 logger.trace(f"Using {custom_user_config} as user config directory")
                 yield Path(custom_user_config)
-            elif (user_config := self.parent.dirs.user_config_path) != self.common_user_config_dir:
+            elif (
+                user_config := self.parent.dirs.user_config_path
+            ) != self.common_user_config_dir:
                 # yield user_config, but only if it's different than cross-platform user config
                 # if you're on linux, these two will be the same. no sense yielding the same path twice
                 yield user_config
@@ -413,7 +422,7 @@ class Util:
         @cached_property
         def files(self):
             res = list(self.files_generator())
-            logger.bind(list=res).trace('Caching list of config files: ')
+            logger.bind(list=res).trace("Caching list of config files: ")
             return res
 
         @property
@@ -430,7 +439,11 @@ class Util:
 
         @property
         def writable_or_creatable_files(self):
-            return [file for file, state in self.files if state in [File.writable, File.creatable]]
+            return [
+                file
+                for file, state in self.files
+                if state in [File.writable, File.creatable]
+            ]
 
         def get_file_or_fail(self):
             """
@@ -476,7 +489,9 @@ class Util:
             data = {}
             files = self.readable_files
             if custom_config_file := self.parent.get_env_var("config_file"):
-                logger.trace(f"Adding {custom_config_file} to list of config files to load")
+                logger.trace(
+                    f"Adding {custom_config_file} to list of config files to load"
+                )
                 files.append(Path(custom_config_file))
             if not files:
                 raise UTSCCoreError(
@@ -518,7 +533,7 @@ class Util:
             logger.debug(f"Found key {key} in config object")
             return val
 
-        def get_data_from_model(self, model: Type['BaseModel']):
+        def get_data_from_model(self, model: Type["BaseModel"]):
             "using the fields of a pydantic data model as keys, fetch values for those keys from config files and environment variables and return a dict"
             conf = self.merged_data
             for field, field_info in model.__fields__.items():
@@ -539,7 +554,8 @@ class Util:
         """
         Core class for CLI apps to simplify access to config files, cache directories, and logging configuration
         """
-        parent: 'Util'
+
+        parent: "Util"
         stderr_format: str
         syslog_format: str
 
@@ -673,8 +689,8 @@ class Util:
         self.app_name = app_name
         self.dirs: PlatformDirs = PlatformDirs("utsc-tools")
         self.console: Console = Console(stderr=True)
-        self.logging: 'Util.Logging' = self.Logging(self)
-        self.config: 'Util.Config' = self.Config(self)
+        self.logging: "Util.Logging" = self.Logging(self)
+        self.config: "Util.Config" = self.Config(self)
         # there should be one config path which is common to all OS platforms,
         # so that users who sync configs betweeen multiple computers can sync
         # those configs to the same directory across machines and have it *just work*
@@ -707,7 +723,6 @@ class Util:
 
     # endregion util
     # region config
-    
 
     # endregion config
     # region cache
@@ -762,12 +777,15 @@ class Util:
         history = self.cache_dir.joinpath("history")
         history.mkdir(parents=True, exist_ok=True)
         return history
+
     # endregion cache
 
-from .nested_data import * # noqa
+
+from .nested_data import *  # noqa
 
 if __name__ == "__main__":
-    from .other import * # noqa
+    from .other import *  # noqa
+
     u = Util(app_name="utsc-tools")
     v = Prompt(u).list_(var="test", description="hello description")
     print(v)

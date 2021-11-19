@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from pytest_mock import MockerFixture
     from prompt_toolkit.application.current import AppSession
     from prompt_toolkit.input.base import PipeInput
+
     class MockPTApp(AppSession):
         input: PipeInput
 
@@ -23,19 +24,21 @@ class MockedConfig(Config):
 @pytest.fixture()
 def mock_config(mocker: "MockerFixture", mock_folders: "MockUtilFolders"):
     util, folders = mock_folders
-    from . import templates # noqa
+    from . import templates  # noqa
 
     mocker.patch.object(config, "util", util)
     mocker.patch("utsc.switchconfig.Config.templates", templates)
-    config.mock_folders = folders # type: ignore
+    config.mock_folders = folders  # type: ignore
 
     yield folders
 
-    del config.mock_folders # type: ignore
+    del config.mock_folders  # type: ignore
+
 
 # region interactive fixture
 class CapturedOutput(DummyOutput):
     "Emulate an stdout object."
+
     def encoding(self):
         return "utf-8"
 
@@ -68,6 +71,7 @@ def mock_pt_app():
     finally:
         pipe_input.close()
 
+
 # endregion
 
 # region failed interactive fixture experiment
@@ -79,8 +83,8 @@ def mock_pt_app():
 # @pytest.fixture()
 # def interactive(request, capfd: 'CaptureFixture'):
 #     if request.config.getoption("--interactive") or os.getenv("VSCODE_DEBUGGER"):
-#         # here we reach directly into capsys._capture, 
-#         # because the capsys.disabled context manager 
+#         # here we reach directly into capsys._capture,
+#         # because the capsys.disabled context manager
 #         # does not suspend capturing of stdin.
 #         capmanager: 'CaptureManager' = capfd.request.config.pluginmanager.getplugin("capturemanager")
 #         capmanager.suspend(in_=True)

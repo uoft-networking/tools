@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 prompt = Prompt(config.util)
 
+
 class SwitchConfigException(Exception):
     pass
 
@@ -78,7 +79,9 @@ def get_answers_interactively(questions: list[tuple[str, str, str]]) -> dict:
     return ans
 
 
-def validate_data_from_comment_block_schema(template_file: Path, input_data: dict[str, Any]):
+def validate_data_from_comment_block_schema(
+    template_file: Path, input_data: dict[str, Any]
+):
     template = template_file.read_text()
     try:
         questions = extract_questions(template)
@@ -104,21 +107,21 @@ class Choice(BaseModel):
 
 def discriminated_union_choices(field: "ModelField") -> dict[str, Type] | None:
     """
-    Return the set of kind literals for a discriminated union, 
+    Return the set of kind literals for a discriminated union,
     or None if this field is not a discriminated union.
 
-    Given a pydantic model field whose annotation is something like `Union[Choice1,Choice2,Choice3], 
+    Given a pydantic model field whose annotation is something like `Union[Choice1,Choice2,Choice3],
     and given that each of these sub types of the union is an instance of Choice,
     and given that each of these Choice subclasses has a `kind` attribute annotated with a Literal string,
     return the set of strings of all choices"""
-    if get_origin(field.type_) is not Union: # type: ignore
+    if get_origin(field.type_) is not Union:  # type: ignore
         return None
     assert isinstance(field.sub_fields, list)
     choices = {}
     for sub in field.sub_fields:
         if not issubclass(sub.type_, Choice):
             return None
-        kind_type = sub.type_.__fields__['kind'].type_
+        kind_type = sub.type_.__fields__["kind"].type_
         assert get_origin(kind_type) is Literal
         choice = get_args(kind_type)[0]
         choices[choice] = sub.type_
@@ -127,26 +130,32 @@ def discriminated_union_choices(field: "ModelField") -> dict[str, Type] | None:
 
 ValidatorBase = prompt.Validator
 
+
 class ValidatorWrapper(ValidatorBase):
-    def __init__(self, field: 'ModelField', values: dict[str, Any]) -> None:
+    def __init__(self, field: "ModelField", values: dict[str, Any]) -> None:
         self.field = field
         self.values = values
 
     def validate(self, document) -> None:
         _, errors = self.field.validate(document.text, self.values, loc=self.field.name)
         if errors:
-            from pydantic.error_wrappers import ErrorWrapper # noqa
+            from pydantic.error_wrappers import ErrorWrapper  # noqa
+
             if isinstance(errors, ErrorWrapper):
                 raise prompt.ValidationError(message=str(errors.exc))
             # else:
             raise prompt.ValidationError(message=str(errors))
 
-def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | None = None):
+
+def model_questionnaire(
+    model: Type["BaseModel"], input_data: dict[str, Any] | None = None
+):
     """
-    Given a pydantic data model, 
-    prompt user for inputs matching fields on that model, 
-    and return an instance of that model 
+    Given a pydantic data model,
+    prompt user for inputs matching fields on that model,
+    and return an instance of that model
     """
+
     def _is_maybe_subclass(type_, class_):
         try:
             return issubclass(type_, class_)
@@ -160,12 +169,14 @@ def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | N
 
         desc = field.field_info.description
         default = field.default
-        
-        if (field.required is False) and (prompt.bool_(f"include {name}?", desc) is False):
+
+        if (field.required is False) and (
+            prompt.bool_(f"include {name}?", desc) is False
+        ):
             continue
-        if (choices := discriminated_union_choices(field)):
+        if choices := discriminated_union_choices(field):
             choice = prompt.select(name, list(choices.keys()), desc)
-            input_data[name] = model_questionnaire(choices[choice], {'kind': choice})
+            input_data[name] = model_questionnaire(choices[choice], {"kind": choice})
             continue
         elif _is_maybe_subclass(field.type_, StrEnum):
             choices = list(field.type_.__members__.keys())
@@ -180,7 +191,9 @@ def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | N
             continue
         elif _is_maybe_subclass(field.type_, Path):
             only_directories = issubclass(field.type_, DirectoryPath)
-            input_data[name] = prompt.path(name, desc, only_directories=only_directories)
+            input_data[name] = prompt.path(
+                name, desc, only_directories=only_directories
+            )
             continue
         if field.key_field:
             # only dict[str,str] supported for now
@@ -197,11 +210,11 @@ def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | N
 def render_template(template_name: str, input_data: dict[str, Any] | None = None):
     input_data = input_data or {}
     templates = config.templates
-    if hasattr(templates, 'process_template_data'):
+    if hasattr(templates, "process_template_data"):
         template_data = templates.process_template_data(template_name, input_data)
     else:
         template_data = input_data
-    if hasattr(templates, 'PATH'):
+    if hasattr(templates, "PATH"):
         template_dir = templates.PATH
     else:
         template_dir = Path(templates.__file__).parent
@@ -215,7 +228,7 @@ def render_template(template_name: str, input_data: dict[str, Any] | None = None
         line_comment_prefix="##",
     )
     # Add filter functions from the Filters class to the environment for use inside the templates
-    if hasattr(templates, 'Filters'):
+    if hasattr(templates, "Filters"):
         for funcname in dir(templates.Filters):
             func = getattr(templates.Filters, funcname)
             if callable(func) and not funcname.startswith("__"):
@@ -223,7 +236,7 @@ def render_template(template_name: str, input_data: dict[str, Any] | None = None
 
     # make all useable data available to the template
     jinja.globals.update(DEFAULT_GLOBALS)
-    if hasattr(templates, 'GLOBALS'):
+    if hasattr(templates, "GLOBALS"):
         jinja.globals.update(templates.GLOBALS)
     jinja.globals.update(template_data)
 

@@ -491,5 +491,3 @@ class TestUtil:
     def test_logging(self):
         # FIXME: This test is unimplemented.
         raise NotImplementedError
-
-

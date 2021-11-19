@@ -11,7 +11,8 @@ __version__ = version(__package__)
 
 logger.disable(__name__)
 
-APP_NAME = 'scripts'
+APP_NAME = "scripts"
+
 
 class Bluecat(BaseModel):
     url: str
@@ -22,8 +23,10 @@ class Bluecat(BaseModel):
     def password(self):
         return shell(self.password_cmd)
 
+
 class ConfigModel(BaseModel):
     bluecat: Bluecat
+
 
 class Config:
     def __init__(self) -> None:

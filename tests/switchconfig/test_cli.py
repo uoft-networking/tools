@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from utsc.switchconfig.__main__ import template_name_completion, console_name_completion
 from utsc.core import txt
 
-if TYPE_CHECKING: 
+if TYPE_CHECKING:
     from .. import MockFolders
     from _pytest.logging import LogCaptureFixture
 

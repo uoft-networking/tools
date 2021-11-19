@@ -24,6 +24,7 @@ if os.getenv("VSCODE_DEBUGGER"):
     def pytest_internalerror(excinfo):
         raise excinfo.value
 
+
 @pytest.fixture
 def caplog(caplog: "LogCaptureFixture"):
     """
@@ -42,11 +43,12 @@ def caplog(caplog: "LogCaptureFixture"):
     caplog.set_level(0)  # Tell logging to handle all log levels
     yield caplog
 
+
 @pytest.fixture()
 def mock_folders(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"):
     marker = request.node.get_closest_marker("app_name")
     app_name = marker.args[0] if marker else "example_app"
-    
+
     import utsc.core  # noqa
 
     # To test the config file testing logic of the Util class, we need to mock out all the system calls

@@ -4,6 +4,7 @@ from typing import Any, Iterable
 UnStructuredData = Iterable[tuple[str, Any]]
 RegexOrString = str | re.Pattern[str]
 
+
 class NestedData:
     """
     A collection of functions for working with nested data structures

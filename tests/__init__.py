@@ -11,8 +11,6 @@ class PropogateHandler(logging.Handler):
         logging.getLogger(record.name).handle(record)
 
 
-
-
 class MockFolders:
     class ConfDir:
         def __init__(self, path: Path, app_name: str) -> None:

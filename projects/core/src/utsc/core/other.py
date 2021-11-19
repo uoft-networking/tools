@@ -171,12 +171,12 @@ class Prompt:
         opts.update(kwargs)
         return self.string(var, description, default_value, **opts)
 
-    def path( # pylint: disable=too-many-arguments
+    def path(  # pylint: disable=too-many-arguments
         self,
         var: str,
         description: str | None,
         default_value: str | None = None,
-        only_directories = False,
+        only_directories=False,
         completer_opts: dict | None = None,
         **kwargs,
     ) -> Path:
@@ -237,8 +237,10 @@ class Prompt:
         class DictValidator(Validator):
             def validate(self, document) -> None:
                 for line in document.text.splitlines():
-                    if ': ' not in line:
-                        raise ValidationError(message="Each line must have a key and a value, separated by ': '")
+                    if ": " not in line:
+                        raise ValidationError(
+                            message="Each line must have a key and a value, separated by ': '"
+                        )
 
         @kb.add("c-d")
         def _(event):
@@ -250,13 +252,13 @@ class Prompt:
                 "Press <b>Enter</b> to add a new line, <b>Alt-Enter</b> or <b>Ctrl+D</b> to finish and submit mapping."
             ),
             key_bindings=kb,
-            validator=DictValidator()
+            validator=DictValidator(),
         )
         opts.update(kwargs)
         val = self.string(var, description, **opts)
         lines = val.strip().split("\n")
-        pairs = [line.partition(': ') for line in lines]
-        return {k:v for k, _, v in pairs}
+        pairs = [line.partition(": ") for line in lines]
+        return {k: v for k, _, v in pairs}
 
 
 def model_to_yaml(model: "BaseModel"):

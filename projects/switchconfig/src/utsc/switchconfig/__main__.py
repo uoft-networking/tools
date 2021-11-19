@@ -48,7 +48,9 @@ def init_config_callback(value: bool):
         config_data = model_questionnaire(ConfigModel, existing_config)
         try:
             # TODO: clean this up
-            config_data['generate']['templates_dir'] = str(config_data['generate']['templates_dir'])
+            config_data["generate"]["templates_dir"] = str(
+                config_data["generate"]["templates_dir"]
+            )
         except (KeyError, ValueError):
             pass
         write_config_file(Path(target_config_file), config_data)
