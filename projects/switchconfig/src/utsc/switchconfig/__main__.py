@@ -73,7 +73,10 @@ def generate(
 
 
 def console_name_completion(partial: str):
-    targets = list(config.data.deploy_targets.keys())
+    if config.data.deploy:
+        targets = list(config.data.deploy.targets.keys())
+    else:
+        targets = []
     res = []
     if partial:
         for target in targets:
@@ -91,7 +94,10 @@ def to_console(
     )
 ):
     "Connect to a serial console server, authenticate, and pass in configuration from STDIN"
-    target = config.data.deploy_targets[console_name]
+    if config.data.deploy and console_name in config.data.deploy.targets:
+        target = config.data.deploy.targets[console_name]
+    else:
+        target = console_name
     deploy_to_console(target)
 
 
