@@ -175,27 +175,39 @@ def model_questionnaire(model: Type["BaseModel"], input_data: dict[str, Any] | N
 def render_template(template_name: str, input_data: dict[str, Any] | None = None):
     input_data = input_data or {}
     templates = config.templates
-    template_data = templates.get_template_data(template_name, input_data)
+    if hasattr(templates, 'process_template_data'):
+        template_data = templates.process_template_data(template_name, input_data)
+    else:
+        template_data = input_data
+    if hasattr(templates, 'PATH'):
+        template_dir = templates.PATH
+    else:
+        template_dir = Path(templates.__file__).parent
 
     jinja = Environment(
         trim_blocks=True,
         lstrip_blocks=True,
-        loader=FileSystemLoader(templates.PATH),
+        loader=FileSystemLoader(template_dir),
         undefined=StrictUndefined,
         line_statement_prefix="//",
         line_comment_prefix="##",
     )
     # Add filter functions from the Filters class to the environment for use inside the templates
+    if hasattr(templates, 'Filters'):
     for funcname in dir(templates.Filters):
         func = getattr(templates.Filters, funcname)
         if callable(func) and not funcname.startswith("__"):
             jinja.filters[funcname] = func
 
-    # make the answers dict available to the template
+    # make all useable data available to the template
     jinja.globals.update(DEFAULT_GLOBALS)
+    if hasattr(templates, 'GLOBALS'):
+        jinja.globals.update(templates.GLOBALS)
     jinja.globals.update(template_data)
 
     # Fetch and render the template
     rendered = jinja.get_template(template_name).render()
+
+    logger.success(f"template {template_name} has been successfully rendered")
 
     return rendered

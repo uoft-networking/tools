@@ -66,9 +66,6 @@ class Filters:
 GLOBALS = {}
 
 
-
-
-
 class DeskSwitch(Choice):
     kind: Literal['deskswitch']
     user_id: str = Field(
@@ -119,7 +116,7 @@ class ExampleModel(BaseModel):
     def is_access(self):
         return isinstance(self.usage, Access)
 
-def get_template_data(template_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
+def process_template_data(template_name: str, input_data: dict[str, Any]) -> dict[str, Any]:
     template_file = PATH / template_name
     if template_name == "comment-block-schema-test.j2":
         return validate_data_from_comment_block_schema(template_file, input_data)
