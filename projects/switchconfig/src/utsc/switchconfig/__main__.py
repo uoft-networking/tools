@@ -29,33 +29,32 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
-def init_config_callback(value: bool):
-    if value:
-        from . import ConfigModel
-        from utsc.core.other import Prompt
+def initialize_config():
+    from . import ConfigModel
+    from utsc.core.other import Prompt
 
-        prompt = Prompt(config.util)
-        config_files = [str(x) for x in config.util.config.writable_or_creatable_files]
-        try:
-            existing_config = config.util.config.merged_data
-        except UTSCCoreError:
-            existing_config = {}
-        target_config_file = prompt.select(
-            "target_config_file",
-            choices=config_files,
-            description="Please choose a config file to create. Hit the Tab key to view available choices",
+    prompt = Prompt(config.util)
+    config_files = [str(x) for x in config.util.config.writable_or_creatable_files]
+    try:
+        existing_config = config.util.config.merged_data
+    except UTSCCoreError:
+        existing_config = {}
+    target_config_file = prompt.select(
+        "target_config_file",
+        choices=config_files,
+        description="Please choose a config file to create. Hit the Tab key to view available choices",
+    )
+    config_data = model_questionnaire(ConfigModel, existing_config)
+    try:
+        # TODO: clean this up
+        config_data["generate"]["templates_dir"] = str(
+            config_data["generate"]["templates_dir"]
         )
-        config_data = model_questionnaire(ConfigModel, existing_config)
-        try:
-            # TODO: clean this up
-            config_data["generate"]["templates_dir"] = str(
-                config_data["generate"]["templates_dir"]
-            )
-        except (KeyError, ValueError):
-            pass
-        write_config_file(Path(target_config_file), config_data)
-        logger.success(f"Configuration data written to {target_config_file}")
-        raise typer.Exit()
+    except (KeyError, ValueError):
+        pass
+    write_config_file(Path(target_config_file), config_data)
+    logger.success(f"Configuration data written to {target_config_file}")
+    raise typer.Exit()
 
 
 @app.callback(
@@ -73,7 +72,6 @@ def callback(
     init_config: Optional[bool] = typer.Option(
         None,
         "--init-config",
-        callback=init_config_callback,
         help="Create the configuration file for this application and fill it out interactively",
     ),
 ):
@@ -90,6 +88,8 @@ def callback(
     config.util.logging.enable()
     config.util.logging.add_stderr_rich_sink(log_level)
     config.util.logging.add_syslog_sink()
+    if init_config:
+        initialize_config()
 
 
 def template_name_completion(partial: str):
@@ -177,6 +177,6 @@ if __name__ == "__main__":
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
 
-        init_config_callback(True)
+        initialize_config()
         sys.exit()
     cli()
