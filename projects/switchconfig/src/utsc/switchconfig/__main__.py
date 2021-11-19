@@ -3,8 +3,10 @@ import traceback
 from typing import Optional
 
 from . import config
-from .generate import render_template
+from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
+
+from utsc.core import UTSCCoreError, parse_config_file, write_config_file
 
 import typer
 from loguru import logger
@@ -14,9 +16,30 @@ app = typer.Typer(name="switchdeploy")
 
 def version_callback(value: bool):
     if value:
-        from . import __version__ # noqa
-        from sys import (version_info as v, platform, executable) # noqa
-        print(f"Switchdeploy v{__version__} \nPython {v.major}.{v.minor} ({executable}) on {platform}")
+def init_config_callback(value: bool):
+    if value:
+        from . import ConfigModel
+        from utsc.core.other import Prompt
+
+        prompt = Prompt(config.util)
+        config_files = [str(x) for x in config.util.config.writable_or_creatable_files]
+        try:
+            existing_config = config.util.config.merged_data
+        except UTSCCoreError:
+            existing_config = {}
+        target_config_file = prompt.select(
+            "target_config_file",
+            choices=config_files,
+            description="Please choose a config file to create. Hit the Tab key to view available choices",
+        )
+        config_data = model_questionnaire(ConfigModel, existing_config)
+        try:
+            # TODO: clean this up
+            config_data['generate']['templates_dir'] = str(config_data['generate']['templates_dir'])
+        except (KeyError, ValueError):
+            pass
+        write_config_file(Path(target_config_file), config_data)
+        logger.success(f"Configuration data written to {target_config_file}")
         raise typer.Exit()
 
 
@@ -26,10 +49,12 @@ def version_callback(value: bool):
 def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
-    version: Optional[bool] = typer.Option(  # pylint: disable=unused-argument
-        None, "--version", callback=version_callback,
-        help="Show version information and exit"
-    )
+    init_config: Optional[bool] = typer.Option(
+        None,
+        "--init-config",
+        callback=init_config_callback,
+        help="Create the configuration file for this application and fill it out interactively",
+    ),
 ):
     """
     UTSC NetMgmt Switch Deploy tool
