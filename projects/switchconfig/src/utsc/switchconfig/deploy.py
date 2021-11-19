@@ -20,10 +20,12 @@ def login(p: pexpect.spawn, ssh_pass: str, status: Progress, task_id: TaskID):
 
 def deploy_to_console(target: str):
     host, _, port = target.partition(":")
-
-    ssh_pass = shell(config.data.ssh_pass_cmd)
-    terminal_pass = shell(config.data.terminal_pass_cmd)
-    enable_pass = shell(config.data.enable_pass_cmd)
+    if (deploy_cfg := config.data.deploy) is None:
+        # TODO: improve this exception type / message
+        raise Exception('`deploy` subsection of configuration is undefined, but required')
+    ssh_pass = shell(deploy_cfg.ssh_pass_cmd)
+    terminal_pass = shell(deploy_cfg.terminal_pass_cmd)
+    enable_pass = shell(deploy_cfg.enable_pass_cmd)
 
     username = "admin"
     status = Progress(SpinnerColumn("dots5"), "{task.description}", transient=True)
