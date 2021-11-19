@@ -208,7 +208,7 @@ class Prompt:
         val = self.select(var, choices, description, default, **kwargs)
         return val.lower() == "yes"
 
-    def list(self, var: str, description: str | None, **kwargs) -> list[str]:
+    def list_(self, var: str, description: str | None, **kwargs) -> list[str]:
 
         kb = self.KeyBindings()
 
@@ -226,6 +226,37 @@ class Prompt:
         opts.update(kwargs)
         val = self.string(var, description, **opts)
         return val.strip().split("\n")
+
+    def dict_(self, var: str, description: str | None, **kwargs) -> dict[str, str]:
+
+        kb = self.KeyBindings()
+
+        Validator = self.Validator
+        ValidationError = self.ValidationError
+
+        class DictValidator(Validator):
+            def validate(self, document) -> None:
+                for line in document.text.splitlines():
+                    if ': ' not in line:
+                        raise ValidationError(message="Each line must have a key and a value, separated by ': '")
+
+        @kb.add("c-d")
+        def _(event):
+            event.app.exit(result=event.app.current_buffer.text)
+
+        opts = dict(
+            multiline=True,
+            rprompt=self.HTML(
+                "Press <b>Enter</b> to add a new line, <b>Alt-Enter</b> or <b>Ctrl+D</b> to finish and submit mapping."
+            ),
+            key_bindings=kb,
+            validator=DictValidator()
+        )
+        opts.update(kwargs)
+        val = self.string(var, description, **opts)
+        lines = val.strip().split("\n")
+        pairs = [line.partition(': ') for line in lines]
+        return {k:v for k, _, v in pairs}
 
 
 def model_to_yaml(model: "BaseModel"):
