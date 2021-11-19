@@ -3,6 +3,8 @@ import os
 import sys
 import traceback
 from typing import Optional
+from pathlib import Path
+import json
 
 from . import config
 from .generate import render_template, model_questionnaire
@@ -108,10 +110,18 @@ def generate(
         ...,
         help="The name of the template file to render",
         autocompletion=template_name_completion,
-    )
+    ),
+    data_file: Optional[Path] = typer.Option(None, dir_okay=False, allow_dash=True),
 ):
     "Generate a switch configuration from a questionnaire"
-    print(render_template(template_name))
+    if data_file:
+        if data_file.name == "-":
+            logger.info("reading data from stdin and parsing as JSON...")
+            data = json.load(sys.stdin)
+        data = parse_config_file(data_file)
+    else:
+        data = {}
+    print(render_template(template_name, data))
 
 
 def console_name_completion(partial: str):
