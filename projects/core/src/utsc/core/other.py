@@ -274,8 +274,8 @@ def bump_version():
     bumps the version in pyproject.toml
     tags the current git commit with that version number
     """
-    import argparse # noqa
-    from ._vendor import tomlkit # noqa
+    import argparse  # noqa
+    from ._vendor import tomlkit  # noqa
     import semver  # noqa
 
     semver_bump_types = ["major", "minor", "patch", "prerelease", "build"]
@@ -300,7 +300,7 @@ def bump_version():
                 " or ignore all outstanding files, then try again."
             )
             sys.exit(1)
-    pyproject = tomlkit.parse(Path("pyproject.toml").read_text(encoding='utf-8'))
+    pyproject = tomlkit.parse(Path("pyproject.toml").read_text(encoding="utf-8"))
     package_name = pyproject["tool"]["poetry"]["name"]  # type: ignore
     old_version = pyproject["tool"]["poetry"]["version"]  # type: ignore
     version = semver.VersionInfo.parse(old_version)
@@ -311,7 +311,7 @@ def bump_version():
     new_version = str(version)
     pyproject["tool"]["poetry"]["version"] = new_version  # type: ignore
     init_file = Path(f"{package_name}/__init__.py")
-    init_text = init_file.read_text(encoding='utf-8')
+    init_text = init_file.read_text(encoding="utf-8")
     ver_strings_in_init_text = list(
         filter(lambda l: "__version__ =" in l, init_text.splitlines())
     )
