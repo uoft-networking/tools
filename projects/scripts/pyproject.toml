@@ -14,7 +14,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-"utsc.core" = ">=0.5.4"
+"utsc.core" = ">=0.6.0"
 pydantic = "*"
 prompt-toolkit = "^3.0.19"
 rich = "^10.7.0"
