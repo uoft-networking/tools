@@ -6,8 +6,6 @@ from typing import Optional
 from pathlib import Path
 import json
 
-from utsc.core.other import Prompt
-
 from . import config
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
@@ -19,6 +17,7 @@ from utsc.core import (
     parse_config_file,
     write_config_file,
 )
+from utsc.core.other import Prompt
 
 import typer
 from loguru import logger
@@ -26,6 +25,7 @@ from loguru import logger
 app = typer.Typer(name="switchdeploy")
 
 prompt = Prompt(config.util)
+
 
 def version_callback(value: bool):
     if value:
@@ -42,6 +42,7 @@ def initialize_config(value: bool):
     if not value:
         return
     from . import ConfigModel
+
     config_files = [str(x) for x in config.util.config.writable_or_creatable_files]
     try:
         existing_config = config.util.config.merged_data
@@ -80,14 +81,18 @@ def initialize_templates(value: bool):
             raise typer.Exit()
     templates.mkdir(exist_ok=True)
     logger.debug("created templates directory")
-    example_templates = Path(__file__).parent.joinpath('example_template_dir')
+    example_templates = Path(__file__).parent.joinpath("example_template_dir")
     logger.debug(f"copying content from {example_templates.resolve()}")
     for file in example_templates.iterdir():
         templates.joinpath(file.name).write_text(file.read_text())
-    config.util.console.print(chomptxt("""
-        [green]Done![/green] you may now start adding templates to the 
-        `templates` folder and adding logic to the `__init__.py` file within
-        """))
+    config.util.console.print(
+        chomptxt(
+            """
+            [green]Done![/green] you may now start adding templates to the 
+            `templates` folder and adding logic to the `__init__.py` file within
+            """
+        )
+    )
     raise typer.Exit()
 
 
