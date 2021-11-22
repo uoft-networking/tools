@@ -4,7 +4,7 @@ import os, sys, time, logging, logging.handlers, re, platform
 from pathlib import Path
 from functools import cached_property
 from enum import Enum
-from typing import Dict, Any, List, Iterable, Pattern, Tuple, Type, Union, TYPE_CHECKING
+from typing import Dict, List, Any, Optional, Type, TYPE_CHECKING
 from textwrap import dedent
 from getpass import getuser
 from subprocess import run
@@ -113,10 +113,20 @@ def shell(cmd: str) -> str:
     return run(cmd, shell=True, capture_output=True, check=True).stdout.decode().strip()
 
 
-def parse_config_file(file: Path):
+class DataFileFormats(str, Enum):
+    ini = "ini"
+    json = "json"
+    toml = "toml"
+    yaml = "yaml"
+
+def parse_config_file(file: Path, parse_as: Optional[DataFileFormats] = None):
     obj: Dict[str, Any]
     content = file.read_text()
-    if file.suffix == ".ini":
+    if parse_as:
+        file_format = '.' + parse_as.value
+    else:
+        file_format = file.suffix
+    if file_format == ".ini":
         import configparser  # noqa
 
         cfp = configparser.ConfigParser()
@@ -125,15 +135,15 @@ def parse_config_file(file: Path):
         for sect in cfp.sections():
             if sect != "_common_":
                 obj[sect] = dict(cfp[sect])
-    elif file.suffix == ".json":
+    elif file_format == ".json":
         import json  # noqa
 
         obj = dict(json.loads(content))
-    elif file.suffix == ".toml":
+    elif file_format == ".toml":
         from . import toml
 
         obj = dict(toml.loads(content))
-    elif file.suffix == ".yaml":
+    elif file_format == ".yaml":
         from . import yaml
 
         obj = dict(yaml.loads(content))
@@ -141,16 +151,20 @@ def parse_config_file(file: Path):
         raise UTSCCoreError(
             chomptxt(
                 f"""Failed to parse {file}. 
-                Config file type {file.suffix} not supported.
+                Config file type {file_format} not supported.
                 Only .ini, .json, .toml, and .yaml files are supported"""
             )
         )
     return obj
 
 
-def write_config_file(file: Path, obj: dict[str, Any]):
+def write_config_file(file: Path, obj: dict[str, Any], write_as: Optional[DataFileFormats] = None):
     file.parent.mkdir(parents=True, exist_ok=True)
-    if file.suffix == ".ini":
+    if write_as:
+        file_format = '.' + write_as.value
+    else:
+        file_format = file.suffix
+    if file_format == ".ini":
         import configparser  # noqa
 
         cfp = configparser.ConfigParser()
@@ -158,15 +172,15 @@ def write_config_file(file: Path, obj: dict[str, Any]):
             # this implementation is fragile and likely to break, but it's good enough for now
             cfp[k] = v
             cfp.write(file.open("w"))
-    elif file.suffix == ".json":
+    elif file_format == ".json":
         import json  # noqa
 
         file.write_text(json.dumps(obj, indent=4))
-    elif file.suffix == ".toml":
+    elif file_format == ".toml":
         from . import toml
 
         file.write_text(toml.dumps(obj))
-    elif file.suffix == ".yaml":
+    elif file_format == ".yaml":
         from . import yaml
 
         file.write_text(yaml.dumps(obj))
@@ -174,7 +188,7 @@ def write_config_file(file: Path, obj: dict[str, Any]):
         raise UTSCCoreError(
             chomptxt(
                 f"""Failed to parse {file}. 
-                Config file type {file.suffix} not supported.
+                Config file type {file_format} not supported.
                 Only .ini, .json, .toml, and .yaml files are supported"""
             )
         )
