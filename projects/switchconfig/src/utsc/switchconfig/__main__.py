@@ -12,7 +12,13 @@ from . import config
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
 
-from utsc.core import UTSCCoreError, chomptxt, parse_config_file, write_config_file
+from utsc.core import (
+    DataFileFormats,
+    UTSCCoreError,
+    chomptxt,
+    parse_config_file,
+    write_config_file,
+)
 
 import typer
 from loguru import logger
@@ -146,14 +152,29 @@ def generate(
         help="The name of the template file to render",
         autocompletion=template_name_completion,
     ),
-    data_file: Optional[Path] = typer.Option(None, dir_okay=False, allow_dash=True),
+    data_file: Optional[Path] = typer.Option(
+        None,
+        dir_okay=False,
+        allow_dash=True,
+        help=chomptxt(
+            """
+            data file to load template variables from. 
+            Any variables not supplied here will be prompted for interactively
+            """
+        ),
+    ),
+    data_file_format: Optional[DataFileFormats] = typer.Option(
+        None,
+        help="override file format of --data-file, force it to be parsed as this format instead"
+    ),
 ):
-    "Generate a switch configuration from a questionnaire"
+    "Generate a switch configuration from a questionnaire, a data file, or both"
     if data_file:
         if data_file.name == "-":
             logger.info("reading data from stdin and parsing as JSON...")
             data = json.load(sys.stdin)
-        data = parse_config_file(data_file)
+        else:
+            data = parse_config_file(data_file, parse_as=data_file_format)
     else:
         data = {}
     print(render_template(template_name, data))
