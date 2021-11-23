@@ -131,7 +131,8 @@ def process_template_data(
     if template_name == "data-model-example.j2":
         input_data = model_questionnaire(ExampleModel, input_data=input_data)
         return dict(
-            d=ExampleModel(**input_data),
+            switch=ExampleModel(**input_data),
         )
+    
     # else:
     return input_data
