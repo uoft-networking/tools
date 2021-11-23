@@ -7,14 +7,19 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Get portable python
+        run: wget https://github.com/indygreg/python-build-standalone/releases/download/20211017/cpython-3.10.0-x86_64-unknown-linux-gnu-pgo+lto-20211017T1616.tar.zst
+      - name: unpack
         run: |
-          set -euo pipefail
-          wget https://github.com/indygreg/python-build-standalone/releases/download/20211017/cpython-3.10.0-x86_64-unknown-linux-gnu-pgo+lto-20211017T1616.tar.zst
           sudo apt-get install zstd
           tar -xvf cpython-3.10.0-x86_64-unknown-linux-gnu-pgo+lto-20211017T1616.tar.zst
+      - name: deploy
+        run: |
           sudo mkdir /opt/utsc-tools
-          sudo mv python/install/* /opt/utsc-tools/bin/pip3 install utsc.switchconfig
-          tar -czvf portable-python-linux.tar.gz /opt/utsc-tools
+          sudo mv python/install/* /opt/utsc-tools
+      - name: install
+        run: /opt/utsc-tools/bin/pip3 install utsc.switchconfig
+      - name: repack
+        run: tar -czvf portable-python-linux.tar.gz /opt/utsc-tools
       - name: upload
         uses: actions/upload-artifact@v2
         with:
