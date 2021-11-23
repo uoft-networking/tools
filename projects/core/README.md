@@ -14,6 +14,7 @@ to include all optional dependencies, run
 
 ```
 pip install utsc.core[all]
+```
 
 # Usage
 
