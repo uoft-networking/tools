@@ -21,3 +21,13 @@ sudo mv utsc-tools /opt/
 
 # and then install the switchconfig tool into the distribution
 # Example:
+sudo /opt/utsc-tools/bin/pip3 install utsc.switchconfig
+sudo /opt/utsc-tools/bin/fix-shebangs.py
+
+# and finally, symlink the switchconfig tool into you PATH
+# Example:
+sudo ln -s /opt/utsc-tools/bin/utsc.switchconfig /usr/local/bin/
+
+# You can also, optionally, unpack this distribution into your home folder, if you can't or don't want to install it into /opt.
+# you can follow these same steps, but use a path like ~/.local/opt instead of /opt
+```
