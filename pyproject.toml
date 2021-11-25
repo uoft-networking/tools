@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "utsc"
-version = "0.0.2"
+version = "0.0.3"
 description = "Root package for the utsc namespace of python packages. This package only provides the `utsc` command line tool as a namespaced wrapper around all the other `utsc.*` packages"
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"

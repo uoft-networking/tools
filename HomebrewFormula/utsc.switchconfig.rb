@@ -19,8 +19,11 @@ class UtscSwitchconfig < Formula
     ENV["PIPX_BIN_DIR"] = bin
     ENV["PIPX_DEFAULT_PYTHON"] = Formula["python@3.10"].opt_bin/"python3"
 
-    system "false"
     system "pipx install ./*.whl"
+
+    (bash_completion/"utsc.switchconfig").write `#{bin}/utsc.switchconfig --show-completion bash`
+    (fish_completion/"utsc.switchconfig.fish").write `#{bin}/utsc.switchconfig --show-completion fish`
+    (zsh_completion/"_utsc.switchconfig").write `#{bin}/utsc.switchconfig --show-completion zsh`
   end
 
   test do

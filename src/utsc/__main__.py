@@ -3,6 +3,8 @@ import traceback
 from typing import Optional
 from sys import version_info, platform, executable
 from importlib.metadata import version
+from subprocess import run
+from pathlib import Path
 
 from utsc.core import Util
 
@@ -23,6 +25,17 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def install_callback(value: str):
+    if value:
+        installation = Path(executable).parent
+        pip = installation.joinpath("pip3")
+        fix_shebangs = installation.joinpath('fix-shebangs.py')
+        run([pip, "install", f"utsc.{value}"])
+        if fix_shebangs.exists():
+            run([fix_shebangs])
+        raise typer.Exit()
+
+
 @app.callback(
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
 )
@@ -34,6 +47,12 @@ def callback(
         "--version",
         callback=version_callback,
         help="Show version information and exit",
+    ),
+    install: Optional[str] = typer.Option(  # pylint: disable=unused-argument
+        None,
+        "--install",
+        callback=install_callback,
+        help="install a utsc tool into this python installation and exit",
     ),
 ):
     """
