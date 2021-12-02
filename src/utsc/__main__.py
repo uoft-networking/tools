@@ -30,9 +30,9 @@ def install_callback(value: str):
         installation = Path(executable).parent
         pip = installation.joinpath("pip3")
         fix_shebangs = installation.joinpath('fix-shebangs.py')
-        run([pip, "install", f"utsc.{value}"])
+        run([pip, "install", f"utsc.{value}"], check=True)
         if fix_shebangs.exists():
-            run([fix_shebangs])
+            run([fix_shebangs], check=True)
         raise typer.Exit()
 
 

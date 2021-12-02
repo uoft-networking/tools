@@ -129,7 +129,7 @@ def deploy_to_console(target: str):
                 time.sleep(1)
             continue
         elif match == 6:
-            # r"([a-zA-Z0-9-]+)\(config)#"
+            # r"([a-zA-Z0-9-]+)\(config\)#"
             terminal_now_available()
             status.console.print(
                 "Entered 'configure terminal' mode. Ready to process configuration"

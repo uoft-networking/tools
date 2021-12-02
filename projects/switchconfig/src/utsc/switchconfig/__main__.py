@@ -15,6 +15,7 @@ from utsc.core import (
     UTSCCoreError,
     chomptxt,
     parse_config_file,
+    txt,
     write_config_file,
 )
 from utsc.core.other import Prompt
@@ -54,14 +55,8 @@ def initialize_config(value: bool):
         description="Please choose a config file to create. Hit the Tab key to view available choices",
     )
     config_data = model_questionnaire(ConfigModel, existing_config)
-    try:
-        # TODO: clean this up
-        config_data["generate"]["templates_dir"] = str(
-            config_data["generate"]["templates_dir"]
-        )
-    except (KeyError, ValueError):
-        pass
-    write_config_file(Path(target_config_file), config_data)
+    config_data = ConfigModel(**config_data)
+    write_config_file(Path(target_config_file), config_data.dict())
     logger.success(f"Configuration data written to {target_config_file}")
     raise typer.Exit()
 
@@ -136,7 +131,7 @@ def callback(
     config.util.logging.add_syslog_sink()
 
 
-def template_name_completion(partial: str):
+def template_name_completion(ctx: typer.Context, partial: str):
     root = config.templates.PATH
 
     def template_names():
@@ -149,13 +144,17 @@ def template_name_completion(partial: str):
 
     return list(template_names())
 
-
+# TODO: figure out how to bridge the divide between targeting local templates and targeting cached templates
+# maybe split generate into two functions, one for local templates and one for cached templates
 @app.command()
 def generate(
-    template_name: str = typer.Argument(
+    template: Path = typer.Argument(
         ...,
         help="The name of the template file to render",
         autocompletion=template_name_completion,
+    ),
+    template_dir: Optional[Path] = typer.Option(
+        None, file_okay=False, help="The directory from which to select templates"
     ),
     data_file: Optional[Path] = typer.Option(
         None,
@@ -170,7 +169,7 @@ def generate(
     ),
     data_file_format: Optional[DataFileFormats] = typer.Option(
         None,
-        help="override file format of --data-file, force it to be parsed as this format instead"
+        help="override file format of --data-file, force it to be parsed as this format instead",
     ),
 ):
     "Generate a switch configuration from a questionnaire, a data file, or both"
@@ -182,14 +181,11 @@ def generate(
             data = parse_config_file(data_file, parse_as=data_file_format)
     else:
         data = {}
-    print(render_template(template_name, data))
+    print(render_template(template, data))
 
 
 def console_name_completion(partial: str):
-    if config.data.deploy:
-        targets = list(config.data.deploy.targets.keys())
-    else:
-        targets = []
+    targets = list(config.data.deploy.targets.keys()) if config.data.deploy else []
     res = []
     if partial:
         for target in targets:
@@ -236,6 +232,30 @@ if __name__ == "__main__":
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
 
-        initialize_templates(True)
+        from .util import get_comment_block_schema
+
+        t = txt(
+            """
+            {#
+            # variable_name | description | default_value
+            usage | One of: (deskswitch/podium/access), Example: deskswitch | 
+            building_code | (aka alpha code) Example: SW | 
+            room_code | Example: 254A | 
+            tr_code | (Optional, only applicable if usage is access) Telecom Room code, Example: 2r | 
+            user_id | (Optional, only applicable if usage is deskswitch) UTSCID of the person this switch  | 
+            network | network address of the mgmt network in CIDR notation, Example: 10.14.1.0/24 | 
+            ip | IP address of this switch on the mgmt network, Example: 10.14.1.33 |
+            #}
+            {% macro hostname_partial() -%}
+            {# in a hostname like 'av-ac254a', 'a1-ic2r', or 'a1-someuser' #}
+                {% if usage == 'deskswitch' %}{{ user_id }}{% endif %}
+                {% if usage == 'podium' %}{{ building_code | lower }}{{ room_code | lower }}{% endif %}
+                {% if usage == 'access' %}{{ building_code | lower }}{{ tr_code }}{% endif %}
+            {%- endmacro %}
+            {% macro hostname() %}{{ usage | remap("usages") }}-{{ hostname_partial() }}{% endmacro %}
+
+            """
+        )
+        get_comment_block_schema(t)
         sys.exit()
     cli()

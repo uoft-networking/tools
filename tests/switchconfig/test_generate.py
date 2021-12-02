@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from utsc.switchconfig.generate import render_template, model_questionnaire
+from utsc.switchconfig.util import create_python_module
 from utsc.core import txt
 
 if TYPE_CHECKING:
@@ -13,7 +14,9 @@ template_dir = Path(__file__).parent.joinpath("templates")
 
 
 def test_model_questionnaire(mock_config: "MockedConfig", mock_pt_app: "MockPTApp"):
-    from .templates import ExampleModel  # noqa
+    mod = create_python_module("test_model_questionnaire", template_dir.joinpath('data-model-test.py'))
+    assert hasattr(mod, "Model")
+    Model = getattr(mod, "Model")
 
     app = mock_pt_app
     app.input.send_text("deskswitch\n")  # usage
@@ -22,7 +25,7 @@ def test_model_questionnaire(mock_config: "MockedConfig", mock_pt_app: "MockPTAp
     app.input.send_text("207\n")  # room code
     app.input.send_text("10.0.1.0/24\n")  # network
     app.input.send_text("10.0.1.1\n")  # ip
-    res = model_questionnaire(ExampleModel, {})
+    res = model_questionnaire(Model, {})
     assert res == {
         "usage": {"kind": "deskswitch", "user_id": "test_userid"},
         "building_code": "AC",
@@ -42,7 +45,7 @@ def test_render_from_question_block(mock_config: "MockedConfig"):
         "network": "10.0.1.0/24",
         "ip": "10.0.1.33",
     }
-    res = render_template("comment-block-schema-test.j2", input_data=answers)
+    res = render_template(template_dir.joinpath("comment-block-schema-test.j2"), input_data=answers)
     assert res == txt(
         """
         
@@ -70,13 +73,15 @@ def test_render_from_question_block(mock_config: "MockedConfig"):
 
 def test_render_from_model(mock_config: "MockedConfig"):
     answers = {
-        "usage": {"kind": "podium"},
-        "building_code": "AC",
-        "room_code": "207",
-        "network": "10.0.1.0/24",
-        "ip": "10.0.1.33",
+        "switch": {
+            "usage": {"kind": "podium"},
+            "building_code": "AC",
+            "room_code": "207",
+            "network": "10.0.1.0/24",
+            "ip": "10.0.1.33",
+        }
     }
-    res = render_template("data-model-test.j2", answers)
+    res = render_template(template_dir.joinpath("data-model-test.j2"), answers)
     assert res == txt(
         """
         hostname av-ac207

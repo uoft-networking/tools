@@ -15,10 +15,8 @@ if TYPE_CHECKING:
 
 @pytest.fixture()
 def mock_config(mocker: "MockerFixture", mock_util: "MockedUtil"):
-    from . import templates  # noqa
 
     mocker.patch.object(config, "util", mock_util)
-    mocker.patch("utsc.switchconfig.Config.templates", templates)
 
     return config
 
