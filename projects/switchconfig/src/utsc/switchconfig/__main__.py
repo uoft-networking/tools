@@ -56,7 +56,10 @@ def initialize_config(value: bool):
     )
     config_data = model_questionnaire(ConfigModel, existing_config)
     config_data = ConfigModel(**config_data)
-    write_config_file(Path(target_config_file), config_data.dict())
+    
+    # convert the model to a serializable dict
+    config_data = json.loads(config_data.json())
+    write_config_file(Path(target_config_file), config_data)
     logger.success(f"Configuration data written to {target_config_file}")
     raise typer.Exit()
 
