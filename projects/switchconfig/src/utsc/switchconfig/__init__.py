@@ -4,7 +4,7 @@ from importlib.metadata import version
 
 from pydantic.types import DirectoryPath
 
-from utsc.core import Util, UTSCCoreError
+from utsc.core import Util, UTSCCoreError, chomptxt
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -28,10 +28,23 @@ class Generate(BaseModel):
 
 
 class Deploy(BaseModel):
-    ssh_pass_cmd: str = Field(description="shell command to aquire the console server ssh password")
-    terminal_pass_cmd: str = Field(description="shell command to aquire the switch's terminal access password")
-    enable_pass_cmd: str = Field(description="shell command to aquire the switch's enable password")
-    targets: dict[str, str] = Field(description="a table / dictionary of console servers, mapping console server names to console server hostname/fqdn+port combinations")
+    ssh_pass_cmd: str = Field(
+        description="shell command to aquire the console server ssh password"
+    )
+    terminal_pass_cmd: str = Field(
+        description="shell command to aquire the switch's terminal access password"
+    )
+    enable_pass_cmd: str = Field(
+        description="shell command to aquire the switch's enable password"
+    )
+    targets: dict[str, str] = Field(
+        description=chomptxt(
+            """
+            a table / dictionary of console servers, mapping console server 
+            names to console server hostname/fqdn+port combinations
+            """
+        )
+    )
 
 
 class ConfigModel(BaseModel):
@@ -39,7 +52,10 @@ class ConfigModel(BaseModel):
         None,
         description="whether to include any overriding configuration related to the generate command",
     )
-    deploy: Optional[Deploy] = Field(None, description="whether to include any overriding configuration related to the deploy command")
+    deploy: Optional[Deploy] = Field(
+        None,
+        description="whether to include any overriding configuration related to the deploy command",
+    )
     debug: bool = Field(False, description="whether to permanently enable debug mode")
 
 
