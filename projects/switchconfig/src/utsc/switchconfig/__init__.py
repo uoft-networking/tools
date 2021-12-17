@@ -4,7 +4,7 @@ from importlib.metadata import version
 
 from pydantic.types import DirectoryPath
 
-from utsc.core import Util
+from utsc.core import Util, UTSCCoreError
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -20,21 +20,27 @@ def _default_templates_dir():
     return config.util.cache_dir / "templates"
 
 
-class ConfigGenerateModel(BaseModel):
-    templates_dir: DirectoryPath = Field(default_factory=_default_templates_dir)
+class Generate(BaseModel):
+    templates_dir: DirectoryPath = Field(
+        default_factory=_default_templates_dir,
+        description="override the default template cache directory",
+    )
 
 
-class ConfigDeployModel(BaseModel):
-    ssh_pass_cmd: str
-    terminal_pass_cmd: str
-    enable_pass_cmd: str
-    targets: dict[str, str]
+class Deploy(BaseModel):
+    ssh_pass_cmd: str = Field(description="shell command to aquire the console server ssh password")
+    terminal_pass_cmd: str = Field(description="shell command to aquire the switch's terminal access password")
+    enable_pass_cmd: str = Field(description="shell command to aquire the switch's enable password")
+    targets: dict[str, str] = Field(description="a table / dictionary of console servers, mapping console server names to console server hostname/fqdn+port combinations")
 
 
 class ConfigModel(BaseModel):
-    generate: Optional[ConfigGenerateModel]
-    deploy: Optional[ConfigDeployModel]
-    debug: bool = False
+    generate: Optional[Generate] = Field(
+        None,
+        description="whether to include any overriding configuration related to the generate command",
+    )
+    deploy: Optional[Deploy] = Field(None, description="whether to include any overriding configuration related to the deploy command")
+    debug: bool = Field(False, description="whether to permanently enable debug mode")
 
 
 class Config:
@@ -43,9 +49,12 @@ class Config:
 
     @cached_property
     def data(self):
-
-        conf = self.util.config.get_data_from_model(ConfigModel)
-        return ConfigModel(**conf)
+        try:
+            conf = self.util.config.get_data_from_model(ConfigModel)
+            return ConfigModel(**conf)
+        except UTSCCoreError as e:
+            logger.bind(error=e).debug("failed to load / parse config data")
+            return None
 
 
 config = Config()
