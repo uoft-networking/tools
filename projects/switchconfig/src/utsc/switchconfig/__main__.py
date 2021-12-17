@@ -12,6 +12,7 @@ from .deploy import deploy_to_console
 
 from utsc.core import (
     DataFileFormats,
+    File,
     UTSCCoreError,
     chomptxt,
     parse_config_file,
@@ -96,6 +97,32 @@ def initialize_templates(value: bool):
     raise typer.Exit()
 
 
+def show_paths(value: bool):
+    if not value:
+        return
+    con = config.util.console
+    states = {
+        File.readable: "[green]readable[/]",
+        File.writable: "[bright_green]writable[/]",
+        File.creatable: "[white]creatable[/]",
+        File.unusable: "[bright_black]unusable[/]",
+    }
+    conf_files = config.util.config.files
+
+    con.print("\n[bold]Config files:[/bold]")
+    for file, state in conf_files:
+        con.print(f" - {states[state]}: {file}")
+    
+    con.print("\n\n[bold]Cache files:[/bold]")
+    file = config.util.cache_dir
+    state = states[File.state(file)]
+    con.print(f" - Data cache({state}): {file}")
+    file = get_cache_dir()
+    state = states[File.state(file)]
+    con.print(f" - Templates cache({state}): {file}")
+    raise typer.Exit()
+
+
 @app.callback(
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
 )
@@ -119,6 +146,12 @@ def callback(
         "--init-templates",
         callback=initialize_templates,
         help="Create a template project/folder to put templates into",
+    ),
+    show_paths: Optional[bool] = typer.Option(
+        None,
+        "--show-paths",
+        callback=show_paths,
+        help="Show all filesystem paths used by this application",
     ),
 ):
     """
@@ -275,31 +308,6 @@ if __name__ == "__main__":
 
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
-
-        from .util import get_comment_block_schema
-
-        t = txt(
-            """
-            {#
-            # variable_name | description | default_value
-            usage | One of: (deskswitch/podium/access), Example: deskswitch | 
-            building_code | (aka alpha code) Example: SW | 
-            room_code | Example: 254A | 
-            tr_code | (Optional, only applicable if usage is access) Telecom Room code, Example: 2r | 
-            user_id | (Optional, only applicable if usage is deskswitch) UTSCID of the person this switch  | 
-            network | network address of the mgmt network in CIDR notation, Example: 10.14.1.0/24 | 
-            ip | IP address of this switch on the mgmt network, Example: 10.14.1.33 |
-            #}
-            {% macro hostname_partial() -%}
-            {# in a hostname like 'av-ac254a', 'a1-ic2r', or 'a1-someuser' #}
-                {% if usage == 'deskswitch' %}{{ user_id }}{% endif %}
-                {% if usage == 'podium' %}{{ building_code | lower }}{{ room_code | lower }}{% endif %}
-                {% if usage == 'access' %}{{ building_code | lower }}{{ tr_code }}{% endif %}
-            {%- endmacro %}
-            {% macro hostname() %}{{ usage | remap("usages") }}-{{ hostname_partial() }}{% endmacro %}
-
-            """
-        )
-        get_comment_block_schema(t)
+        show_paths(True)        
         sys.exit()
     cli()
