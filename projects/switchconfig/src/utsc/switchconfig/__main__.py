@@ -6,7 +6,7 @@ from typing import Optional
 from pathlib import Path
 import json
 
-from . import config
+from . import config, _default_templates_dir
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
 
@@ -24,6 +24,8 @@ import typer
 from loguru import logger
 
 app = typer.Typer(name="switchdeploy")
+generate = typer.Typer(name="generate")
+app.add_typer(generate)
 
 prompt = Prompt(config.util)
 
@@ -126,7 +128,8 @@ def callback(
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
-        config.data.debug = True
+        if config.data:
+            config.data.debug = True
     if trace:
         log_level = "TRACE"
     config.util.logging.enable()
@@ -134,8 +137,18 @@ def callback(
     config.util.logging.add_syslog_sink()
 
 
+def get_cache_dir(cache_dir: Optional[Path] = None):
+    # sourcery skip: merge-nested-ifs
+    if not cache_dir:
+        if config.data and config.data.generate:
+            cache_dir = config.data.generate.templates_dir
+        else:
+            cache_dir = _default_templates_dir()
+    return cache_dir
+
+
 def template_name_completion(ctx: typer.Context, partial: str):
-    root = config.templates.PATH
+    root = get_cache_dir(ctx.params["cache_dir"])
 
     def template_names():
         for path in root.rglob("*.j2"):
@@ -147,19 +160,17 @@ def template_name_completion(ctx: typer.Context, partial: str):
 
     return list(template_names())
 
-# TODO: figure out how to bridge the divide between targeting local templates and targeting cached templates
-# maybe split generate into two functions, one for local templates and one for cached templates
-@app.command()
-def generate(
-    template: Path = typer.Argument(
+
+class args:
+    template = typer.Argument(
         ...,
         help="The name of the template file to render",
         autocompletion=template_name_completion,
-    ),
-    template_dir: Optional[Path] = typer.Option(
+    )
+    cache_dir = typer.Option(
         None, file_okay=False, help="The directory from which to select templates"
-    ),
-    data_file: Optional[Path] = typer.Option(
+    )
+    data_file = typer.Option(
         None,
         dir_okay=False,
         allow_dash=True,
@@ -169,13 +180,41 @@ def generate(
             Any variables not supplied here will be prompted for interactively
             """
         ),
-    ),
-    data_file_format: Optional[DataFileFormats] = typer.Option(
+    )
+    data_file_format = typer.Option(
         None,
         help="override file format of --data-file, force it to be parsed as this format instead",
-    ),
+    )
+
+
+@generate.command("from-cache")
+def generate_from_cache(
+    template: Path = args.template,
+    cache_dir: Optional[Path] = args.cache_dir,
+    data_file: Optional[Path] = args.data_file,
+    data_file_format: Optional[DataFileFormats] = args.data_file_format,
 ):
-    "Generate a switch configuration from a questionnaire, a data file, or both"
+    "Generate a switch configuration from a template file in the template cache"
+    if data_file:
+        if data_file.name == "-":
+            logger.info("reading data from stdin and parsing as JSON...")
+            data = json.load(sys.stdin)
+        else:
+            data = parse_config_file(data_file, parse_as=data_file_format)
+    else:
+        data = {}
+    cache_dir = get_cache_dir(cache_dir)
+    template = cache_dir.joinpath(template)
+    print(render_template(template, data))
+
+
+@generate.command("from-file")
+def generate_from_file(
+    template: Path = args.template,
+    data_file: Optional[Path] = args.data_file,
+    data_file_format: Optional[DataFileFormats] = args.data_file_format,
+):
+    "Generate a switch configuration from a local template file"
     if data_file:
         if data_file.name == "-":
             logger.info("reading data from stdin and parsing as JSON...")
@@ -188,6 +227,8 @@ def generate(
 
 
 def console_name_completion(partial: str):
+    if not (config.data and config.data.deploy and config.data.deploy.targets):
+        return []
     targets = list(config.data.deploy.targets.keys()) if config.data.deploy else []
     res = []
     if partial:
@@ -206,7 +247,7 @@ def to_console(
     )
 ):
     "Connect to a serial console server, authenticate, and pass in configuration from STDIN"
-    if config.data.deploy and console_name in config.data.deploy.targets:
+    if config.data and config.data.deploy and console_name in config.data.deploy.targets:
         target = config.data.deploy.targets[console_name]
     else:
         target = console_name
@@ -221,11 +262,11 @@ def cli():
         print("Aborted!")
         sys.exit()
     except Exception as e:
-        # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
-        if config.data.debug:
+        if config.data and config.data.debug:
             import ipdb
 
             ipdb.set_trace()
+        # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
         logger.error(e)
         logger.debug(traceback.format_exc())
 
