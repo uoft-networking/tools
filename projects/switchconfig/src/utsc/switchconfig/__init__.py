@@ -1,8 +1,7 @@
 from functools import cached_property
 from typing import Optional
 from importlib.metadata import version
-
-from pydantic.types import DirectoryPath
+from pathlib import Path
 
 from utsc.core import Util, UTSCCoreError, chomptxt
 
@@ -21,7 +20,7 @@ def _default_templates_dir():
 
 
 class Generate(BaseModel):
-    templates_dir: DirectoryPath = Field(
+    templates_dir: Path = Field(
         default_factory=_default_templates_dir,
         description="override the default template cache directory",
     )
