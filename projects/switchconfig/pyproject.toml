@@ -16,7 +16,7 @@ packages = [
 python = ">=3.10,<4.0"
 "utsc.core" = ">=0.6.1"
 Jinja2 = "^3.0.1"
-pydantic = "*"
+pydantic = "^1.9.0"
 arrow = "^1.1.1"
 prompt-toolkit = "^3.0.19"
 paramiko = "^2.7.2"

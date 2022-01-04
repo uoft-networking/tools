@@ -15,7 +15,7 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 "utsc.core" = ">=0.6.0"
-pydantic = "*"
+pydantic = "^1.9.0"
 prompt-toolkit = "^3.0.19"
 rich = "^10.7.0"
 BlueCatAPIClient = "^0.0.1"
