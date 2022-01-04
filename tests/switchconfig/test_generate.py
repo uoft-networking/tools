@@ -26,13 +26,13 @@ def test_model_questionnaire(mock_config: "MockedConfig", mock_pt_app: "MockPTAp
     app.input.send_text("10.0.1.0/24\n")  # network
     app.input.send_text("10.0.1.1\n")  # ip
     res = model_questionnaire(Model, {})
-    assert res == {
+    assert res == Model(switch={
         "usage": {"kind": "deskswitch", "user_id": "test_userid"},
         "building_code": "AC",
         "room_code": "207",
         "network": "10.0.1.0/24",
         "ip": "10.0.1.1",
-    }
+    })
 
 
 def test_render_from_question_block(mock_config: "MockedConfig"):

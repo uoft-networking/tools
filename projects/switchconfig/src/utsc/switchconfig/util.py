@@ -270,7 +270,7 @@ class ValidatorWrapper(ValidatorBase):
 
 def model_questionnaire(
     model: Type["BaseModel"], input_data: dict[str, Any] | None = None
-):
+) -> "BaseModel":
     """
     Given a pydantic data model,
     prompt user for inputs matching fields on that model,
@@ -326,4 +326,4 @@ def model_questionnaire(
             validator = ValidatorWrapper(field, input_data)
 
             input_data[name] = prompt.string(name, desc, default, validator=validator)
-    return input_data
+    return model(**input_data)

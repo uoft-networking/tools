@@ -58,7 +58,6 @@ def initialize_config(value: bool):
         description="Please choose a config file to create. Hit the Tab key to view available choices",
     )
     config_data = model_questionnaire(ConfigModel, existing_config)
-    config_data = ConfigModel(**config_data)
     
     # convert the model to a serializable dict
     config_data = json.loads(config_data.json())
@@ -195,11 +194,6 @@ def template_name_completion(ctx: typer.Context, partial: str):
 
 
 class args:
-    template = typer.Argument(
-        ...,
-        help="The name of the template file to render",
-        autocompletion=template_name_completion,
-    )
     cache_dir = typer.Option(
         None, file_okay=False, help="The directory from which to select templates"
     )
@@ -222,7 +216,11 @@ class args:
 
 @generate.command("from-cache")
 def generate_from_cache(
-    template: Path = args.template,
+    template: Path = typer.Argument(
+        ...,
+        help="The name of the template file to render",
+        autocompletion=template_name_completion,
+    ),
     cache_dir: Optional[Path] = args.cache_dir,
     data_file: Optional[Path] = args.data_file,
     data_file_format: Optional[DataFileFormats] = args.data_file_format,
@@ -243,7 +241,10 @@ def generate_from_cache(
 
 @generate.command("from-file")
 def generate_from_file(
-    template: Path = args.template,
+    template: Path = typer.Argument(
+        ...,
+        help="The name of the template file to render",
+    ),
     data_file: Optional[Path] = args.data_file,
     data_file_format: Optional[DataFileFormats] = args.data_file_format,
 ):
