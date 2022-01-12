@@ -1,32 +1,31 @@
-FROM ubuntu:hirsute
+ARG PYTHON_VER=3.10
+ARG NAUTOBOT_VERSION=latest
+FROM ghcr.io/utsc-networking/nautobot:${NAUTOBOT_VERSION}-py${PYTHON_VER} as base
 
-RUN apt-get update -y && \
-    apt-get install -y \
-    openssl build-essentials libxmlsec1-dev libxmlsec1-openssl pkg-config \
-    libldap-dev libsasl2-dev libmariadb-dev git mime-support curl libxml2 \
-    libmariadb3 libldap2-dev libsasl2-dev libssl-dev && \
+USER 0
+RUN apt-get update -y && apt-get install -y libldap2-dev libsasl2-dev libssl-dev
+
+# ---------------------------------
+# Stage: Builder
+# ---------------------------------
+FROM base as builder
+
+RUN apt-get install -y gcc && \
     apt-get autoremove -y && \
-    apt-get clean all
+    apt-get clean all && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN 
+RUN pip3 install --upgrade pip wheel && pip3 install django-auth-ldap
 
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 &&\
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1 &&\
-    update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+# ---------------------------------
+# Stage: Final
+# ---------------------------------
+FROM base as final
+ARG PYTHON_VER
+USER 0
 
-# Modify the PATH here because otherwise poetry fails 100% of the time. WAT??
-ENV PATH="${PATH}:/root/.local/bin"
-
-# Install Poetry manually from GitHub because otherwise it installs its own
-# dependencies globally which may conflict with ours.
-# https://python-poetry.org/docs/#osx-linux-bashonwindows-install-instructions
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py -o /tmp/install-poetry.py && \
-    python /tmp/install-poetry.py && \
-    rm -f /tmp/install-poetry.py
-
-RUN pip3 install --upgrade pip wheel && pip3 install pyuwsgi django-auth-ldap
-
-# Make sure we don't run as a root user
-RUN useradd --system --shell /bin/bash --create-home --home-dir /opt/nautobot nautobot
-
+COPY --from=builder /usr/local/lib/python${PYTHON_VER}/site-packages /usr/local/lib/python${PYTHON_VER}/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 USER nautobot
+
+WORKDIR /opt/nautobot
