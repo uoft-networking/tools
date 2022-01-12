@@ -14,9 +14,6 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
-# "utsc.core" = {version = "*", optional = true}
-# "utsc.switchconfig" = {version = "*", optional = true}
-# "utsc.scripts" = {version = "*", optional = true}
 loguru = {version = "*"}
 typer = {version = "*"}
 
@@ -24,6 +21,11 @@ typer = {version = "*"}
 "utsc.core" = {path = "projects/core", extras = ["all"], develop = true}
 "utsc.switchconfig" = {path = "projects/switchconfig", develop = true}
 "utsc.scripts" = {path = "projects/scripts", develop = true}
+
+# the nautobot plugin is developed in a container running the nautobot server, and does not need to be linked into the utsc root project
+# also, it depends on nautobot, which has incompatible dependencies with the utsc root project
+# "utsc.nautobot" = {path = "projects/nautobot", develop = true} \
+
 pytest = "*"
 mypy = "*"
 flake8 = "*"

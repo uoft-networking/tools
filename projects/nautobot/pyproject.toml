@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "utsc.nautobot"
+version = "0.0.1"
+description = "A collection of UTSC-specific modifications and extensions to Nautobot."
+authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+license = "MIT"
+packages = [
+  { include = "utsc/nautobot", from = "src" }
+]
+
+
+# [tool.poetry.scripts]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+"utsc.core" = ">=0.6.1"
+nautobot = ">=1.2"
+
+[tool.poetry.dev-dependencies]
+"utsc.core" = {path = "../core", develop = true}
+pytest = "*"
+mypy = "*"
+flake8 = "*"
+poethepoet = "*"
+flake8-bugbear = "*"
+pytest-cov = "*"
+prospector = ">=1.5"
+typer-cli = "*"
+mkdocs = "*"
+mkdocstrings = "*"
+mkdocs-material = "*"
+types-paramiko = "^0.1.9"
+black = {version = "^21.9b0", allow-prereleases = true}
+pytest-mock = ">=3.6"
+
+
+[tool.poe.tasks]
+cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
+publish.shell = """\
+  git push
+  poetry build
+  poetry publish
+  """
+check.shell = """\
+  black .
+  mypy .
+  prospector .
+  pytest .
+  """
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

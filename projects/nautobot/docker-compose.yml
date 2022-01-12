@@ -1,0 +1,76 @@
+---
+version: "3.7"
+services:
+  nautobot:
+    image: "utsc/nautobot-ldap"
+    build:
+      context: "./"
+      dockerfile: "Dockerfile"
+    env_file:
+      - "dev.env"
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+    restart: "unless-stopped"
+    depends_on:
+      - "postgres"
+      - "redis"
+  nautobot-worker:
+    build:
+      context: "./"
+      dockerfile: "Dockerfile"
+    image: "utsc/nautobot-ldap"
+    env_file:
+      - "dev.env"
+    entrypoint: "nautobot-server rqworker"
+    depends_on:
+      - "nautobot"
+      - "redis"
+    restart: "unless-stopped"
+    # healthcheck: "none"
+    healthcheck:
+      interval: "15s"
+      timeout: "10s"
+      start_period: "5s"
+      retries: 3
+      test: ["CMD", "nautobot-server", "health_check"]
+  # ----------------------------------
+  # Celery worker must only be used in > 1.1.0 installs. If setting to a previous install, remove this worker
+  # ----------------------------------
+  celery_worker:
+    build:
+      context: "./"
+      dockerfile: "Dockerfile"
+    image: "utsc/nautobot-ldap"
+    entrypoint: "sh -c 'nautobot-server celery worker -l $$NAUTOBOT_LOG_LEVEL'"
+    healthcheck:
+      interval: "30s"
+      timeout: "10s"
+      start_period: "30s"
+      retries: 3
+      test: ["CMD", "bash", "-c", "nautobot-server celery inspect ping --destination celery@$$HOSTNAME"]  ## $$ because of docker-compose
+    depends_on:
+      - "nautobot"
+      - "redis"
+    env_file:
+      - "./dev.env"
+    tty: true
+  # ---------------------------------
+  redis:
+    image: "redis:alpine"
+    env_file:
+      - "dev.env"
+    command:
+      - "sh"
+      - "-c"  # this is to evaluate the $REDIS_PASSWORD from the env
+      - "redis-server --appendonly yes --requirepass $$NAUTOBOT_REDIS_PASSWORD"  ## $$ because of docker-compose
+    restart: "unless-stopped"
+  postgres:
+    image: "postgres:10"
+    env_file:
+      - "dev.env"
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data"
+    restart: "unless-stopped"
+volumes:
+  postgres_data:
