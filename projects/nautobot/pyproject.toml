@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "utsc.nautobot"
+name = "nautobot-utsc"
 version = "0.0.1"
 description = "A collection of UTSC-specific modifications and extensions to Nautobot."
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"
 packages = [
-  { include = "utsc/nautobot", from = "src" }
+  { include = "nautobot_utsc", from = "src" }
 ]
 
 
