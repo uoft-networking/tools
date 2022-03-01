@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "nautobot-utsc"
+name = "nautobot_utsc"
 version = "0.0.1"
 description = "A collection of UTSC-specific modifications and extensions to Nautobot."
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
@@ -13,8 +13,10 @@ packages = [
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
+nautobot_ssot = ">=1.1.0"
 "utsc.core" = ">=0.6.1"
 nautobot = ">=1.2"
+html-table-parser-python3 = ">=0.2.0"
 
 [tool.poetry.dev-dependencies]
 "utsc.core" = {path = "../core", develop = true}

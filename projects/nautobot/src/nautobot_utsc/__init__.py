@@ -21,8 +21,8 @@ class UTSCPluginConfig(PluginConfig):
     default_settings = {}
 
     # URL reverse lookup names
-    home_view_name = "plugins:utsc:home"
-    config_view_name = "plugins:utsc:config"
+    # home_view_name = "plugins:utsc:home"
+    # config_view_name = "plugins:utsc:config"
 
 
-config = UTSCPluginConfig
+config = UTSCPluginConfig # noqa

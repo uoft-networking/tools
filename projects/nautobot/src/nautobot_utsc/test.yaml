@@ -1,0 +1,170 @@
+rirs:
+  - name: UTSC
+    slug: utsc
+    description: Private IP space routable only within UTSC
+    is_private: true
+    aggregates:
+      - prefix: 172.16.0.0/12
+        description: local-networks
+      - prefix: 192.168.0.0/16
+        description: utsc-network-managment
+      - prefix: 2001:DB8::/32
+        description: IANA Documentation Range
+      - prefix: FD00::/8
+        description: IPv6 Unique Local Addresses
+  - name: UTSG
+    slug: utsg
+    description: Address space allocated to UTSC by UTSG
+    is_private: false
+    html_table: |
+      <table class="style2" cellpadding="10" cellspacing="0" border="1" width="100%" bordercolor="#e0e0e0"><tbody><tr height="60" bgcolor="#efefef"><td><b>Name</b></td><td><b>IPv4</b></td><td><b>IPv6</b></td><td><b>Type</b></td><td><b>Detail</b></td></tr><tr><td>utsc-touchdown-bell</td><td>128.100.96.100/30</td><td>2606:fa00:0:3::a/127</td><td>Core</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-touchdown-bell">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-user03</td><td>142.150.204.0/22</td><td></td><td>User</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-user03">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-wifi</td><td>138.51.0.0/21</td><td></td><td>Wireless</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-wifi">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-wired-02</td><td>142.1.80.0/20</td><td></td><td>User</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-wired-02">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-labs</td><td>142.1.24.0/21</td><td></td><td>Server Production</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-labs">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>cgn-utsc-test</td><td>100.96.0.0/16</td><td></td><td>Untrusted</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="cgn-utsc-test">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-resnet</td><td>142.151.216.0/21</td><td></td><td>Untrusted</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-resnet">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-touchdown-cogeco</td><td>128.100.96.96/30</td><td>2606:fa00:0:4::a/127</td><td>Core</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-touchdown-cogeco">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-user01</td><td>142.1.96.0/20</td><td></td><td>Server Production</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-user01">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-mgmt</td><td>10.14.0.0/15</td><td></td><td>Management</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-mgmt">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-dmz</td><td>142.1.164.0/22</td><td></td><td>Server Production</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-dmz">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-ipv6</td><td></td><td>2606:fa00:800::/40</td><td>User</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-ipv6">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-touchdown-centennial</td><td>128.100.96.48/29</td><td></td><td>Core</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-touchdown-centennial">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-priv</td><td>10.192.67.0/24</td><td></td><td>Server Production</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-priv">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr><tr><td>utsc-priv-test</td><td>10.192.67.64/27</td><td></td><td>Server Production</td>			<td>
+                    <center>
+                    <form action="netinfo.php" method="get">
+                    <input type="hidden" name="networkDetail" value="1">
+                    <input type="hidden" name="networkToCheck" value="utsc-">
+                    <input type="hidden" name="abs_name" value="utsc-priv-test">
+                    <input class="style2" style="width: 80px; height: 40px;" type="submit" value="View">
+                    </form>
+                    </center>
+                    </td>
+        </tr></tbody></table>
