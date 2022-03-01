@@ -5,3 +5,4 @@ dist/
 cov.xml
 .coverage
 *.pkl
+nautobot_ssot_infoblox
