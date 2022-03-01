@@ -3,6 +3,7 @@ import traceback
 from typing import Optional
 
 from . import config
+from . import bluecat as bluecat_
 
 import typer
 from loguru import logger
@@ -55,9 +56,8 @@ def bluecat():
     """
     Collect bluecat data
     """
-    from . import bluecat  # noqa
 
-    bluecat.collect()
+    bluecat_.collect()
 
 
 def cli():
@@ -78,9 +78,8 @@ if __name__ == "__main__":
 
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
-        from . import bluecat  # noqa
 
-        bluecat.collect()
+        bluecat_.main()
 
         sys.exit()
     cli()
