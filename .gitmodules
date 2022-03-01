@@ -1,3 +1,0 @@
-[submodule "projects/nautobot/nautobot"]
-	path = projects/nautobot/nautobot
-	url = https://github.com/utsc-networking/nautobot

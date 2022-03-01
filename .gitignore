@@ -4,3 +4,4 @@ dist/
 .*_cache/
 cov.xml
 .coverage
+*.pkl
