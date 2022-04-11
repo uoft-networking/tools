@@ -25,4 +25,16 @@ class UTSCPluginConfig(PluginConfig):
     # config_view_name = "plugins:utsc:config"
 
 
+def debug(nbshell_namespace):
+    """
+    Entrypoint for the vscode debugger. 
+    To use, run `nbshell --command "from nautobot_utsc import debug; debug(globals())"`
+    in your debugger
+    """
+    from .diffsync.bluecat.adapters import Bluecat, Nautobot
+    b = Bluecat(job=None)
+    n = Nautobot(job=None)
+    print(b.diff_to(n))
+
+
 config = UTSCPluginConfig # noqa

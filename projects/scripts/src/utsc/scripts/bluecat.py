@@ -8,6 +8,7 @@ from utsc.core import Timeit
 
 
 def collect(include_addresses=False):
+    """Collect network data from Bluecat API"""
     client = Client(url=config.data.bluecat.url)
     client.login(
         username=config.data.bluecat.username,
