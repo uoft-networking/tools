@@ -2,53 +2,47 @@
 version: "3.7"
 services:
   nautobot:
-    image: "utsc-networking/nautobot-ldap"
+    image: "mynautobot"
     build:
-      context: "./"
-      dockerfile: "Dockerfile"
+      context: "../"
+      dockerfile: "nautobot/Dockerfile"
     env_file:
       - "dev.env"
+    environment:
+      - AUTH_LDAP_BIND_PASSWORD=${AUTH_LDAP_BIND_PASSWORD}
+    volumes:
+      - ./:/opt/nautobot/utsc
+      - ../core:/opt/nautobot/core
+      - ./nautobot_config.py:/opt/nautobot/nautobot_config.py
     ports:
       - "8443:8443"
       - "8080:8080"
+      - "5678:5678"
     restart: "unless-stopped"
     depends_on:
       - "postgres"
       - "redis"
-  nautobot-worker:
-    build:
-      context: "./"
-      dockerfile: "Dockerfile"
-    image: "utsc/nautobot-ldap"
-    env_file:
-      - "dev.env"
-    entrypoint: "nautobot-server rqworker"
-    depends_on:
-      - "nautobot"
-      - "redis"
-    restart: "unless-stopped"
-    # healthcheck: "none"
-    healthcheck:
-      interval: "15s"
-      timeout: "10s"
-      start_period: "5s"
-      retries: 3
-      test: ["CMD", "nautobot-server", "health_check"]
   # ----------------------------------
   # Celery worker must only be used in > 1.1.0 installs. If setting to a previous install, remove this worker
   # ----------------------------------
-  celery_worker:
+  nautobot_worker:
     build:
-      context: "./"
-      dockerfile: "Dockerfile"
-    image: "utsc/nautobot-ldap"
-    entrypoint: "sh -c 'nautobot-server celery worker -l $$NAUTOBOT_LOG_LEVEL'"
+      context: "../"
+      dockerfile: "nautobot/Dockerfile"
+    image: "mynautobot"
+    entrypoint: "sh -c 'nautobot-server celery worker -l DEBUG'"
     healthcheck:
       interval: "30s"
       timeout: "10s"
       start_period: "30s"
       retries: 3
       test: ["CMD", "bash", "-c", "nautobot-server celery inspect ping --destination celery@$$HOSTNAME"]  ## $$ because of docker-compose
+    volumes:
+      - ./:/opt/nautobot/utsc
+      - ../core:/opt/nautobot/core
+      - ./nautobot_config.py:/opt/nautobot/nautobot_config.py
+    ports:
+      - "5679:5678"
     depends_on:
       - "nautobot"
       - "redis"
