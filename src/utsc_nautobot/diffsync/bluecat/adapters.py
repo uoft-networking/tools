@@ -20,10 +20,11 @@ class Bluecat(DiffSync): # pylint: disable=missing-class-docstring
     def __init__(self, job: DataSource | None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job = job
-        client = Client(url=settings.PLUGINS_CONFIG["nautobot_utsc"]["bluecat"]["url"])
+        conf = settings.PLUGINS_CONFIG["nautobot_utsc"]["bluecat"]
+        client = Client(url=conf["url"])
         client.login(
-            username=settings.PLUGINS_CONFIG["nautobot_utsc"]["bluecat"]["username"],
-            password=shell(settings.PLUGINS_CONFIG["nautobot_utsc"]["bluecat"]["password_cmd"]),
+            username=conf["username"],
+            password=conf["password"],
         )
         self.client = client
 

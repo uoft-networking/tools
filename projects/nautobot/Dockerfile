@@ -1,9 +1,7 @@
-FROM ghcr.io/nautobot/nautobot:next-py3.10
+FROM python:3.10
 
-USER 0
-RUN apt-get update -y && apt-get install -y libldap2-dev libsasl2-dev libssl-dev
-
-RUN apt-get install -y gcc && \
+RUN pip install poetry
+RUN apt-get install -y gcc libldap2-dev libsasl2-dev libssl-dev && \
     apt-get autoremove -y && \
     apt-get clean all && \
     rm -rf /var/lib/apt/lists/*
@@ -16,4 +14,5 @@ RUN pip3 install --editable /opt/nautobot/utsc
 RUN pip3 install --editable /opt/nautobot/utsc/core
 USER nautobot
 
-WORKDIR /opt/nautobot
+
+WORKDIR /code

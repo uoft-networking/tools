@@ -4,7 +4,7 @@ from typing import Callable, Optional, Any, Type
 from inspect import getmembers, isfunction
 
 from .util import (
-    DEFAULT_GLOBALS, 
+    DEFAULT_GLOBALS,
     model_questionnaire, 
     get_comment_block_schema, 
     construct_model_from_comment_block_schema,

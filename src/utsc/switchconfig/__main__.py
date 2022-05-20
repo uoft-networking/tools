@@ -1,4 +1,4 @@
-# pylint: disable=unused-argument, import-outside-toplevel, unspecified-encoding
+# pylint: disable=unused-argument, unused-import, redefined-outer-name, import-outside-toplevel, unspecified-encoding
 import os
 import sys
 import traceback
@@ -295,7 +295,7 @@ def cli():
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         if config.data and config.data.debug:
             import ipdb
 
@@ -309,6 +309,59 @@ if __name__ == "__main__":
 
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
-        show_paths(True)        
+        # pylint: disable=C,R,W,I, undefined-variable
+
+        from .util import construct_model_instance_interactively
+        from utsc.switchconfig.types import *
+
+        class SubModel(BaseModel):
+            id: int = Field(description="The VLAN ID of this VLAN, Example: 100")
+            description: str = Field(
+                description="The description of this VLAN, Example: PUBLIC"
+            )
+            ip: IPv4Network = Field(
+                description="The IP address of this VLAN, in CIDR notation, Example: 10.14.1.33/24"
+            )
+
+        class MyEnum(StrEnum):  
+            opt_a = object()
+            opt_b = object()
+            opt_c = object()
+
+        class ChoiceA(Choice):
+            kind: Literal['choicea']
+
+        class ChoiceB(Choice):
+            kind: Literal['choiceb']
+
+        class Model(BaseModel):
+            a: str
+            aa: bool
+            b: int
+            bb: float
+            c: Optional[str]
+            cc: str | None
+            d: Union[str, int, None]
+            e: MyEnum
+            f: Path
+            g: DirectoryPath
+            h: Literal['one', 'two']
+            i: IPv4Address
+            j: SubModel
+            k: Union[ChoiceA, ChoiceB]
+            l: list
+            ll: List
+            ids: List[int]
+            names: List[str]
+            ips: List[IPv4Address]
+            objects: List[SubModel]
+            z: dict
+            za: Dict
+            zb: Dict[str,str]
+            zc: Dict[int, str]
+            xd: Dict[str, int]
+
+
+        r = construct_model_instance_interactively(Model)
         sys.exit()
     cli()

@@ -12,7 +12,7 @@ from importlib.metadata import version
 
 from loguru import logger
 from rich.console import Console
-from ._vendor.platformdirs import PlatformDirs
+from utsc.core._vendor.platformdirs import PlatformDirs
 from ._vendor.decorator import decorate
 
 if TYPE_CHECKING:

@@ -1,55 +1,67 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+# requires = ["poetry-core @ git+https://github.com/atremblay/poetry-core.git@fix-issue-5621"]
+# build-backend = "poetry.core.masonry.api"
+
+[tool.hatch.build]
+packages = ["utsc_nautobot"]
+
+[project]
+name = "utsc_nautobot"
+version = "2022.05.17"
+description = "A collection of UTSC-specific modifications and extensions to Nautobot."
+readme = "README.md"
+authors = [
+  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
+  { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" }
+]
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+  "nautobot_ssot >= 1.1.0",
+  "utsc.core",
+  "nautobot >= 1.3",
+  "django-auth-ldap",
+  "debugpy",
+  "django-debug-toolbar",
+  "html-table-parser-python3 >=0.2.0",
+  "django-environ"
+]
+
+[tool.poe.tasks]
+run.cmd = "nautobot-server"
+run.env   = { NAUTOBOT_ROOT = "./dev_data", ENV_PATH = "${NAUTOBOT_ROOT}/.env"}
+start.cmd = "poe run start --ini dev_data/uwsgi.ini"
+db-refresh.shell = '''
+sudo systemctl stop nautobot-dev.service nautobot-scheduler-dev.service nautobot-worker-dev.service
+/opt/backups/db/actions sync_prod_to_dev
+poe run migrate
+sudo systemctl start nautobot-dev
+'''
+
 [tool.poetry]
-name = "nautobot_utsc"
-version = "0.0.1"
+name = "utsc_nautobot"
+version = "2022.5.16"
 description = "A collection of UTSC-specific modifications and extensions to Nautobot."
 authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
 license = "MIT"
 packages = [
-  { include = "nautobot_utsc", from = "src" }
+  { include = "utsc_nautobot", from = "../../src" }
 ]
-
-
-# [tool.poetry.scripts]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 nautobot_ssot = ">=1.1.0"
-"utsc.core" = ">=0.6.1"
-nautobot = ">=1.2"
+"utsc.core" = "*"
+nautobot = ">=1.3"
+django-auth-ldap = "*" 
+debugpy = "*"
+django-debug-toolbar = "*"
 html-table-parser-python3 = ">=0.2.0"
+django-environ = "*"
+
 
 [tool.poetry.dev-dependencies]
 "utsc.core" = {path = "../core", develop = true}
-pytest = "*"
-mypy = "*"
-flake8 = "*"
-poethepoet = "*"
-flake8-bugbear = "*"
-pytest-cov = "*"
-prospector = ">=1.5"
-typer-cli = "*"
-mkdocs = "*"
-mkdocstrings = "*"
-mkdocs-material = "*"
-types-paramiko = "^0.1.9"
-black = {version = "^21.9b0", allow-prereleases = true}
-pytest-mock = ">=3.6"
-
-
-[tool.poe.tasks]
-cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
-publish.shell = """\
-  git push
-  poetry build
-  poetry publish
-  """
-check.shell = """\
-  black .
-  mypy .
-  prospector .
-  pytest .
-  """
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+django-environ = {git = "https://github.com/alextremblay/django-environ", rev = "main"}

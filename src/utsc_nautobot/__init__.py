@@ -7,7 +7,7 @@ from nautobot.extras.plugins import PluginConfig
 
 
 class UTSCPluginConfig(PluginConfig):
-    name = "nautobot_utsc"
+    name = "utsc_nautobot"
     verbose_name = "UTSC Nautobot Plugin"
     author = "Alex Tremblay"
     author_email = "alex.tremblay@utoronto.ca"
@@ -25,7 +25,7 @@ class UTSCPluginConfig(PluginConfig):
     # config_view_name = "plugins:utsc:config"
 
 
-def debug(nbshell_namespace):
+def debug(_globals: dict):
     """
     Entrypoint for the vscode debugger. 
     To use, run `nbshell --command "from nautobot_utsc import debug; debug(globals())"`
@@ -36,5 +36,8 @@ def debug(nbshell_namespace):
     n = Nautobot(job=None)
     print(b.diff_to(n))
 
+def print_config_path():
+    from pathlib import Path
+    print(Path(__file__).parent.joinpath('nautobot_config.py'))
 
 config = UTSCPluginConfig # noqa

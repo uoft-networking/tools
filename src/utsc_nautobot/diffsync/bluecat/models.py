@@ -12,12 +12,18 @@ from django.contrib.contenttypes.models import ContentType
 if TYPE_CHECKING:
     from .adapters import Bluecat, Nautobot
 
-STATUSES = {
-    "active": Status.objects.get(slug="active"),
-    "reserved": Status.objects.get(slug="reserved"),
-    "deprecated": Status.objects.get(slug="deprecated"),
-    "container": Status.objects.get(slug="container"),
-}
+STATUSES = None
+def get_statuses():
+    global STATUSES
+    if STATUSES:
+        return STATUSES
+    STATUSES = {
+        "active": Status.objects.get(slug="active"),
+        "reserved": Status.objects.get(slug="reserved"),
+        "deprecated": Status.objects.get(slug="deprecated"),
+        "container": Status.objects.get(slug="container"),
+    }
+    return STATUSES
 
 BLUECAT_ID_CUSTOM_FIELD_INITIALIZED = False
 
@@ -70,7 +76,7 @@ class NautobotNetwork(Network):
         cls, diffsync: "Nautobot", ids: Mapping, attrs: Mapping
     ) -> Optional["DiffSyncModel"]:
         """Create Prefix object in Nautobot."""
-        status = STATUSES[attrs["status"]]
+        status = get_statuses()[attrs["status"]]
         prefix = Prefix(
             prefix=attrs["prefix"],
             status=status,
@@ -87,7 +93,7 @@ class NautobotNetwork(Network):
         if attrs.get("description"):
             prefix.description = attrs["name"]
         if attrs.get("status"):
-            prefix.status = STATUSES[attrs["status"]]
+            prefix.status = get_statuses()[attrs["status"]]
         if attrs.get("prefix"):
             prefix.prefix = attrs["prefix"]
         prefix.validated_save()

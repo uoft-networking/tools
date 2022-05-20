@@ -1,5 +1,7 @@
+# pylint: disable=no-member
 from typing import (
     Any,
+    List,
     Literal,
     Optional,
     Type,
@@ -11,28 +13,25 @@ from typing import (
     get_origin,
     get_args,
 )
+import typing
 import os
 import sys
 import string
 import secrets
-from pathlib import Path
 from importlib.abc import Loader
 from importlib.util import spec_from_file_location, spec_from_loader, module_from_spec
 
-from . import config
+from . import config, types
 
-from utsc.core import StrEnum, txt
+from utsc.core import txt
 from utsc.core.other import Prompt
 from utsc.core.nested_data import NestedData
-from pydantic import BaseModel, Field  # noqa
-from pydantic.types import DirectoryPath
-from loguru import logger  # noqa
+from pydantic.fields import ModelField
+from loguru import logger
 from arrow import now
 from jinja2 import Environment
 
 if TYPE_CHECKING:
-    from pydantic.fields import ModelField
-
     CommentBlockSchema: TypeAlias = Mapping[
         str, "CommentBlockField" | "CommentBlockSchema"
     ]
@@ -62,7 +61,7 @@ DEFAULT_GLOBALS = {
 }
 
 
-class CommentBlockField(BaseModel):
+class CommentBlockField(types.BaseModel):
     """
     A field from a comment block in a template.
     """
@@ -124,7 +123,13 @@ def get_comment_block_schema(template: str) -> Optional["CommentBlockSchema"]:
 def model_source_from_comment_block_schema(
     schema: "CommentBlockSchema", name="Model", import_list=None, render_imports=True
 ) -> str:
-    import_list = import_list or ["typing.*", "pydantic.BaseModel, Field"]
+    import_list = import_list or [
+        "typing.*", 
+        "pydantic.types.*", 
+        "ipaddress.*", 
+        "netaddr.*", 
+        "pydantic.BaseModel, Field"
+    ]
 
     def field_value(field: CommentBlockField):
         # sourcery skip: remove-redundant-if
@@ -175,6 +180,8 @@ def model_source_from_comment_block_schema(
     model_src += template.render(name=name, fields=fields)
     if render_imports:
         model_src = imports_src(import_list) + model_src
+
+    logger.debug(model_src)
     return model_src
 
 
@@ -182,19 +189,16 @@ class VirtualSourceLoader(Loader):
     def __init__(self, source_code):
         self.source = source_code
 
-    def create_module(self, spec):
-        return None  # use default module creation semantics
-
     def exec_module(self, module) -> None:
-        exec(self.source, module.__dict__)
+        exec(self.source, module.__dict__) # pylint: disable=exec-used
 
 
 def normalize_extension_name(extension_name: str):
     return extension_name.replace("-", "_").replace(".", "_").replace(" ", "_")
 
 
-def create_python_module(module_name, source: Path | str):
-    if isinstance(source, Path):
+def create_python_module(module_name, source: types.Path | str):
+    if isinstance(source, types.Path):
         spec = spec_from_file_location(module_name, source)
     else:
         spec = spec_from_loader(module_name, VirtualSourceLoader(source))
@@ -208,7 +212,7 @@ def create_python_module(module_name, source: Path | str):
 
 def construct_model_from_comment_block_schema(
     schema: "CommentBlockSchema", name="Model"
-) -> Type[BaseModel]:
+) -> Type[types.BaseModel]:
     """
     Given a list of CommentBlockFields, construct a pydantic model
     that corresponds to the fields in the comment block.
@@ -219,14 +223,7 @@ def construct_model_from_comment_block_schema(
     return getattr(module, name)
 
 
-class Choice(BaseModel):
-    # Base class used to define multiple choices in a discriminated union.
-    # see the "Union" example under https://pydantic-docs.helpmanual.io/usage/types/#literal-type
-    # for details
-    kind: str
-
-
-def discriminated_union_choices(field: "ModelField") -> dict[str, Type] | None:
+def discriminated_union_choices(field: "ModelField", discriminator: str = 'kind') -> dict[str, Type] | None:
     """
     Return the set of kind literals for a discriminated union,
     or None if this field is not a discriminated union.
@@ -240,9 +237,10 @@ def discriminated_union_choices(field: "ModelField") -> dict[str, Type] | None:
     assert isinstance(field.sub_fields, list)
     choices = {}
     for sub in field.sub_fields:
-        if not issubclass(sub.type_, Choice):
+        try:
+            kind_type = sub.type_.__fields__[discriminator].type_
+        except KeyError:
             return None
-        kind_type = sub.type_.__fields__["kind"].type_
         assert get_origin(kind_type) is Literal
         choice = get_args(kind_type)[0]
         choices[choice] = sub.type_
@@ -269,14 +267,14 @@ class ValidatorWrapper(ValidatorBase):
 
 
 def model_questionnaire(
-    model: Type["BaseModel"], input_data: dict[str, Any] | None = None
-) -> "BaseModel":
+    model: Type[types.BaseModel], input_data: dict[str, Any] | None = None
+) -> types.BaseModel:
     """
     Given a pydantic data model,
     prompt user for inputs matching fields on that model,
     and return an instance of that model
     """
-    assert issubclass(model, BaseModel)
+    assert issubclass(model, types.BaseModel)
 
     def _is_maybe_subclass(type_, class_):
         try:
@@ -293,14 +291,14 @@ def model_questionnaire(
         default = field.default
 
         if (field.required is False) and (
-            prompt.bool_(f"include {name}?", desc) is False
+            prompt.bool_(f"'{name}' is optional. Do you want to skip it?", desc) is True
         ):
             continue
         if choices := discriminated_union_choices(field):
             choice = prompt.select(name, list(choices.keys()), desc)
             input_data[name] = model_questionnaire(choices[choice], {"kind": choice})
             continue
-        elif _is_maybe_subclass(field.type_, StrEnum):
+        elif _is_maybe_subclass(field.type_, types.StrEnum):
             choices = list(field.type_.__members__.keys())
             input_data[name] = prompt.select(name, choices, desc)
             continue
@@ -308,15 +306,17 @@ def model_questionnaire(
             choices = list(get_args(field.type_))
             input_data[name] = prompt.select(name, choices, desc)
             continue
-        elif _is_maybe_subclass(field.type_, BaseModel):
+        elif _is_maybe_subclass(field.type_, types.BaseModel):
             input_data[name] = model_questionnaire(field.type_)
             continue
-        elif _is_maybe_subclass(field.type_, Path):
-            only_directories = issubclass(field.type_, DirectoryPath)
+        elif _is_maybe_subclass(field.type_, types.Path):
+            only_directories = issubclass(field.type_, types.DirectoryPath)
             input_data[name] = prompt.path(
                 name, desc, only_directories=only_directories
             )
             continue
+        elif get_origin(field.type_) is List:
+            subtype = get_args(field.type_)[0]
         if field.key_field:
             # only dict[str,str] supported for now
             input_data[name] = prompt.dict_(name, desc)
@@ -327,3 +327,54 @@ def model_questionnaire(
 
             input_data[name] = prompt.string(name, desc, default, validator=validator)
     return model(**input_data)
+
+
+def _is_subclass(type_, class_):
+    try:
+        return issubclass(type_, class_)
+    except TypeError:
+        return False
+
+def handle_field(field_name: str, field: ModelField):
+    desc = field.field_info.description
+
+    if (field.required is False) and (
+            prompt.bool_(f"'{field_name}' is optional. Do you want to skip it?", desc) is True
+        ):
+        return None
+
+    outer = get_origin(field.outer_type_) or field.outer_type_
+    inner = [f.type_ for f in field.sub_fields] if field.sub_fields else list()
+
+    print('name:', field_name, 'req:', field.required, 'outer:', outer, 'inner:', inner)
+
+    # handle Union types
+    if outer is Union and (choices := discriminated_union_choices(field)):
+        choice = prompt.select(field_name, list(choices.keys()), desc)
+        return construct_model_instance_interactively(choices[choice], {"kind": choice})
+    if outer is Union and field.discriminator_key:
+        pass
+
+def construct_model_instance_interactively(
+    model: Type[types.BaseModel], input_data: dict[str, Any] | None = None
+) -> types.BaseModel:
+    """
+    Given a pydantic data model,
+    prompt user for inputs matching fields on that model,
+    and return an instance of that model
+
+    `input_data` (optional) is a dict of some or all of the required fields of the model. it can be used to pre-populate portions of the model. Any field already contained here will not be prompted for interactively
+    """
+    assert issubclass(model, types.BaseModel)
+
+    input_data = input_data or {}
+    for name, field in model.__fields__.items():
+        if name in input_data:
+            continue
+
+        input_data[name] = handle_field(name, field)
+
+        # dictionary types (only Dict[str,str] supported so far)
+    
+    return None # type: ignore
+    # return model(**input_data)

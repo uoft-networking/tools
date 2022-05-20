@@ -1,42 +1,35 @@
-[tool.poetry]
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+# requires = ["poetry-core @ git+https://github.com/atremblay/poetry-core.git@fix-issue-5621"]
+# build-backend = "poetry.core.masonry.api"
+
+[tool.hatch.build]
+packages = ["utsc"]
+
+[project]
 name = "utsc.scripts"
-version = "0.1.0"
+version = "2022.4.26"
 description = "a collection of scripts and one-off tools"
-authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+readme = "README.md"
+authors = [
+  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
+  { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" }
+]
 license = "MIT"
-packages = [
-  { include = "utsc/scripts", from = "src" }
+requires-python = ">=3.10"
+dependencies = [
+  "utsc.core",
+  "pydantic >= 1.9.0",
+  "prompt-toolkit >= 3.0.19",
+  "rich >= 10.7.0",
+  "requests >= 2.20.0",
+  "pyquery >= 1.4.0",
+  "ldap3"
 ]
 
-
-[tool.poetry.scripts]
+[project.scripts]
 "utsc.scripts" = "utsc.scripts.__main__:cli"
-
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-"utsc.core" = ">=0.6.0"
-pydantic = "^1.9.0"
-prompt-toolkit = "^3.0.19"
-rich = "^10.7.0"
-requests = ">=2.20.0"
-pyquery = "^1.4.0"
-
-[tool.poetry.dev-dependencies]
-"utsc.core" = {path = "../core", develop = true}
-pytest = "*"
-mypy = "*"
-flake8 = "*"
-poethepoet = "*"
-flake8-bugbear = "*"
-pytest-cov = "*"
-prospector = ">=1.5"
-typer-cli = "*"
-mkdocs = "*"
-mkdocstrings = "*"
-mkdocs-material = "*"
-black = {version = "^21.9b0", allow-prereleases = true}
-pytest-mock = ">=3.6"
-
 
 [tool.poe.tasks]
 cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
@@ -53,6 +46,31 @@ check.shell = """\
     pytest .
     """
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "utsc.scripts"
+version = "2022.4.26"
+description = "a collection of scripts and one-off tools"
+authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+license = "MIT"
+packages = [
+  { include = "utsc/scripts", from = "../../src" }
+]
+
+
+[tool.poetry.scripts]
+"utsc.scripts" = "utsc.scripts.__main__:cli"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+"utsc.core" = "*"
+pydantic = ">=1.9.0"
+prompt-toolkit = ">=3.0.19"
+rich = ">=10.7.0"
+requests = ">=2.20.0"
+pyquery = ">=1.4.0"
+ldap3 = "*"
+
+
+[tool.poetry.dev-dependencies]
+"utsc.core" = {path = "../core", develop = true}
