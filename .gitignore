@@ -1,8 +1,16 @@
 __pycache__
-dist/
+# Pants workspace files
+/.pants.*
+/dist/
+/.pids
 *.dist-info.coverage
 .*_cache/
 cov.xml
 .coverage
 *.pkl
 nautobot_ssot_infoblox
+utsc_templates
+/projects/*/dist
+/projects/nautobot/dev_data
+.venv/
+!.venv/make_pipenv_install_here
