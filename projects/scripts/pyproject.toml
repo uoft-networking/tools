@@ -47,30 +47,30 @@ check.shell = """\
     """
 
 
-[tool.poetry]
-name = "utsc.scripts"
-version = "2022.4.26"
-description = "a collection of scripts and one-off tools"
-authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
-license = "MIT"
-packages = [
-  { include = "utsc/scripts", from = "../../src" }
-]
+# [tool.poetry]
+# name = "utsc.scripts"
+# version = "2022.4.26"
+# description = "a collection of scripts and one-off tools"
+# authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+# license = "MIT"
+# packages = [
+#   { include = "utsc/scripts", from = "../../src" }
+# ]
 
 
-[tool.poetry.scripts]
-"utsc.scripts" = "utsc.scripts.__main__:cli"
+# [tool.poetry.scripts]
+# "utsc.scripts" = "utsc.scripts.__main__:cli"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-"utsc.core" = "*"
-pydantic = ">=1.9.0"
-prompt-toolkit = ">=3.0.19"
-rich = ">=10.7.0"
-requests = ">=2.20.0"
-pyquery = ">=1.4.0"
-ldap3 = "*"
+# [tool.poetry.dependencies]
+# python = ">=3.10,<4.0"
+# "utsc.core" = "*"
+# pydantic = ">=1.9.0"
+# prompt-toolkit = ">=3.0.19"
+# rich = ">=10.7.0"
+# requests = ">=2.20.0"
+# pyquery = ">=1.4.0"
+# ldap3 = "*"
 
 
-[tool.poetry.dev-dependencies]
-"utsc.core" = {path = "../core", develop = true}
+# [tool.poetry.dev-dependencies]
+# "utsc.core" = {path = "../core", develop = true}

@@ -15,37 +15,6 @@ dependencies = [
     "-e projects/switchconfig",
 ]
 
-[tool.poetry]
-name = "utsc_dev_env"
-version = "1"
-description = "Dummy package used to set up a virtualenv for development work"
-authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
-license = "MIT"
-packages = []
-
-[tool.poetry.dependencies]
-python = "~3.10"
-
-[tool.poetry.dev-dependencies]
-"utsc.core" = { path = "projects/core", develop = true }
-"nautobot_utsc" = { path = "projects/nautobot", develop = true }
-"utsc.scripts" = { path = "projects/scripts", develop = true }
-"utsc.switchconfig" = { path = "projects/switchconfig", develop = true }
-pytest = "*"
-mypy = "*"
-flake8 = "*"
-poethepoet = "*"
-flake8-bugbear = "*"
-pytest-cov = "*"
-prospector = ">=1.5"
-typer-cli = "*"
-mkdocs = "*"
-mkdocstrings = "*"
-mkdocs-material = "*"
-black = ">=22.3.0"
-pytest-mock = ">=3.6"
-tomlkit = "*"
-
 
 [tool.poe.tasks]
 gather.script = "tools:gather_dependencies"
@@ -66,11 +35,42 @@ check.shell = """\
   """
 nautobot.cmd = "poe --root projects/nautobot"
 
+# [tool.poetry]
+# name = "utsc_dev_env"
+# version = "1"
+# description = "Dummy package used to set up a virtualenv for development work"
+# authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
+# license = "MIT"
+# packages = []
 
-[old.build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+# [tool.poetry.dependencies]
+# python = "~3.10"
 
-[build-system]
-requires = ["pdm-pep517>=0.12.0"]
-build-backend = "pdm.pep517.api"
+# [tool.poetry.dev-dependencies]
+# "utsc.core" = { path = "projects/core", develop = true }
+# "nautobot_utsc" = { path = "projects/nautobot", develop = true }
+# "utsc.scripts" = { path = "projects/scripts", develop = true }
+# "utsc.switchconfig" = { path = "projects/switchconfig", develop = true }
+# pytest = "*"
+# mypy = "*"
+# flake8 = "*"
+# poethepoet = "*"
+# flake8-bugbear = "*"
+# pytest-cov = "*"
+# prospector = ">=1.5"
+# typer-cli = "*"
+# mkdocs = "*"
+# mkdocstrings = "*"
+# mkdocs-material = "*"
+# black = ">=22.3.0"
+# pytest-mock = ">=3.6"
+# tomlkit = "*"
+
+
+# [old.build-system]
+# requires = ["poetry-core>=1.0.0"]
+# build-backend = "poetry.core.masonry.api"
+
+# [build-system]
+# requires = ["pdm-pep517>=0.12.0"]
+# build-backend = "pdm.pep517.api"

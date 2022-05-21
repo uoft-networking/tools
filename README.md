@@ -2,9 +2,11 @@ a python monorepo for all projects in the utsc-networking umbrella
 
 # Overview
 
+External project requirements: `pipenv`
+
 *environment mgmt*: `pipenv` / `Pipfile`
-*task mgmt*: `just` / `justfile`
-*build frontend / backend*: `hatchling`
+*task mgmt*: `poethepoet` / `pyproject.toml`
+*build frontend / backend*: `hatchling` / `pyproject.toml`
 *release mgmt*: `hatch`
 
 # Dev Workflow
@@ -25,7 +27,7 @@ a python monorepo for all projects in the utsc-networking umbrella
 4. `cd projects/<project>/utsc && ln -s ../../../src/utsc/<project> ./ && cd ../../..`
 5. `pipenv install -e projects/<project>`
 6. create `tests/<project>/__init__.py` and additional tests
-7. (Optional) create `.github/workflows/<project>.yaml`
+7. (optionally) create `.github/workflows/<project>.yaml`
 
 ## Making a new release
 
@@ -35,11 +37,6 @@ a python monorepo for all projects in the utsc-networking umbrella
 4. `python -m build`
 5. `hatch publish`
 
-
-
-All tests go into a subdirectory of the `tests` folder (ie `tests/<project>`)
-All github workflow files go into the .github/workflows folder, prefixed with the project name
-(ie `.github/workflows/<project>.yml` is the default workflow for the project, `.github/workflows/<project>extra.yml` is an additional workflow file, presumably with a different trigger).
 
 Each project should implement its own typer cli in `src/utsc/<project>/__main__.py`. Each project's pyproject file (ie `projects/<project>/pyproject.toml`) should contain an entrypoint (or "script", as poetry calls them) that looks something like this:
 ```toml
