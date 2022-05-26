@@ -9,7 +9,7 @@ packages = ["utsc"]
 
 [project]
 name = "utsc.scripts"
-version = "2022.4.26"
+version = "2022.05.26"
 description = "a collection of scripts and one-off tools"
 readme = "README.md"
 authors = [
@@ -23,7 +23,6 @@ dependencies = [
   "pydantic >= 1.9.0",
   "prompt-toolkit >= 3.0.19",
   "rich >= 10.7.0",
-  "requests >= 2.20.0",
   "pyquery >= 1.4.0",
   "ldap3"
 ]
