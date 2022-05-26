@@ -13,10 +13,10 @@ External project requirements: `pipenv`
 
 ## Getting started
 
-1. install pipenv
+1. install pipenv and direnv
 2. install python3.10
 3. `pipenv install -d`
-4. `pipenv shell`
+4. `direnv allow .`
 5. config your editor to use `.venv/bin/python`as python interpreter (this should be automatically done in VSCode)
 
 ## Adding a project to the repo

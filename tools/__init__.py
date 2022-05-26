@@ -72,7 +72,7 @@ def bump_version(project: str):
 
 
 def build(project: str):
-    run("poetry build".split(), cwd=Path("projects/" + project), check=True)
+    run("python -m build".split(), cwd=Path("projects/" + project), check=True)
 
 
 def check_dist_files(project: str):

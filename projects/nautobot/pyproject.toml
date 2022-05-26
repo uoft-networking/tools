@@ -30,14 +30,27 @@ dependencies = [
 ]
 
 [tool.poe.tasks]
-run.cmd = "nautobot-server"
-run.env   = { NAUTOBOT_ROOT = "./dev_data", ENV_PATH = "${NAUTOBOT_ROOT}/.env"}
-start.cmd = "poe run start --ini dev_data/uwsgi.ini"
+start.cmd = "nautobot-server start --ini dev_data/uwsgi.ini"
+systemd.cmd = "sudo systemctl $action nautobot-dev.service nautobot-dev-scheduler.service nautobot-dev-worker.service"
+systemd.args = [{name = 'action', positional = true}]
+systemd-edit.shell = "sudoedit /etc/systemd/system/nautobot-dev.service /etc/systemd/system/nautobot-dev-worker.service /etc/systemd/system/nautobot-dev-scheduler.service; sudo systemctl daemon-reload"
+systemd-tail.cmd = "sudo journalctl -f -u nautobot-dev -u nautobot-dev-worker -u nautobot-dev-scheduler"
+prod-systemd.cmd = "sudo systemctl $action nautobot.service nautobot-scheduler.service nautobot-worker.service"
+prod-systemd.args = [{name = 'action', positional = true}]
+prod-systemd-edit.shell = "sudoedit /etc/systemd/system/nautobot.service /etc/systemd/system/nautobot-worker.service /etc/systemd/system/nautobot-scheduler.service; sudo systemctl daemon-reload"
+prod-systemd-tail.cmd = "sudo journalctl -f -u nautobot -u nautobot-worker -u nautobot-scheduler"
+prod-shell.cmd = "sudo -u nautobot env -C /opt/nautobot bash --login"
+prod-deploy-hotfix.shell = '''
+rm -rf dist
+hatchling build
+gpipx runpip nautobot uninstall utsc_nautobot
+gpipx inject nautobot dist/*.whl
+'''
 db-refresh.shell = '''
-sudo systemctl stop nautobot-dev.service nautobot-scheduler-dev.service nautobot-worker-dev.service
+poe systemd stop
 /opt/backups/db/actions sync_prod_to_dev
-poe run migrate
-sudo systemctl start nautobot-dev
+nautobot-server migrate
+poe systemd start
 '''
 
 # [tool.poetry]
