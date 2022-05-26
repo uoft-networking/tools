@@ -18,7 +18,7 @@ requires-python = ">=3.10"
 # poetry install
 # """
 publish.script = "tools:call('publish')"
-update_version.script = "tools:call('update_version')"
+bump_version.script = "tools:call('bump_version')"
 build.script = "tools:call('build')"
 cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
 check.shell = """\

@@ -39,8 +39,8 @@ def gather_dependencies():
 
 
 # deprecated
-def update_version(project: str = "core", bump_version: bool = False):  
-    version = _get_poetry(project, "version").split(".")
+def update_version(project: str, bump_version: bool = False):  
+    version = _get_metadata(project, "version").split(".")
 
     if bump_version:
         if len(version) > 3:
@@ -55,18 +55,20 @@ def update_version(project: str = "core", bump_version: bool = False):
     projects = dict(_get_projects())
     pyproject_file = projects[project]
     pyproject_data = tomlkit.loads(pyproject_file.read_text("utf-8"))
-    pyproject_data["tool"]["poetry"]["version"] = new_version  # type: ignore
+    pyproject_data["project"]["version"] = new_version  # type: ignore
     pyproject_file.write_text(tomlkit.dumps(pyproject_data))
     print(f'updated "{project}" version to "{new_version}"')
 
 
 def bump_version(project: str):
-    current_version = _get_poetry(project, "version")
-    new_version = _bump_version(current_version)
     projects = dict(_get_projects())
     pyproject_file = projects[project]
     pyproject_data = tomlkit.loads(pyproject_file.read_text("utf-8"))
-    pyproject_data["tool"]["poetry"]["version"] = new_version  # type: ignore
+
+    current_version = pyproject_data["project"]["version"]  # type: ignore
+    new_version = _bump_version(current_version)
+    
+    pyproject_data["project"]["version"] = new_version  # type: ignore
     pyproject_file.write_text(tomlkit.dumps(pyproject_data))
     print(f'updated "{project}" version from {current_version} to {new_version}')
 
@@ -204,11 +206,11 @@ def _get_poetry_builder():
             )
 
 
-def _get_poetry(project: str, key: str) -> str:
+def _get_metadata(project: str, key: str) -> str:
     projects = dict(_get_projects())
     pyproject_file = projects[project]
     pyproject_data = tomlkit.loads(pyproject_file.read_text("utf-8"))
-    return pyproject_data["tool"]["poetry"][key]  # type: ignore
+    return pyproject_data["project"][key]  # type: ignore
 
 
 def _get_pypi_version(project: str):
@@ -245,7 +247,7 @@ def _get_built_wheel(project: str):
 
 
 def _published_state(project: str) -> Literal['unpublished', 'outdated', 'published']:
-    local_version = _get_poetry(project, "version")
+    local_version = _get_metadata(project, "version")
     local_hash = md5(_get_built_wheel(project).read_bytes()).hexdigest()
     pypi_version, pypi_hash = _get_pypi_version(project)
     if local_version != pypi_version:
