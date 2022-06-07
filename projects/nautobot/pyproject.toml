@@ -9,7 +9,7 @@ packages = ["utsc_nautobot"]
 
 [project]
 name = "utsc_nautobot"
-version = "2022.05.17"
+version = "2022.06.02"
 description = "A collection of UTSC-specific modifications and extensions to Nautobot."
 readme = "README.md"
 authors = [
@@ -29,7 +29,14 @@ dependencies = [
   "django-environ"
 ]
 
+[tool.poe]
+shell_interpreter = "bash"
+
 [tool.poe.tasks]
+build.shell = '''
+poe --root ../.. bump_version nautobot
+hatchling build
+'''
 start.cmd = "nautobot-server start --ini dev_data/uwsgi.ini"
 systemd.cmd = "sudo systemctl $action nautobot-dev.service nautobot-dev-scheduler.service nautobot-dev-worker.service"
 systemd.args = [{name = 'action', positional = true}]
@@ -41,17 +48,32 @@ prod-systemd-edit.shell = "sudoedit /etc/systemd/system/nautobot.service /etc/sy
 prod-systemd-tail.cmd = "sudo journalctl -f -u nautobot -u nautobot-worker -u nautobot-scheduler"
 prod-shell.cmd = "sudo -u nautobot env -C /opt/nautobot bash --login"
 prod-deploy-hotfix.shell = '''
-rm -rf dist
-hatchling build
-gpipx runpip nautobot uninstall utsc_nautobot
-gpipx inject nautobot dist/*.whl
+poe --root ../.. build core
+poe --root ../.. bump_version nautobot
+poe --root ../.. build nautobot
+gpipx runpip nautobot install --upgrade --force-reinstall --no-deps ../core/dist/*.whl dist/*.whl
 '''
 db-refresh.shell = '''
+set -euo pipefail
 poe systemd stop
 /opt/backups/db/actions sync_prod_to_dev
 nautobot-server migrate
 poe systemd start
 '''
+curl-as.shell = '''
+set -euo pipefail
+case $user in
+  helpdesk)
+    token=$HELPDESK_API_TOKEN;;
+  *)
+    token=$MY_API_TOKEN;;
+esac
+curl -H "Authorization: Token $token" -H "Accept: application/json;" -H 'Content-Type: application/json' -X DELETE -d '{"mac-address":"10:02:b5:27:bb:0e"}' -s http://127.0.0.1:8000/api/$endpoint/ | jq .
+'''
+curl-as.args = [
+  {name = 'user', positional = true, help='helpdesk or me'},
+  {name = 'endpoint', positional = true, help='api/$endpoint/'}
+]
 
 # [tool.poetry]
 # name = "utsc_nautobot"
