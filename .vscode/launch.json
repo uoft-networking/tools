@@ -5,6 +5,38 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Nautobot UTSC Debug",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/.venv/bin/nautobot-server",
+            "args": [
+                "utsc_debug",
+            ],
+            "django": true,
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/projects/nautobot",
+            "env": {
+                "PYDEBUG": "1",
+                "VSCODE_DEBUGGER": "1"
+            },
+        },
+        {
+            "name": "Python: Nautobot Dev",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/.venv/bin/nautobot-server",
+            "args": [
+                "runserver",
+                "--noreload"
+            ],
+            "django": true,
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/projects/nautobot",
+            "env": {
+                "VSCODE_DEBUGGER": "1"
+            },
+        },
+        {
             "name": "Python: Remote Attach (nautobot-dev)",
             "type": "python",
             "request": "attach",

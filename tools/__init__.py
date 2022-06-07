@@ -74,6 +74,7 @@ def bump_version(project: str):
 
 
 def build(project: str):
+    run("rm -rf dist".split(), cwd=Path("projects/" + project), check=True)
     run("python -m build".split(), cwd=Path("projects/" + project), check=True)
 
 
@@ -112,7 +113,7 @@ def publish(project: str, build_first: bool = False, bump: bool = False, skip_co
     if project != "core" and not skip_core:
         publish("core", build_first, bump)
     if build_first:
-        build(project, bump, skip_core)
+        build1(project, bump, skip_core)
 
     match _published_state(project):
         case 'published':
