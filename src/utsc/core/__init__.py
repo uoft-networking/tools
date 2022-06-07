@@ -4,11 +4,13 @@ import os, sys, time, logging, logging.handlers, re, platform
 from pathlib import Path
 from functools import cached_property
 from enum import Enum
-from typing import Dict, List, Any, Optional, Type, TYPE_CHECKING
+from typing import Callable, Dict, List, Any, Optional, Type, TYPE_CHECKING, TypeVar
 from textwrap import dedent
 from getpass import getuser
 from subprocess import run
 from importlib.metadata import version
+import pickle
+import inspect
 
 from loguru import logger
 from rich.console import Console
@@ -26,7 +28,10 @@ logger.disable(__name__)
 # for cli apps to re-enable logging on the libraries they use
 
 # region SECTION util functions & classes
-def memoize(f):
+
+F = TypeVar('F', bound=Callable)
+
+def memoize(f: F) -> F:
     """
     A simple memoize implementation. It works by adding a .cache dictionary
     to the decorated function. The cache will grow indefinitely, so it is
@@ -47,6 +52,83 @@ def memoize(f):
     f.cache = {}
     return decorate(f, _memoize)
 
+def debug_cache(func: F) -> F:
+    """
+    A function cache which persists to disk, but only when the `PYDEBUG` env var is set. 
+    All calls to functions decorated with this decorator will store the results of those functions in the cache, 
+    and that cache will be written to a file in the current directory called `.utsc.core.debug.cache.{function name}`.
+    A utility function will be attached to the decorated function, and can be used to clear that function's cached results.
+
+    Example:
+        @debug_cache  
+        def my_function():  
+            ...  
+          
+        result = my_function() # my_function will run as normal and store its result in the cache  
+        result2 = my_function() # my_function will not run this time, instead, its cached result will be returned 
+        # at this point, there will be a file in your current directory called `.utsc.core.debug.cache.my_function` 
+        my_function.clear_cache() # the cache is now empty, and `.utsc.core.debug.cache.my_function` has been deleted
+        result3 = my_function() # my_function will once again run as normal and store its result in the cache, 
+        # at this point, `.utsc.core.debug.cache.my_function` has been recreated 
+
+    """
+    if not os.getenv('PYDEBUG'):
+        logger.debug('PYDEBUG env var not set, debug_cache is disabled')
+        return func
+    fname = func.__qualname__
+    file_name = f'.utsc.core.debug.cache.{fname}'
+    try:
+        with open(file_name, 'rb') as f:
+            cache: dict = pickle.load(f)
+    except (IOError, ValueError):
+        cache = {}
+
+    def clear_cache():
+        nonlocal cache
+        cache = {}
+        try: os.remove(file_name)
+        except FileNotFoundError: pass
+
+    def wrapped_func(*args, **kw):
+        key = (args, frozenset(kw.items())) if kw else args
+        if key not in cache:
+            logger.trace(
+                f"caching output of function `{fname}` with arguments {args} and {kw}"
+            )
+            cache[key] = func(*args, **kw)
+            with open(file_name, 'wb') as f:
+                pickle.dump(cache, f)
+        return cache[key]
+
+    wrapped_func.clear_cache = clear_cache
+    wrapped_func.__name__ = func.__name__
+    wrapped_func.__doc__ = func.__doc__
+    wrapped_func.__wrapped__ = func
+    wrapped_func.__signature__ = inspect.signature(func)
+    wrapped_func.__qualname__ = func.__qualname__
+    # builtin functions like defaultdict.__setitem__ lack many attributes
+    try:
+        wrapped_func.__defaults__ = func.__defaults__
+    except AttributeError:
+        pass
+    try:
+        wrapped_func.__kwdefaults__ = func.__kwdefaults__
+    except AttributeError:
+        pass
+    try:
+        wrapped_func.__annotations__ = func.__annotations__
+    except AttributeError:
+        pass
+    try:
+        wrapped_func.__module__ = func.__module__
+    except AttributeError:
+        pass
+    try:
+        wrapped_func.__dict__.update(func.__dict__)
+    except AttributeError:
+        pass
+    
+    return wrapped_func # type: ignore
 
 def txt(s: str) -> str:
     """
@@ -67,15 +149,15 @@ def chomptxt(s: str) -> str:
     dedents a triple-quoted indented string, and replaces all single newlines with spaces.
     replaces all double newlines (\\n\\n) with single newlines
     Converts this:
-    txt('''
-        hello
-        world
+        txt('''
+            hello
+            world
 
-        here's another
-        line
-        ''')
+            here's another
+            line
+            ''')
     into this:
-    "hello world\\nhere's another line"
+    `hello world\\nhere's another line`
     """
     res = dedent(s)
     res = res.replace("\n\n", "[PRESERVEDNEWLINE]")
@@ -200,7 +282,8 @@ class Timeit:
     elapsed real time between two points of execution.
 
     Example:
-        from at_utils.main import Timeit
+        ```python
+        from utsc.core import Timeit
 
         # the clock starts as soon as the class is initialized
         timer = Timeit()
@@ -220,23 +303,47 @@ class Timeit:
         # clock immediately after recording runtime for the previous clock
         time.sleep(1.5)
         timer.stop()
-
+        ```
 
     """
 
     def __init__(self) -> None:
-        self.start = time.perf_counter()
+        self.time = self.now
+        self.start = self.time
+
+    @classmethod
+    def time_this(cls, func: Callable):
+        def wrapper(*args, **kwargs):
+            t = Timeit()
+            res = func(*args, **kwargs)
+            print(f"{func.__name__} completed in {t.stop().str}")
+            return res
+        return wrapper
+
+    @property
+    def now(self):
+        return time.perf_counter()
+
+    @property
+    def float(self):
+        return self.now - self.time
+
+    @property
+    def str(self):
+        return f"{self.float:.4f}s"
 
     def stop(self):
-        self.now = time.perf_counter()
-        self.float = self.now - self.start
-        self.str = f"{self.float:.4f}s"
+        # This method is deprecated. all of its functionality has been reimplemented as class instance properties
         return self
 
     def interval(self):
-        self.stop()
-        self.start = self.now
+        self.time = self.now
         return self
+
+    @property
+    def total(self):
+        total = self.now - self.start
+        return f"{total:.4f}s"
 
 
 class UTSCCoreError(Exception):
@@ -255,7 +362,7 @@ class InterceptHandler(logging.Handler):
 
         # Find caller from where originated the logged message
         frame, depth = logging.currentframe(), 2
-        while frame.f_code.co_filename == logging.__file__:
+        while frame and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
 
@@ -274,9 +381,9 @@ class StrEnum(str, Enum):
     def __str__(self) -> str:
         return self.name
 
-    @property
-    def str(self):
-        return self.__str__()
+    # @property
+    # def str(self):
+    #     return self.__str__()
 
     @classmethod
     def from_str(cls, string):
@@ -428,9 +535,9 @@ class Util:
                     for ext in ["ini", "yaml", "json", "toml"]:
                         yield f"{basename}.{ext}"
 
-            for dir in self.dirs_generator():
+            for directory in self.dirs_generator():
                 for name in file_names():
-                    file = dir / name
+                    file = directory / name
                     yield file, File.state(file)
 
         @cached_property
@@ -489,7 +596,7 @@ class Util:
                 )
                 return last_file
             except IndexError:
-                raise UTSCCoreError(
+                raise UTSCCoreError(  # pylint: disable=raise-missing-from
                     chomptxt(
                         f"""
                     Could not find a valid config file for application {self.parent.app_name} 
@@ -656,7 +763,7 @@ class Util:
             # project for all your apps, and want to group all your alerts
             # into issues by app name
 
-            def before_send(event, hint):  # noqa
+            def before_send(event, hint):  # pylint: disable=unused-argument
                 # group all sentry events by app name
                 if event.get("exception"):
                     exc_type = event["exception"]["values"][0]["type"]
@@ -711,14 +818,14 @@ class Util:
         # By convention, this path is ~/.config/utsc-tools
 
     # region util
-    def get_env_var(self, property):
+    def get_env_var(self, property_):
         "fetches a namespaced environment variable"
-        property = property.replace("-", "_").replace(
+        property_ = property_.replace("-", "_").replace(
             ".", "_"
         )  # property names must have underscores, not dashes or dots
-        env_var_name = f"{self.app_name}_{property}".upper()
+        env_var_name = f"{self.app_name}_{property_}".upper()
         res = os.environ.get(env_var_name)
-        msg = f"Environment variable '{env_var_name}' for property '{property}'"
+        msg = f"Environment variable '{env_var_name}' for property '{property_}'"
         if res:
             logger.trace(f"{msg} is set to '{res}'")
         else:
@@ -776,7 +883,7 @@ class Util:
             user_cache.mkdir(parents=True, exist_ok=True)
             return user_cache
         except OSError:
-            raise UTSCCoreError(
+            raise UTSCCoreError(  # pylint: disable=raise-missing-from
                 chomptxt(
                     f"""
                 Neither site-wide cache directory ({site_cache}) nor 
@@ -800,6 +907,6 @@ from .nested_data import *  # noqa
 if __name__ == "__main__":
     from .other import *  # noqa
 
-    u = Util(app_name="utsc-tools")
-    v = Prompt(u).list_(var="test", description="hello description")
-    print(v)
+    _u = Util(app_name="utsc-tools")
+    _v = Prompt(_u).list_(var="test", description="hello description")
+    print(_v)

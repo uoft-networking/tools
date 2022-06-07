@@ -18,8 +18,6 @@ class ArubaRESTAPIClient:
         requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)  # type: ignore
         self.session.verify = False
 
-        self.login()
-
     def login(self):
         r = self.session.post(self.v1_url + "api/login", data=self.auth)
         assert r.status_code == 200, f"Auth failed on host {self.host}: {r.text}"
@@ -32,16 +30,20 @@ class ArubaRESTAPIClient:
         self.session.delete(self.rest_v1_url + "login-sessions")
 
     def __enter__(self):
+        self.login()
         return self
 
     def __exit__(self, type_, value, traceback):
         self.logout()
 
-    def showcommand(self, cmd, **params):
+    def showcommand_raw(self, cmd, **params):
         return self.session.get(
             self.v1_url + "configuration/showcommand",
             params=dict(command=cmd, **params),
-        ).json()
+        )
+
+    def showcommand(self, cmd, **params):
+        return self.showcommand_raw(cmd, **params).json()
 
     def get_all_objects(self):
         return self.session.get(
@@ -54,9 +56,12 @@ class ArubaRESTAPIClient:
         ).json()
 
     def stm_blacklist_get(self):
-        return self.showcommand("show ap blacklist-clients")
+        return self.showcommand("show ap blacklist-clients")["Blacklisted Clients"]
 
-    def stm_blacklist_remove(self, mac_address):
+    def get_user_table(self):
+        return self.showcommand('show user-table')['Users']
+
+    def stm_blacklist_remove(self, mac_address: str):
         resp = self.session.post(
             self.v1_url + "configuration/object/stm_blacklist_client_remove",
             json={"client-mac": mac_address},

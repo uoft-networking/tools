@@ -9,7 +9,7 @@ from utsc.core import shell
 
 from . import config
 from . import bluecat as bluecat_
-from .aruba import ArubaRESTAPIClient
+from utsc.core.aruba import ArubaRESTAPIClient
 
 import typer
 from loguru import logger
@@ -88,8 +88,8 @@ def stm_blacklist_get(ctx: typer.Context):
 
     with ArubaRESTAPIClient(controller2, username, password) as c:
         d2 = c.stm_blacklist_get()
-
-    res = d1["Blacklisted Clients"] + d2["Blacklisted Clients"]
+    
+    res = d1 + d2
     print(json.dumps(res, indent=4))
 
 
@@ -157,11 +157,19 @@ if __name__ == "__main__":
     if os.environ.get("PYDEBUG"):
         # Debug code goes here
         def dothething():
-            pw, bind_dn, host, users_base_dn, groups_base_dn = shell("pass utsc/nautobot-ldap").splitlines()
+            class Context:
+                obj: tuple
+            controller1 = 'aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343'
+            controller2 = 'aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343'
+            username = 'apiadmin'
+            password = shell("pass aruba-api").splitlines()[0]
+            ctx = Context()
+            ctx.obj = (controller1, controller2, username, password)
 
-            server = ldap3.Server(host, get_info=ldap3.ALL)
-            conn = ldap3.Connection(server, bind_dn, pw, auto_bind=True)  # type: ignore
-            conn.search(groups_base_dn, '(name=GL_SysNet*)', attributes='cn name member objectClass'.split())
+            with ArubaRESTAPIClient(controller1, username, password) as c:
+                d1 = c.showcommand_raw('show log user all').text
+
+            print(d1)
         dothething()
         sys.exit()
     cli()

@@ -7,7 +7,7 @@ packages = ["utsc"]
 
 [project]
 name = "utsc.core"
-version = "2022.05.26"
+version = "2022.05.27"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = [
