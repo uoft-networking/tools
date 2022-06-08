@@ -463,7 +463,7 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.ini_file.write_text(
+        mock_util.mock_folders.user_config.ini_file.write_text(txt(
             """
             [_common_]
             key1 = val1
@@ -471,7 +471,7 @@ class TestUtil:
             [extra]
             key = value
             """,
-        )
+        ))
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2", "extra": {"key": "value"}}
 
@@ -481,14 +481,14 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.json_file.write_text(
+        mock_util.mock_folders.user_config.json_file.write_text(txt(
             """
             {
                 "key1": "val1", 
                 "key2": "val2"
             }
             """,
-        )
+        ))
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2"}
 
@@ -498,12 +498,12 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.toml_file.write_text(
+        mock_util.mock_folders.user_config.toml_file.write_text(txt(
             """
             key1 = 'val1'
             key2 = 'val2'
             """,
-        )
+        ))
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2"}
 
@@ -513,12 +513,12 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.yaml_file.write_text(
+        mock_util.mock_folders.user_config.yaml_file.write_text(txt(
             """
             key1: val1
             key2: val2
             """,
-        )
+        ))
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2"}
 

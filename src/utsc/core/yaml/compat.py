@@ -10,12 +10,8 @@ from abc import abstractmethod
 import collections.abc
 
 
-# fmt: off
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:  # MYPY
-    from typing import Any, Dict, Optional, List, Union, BinaryIO, IO, Text, Tuple  # NOQA
-    from typing import Optional  # NOQA
-# fmt: on
+
+from typing import Any, Dict, Optional, List, Union, BinaryIO, TextIO, Text, Tuple  # NOQA
 
 _DEFAULT_YAML_VERSION = (1, 2)
 
@@ -63,15 +59,10 @@ def _F(s, *superfluous, **kw):
 StringIO = io.StringIO
 BytesIO = io.BytesIO
 
-from typing import TYPE_CHECKING
+StreamType = BinaryIO | TextIO | BytesIO | StringIO
 
-if TYPE_CHECKING:  # MYPY
-    # StreamType = Union[BinaryIO, IO[str], IO[unicode],  StringIO]
-    # StreamType = Union[BinaryIO, IO[str], StringIO]  # type: ignore
-    StreamType = Any
-
-    StreamTextType = StreamType  # Union[Text, StreamType]
-    VersionType = Union[List[int], str, Tuple[int, int]]
+StreamTextType = StreamType  # Union[Text, StreamType]
+VersionType = List[int] | str | Tuple[int, int]
 
 builtins_module = "builtins"
 

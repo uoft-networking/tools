@@ -4,13 +4,14 @@
 some helper functions that might be generally useful
 """
 
+import datetime
 from functools import partial
 import re
 
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Text  # NOQA
     from .compat import StreamTextType  # NOQA
 
@@ -49,6 +50,73 @@ class LazyEval:
 
 
 RegExp = partial(LazyEval, re.compile)
+
+timestamp_regexp = RegExp(
+    """^(?P<year>[0-9][0-9][0-9][0-9])
+       -(?P<month>[0-9][0-9]?)
+       -(?P<day>[0-9][0-9]?)
+       (?:((?P<t>[Tt])|[ \\t]+)   # explictly not retaining extra spaces
+       (?P<hour>[0-9][0-9]?)
+       :(?P<minute>[0-9][0-9])
+       :(?P<second>[0-9][0-9])
+       (?:\\.(?P<fraction>[0-9]*))?
+        (?:[ \\t]*(?P<tz>Z|(?P<tz_sign>[-+])(?P<tz_hour>[0-9][0-9]?)
+       (?::(?P<tz_minute>[0-9][0-9]))?))?)?$""",
+    re.X,
+)
+
+
+def create_timestamp(
+    year, month, day, t, hour, minute, second, fraction, tz, tz_sign, tz_hour, tz_minute
+):
+    # type: (Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any) -> Any
+    # create a timestamp from match against timestamp_regexp
+    MAX_FRAC = 999999
+    year = int(year)
+    month = int(month)
+    day = int(day)
+    if not hour:
+        return datetime.date(year, month, day)
+    hour = int(hour)
+    minute = int(minute)
+    second = int(second)
+    frac = 0
+    if fraction:
+        frac_s = fraction[:6]
+        while len(frac_s) < 6:
+            frac_s += "0"
+        frac = int(frac_s)
+        if len(fraction) > 6 and int(fraction[6]) > 4:
+            frac += 1
+        if frac > MAX_FRAC:
+            fraction = 0
+        else:
+            fraction = frac
+    else:
+        fraction = 0
+    delta = None
+    if tz_sign:
+        tz_hour = int(tz_hour)
+        tz_minute = int(tz_minute) if tz_minute else 0
+        delta = datetime.timedelta(
+            hours=tz_hour, minutes=tz_minute, seconds=1 if frac > MAX_FRAC else 0
+        )
+        if tz_sign == "-":
+            delta = -delta
+    elif frac > MAX_FRAC:
+        delta = -datetime.timedelta(seconds=1)
+    # should do something else instead (or hook this up to the preceding if statement
+    # in reverse
+    #  if delta is None:
+    #      return datetime.datetime(year, month, day, hour, minute, second, fraction)
+    #  return datetime.datetime(year, month, day, hour, minute, second, fraction,
+    #                           datetime.timezone.utc)
+    # the above is not good enough though, should provide tzinfo. In Python3 that is easily
+    # doable drop that kind of support for Python2 as it has not native tzinfo
+    data = datetime.datetime(year, month, day, hour, minute, second, fraction)
+    if delta:
+        data -= delta
+    return data
 
 
 # originally as comment

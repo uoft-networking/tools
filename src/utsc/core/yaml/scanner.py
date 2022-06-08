@@ -35,7 +35,7 @@ from .compat import _F, check_anchorname_char, nprint, nprintf  # NOQA
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Union, Text  # NOQA
     from .compat import VersionType  # NOQA
 
@@ -2453,7 +2453,7 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
                     mark = self.reader.get_mark()
                     comment = "#"
                 else:
-                    # print('breaking on', repr(ch))
+                    # xprintf('breaking on', repr(ch))
                     break
             else:
                 comment += ch

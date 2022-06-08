@@ -12,7 +12,7 @@ from .resolver import Resolver, BaseResolver, VersionedResolver
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, List, Union, Optional  # NOQA
     from .compat import StreamType, VersionType  # NOQA
 

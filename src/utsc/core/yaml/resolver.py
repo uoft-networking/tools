@@ -4,7 +4,7 @@ import re
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, List, Union, Text, Optional  # NOQA
     from .compat import VersionType  # NOQA
 

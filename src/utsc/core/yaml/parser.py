@@ -84,7 +84,7 @@ from .compat import _F, nprint, nprintf  # NOQA
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Optional  # NOQA
 
 __all__ = ["Parser", "RoundTripParser", "ParserError"]
@@ -241,7 +241,12 @@ class Parser:
             #    end_mark.line != self.scanner.peek_token().start_mark.line:
             #     self.loader.scalar_after_indicator = False
             event = DocumentStartEvent(
-                start_mark, end_mark, explicit=True, version=version, tags=tags
+                start_mark,
+                end_mark,
+                explicit=True,
+                version=version,
+                tags=tags,
+                comment=token.comment,
             )  # type: Any
             self.states.append(self.parse_document_end)
             self.state = self.parse_document_content

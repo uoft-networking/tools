@@ -4,7 +4,7 @@ from .compat import _F, nprintf  # NOQA
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Text, Any, Dict, Optional, List  # NOQA
     from .error import StreamMark  # NOQA
 

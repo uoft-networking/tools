@@ -13,19 +13,19 @@ def test_yaml():
     s = yaml.from_yaml(
         txt(
             """
-        hello: world # comment on scalar
-        list: # comment on list
-          - 1 # comment on list item
+            hello: world # comment on scalar
+            list: # comment on list
+                - 1 # comment on list item
 
-          # comment IN list
-          - 2
-          - 3 # another comment
-          - 4
-        set: !!set
-          ? val # comment on set
-          ? third
-          ? other
-        """
+            # comment IN list
+                - 2
+                - 3 # another comment
+                - 4
+            set: !!set
+                ? val # comment on set
+                ? third
+                ? other
+            """
         )
     )
     assert isinstance(s, yaml.CommentedMap)
@@ -38,4 +38,3 @@ def test_yaml():
     c3 = yaml.get_comment(s["list"], 1)  # type: ignore
     assert c3 is None
     print(yaml.to_yaml(s))
-    print()

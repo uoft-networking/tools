@@ -4,7 +4,7 @@ from .anchor import Anchor
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Text, Any, Dict, List  # NOQA
 
 __all__ = ["ScalarInt", "BinaryInt", "OctalInt", "HexInt", "HexCapsInt", "DecimalInt"]
@@ -52,7 +52,7 @@ class ScalarInt(int):
 
     def __ipow__(self, a):  # type: ignore
         # type: (Any) -> Any
-        x = type(self)(self ** a)
+        x = type(self)(self**a)
         x._width = self._width  # type: ignore
         x._underscore = (  # type: ignore
             self._underscore[:] if self._underscore is not None else None  # type: ignore

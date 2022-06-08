@@ -20,7 +20,7 @@ from .nodes import MappingNode, ScalarNode, SequenceNode
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Union, Text, Optional  # NOQA
     from .compat import VersionType  # NOQA
 

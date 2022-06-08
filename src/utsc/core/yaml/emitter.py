@@ -18,7 +18,7 @@ from .compat import _F, nprint, dbg, DBG_EVENT, \
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, List, Union, Text, Tuple, Optional  # NOQA
     from .compat import StreamType  # NOQA
 
@@ -56,7 +56,7 @@ class Indents:
     # replacement for the list based stack of None/int
     def __init__(self):
         # type: () -> None
-        self.values = []  # type: List[Tuple[int, bool]]
+        self.values = []  # type: List[Tuple[Any, bool]]
 
     def append(self, val, seq):
         # type: (Any, Any) -> None
@@ -75,14 +75,19 @@ class Indents:
         except IndexError:
             return False
 
-    def seq_flow_align(self, seq_indent, column):
-        # type: (int, int) -> int
+    def seq_flow_align(self, seq_indent, column, pre_comment=False):
+        # type: (int, int, Optional[bool]) -> int
         # extra spaces because of dash
+        # nprint('seq_flow_align', self.values, pre_comment)
         if len(self.values) < 2 or not self.values[-1][1]:
-            return 0
-        # -1 for the dash
+            if len(self.values) == 0 or not pre_comment:
+                return 0
         base = self.values[-1][0] if self.values[-1][0] is not None else 0
-        return base + seq_indent - column - 1
+        if pre_comment:
+            return base + seq_indent  # type: ignore
+            # return (len(self.values)) * seq_indent
+        # -1 for the dash
+        return base + seq_indent - column - 1  # type: ignore
 
     def __len__(self):
         # type: () -> int
@@ -417,6 +422,7 @@ class Emitter:
         # type: (bool, bool, bool, bool) -> None
         self.root_context = root
         self.sequence_context = sequence  # not used in PyYAML
+        force_flow_indent = False
         self.mapping_context = mapping
         self.simple_key_context = simple_key
         if isinstance(self.event, AliasEvent):
@@ -442,20 +448,27 @@ class Emitter:
                 # nprint('@', self.indention, self.no_newline, self.column)
                 i2, n2 = self.indention, self.no_newline  # NOQA
                 if self.event.comment:
-                    if self.event.flow_style is False and self.event.comment:
+                    if self.event.flow_style is False:
                         if self.write_post_comment(self.event):
                             self.indention = False
                             self.no_newline = True
+                    if self.event.flow_style:
+                        column = self.column
                     if self.write_pre_comment(self.event):
+                        if self.event.flow_style:
+                            # force_flow_indent = True
+                            force_flow_indent = not self.indents.values[-1][1]
                         self.indention = i2
                         self.no_newline = not self.indention
+                    if self.event.flow_style:
+                        self.column = column
                 if (
                     self.flow_level
                     or self.canonical
                     or self.event.flow_style
                     or self.check_empty_sequence()
                 ):
-                    self.expect_flow_sequence()
+                    self.expect_flow_sequence(force_flow_indent)
                 else:
                     self.expect_block_sequence()
             elif isinstance(self.event, MappingStartEvent):
@@ -463,13 +476,18 @@ class Emitter:
                     self.write_post_comment(self.event)
                 if self.event.comment and self.event.comment[1]:
                     self.write_pre_comment(self.event)
+                    if self.event.flow_style:
+                        force_flow_indent = not self.indents.values[-1][1]
                 if (
                     self.flow_level
                     or self.canonical
                     or self.event.flow_style
                     or self.check_empty_mapping()
                 ):
-                    self.expect_flow_mapping(single=self.event.nr_items == 1)
+                    self.expect_flow_mapping(
+                        single=self.event.nr_items == 1,
+                        force_flow_indent=force_flow_indent,
+                    )
                 else:
                     self.expect_block_mapping()
         else:
@@ -493,11 +511,16 @@ class Emitter:
 
     # Flow sequence handlers.
 
-    def expect_flow_sequence(self):
-        # type: () -> None
-        ind = self.indents.seq_flow_align(self.best_sequence_indent, self.column)
+    def expect_flow_sequence(self, force_flow_indent=False):
+        # type: (Optional[bool]) -> None
+        if force_flow_indent:
+            self.increase_indent(flow=True, sequence=True)
+        ind = self.indents.seq_flow_align(
+            self.best_sequence_indent, self.column, force_flow_indent
+        )
         self.write_indicator(" " * ind + "[", True, whitespace=True)
-        self.increase_indent(flow=True, sequence=True)
+        if not force_flow_indent:
+            self.increase_indent(flow=True, sequence=True)
         self.flow_context.append("[")
         self.state = self.expect_first_flow_sequence_item
 
@@ -545,9 +568,13 @@ class Emitter:
 
     # Flow mapping handlers.
 
-    def expect_flow_mapping(self, single=False):
-        # type: (Optional[bool]) -> None
-        ind = self.indents.seq_flow_align(self.best_sequence_indent, self.column)
+    def expect_flow_mapping(self, single=False, force_flow_indent=False):
+        # type: (Optional[bool], Optional[bool]) -> None
+        if force_flow_indent:
+            self.increase_indent(flow=True, sequence=False)
+        ind = self.indents.seq_flow_align(
+            self.best_sequence_indent, self.column, force_flow_indent
+        )
         map_init = "{"
         if (
             single
@@ -560,7 +587,8 @@ class Emitter:
             map_init = ""
         self.write_indicator(" " * ind + map_init, True, whitespace=True)
         self.flow_context.append(map_init)
-        self.increase_indent(flow=True, sequence=False)
+        if not force_flow_indent:
+            self.increase_indent(flow=True, sequence=False)
         self.state = self.expect_first_flow_mapping_key
 
     def expect_first_flow_mapping_key(self):

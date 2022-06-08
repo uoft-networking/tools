@@ -8,7 +8,7 @@ import copy
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List  # NOQA
 
 

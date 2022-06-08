@@ -310,6 +310,7 @@ class Timeit:
     def __init__(self) -> None:
         self.time = self.now
         self.start = self.time
+        self.float = 0.0
 
     @classmethod
     def time_this(cls, func: Callable):
@@ -325,18 +326,15 @@ class Timeit:
         return time.perf_counter()
 
     @property
-    def float(self):
-        return self.now - self.time
-
-    @property
     def str(self):
         return f"{self.float:.4f}s"
 
     def stop(self):
-        # This method is deprecated. all of its functionality has been reimplemented as class instance properties
+        self.float = self.now - self.time
         return self
 
     def interval(self):
+        self.stop()
         self.time = self.now
         return self
 

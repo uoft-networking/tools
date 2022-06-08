@@ -6,7 +6,7 @@ from .util import configobj_walker as new_configobj_walker
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any  # NOQA
 
 

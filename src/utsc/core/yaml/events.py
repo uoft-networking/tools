@@ -6,7 +6,7 @@ from .compat import _F
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List  # NOQA
 
 SHOW_LINES = False

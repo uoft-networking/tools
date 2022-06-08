@@ -1,7 +1,7 @@
 # coding: utf-8
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Union, Optional, Iterator  # NOQA
 
 anchor_attrib = "_yaml_anchor"

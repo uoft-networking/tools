@@ -5,7 +5,7 @@ from .anchor import Anchor
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Text, Any, Dict, List  # NOQA
 
 __all__ = ["ScalarFloat", "ExponentialFloat", "ExponentialCapsFloat"]
@@ -70,7 +70,7 @@ class ScalarFloat(float):
     def __ipow__(self, a):  # type: ignore
         # type: (Any) -> Any
         return float(self) ** a
-        x = type(self)(self ** a)
+        x = type(self)(self**a)
         x._width = self._width
         x._underscore = (
             self._underscore[:] if self._underscore is not None else None

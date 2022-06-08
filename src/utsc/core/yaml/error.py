@@ -7,7 +7,7 @@ from .compat import _F
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Text  # NOQA
 
 
@@ -244,7 +244,7 @@ class ReusedAnchorWarning(YAMLWarning):
 class UnsafeLoaderWarning(YAMLWarning):
     text = """
 The default 'Loader' for 'load(stream)' without further arguments can be unsafe.
-Use 'load(stream, Loader=ruamel.yaml.Loader)' explicitly if that is OK.
+Use 'load(stream, Loader=loader)' explicitly if that is OK.
 Alternatively include the following in your code:
 
   import warnings

@@ -8,7 +8,7 @@ from .resolver import Resolver, BaseResolver
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # MYPY
+if TYPE_CHECKING:
     from typing import Any, Union, Optional  # NOQA
     from .compat import StreamTextType, StreamType, VersionType  # NOQA
 
