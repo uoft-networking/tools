@@ -40,7 +40,7 @@ from pathlib import Path
 
 class YAML:
     def __init__(
-        self, *, typ=None, pure=False, output=None, plug_ins=None
+        self, *, pure=False, output=None, plug_ins=None
     ):  # input=None,
         # type: (Any, Optional[Text], Any, Any, Any) -> None
         """
@@ -49,21 +49,7 @@ class YAML:
         input/output: needed to work as context manager
         plug_ins: a list of plug-in files
         """
-
-        self.typ = ["rt"] if typ is None else (typ if isinstance(typ, list) else [typ])
-        self.pure = pure
-
-        # self._input = input
-        self._output = output
-        self._context_manager = None  # type: Any
-
-        self.plug_ins = []  # type: List[Any]
-        for pu in ([] if plug_ins is None else plug_ins) + self.official_plug_ins():
-            file_name = pu.replace(os.sep, ".")
-            self.plug_ins.append(import_module(file_name))
-        self.allow_unicode = True
-        self.default_flow_style = False
-        self.comment_handling = None
+        self._context_manager = None
         self._reader = None
         self._serializer = None
         self._emitter = None
@@ -73,6 +59,13 @@ class YAML:
         self._composer = None
         self._constructor = None
         self._resolver = None
+
+        self._output = output
+        self.pure = pure
+        self.plug_ins = []
+        self.allow_unicode = True
+        self.default_flow_style = False
+        self.comment_handling = None
         self.stream = None
         self.canonical = None
         self.old_indent = None
