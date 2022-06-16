@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build]
 packages = ["utsc"]
+dev-mode-dirs = ["../../src"]
 
 [project]
 name = "utsc.scripts"
