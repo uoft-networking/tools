@@ -7,7 +7,6 @@ from .composer import Composer
 from .constructor import (
     BaseConstructor,
     SafeConstructor,
-    Constructor,
     RoundTripConstructor,
 )
 from .resolver import VersionedResolver
@@ -42,18 +41,6 @@ class SafeLoader(Reader, Scanner, Parser, Composer, SafeConstructor, VersionedRe
         Parser.__init__(self, loader=self)
         Composer.__init__(self, loader=self)
         SafeConstructor.__init__(self, loader=self)
-        VersionedResolver.__init__(self, version, loader=self)
-
-
-class Loader(Reader, Scanner, Parser, Composer, Constructor, VersionedResolver):
-    def __init__(self, stream, version=None, preserve_quotes=None):
-        # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
-        self.comment_handling = None
-        Reader.__init__(self, stream, loader=self)
-        Scanner.__init__(self, loader=self)
-        Parser.__init__(self, loader=self)
-        Composer.__init__(self, loader=self)
-        Constructor.__init__(self, loader=self)
         VersionedResolver.__init__(self, version, loader=self)
 
 

@@ -7,7 +7,7 @@ import sys
 import types
 import warnings
 from collections.abc import Hashable, MutableSequence, MutableMapping
-from typing import TYPE_CHECKING, Tuple, cast
+from typing import TYPE_CHECKING, Tuple, cast, Optional
 
 # fmt: off
 from .error import (MarkedYAMLError, MarkedYAMLFutureWarning,
@@ -171,9 +171,9 @@ class BaseConstructor:
                         problem_mark=node.start_mark,
                     )
         if tag_suffix is None:
-            data = constructor(self, node)
+            data = constructor(self, node) # type: ignore
         else:
-            data = constructor(self, tag_suffix, node)
+            data = constructor(self, tag_suffix, node) # type: ignore
         if isinstance(data, types.GeneratorType):
             generator = data
             data = next(generator)
@@ -538,45 +538,6 @@ class SafeConstructor(BaseConstructor):
             values = match.groupdict()
         return create_timestamp(**values)
 
-    def construct_yaml_omap(self, node):
-        # type: (Any) -> Any
-        # Note: we do now check for duplicate keys
-        omap = ordereddict()
-        yield omap
-        if not isinstance(node, SequenceNode):
-            raise ConstructorError(
-                "while constructing an ordered map",
-                node.start_mark,
-                _F("expected a sequence, but found {node_id!s}", node_id=node.id),
-                node.start_mark,
-            )
-        for subnode in node.value:
-            if not isinstance(subnode, MappingNode):
-                raise ConstructorError(
-                    "while constructing an ordered map",
-                    node.start_mark,
-                    _F(
-                        "expected a mapping of length 1, but found {subnode_id!s}",
-                        subnode_id=subnode.id,
-                    ),
-                    subnode.start_mark,
-                )
-            if len(subnode.value) != 1:
-                raise ConstructorError(
-                    "while constructing an ordered map",
-                    node.start_mark,
-                    _F(
-                        "expected a single mapping item, but found {len_subnode_val:d} items",
-                        len_subnode_val=len(subnode.value),
-                    ),
-                    subnode.start_mark,
-                )
-            key_node, value_node = subnode.value[0]
-            key = self.construct_object(key_node)
-            assert key not in omap
-            value = self.construct_object(value_node)
-            omap[key] = value
-
     def construct_yaml_pairs(self, node):
         # type: (Any) -> Any
         # Note: the same code as `construct_yaml_omap`.
@@ -615,104 +576,6 @@ class SafeConstructor(BaseConstructor):
             value = self.construct_object(value_node)
             pairs.append((key, value))
 
-    def construct_yaml_set(self, node):
-        # type: (Any) -> Any
-        data = set()  # type: Set[Any]
-        yield data
-        value = self.construct_mapping(node)
-        data.update(value)
-
-    def construct_yaml_str(self, node):
-        # type: (Any) -> Any
-        value = self.construct_scalar(node)
-        return value
-
-    def construct_yaml_seq(self, node):
-        # type: (Any) -> Any
-        data = self.yaml_base_list_type()  # type: List[Any]
-        yield data
-        data.extend(self.construct_sequence(node))
-
-    def construct_yaml_map(self, node):
-        # type: (Any) -> Any
-        data = self.yaml_base_dict_type()  # type: Dict[Any, Any]
-        yield data
-        value = self.construct_mapping(node)
-        data.update(value)
-
-    def construct_yaml_object(self, node, cls):
-        # type: (Any, Any) -> Any
-        data = cls.__new__(cls)
-        yield data
-        if hasattr(data, "__setstate__"):
-            state = self.construct_mapping(node, deep=True)
-            data.__setstate__(state)
-        else:
-            state = self.construct_mapping(node)
-            data.__dict__.update(state)
-
-    def construct_undefined(self, node):
-        # type: (Any) -> None
-        raise ConstructorError(
-            None,
-            None,
-            _F(
-                "could not determine a constructor for the tag {node_tag!r}",
-                node_tag=node.tag,
-            ),
-            node.start_mark,
-        )
-
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:null", SafeConstructor.construct_yaml_null
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:bool", SafeConstructor.construct_yaml_bool
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:int", SafeConstructor.construct_yaml_int
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:float", SafeConstructor.construct_yaml_float
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:binary", SafeConstructor.construct_yaml_binary
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:timestamp", SafeConstructor.construct_yaml_timestamp
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:omap", SafeConstructor.construct_yaml_omap
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:pairs", SafeConstructor.construct_yaml_pairs
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:set", SafeConstructor.construct_yaml_set
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:str", SafeConstructor.construct_yaml_str
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:seq", SafeConstructor.construct_yaml_seq
-)
-
-SafeConstructor.add_constructor(
-    "tag:yaml.org,2002:map", SafeConstructor.construct_yaml_map
-)
-
-SafeConstructor.add_constructor(None, SafeConstructor.construct_undefined)
 
 
 class RoundTripConstructor(SafeConstructor):

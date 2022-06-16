@@ -11,10 +11,11 @@ if TYPE_CHECKING:
 
 
 class Node:
-    __slots__ = "tag", "value", "start_mark", "end_mark", "comment", "anchor"
+    __slots__ = "id", "tag", "value", "start_mark", "end_mark", "comment", "anchor"
 
     def __init__(self, tag, value, start_mark, end_mark, comment=None, anchor=None):
         # type: (Any, Any, Any, Any, Any, Any) -> None
+        self.id: str = "base" 
         self.tag = tag
         self.value = value
         self.start_mark = start_mark
