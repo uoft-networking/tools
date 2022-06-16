@@ -46,6 +46,25 @@
             },
         },
         {
+            "name": "Python: Nautobot Worker",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/.venv/bin/nautobot-server",
+            "args": [
+                "celery",
+                "worker",
+                "--loglevel",
+                "DEBUG",
+            ],
+            "django": true,
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/projects/nautobot",
+            "env": {
+                "PYDEBUG": "1",
+                "VSCODE_DEBUGGER": "1"
+            },
+        },
+        {
             "name": "Python: Remote Attach (nautobot-dev)",
             "type": "python",
             "request": "attach",
