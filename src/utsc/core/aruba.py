@@ -9,9 +9,7 @@ class ArubaRESTAPIClient:
         self.rest_v1_url = f"https://{self.host}/rest/v1/"
         self.auth = dict(username=username, password=password)
         self.session = Session()
-        self.session.headers.update(
-            {"Content-Type": "application/json", "Accept": "application/json"}
-        )
+        self.session.headers.update({"Content-Type": "application/json", "Accept": "application/json"})
         self.session.params.update({"json": 1, "config_path": "/mm"})  # type: ignore
 
         # pylint: disable=no-member
@@ -59,18 +57,30 @@ class ArubaRESTAPIClient:
         return self.showcommand("show ap blacklist-clients")["Blacklisted Clients"]
 
     def get_user_table(self):
-        return self.showcommand('show user-table')['Users']
+        return self.showcommand("show user-table")["Users"]
 
     def stm_blacklist_remove(self, mac_address: str):
         resp = self.session.post(
             self.v1_url + "configuration/object/stm_blacklist_client_remove",
             json={"client-mac": mac_address},
         )
-        assert (
-            resp.status_code == 200
-        ), f"API Request to host {self.host} failed: {resp.text}"
+        assert resp.status_code == 200, f"API Request to host {self.host} failed: {resp.text}"
         resp_data = resp.json()
         # API reports success, wether mac address existed in blacklist or not
         assert (
             resp_data["_global_result"]["status_str"] == "Success"
         ), f"API Request to host {self.host} did not succeed: {resp_data}"
+
+    def wdb_cpsec_add_mac(self, mac_address, ap_group, ap_name):
+        resp = self.session.post(
+            self.v1_url + "configuration/object/wdb_cpsec_add_mac",
+            json={"name": mac_address, "ap_group": ap_group, "ap_name": ap_name},
+        )
+        assert resp.status_code == 200, f"API Request to host {self.host} failed: {resp.text}"
+
+    def wdb_cpsec_modify_mac_factory_approved(self, mac_address):
+        resp = self.session.post(
+            self.v1_url + "configuration/object/wdb_cpsec_modify_mac",
+            json={"name": mac_address, "certtype": "factory-cert", "act": "approved-ready-for-cert"},
+        )
+        assert resp.status_code == 200, f"API Request to host {self.host} failed: {resp.text}"
