@@ -1,7 +1,6 @@
 from requests import Session
 import requests.packages
 
-
 class ArubaRESTAPIClient:
     def __init__(self, host, username, password) -> None:
         self.host = host
@@ -15,6 +14,8 @@ class ArubaRESTAPIClient:
         # pylint: disable=no-member
         requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)  # type: ignore
         self.session.verify = False
+
+        self.controller = Controller(self)
 
     def login(self):
         r = self.session.post(self.v1_url + "api/login", data=self.auth)
@@ -84,3 +85,15 @@ class ArubaRESTAPIClient:
             json={"name": mac_address, "certtype": "factory-cert", "act": "approved-ready-for-cert"},
         )
         assert resp.status_code == 200, f"API Request to host {self.host} failed: {resp.text}"
+
+
+
+class Controller:
+    def __init__(self, parent: "ArubaRESTAPIClient"):
+        self.parent = parent
+
+    def write_memory(self):
+        resp = self.parent.session.post(
+            self.parent.v1_url + "configuration/object/write_memory",
+        )
+        assert resp.status_code == 200, f"API Request to host {self.parent.host} failed: {resp.text}"

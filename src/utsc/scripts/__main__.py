@@ -103,6 +103,7 @@ def stm_blacklist_remove(ctx: typer.Context, mac_address: str):
 
     with ArubaRESTAPIClient(controller2, username, password) as c:
         c.stm_blacklist_remove(mac_address)
+        c.controller.write_memory()
 
     print("Done!")
 
