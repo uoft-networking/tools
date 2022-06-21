@@ -55,9 +55,21 @@ def golden_config_test():
     print()
 
 
+def refresh_device_types():
+    from ...datasources import refresh_single_device_type
+
+    class MockJobResult:
+        def log(self, *args, **kwargs):
+            print(*args, *kwargs.values())
+
+    model_file = Path('dev_data/git/netbox-community-devicetype-library/device-types/Arista/DCS-7050SX3-48YC8.yaml')
+
+    refresh_single_device_type(model_file, MockJobResult())
+
+
 class Command(BaseCommand):
     help = "Run debug code from the utsc_nautobot plugin"
 
     def handle(self, *args, **options):
         # librenms_stuff()
-        golden_config_test()
+        refresh_device_types()
