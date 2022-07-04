@@ -1,6 +1,8 @@
 from pathlib import Path
 
+from utsc.core import debug_cache
 from django.core.management.base import BaseCommand
+from jinja2 import StrictUndefined
 from nautobot.dcim.models import Device, DeviceRole, DeviceType, Rack, Site
 
 
@@ -18,24 +20,14 @@ def librenms_stuff():
         Device()
     print()
 
-
-def golden_config_test():
+@debug_cache
+def golden_config_data():
     from nautobot_golden_config.utilities.graphql import graph_ql_query
     from nautobot_golden_config.models import GoldenConfigSetting
     from nautobot.utilities.utils import NautobotFakeRequest
     from nautobot.users.models import User
-    from django_jinja.backend import Jinja2
-    from jinja2.loaders import FileSystemLoader
-    from jinja2 import Environment
 
     from uuid import UUID
-
-    git_repo = Path("./dev_data/git/github-utsc-utoronto-ca/")
-    template = "templates/Distribution Switches/WS-C3850-24XS-E.j2"
-
-    jinja_settings = Jinja2.get_default()
-    jinja_env: Environment = jinja_settings.env
-    jinja_env.loader = FileSystemLoader(git_repo)
     device = Device.objects.get(id=UUID("d1726e48-e4f0-4c76-9af9-da3cfa676161"))
     data = {"obj": device}
     request = NautobotFakeRequest(
@@ -49,10 +41,26 @@ def golden_config_test():
     )
     status, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
     data.update(device_data)
+    return data
+
+def golden_config_test():
+    from django_jinja.backend import Jinja2
+    from jinja2.loaders import FileSystemLoader
+    from jinja2 import Environment
+    data = golden_config_data()
+    git_repo = Path("./dev_data/git/github-utsc-utoronto-ca/")
+    template = "templates/Distribution Switches/WS-C3850-24XS-E.j2"
+
+    jinja_settings = Jinja2.get_default()
+    jinja_env: Environment = jinja_settings.env
+    jinja_env.trim_blocks = True
+    jinja_env.undefined = StrictUndefined
+    jinja_env.loader = FileSystemLoader(git_repo)
 
     t = jinja_env.get_template(template)
     text = t.render(**data) # need to add nornir host object to jinja context
-    print()
+    print(text)
+    pass
 
 
 def refresh_device_types():
@@ -71,5 +79,4 @@ class Command(BaseCommand):
     help = "Run debug code from the utsc_nautobot plugin"
 
     def handle(self, *args, **options):
-        # librenms_stuff()
-        refresh_device_types()
+        golden_config_test()
