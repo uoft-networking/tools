@@ -8,53 +8,61 @@ from roundtrip import round_trip, round_trip_load, round_trip_dump, dedent, YAML
 def rt(s):
 
     res = round_trip_dump(round_trip_load(s))
-    return res.strip() + '\n'
+    return res.strip() + "\n"
 
 
 class TestIndent:
     def test_roundtrip_inline_list(self):
-        s = 'a: [a, b, c]\n'
+        s = "a: [a, b, c]\n"
         output = rt(s)
         assert s == output
 
     def test_roundtrip_mapping_of_inline_lists(self):
-        s = dedent("""\
+        s = dedent(
+            """\
         a: [a, b, c]
         j: [k, l, m]
-        """)
+        """
+        )
         output = rt(s)
         assert s == output
 
     def test_roundtrip_mapping_of_inline_lists_comments(self):
-        s = dedent("""\
+        s = dedent(
+            """\
         # comment A
         a: [a, b, c]
         # comment B
         j: [k, l, m]
-        """)
+        """
+        )
         output = rt(s)
         assert s == output
 
     def test_roundtrip_mapping_of_inline_sequence_eol_comments(self):
-        s = dedent("""\
+        s = dedent(
+            """\
         # comment A
         a: [a, b, c]  # comment B
         j: [k, l, m]  # comment C
-        """)
+        """
+        )
         output = rt(s)
         assert s == output
 
     # first test by explicitly setting flow style
     def test_added_inline_list(self):
-        s1 = dedent("""
+        s1 = dedent(
+            """
         a:
         - b
         - c
         - d
-        """)
-        s = 'a: [b, c, d]\n'
+        """
+        )
+        s = "a: [b, c, d]\n"
         data = round_trip_load(s1)
-        val = data['a']
+        val = data["a"]
         val.fa.set_flow_style()
         # print(type(val), '_yaml_format' in dir(val))
         output = round_trip_dump(data)
@@ -63,20 +71,24 @@ class TestIndent:
     # ############ flow mappings
 
     def test_roundtrip_flow_mapping(self):
-        s = dedent("""\
+        s = dedent(
+            """\
         - {a: 1, b: hallo}
         - {j: fka, k: 42}
-        """)
+        """
+        )
         data = round_trip_load(s)
         output = round_trip_dump(data)
         assert s == output
 
     def test_roundtrip_sequence_of_inline_mappings_eol_comments(self):
-        s = dedent("""\
+        s = dedent(
+            """\
         # comment A
         - {a: 1, b: hallo}  # comment B
         - {j: fka, k: 42}  # comment C
-        """)
+        """
+        )
         output = rt(s)
         assert s == output
 
@@ -210,12 +222,16 @@ class TestYpkgIndent:
             package Pine (itself now available under the Apache License as Alpine).
         """
         round_trip(
-            inp, indent=4, block_seq_indent=2, top_level_colon_align=True, prefix_colon=' '
+            inp,
+            indent=4,
+            block_seq_indent=2,
+            top_level_colon_align=True,
+            prefix_colon=" ",
         )
 
 
 def guess(s):
-    from utsc.core.yaml.util import load_yaml_guess_indent
+    from uoft_core.yaml.util import load_yaml_guess_indent
 
     x, y, z = load_yaml_guess_indent(dedent(s))
     return y, z
@@ -317,7 +333,8 @@ class TestSeparateMapSeqIndents:
         # yaml.map_indent = 2 # the default
         yaml.indent(sequence=4, offset=2)
         yaml.preserve_quotes = True
-        yaml.round_trip("""
+        yaml.round_trip(
+            """
         role::startup::author::rsyslog_inputs:
           imfile:
             - ruleset: 'AEM-slinglog'
@@ -328,7 +345,8 @@ class TestSeparateMapSeqIndents:
               File: '/opt/aem/author/crx-quickstart/logs/stdout.log'
               startmsg.regex: '^[-+T.:[:digit:]]*'
               tag: 'stdout'
-        """)
+        """
+        )
 
 
 # ############ indentation

@@ -6,17 +6,17 @@ import json
 
 
 def load(s, typ=float):
-    import utsc.core.yaml
+    import uoft_core.yaml
 
-    yaml = utsc.core.yaml.YAML()
+    yaml = uoft_core.yaml.YAML()
     x = '{"low": %s }' % (s)
-    print('input: [%s]' % (s), repr(x))
+    print("input: [%s]" % (s), repr(x))
     # just to check it is loadable json
     res = json.loads(x)
-    assert isinstance(res['low'], typ)
+    assert isinstance(res["low"], typ)
     ret_val = yaml.load(x)
     print(ret_val)
-    return ret_val['low']
+    return ret_val["low"]
 
 
 class TestJSONNumbers:
@@ -28,7 +28,7 @@ class TestJSONNumbers:
     # which is not a superset of the JSON numbers
     def test_json_number_float(self):
         for x in (
-            y.split('#')[0].strip()
+            y.split("#")[0].strip()
             for y in """
         1.0  # should fail on YAML spec on 1-9 allowed as single digit
         -1.0
@@ -45,7 +45,7 @@ class TestJSONNumbers:
 
     def test_json_number_int(self):
         for x in (
-            y.split('#')[0].strip()
+            y.split("#")[0].strip()
             for y in """
         42
         """.splitlines()

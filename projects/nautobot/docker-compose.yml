@@ -11,7 +11,7 @@ services:
     environment:
       - AUTH_LDAP_BIND_PASSWORD=${AUTH_LDAP_BIND_PASSWORD}
     volumes:
-      - ./:/opt/nautobot/utsc
+      - ./:/opt/nautobot/uoft
       - ../core:/opt/nautobot/core
       - ./nautobot_config.py:/opt/nautobot/nautobot_config.py
     ports:
@@ -38,7 +38,7 @@ services:
       retries: 3
       test: ["CMD", "bash", "-c", "nautobot-server celery inspect ping --destination celery@$$HOSTNAME"]  ## $$ because of docker-compose
     volumes:
-      - ./:/opt/nautobot/utsc
+      - ./:/opt/nautobot/uoft
       - ../core:/opt/nautobot/core
       - ./nautobot_config.py:/opt/nautobot/nautobot_config.py
     ports:

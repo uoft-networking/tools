@@ -1,8 +1,8 @@
 # pylint: disable=unused-argument
 from typing import TYPE_CHECKING
 
-from utsc.core import txt
-from utsc.scripts import bluecat
+from uoft_core import txt
+from uoft_scripts import bluecat
 
 import pytest
 

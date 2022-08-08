@@ -2,13 +2,13 @@
 
 from typing import TYPE_CHECKING
 
-from utsc.switchconfig.util import (
+from uoft_switchconfig.util import (
     CommentBlockField,
     get_comment_block_schema,
     model_source_from_comment_block_schema,
     construct_model_from_comment_block_schema,
 )
-from utsc.core import txt
+from uoft_core import txt
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch

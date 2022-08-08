@@ -1,8 +1,8 @@
 # pylint: disable=unused-argument
 from typing import TYPE_CHECKING
 from pathlib import Path
-from utsc.switchconfig.__main__ import template_name_completion, console_name_completion
-from utsc.core import txt
+from uoft_switchconfig.__main__ import template_name_completion, console_name_completion
+from uoft_core import txt
 
 if TYPE_CHECKING:
     from . import MockedConfig
@@ -10,11 +10,10 @@ if TYPE_CHECKING:
 
 
 def test_template_name_completion(mock_config):
-
     class MockContext:
         params = {"cache_dir": Path(__file__).parent / "templates"}
 
-    res = template_name_completion(MockContext(),"")
+    res = template_name_completion(MockContext(), "")
     assert set(res) == set(
         [
             "comment-block-schema-test.j2",

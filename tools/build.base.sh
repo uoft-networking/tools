@@ -20,17 +20,17 @@ test ! -f "${tar_file}" && echo "Decompressing zstd archive..." && zstd -d "${ta
 
 echo "Unpacking decompressed tar file..."
 tar -xvf "${tar_file}" &>> build.log
-test -d utsc-tools && rm -r utsc-tools
+test -d uoft-tools && rm -r uoft-tools
 
-echo "Prepping utsc-tools python distribution..."
-mkdir utsc-tools
-mv python/install/* utsc-tools/
-cp ../scripts/fix-shebangs.py utsc-tools/bin/
+echo "Prepping uoft-tools python distribution..."
+mkdir uoft-tools
+mv python/install/* uoft-tools/
+cp ../scripts/fix-shebangs.py uoft-tools/bin/
 
-echo "installing 'utsc' python package into distribution..."
-utsc-tools/bin/pip install utsc &>> build.log
-utsc-tools/bin/fix-shebangs.py
-echo "Packing utsc-tools distribution into gzip-compressed archive..."
-tar -czvf "utsc-tools-$(uname)-$(uname -m).tar.gz" utsc-tools/ &>> build.log
+echo "installing 'uoft' python package into distribution..."
+uoft-tools/bin/pip install uoft_core &>> build.log
+uoft-tools/bin/fix-shebangs.py
+echo "Packing uoft-tools distribution into gzip-compressed archive..."
+tar -czvf "uoft-tools-$(uname)-$(uname -m).tar.gz" uoft-tools/ &>> build.log
 
 echo "Done!"

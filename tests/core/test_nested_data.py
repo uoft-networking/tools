@@ -1,5 +1,5 @@
 # pylint: disable=unused-argument
-from utsc.core import NestedData
+from uoft_core import NestedData
 
 
 def test_nesteddata_unstructure():

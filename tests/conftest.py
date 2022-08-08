@@ -49,7 +49,7 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
     marker = request.node.get_closest_marker("app_name")
     app_name = marker.args[0] if marker else "example_app"
 
-    import utsc.core  # noqa
+    import uoft_core  # noqa
 
     # To test the config file testing logic of the Util class, we need to mock out all the system calls
     # it makes to return repeatable, predictable paths we can control, regardless of which platform
@@ -59,19 +59,19 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
 
     # mock out the real folders
     mocker.patch.object(
-        utsc.core.PlatformDirs, "site_config_path", folders.site_config.dir
+        uoft_core.PlatformDirs, "site_config_path", folders.site_config.dir
     )
     mocker.patch.object(
-        utsc.core.PlatformDirs, "user_config_path", folders.user_config.dir
+        uoft_core.PlatformDirs, "user_config_path", folders.user_config.dir
     )
     mocker.patch.object(
-        utsc.core.PlatformDirs, "site_data_path", folders.site_cache.parent
+        uoft_core.PlatformDirs, "site_data_path", folders.site_cache.parent
     )
     mocker.patch.object(
-        utsc.core.PlatformDirs, "user_cache_path", folders.user_cache.parent
+        uoft_core.PlatformDirs, "user_cache_path", folders.user_cache.parent
     )
 
-    util = utsc.core.Util(app_name)  # create the Util instance to be tested
+    util = uoft_core.Util(app_name)  # create the Util instance to be tested
 
     mocker.patch.object(util.config, "common_user_config_dir", folders.user_config.dir)
 

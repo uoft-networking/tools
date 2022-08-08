@@ -1,14 +1,3 @@
-[project]
-name = "utsc_dev_env"
-version = "1"
-description = "Dummy package used to set up a virtualenv for development work"
-authors = [
-  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
-  { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" }
-]
-license-expression = "MIT"
-requires-python = ">=3.10"
-
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = [
@@ -16,12 +5,6 @@ testpaths = [
 ]
 
 [tool.poe.tasks]
-# gather.script = "tools:gather_dependencies"
-# install.shell = """
-# poe gather
-# poetry lock
-# poetry install
-# """
 publish.script = "tools:call('publish')"
 bump_version.script = "tools:call('bump_version')"
 build.script = "tools:call('build')"
@@ -34,42 +17,7 @@ check.shell = """\
   """
 nautobot.cmd = "poe --root projects/nautobot"
 
-# [tool.poetry]
-# name = "utsc_dev_env"
-# version = "1"
-# description = "Dummy package used to set up a virtualenv for development work"
-# authors = ["Alex Tremblay <alex.tremblay@utoronto.ca>", "University of Toronto Governing Council <governing.council@utoronto.ca>"]
-# license = "MIT"
-# packages = []
-
-# [tool.poetry.dependencies]
-# python = "~3.10"
-
-# [tool.poetry.dev-dependencies]
-# "utsc.core" = { path = "projects/core", develop = true }
-# "nautobot_utsc" = { path = "projects/nautobot", develop = true }
-# "utsc.scripts" = { path = "projects/scripts", develop = true }
-# "utsc.switchconfig" = { path = "projects/switchconfig", develop = true }
-# pytest = "*"
-# mypy = "*"
-# flake8 = "*"
-# poethepoet = "*"
-# flake8-bugbear = "*"
-# pytest-cov = "*"
-# prospector = ">=1.5"
-# typer-cli = "*"
-# mkdocs = "*"
-# mkdocstrings = "*"
-# mkdocs-material = "*"
-# black = ">=22.3.0"
-# pytest-mock = ">=3.6"
-# tomlkit = "*"
-
-
-# [old.build-system]
-# requires = ["poetry-core>=1.0.0"]
-# build-backend = "poetry.core.masonry.api"
-
-# [build-system]
-# requires = ["pdm-pep517>=0.12.0"]
-# build-backend = "pdm.pep517.api"
+[tool.monas]
+packages = ["projects/"]
+version = "0.0.0"
+python-version = "3.10"

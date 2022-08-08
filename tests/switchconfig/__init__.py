@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from utsc.switchconfig import Config
+from uoft_switchconfig import Config
 
 from prompt_toolkit.output import DummyOutput
 

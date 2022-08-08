@@ -1,9 +1,9 @@
 from pathlib import Path
 import pytest
 
-from utsc.switchconfig import __version__
+from uoft_switchconfig import __version__
 
-from utsc.core import toml
+from uoft_core import toml
 
 
 @pytest.mark.skip("needs more work")

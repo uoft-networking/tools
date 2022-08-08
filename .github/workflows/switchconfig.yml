@@ -14,12 +14,12 @@ jobs:
           tar -xvf cpython-3.10.0-x86_64-unknown-linux-gnu-pgo+lto-20211017T1616.tar.zst
       - name: deploy
         run: |
-          sudo mkdir /opt/utsc-tools
-          sudo mv python/install/* /opt/utsc-tools
+          sudo mkdir /opt/uoft-tools
+          sudo mv python/install/* /opt/uoft-tools
       - name: install
-        run: /opt/utsc-tools/bin/pip3 install utsc.switchconfig
+        run: /opt/uoft-tools/bin/pip3 install uoft.switchconfig
       - name: repack
-        run: tar -czvf portable-python-linux.tar.gz /opt/utsc-tools
+        run: tar -czvf portable-python-linux.tar.gz /opt/uoft-tools
       - name: upload
         uses: actions/upload-artifact@v2
         with:

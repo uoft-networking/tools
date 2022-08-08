@@ -1,5 +1,5 @@
 {
-  description = "UTSC Nautobot Plugin";
+  description = "UofT Nautobot Plugin";
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 
-from utsc.scripts import config
+from uoft_scripts import config
 
 if TYPE_CHECKING:
     from .. import MockedUtil

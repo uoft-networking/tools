@@ -13,8 +13,8 @@ from ipaddress import IPv4Network, IPv4Address
 from pathlib import Path
 from typing import Any, Literal, Union
 
-from utsc.switchconfig.generate import model_questionnaire
-from utsc.switchconfig.util import Choice
+from uoft_switchconfig.generate import model_questionnaire
+from uoft_switchconfig.util import Choice
 from pydantic import BaseModel, Field
 
 PATH = Path(__file__).parent

@@ -3,7 +3,7 @@ from pathlib import Path
 import time
 from typing import TYPE_CHECKING
 
-from utsc.core import UTSCCoreError, __version__, File, Timeit, txt, lst, chomptxt
+from uoft_core import UofTCoreError, __version__, File, Timeit, txt, lst, chomptxt
 
 import pytest
 
@@ -134,74 +134,74 @@ class TestUtil:
         res = mock_util.config.files
         expected_output = [
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.ini",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.ini",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.yaml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.yaml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.json",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.json",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.toml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.toml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.ini",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.ini",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.yaml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.yaml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.json",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.json",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.toml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.toml",
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini",
-                File.creatable,
-            ),
-            (
-                mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.yaml",
+                mock_util.mock_folders.root / "home/user/.config/uoft-tools/shared.ini",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.json",
+                / "home/user/.config/uoft-tools/shared.yaml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.toml",
+                / "home/user/.config/uoft-tools/shared.json",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.ini",
+                / "home/user/.config/uoft-tools/shared.toml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.yaml",
+                / "home/user/.config/uoft-tools/example_app.ini",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.json",
+                / "home/user/.config/uoft-tools/example_app.yaml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.toml",
+                / "home/user/.config/uoft-tools/example_app.json",
+                File.creatable,
+            ),
+            (
+                mock_util.mock_folders.root
+                / "home/user/.config/uoft-tools/example_app.toml",
                 File.creatable,
             ),
         ]
@@ -260,42 +260,42 @@ class TestUtil:
                 File.creatable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini",
+                mock_util.mock_folders.root / "home/user/.config/uoft-tools/shared.ini",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.yaml",
+                / "home/user/.config/uoft-tools/shared.yaml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.json",
+                / "home/user/.config/uoft-tools/shared.json",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.toml",
+                / "home/user/.config/uoft-tools/shared.toml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.ini",
+                / "home/user/.config/uoft-tools/example_app.ini",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.yaml",
+                / "home/user/.config/uoft-tools/example_app.yaml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.json",
+                / "home/user/.config/uoft-tools/example_app.json",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.toml",
+                / "home/user/.config/uoft-tools/example_app.toml",
                 File.creatable,
             ),
             (mock_util.mock_folders.root / "home/alternate/shared.ini", File.creatable),
@@ -353,74 +353,74 @@ class TestUtil:
         res = mock_util.config.files
         expected_output = [
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.ini",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.ini",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.yaml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.yaml",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.json",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.json",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/shared.toml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/shared.toml",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.ini",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.ini",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.yaml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.yaml",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.json",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.json",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "etc/xdg/utsc-tools/example_app.toml",
+                mock_util.mock_folders.root / "etc/xdg/uoft-tools/example_app.toml",
                 File.unusable,
             ),
             (
-                mock_util.mock_folders.root / "home/user/.config/utsc-tools/shared.ini",
+                mock_util.mock_folders.root / "home/user/.config/uoft-tools/shared.ini",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.yaml",
+                / "home/user/.config/uoft-tools/shared.yaml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.json",
+                / "home/user/.config/uoft-tools/shared.json",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/shared.toml",
+                / "home/user/.config/uoft-tools/shared.toml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.ini",
+                / "home/user/.config/uoft-tools/example_app.ini",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.yaml",
+                / "home/user/.config/uoft-tools/example_app.yaml",
                 File.creatable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.json",
+                / "home/user/.config/uoft-tools/example_app.json",
                 File.readable,
             ),
             (
                 mock_util.mock_folders.root
-                / "home/user/.config/utsc-tools/example_app.toml",
+                / "home/user/.config/uoft-tools/example_app.toml",
                 File.writable,
             ),
         ]
@@ -431,7 +431,7 @@ class TestUtil:
 
     def test_get_config_file(self, mock_util: "MockedUtil"):
         # Test the failure condition
-        with pytest.raises(UTSCCoreError) as exc_info:
+        with pytest.raises(UofTCoreError) as exc_info:
             mock_util.config.get_file_or_fail()
         assert "Could not find a valid config file" in exc_info.value.args[0]
 
@@ -463,15 +463,17 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.ini_file.write_text(txt(
-            """
+        mock_util.mock_folders.user_config.ini_file.write_text(
+            txt(
+                """
             [_common_]
             key1 = val1
             key2 = val2
             [extra]
             key = value
             """,
-        ))
+            )
+        )
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2", "extra": {"key": "value"}}
 
@@ -481,14 +483,16 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.json_file.write_text(txt(
-            """
+        mock_util.mock_folders.user_config.json_file.write_text(
+            txt(
+                """
             {
                 "key1": "val1", 
                 "key2": "val2"
             }
             """,
-        ))
+            )
+        )
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2"}
 
@@ -498,12 +502,14 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.toml_file.write_text(txt(
-            """
+        mock_util.mock_folders.user_config.toml_file.write_text(
+            txt(
+                """
             key1 = 'val1'
             key2 = 'val2'
             """,
-        ))
+            )
+        )
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2"}
 
@@ -513,12 +519,14 @@ class TestUtil:
         mocker: "MockerFixture",
         caplog: "LogCaptureFixture",
     ):
-        mock_util.mock_folders.user_config.yaml_file.write_text(txt(
-            """
+        mock_util.mock_folders.user_config.yaml_file.write_text(
+            txt(
+                """
             key1: val1
             key2: val2
             """,
-        ))
+            )
+        )
         result = mock_util.config.merged_data
         assert result == {"key1": "val1", "key2": "val2"}
 
@@ -539,7 +547,7 @@ class TestUtil:
     ):  # sourcery skip: extract-duplicate-method
 
         # test config file missing
-        with pytest.raises(UTSCCoreError):
+        with pytest.raises(UofTCoreError):
             mock_util.config.get_key_or_fail("key1")
 
         # test key missing from config file

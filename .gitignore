@@ -13,6 +13,5 @@ utsc_templates
 /projects/*/dist
 /projects/nautobot/dev_data
 /projects/nautobot/gitlab_repo
-.venv/
 !.venv/make_pipenv_install_here
-.utsc.core.debug.cache.*
+.uoft.core.debug.cache.*

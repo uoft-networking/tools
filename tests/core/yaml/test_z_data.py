@@ -6,13 +6,13 @@ import pytest  # NOQA
 import warnings  # NOQA
 from pathlib import Path
 
-from utsc.core.yaml.compat import _F
+from uoft_core.yaml.compat import _F
 
-base_path = Path('data')  # that is utsc.core.yaml.data
+base_path = Path("data")  # that is uoft_core.yaml.data
 
 
 class YAMLData(object):
-    yaml_tag = '!YAML'
+    yaml_tag = "!YAML"
 
     def __init__(self, s):
         self._s = s
@@ -29,27 +29,27 @@ class YAMLData(object):
 
     @property
     def value(self):
-        if hasattr(self, '_p'):
+        if hasattr(self, "_p"):
             return self._p
-        assert ' \n' not in self._s
-        assert '\t\n' not in self._s
+        assert " \n" not in self._s
+        assert "\t\n" not in self._s
         self._p = self._s
         for k, v in YAMLData.special.items():
-            k = '<' + k + '>'
+            k = "<" + k + ">"
             self._p = self._p.replace(k, v)
         return self._p
 
     def test_rewrite(self, s):
-        assert ' \n' not in s
-        assert '\t\n' not in s
+        assert " \n" not in s
+        assert "\t\n" not in s
         for k, v in YAMLData.special.items():
-            k = '<' + k + '>'
+            k = "<" + k + ">"
             s = s.replace(k, v)
         return s
 
     @classmethod
     def from_yaml(cls, constructor, node):
-        from utsc.core.yaml.nodes import MappingNode
+        from uoft_core.yaml.nodes import MappingNode
 
         if isinstance(node, MappingNode):
             return cls(constructor.construct_mapping(node))
@@ -57,52 +57,52 @@ class YAMLData(object):
 
 
 class Python(YAMLData):
-    yaml_tag = '!Python'
+    yaml_tag = "!Python"
 
 
 class Output(YAMLData):
-    yaml_tag = '!Output'
+    yaml_tag = "!Output"
 
 
 class Assert(YAMLData):
-    yaml_tag = '!Assert'
+    yaml_tag = "!Assert"
 
     @property
     def value(self):
         from collections.abc import Mapping
 
-        if hasattr(self, '_pa'):
+        if hasattr(self, "_pa"):
             return self._pa
         if isinstance(self._s, Mapping):
-            self._s['lines'] = self.test_rewrite(self._s['lines'])
+            self._s["lines"] = self.test_rewrite(self._s["lines"])
         self._pa = self._s
         return self._pa
 
 
 def pytest_generate_tests(metafunc):
     test_yaml = []
-    paths = sorted(base_path.glob('**/*.yaml'))
+    paths = sorted(base_path.glob("**/*.yaml"))
     idlist = []
     for path in paths:
         # while developing tests put them in data/debug and run:
         #   auto -c "pytest _test/test_z_data.py" data/debug/*.yaml *.py _test/*.py
-        if os.environ.get('RUAMELAUTOTEST') == '1':
-            if path.parent.stem != 'debug':
+        if os.environ.get("RUAMELAUTOTEST") == "1":
+            if path.parent.stem != "debug":
                 continue
-        elif path.parent.stem == 'debug':
+        elif path.parent.stem == "debug":
             # don't test debug entries for production
             continue
         stem = path.stem
-        if stem.startswith('.#'):  # skip emacs temporary file
+        if stem.startswith(".#"):  # skip emacs temporary file
             continue
         idlist.append(stem)
         test_yaml.append([path])
-    metafunc.parametrize(['yaml'], test_yaml, ids=idlist, scope='class')
+    metafunc.parametrize(["yaml"], test_yaml, ids=idlist, scope="class")
 
 
 class TestYAMLData(object):
     def yaml(self, yaml_version=None):
-        from utsc.core.yaml import YAML
+        from uoft_core.yaml import YAML
 
         y = YAML()
         y.preserve_quotes = True
@@ -111,7 +111,7 @@ class TestYAMLData(object):
         return y
 
     def docs(self, path):
-        from utsc.core.yaml import YAML
+        from uoft_core.yaml import YAML
 
         tyaml = YAML(pure=True)
         tyaml.register_class(YAMLData)
@@ -126,7 +126,7 @@ class TestYAMLData(object):
         return yaml, data
 
     def round_trip(self, input, output=None, yaml_version=None):
-        from utsc.core.yaml.compat import StringIO
+        from uoft_core.yaml.compat import StringIO
 
         yaml, data = self.yaml_load(input.value, yaml_version=yaml_version)
         buf = StringIO()
@@ -139,18 +139,18 @@ class TestYAMLData(object):
         from collections.abc import Mapping
 
         d = self.yaml_load(input.value, yaml_version=yaml_version)[1]  # NOQA
-        print('confirm.value', confirm.value, type(confirm.value))
+        print("confirm.value", confirm.value, type(confirm.value))
         if isinstance(confirm.value, Mapping):
-            r = range(confirm.value['range'])
-            lines = confirm.value['lines'].splitlines()
+            r = range(confirm.value["range"])
+            lines = confirm.value["lines"].splitlines()
             for idx in r:  # NOQA
                 for line in lines:
-                    line = 'assert ' + line
+                    line = "assert " + line
                     print(line)
                     exec(line)
         else:
             for line in confirm.value.splitlines():
-                line = 'assert ' + line
+                line = "assert " + line
                 print(line)
                 exec(line)
 
@@ -158,25 +158,25 @@ class TestYAMLData(object):
         from roundtrip import save_and_run
 
         if input is not None:
-            (tmpdir / 'input.yaml').write_text(input.value, encoding='utf-8')
+            (tmpdir / "input.yaml").write_text(input.value, encoding="utf-8")
         assert save_and_run(python.value, base_dir=tmpdir, output=data.value) == 0
 
     def insert_comments(self, data, actions):
         """this is to automatically insert based on:
-          path (a.1.b),
-          position (before, after, between), and
-          offset (absolute/relative)
+        path (a.1.b),
+        position (before, after, between), and
+        offset (absolute/relative)
         """
         raise NotImplementedError
         expected = []
         for line in data.value.splitlines(True):
-            idx = line.index['?']
+            idx = line.index["?"]
             if idx < 0:
                 expected.append(line)
                 continue
-            assert line.lstrip()[0] == '#'  # it has to be comment line
+            assert line.lstrip()[0] == "#"  # it has to be comment line
         print(data)
-        assert ''.join(expected) == data.value
+        assert "".join(expected) == data.value
 
     # this is executed by pytest the methods with names not starting with
     # test_ are helper methods
@@ -190,11 +190,11 @@ class TestYAMLData(object):
         docs = self.docs(yaml)
         if isinstance(docs[0], Mapping):
             d = docs[0]
-            typ = d.get('type')
-            yaml_version = d.get('yaml_version')
-            if 'python' in d:
-                if not check_python_version(d['python']):
-                    pytest.skip('unsupported version')
+            typ = d.get("type")
+            yaml_version = d.get("yaml_version")
+            if "python" in d:
+                if not check_python_version(d["python"]):
+                    pytest.skip("unsupported version")
             idx += 1
         data = output = confirm = python = None
         for doc in docs[idx:]:
@@ -205,32 +205,34 @@ class TestYAMLData(object):
             elif isinstance(doc, Python):
                 python = doc
                 if typ is None:
-                    typ = 'python_run'
+                    typ = "python_run"
             elif isinstance(doc, YAMLData):
                 data = doc
             else:
-                print('no handler for type:', type(doc), repr(doc))
+                print("no handler for type:", type(doc), repr(doc))
                 raise AssertionError()
         if typ is None:
             if data is not None and output is not None:
-                typ = 'rt'
+                typ = "rt"
             elif data is not None and confirm is not None:
-                typ = 'load_assert'
+                typ = "load_assert"
             else:
                 assert data is not None
-                typ = 'rt'
-        print('type:', typ)
+                typ = "rt"
+        print("type:", typ)
         if data is not None:
-            print('data:', data.value, end='')
-        print('output:', output.value if output is not None else output)
-        if typ == 'rt':
+            print("data:", data.value, end="")
+        print("output:", output.value if output is not None else output)
+        if typ == "rt":
             self.round_trip(data, output, yaml_version=yaml_version)
-        elif typ == 'python_run':
+        elif typ == "python_run":
             inp = None if output is None or data is None else data
-            self.run_python(python, output if output is not None else data, tmpdir, input=inp)
-        elif typ == 'load_assert':
+            self.run_python(
+                python, output if output is not None else data, tmpdir, input=inp
+            )
+        elif typ == "load_assert":
             self.load_assert(data, confirm, yaml_version=yaml_version)
-        elif typ == 'comment':
+        elif typ == "comment":
             actions = []
             self.insert_comments(data, actions)
         else:
@@ -252,12 +254,12 @@ def check_python_version(match, current=None):
         minimal = False
         if isinstance(m, float):
             m = str(m)
-        if m.endswith('+'):
+        if m.endswith("+"):
             minimal = True
             m = m[:-1]
         # assert m[0].isdigit()
         # assert m[-1].isdigit()
-        m = [int(x) for x in m.split('.')]
+        m = [int(x) for x in m.split(".")]
         current_len = current[: len(m)]
         # print(m, current, current_len)
         if minimal:

@@ -1,5 +1,5 @@
-from utsc.core import yaml, txt
-from utsc.core.yaml import CommentedSeq
+from uoft_core import yaml, txt
+from uoft_core.yaml import CommentedSeq
 
 
 def test_yaml():

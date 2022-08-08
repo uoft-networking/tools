@@ -1,0 +1,15 @@
+build
+pytest
+mypy
+flake8
+poethepoet
+flake8-bugbear
+pytest-cov
+prospector >= 1.5
+typer-cli
+mkdocs
+mkdocstrings
+mkdocs-material
+black >= 22.3.0
+pytest-mock >= 3.6
+tomlkit
