@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from utsc.core import debug_cache
@@ -20,6 +21,7 @@ def librenms_stuff():
         Device()
     print()
 
+
 @debug_cache
 def golden_config_data():
     from nautobot_golden_config.utilities.graphql import graph_ql_query
@@ -28,6 +30,7 @@ def golden_config_data():
     from nautobot.users.models import User
 
     from uuid import UUID
+
     device = Device.objects.get(id=UUID("d1726e48-e4f0-4c76-9af9-da3cfa676161"))
     data = {"obj": device}
     request = NautobotFakeRequest(
@@ -43,12 +46,14 @@ def golden_config_data():
     data.update(device_data)
     return data
 
+
 def golden_config_test():
     from django_jinja.backend import Jinja2
     from jinja2.loaders import FileSystemLoader
     from jinja2 import Environment
+
     data = golden_config_data()
-    git_repo = Path("./dev_data/git/github-utsc-utoronto-ca/")
+    git_repo = Path("./gitlab_repo")
     template = "templates/Distribution Switches/WS-C3850-24XS-E.j2"
 
     jinja_settings = Jinja2.get_default()
@@ -58,7 +63,7 @@ def golden_config_test():
     jinja_env.loader = FileSystemLoader(git_repo)
 
     t = jinja_env.get_template(template)
-    text = t.render(**data) # need to add nornir host object to jinja context
+    text = t.render(**data)  # need to add nornir host object to jinja context
     print(text)
     pass
 
@@ -66,17 +71,23 @@ def golden_config_test():
 def refresh_device_types():
     from ...datasources import refresh_single_device_type
 
-    class MockJobResult:
-        def log(self, *args, **kwargs):
-            print(*args, *kwargs.values())
+    model_file = Path(
+        "dev_data/git/netbox-community-devicetype-library/device-types/Cisco/WS-C3850-24XS-E.yaml"
+    )
 
-    model_file = Path('dev_data/git/netbox-community-devicetype-library/device-types/Arista/DCS-7050SX3-48YC8.yaml')
+    refresh_single_device_type(model_file)
 
-    refresh_single_device_type(model_file, MockJobResult())
+
+def prod_workbench():
+    import pynautobot
+
+    prod = pynautobot.api(
+        "https://engine.server.utsc.utoronto.ca", os.environ.get("MY_API_TOKEN")
+    )
 
 
 class Command(BaseCommand):
     help = "Run debug code from the utsc_nautobot plugin"
 
     def handle(self, *args, **options):
-        golden_config_test()
+        golden_config_test()        

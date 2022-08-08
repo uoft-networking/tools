@@ -11,49 +11,46 @@ from nautobot.dcim.models import (
 )
 
 
-def refresh_single_device_type(model_file: Path, job_result):
+def refresh_single_device_type(model_file: Path) -> DeviceType:
     with model_file.open() as f:
         data = yaml.safe_load(f)
 
     components = {
-        'console-ports': dct.ConsolePortTemplate,
-        'console-server-ports': dct.ConsoleServerPortTemplate,
-        'power-ports': dct.PowerPortTemplate,
-        'power-outlets': dct.PowerOutletTemplate,
-        'interfaces': dct.InterfaceTemplate,
-        'front-ports': dct.FrontPortTemplate,
-        'rear-ports': dct.RearPortTemplate,
-        'device-bays': dct.DeviceBayTemplate,
-        'module-bays': dct.DeviceBayTemplate # Nautobot doesn't seem to support module bays...
+        "console-ports": dct.ConsolePortTemplate,
+        "console-server-ports": dct.ConsoleServerPortTemplate,
+        "power-ports": dct.PowerPortTemplate,
+        "power-outlets": dct.PowerOutletTemplate,
+        "interfaces": dct.InterfaceTemplate,
+        "front-ports": dct.FrontPortTemplate,
+        "rear-ports": dct.RearPortTemplate,
+        "device-bays": dct.DeviceBayTemplate,
+        "module-bays": dct.DeviceBayTemplate,  # Nautobot doesn't seem to support module bays...
     }
 
     # Create or update a DeviceType record based on the provided data
+    mfg, _ = Manufacturer.objects.update_or_create(name=data["manufacturer"])
+    defaults = dict(
+        subdevice_role = 'parent' if 'device-type' in str(model_file) else 'child'
+    )
+    if model := data.get("model"): defaults['model'] = model
+    if part_number := data.get("part_number"): defaults['part_number'] = part_number
+    if u_height := data.get("u_height"): defaults['u_height'] = u_height
+    if is_full_depth := data.get("is_full_depth"): defaults['is_full_depth'] = is_full_depth
+    if comments := data.get("comments"): defaults['comments'] = comments
     dt: DeviceType
     dt, _ = DeviceType.objects.update_or_create(
-        manufacturer=(
-            Manufacturer.objects.update_or_create(name=data["manufacturer"])[0]
-        ),
-        model=data["model"],
+        manufacturer=mfg,
         slug=data["slug"],
-        part_number=data["part_number"],
-        u_height=data["u_height"],
-        is_full_depth=data["is_full_depth"],
-        subdevice_role="parent",
+        defaults=defaults
     )
 
     for name, model in components.items():
         for entry in data.get(name, []):
-            model.objects.update_or_create(device_type=dt, **entry)
+            entry_name = entry['name']
+            model.objects.update_or_create(device_type=dt, name=entry_name, defaults=entry)
 
     dt.validated_save()
-
-    # Record the outcome in the JobResult record
-    job_result.log(
-        "Successfully created/updated device type",
-        obj=dt,
-        level_choice=LogLevelChoices.LOG_SUCCESS,
-        grouping="device_types",
-    )
+    return dt
 
 
 def refresh_device_types(repository_record, job_result, delete=False):
@@ -70,12 +67,15 @@ def refresh_device_types(repository_record, job_result, delete=False):
     dt_path = Path(os.path.join(repository_record.filesystem_path, "device-types"))
     for manufacturer in dt_path.iterdir():
         for model_file in manufacturer.iterdir():
-            refresh_single_device_type(model_file, job_result)
-    # for filename in os.listdir(dt_path):
-    #     with open(os.path.join(dt_path, filename)) as fd:
-    #         data = yaml.safe_load(fd)
+            dt = refresh_single_device_type(model_file)
 
-    #
+            # Record the outcome in the JobResult record
+            job_result.log(
+                "Successfully created/updated device type",
+                obj=dt,
+                level_choice=LogLevelChoices.LOG_SUCCESS,
+                grouping="device_types",
+            )
 
 
 # Register that DeviceType records can be loaded from a Git repository,

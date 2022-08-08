@@ -11,7 +11,7 @@ dev-mode-dirs = ["../../src"]
 
 [project]
 name = "utsc_nautobot"
-version = "2022.06.02"
+version = "2022.08.08"
 description = "A collection of UTSC-specific modifications and extensions to Nautobot."
 readme = "README.md"
 authors = [
@@ -31,7 +31,8 @@ dependencies = [
   "html-table-parser-python3 >=0.2.0",
   "django-environ",
   "napalm",
-  "librenms_handler"
+  "librenms_handler",
+  "python-box"
 ]
 
 [tool.poe]
@@ -57,7 +58,10 @@ prod-deploy-hotfix.shell = '''
 poe --root ../.. build core
 poe --root ../.. bump_version nautobot
 poe --root ../.. build nautobot
+gpipx runpip nautobot install --upgrade ../core/dist/*.whl dist/*.whl
 gpipx runpip nautobot install --upgrade --force-reinstall --no-deps ../core/dist/*.whl dist/*.whl
+poe prod-systemd restart
+poe prod-systemd status
 '''
 db-refresh.shell = '''
 set -euo pipefail
