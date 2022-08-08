@@ -19,7 +19,7 @@ app = typer.Typer(name="utsc.scripts")
 collect = typer.Typer()
 aruba = typer.Typer()
 ldap = typer.Typer()
-app.add_typer(collect, name="collect")
+app.add_typer(collect, name="collect", no_args_is_help=True)
 app.add_typer(aruba, name="aruba")
 app.add_typer(ldap, name="ldap")
 
@@ -70,6 +70,7 @@ def aruba_callback(
     username: str = typer.Option('apiadmin'),
     password: str = typer.Option(None)
 ):
+
     if not password:
         try:
             password = shell("pass aruba-api").splitlines()[0]
