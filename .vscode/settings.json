@@ -4,5 +4,6 @@
     "python.linting.mypyEnabled": false,
     "python.linting.enabled": false,
     "python.linting.prospectorEnabled": true,
-    "python.linting.prospectorPath": ".venv/bin/prospector"
+    "python.linting.prospectorPath": ".venv/bin/prospector",
+    "python.testing.pytestEnabled": true
 }
