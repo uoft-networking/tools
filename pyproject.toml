@@ -19,5 +19,5 @@ nautobot.cmd = "poe --root projects/nautobot"
 
 [tool.monas]
 packages = ["projects/"]
-version = "0.0.0"
+version = "1.0.0"
 python-version = "3.10"

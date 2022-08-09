@@ -11,7 +11,7 @@ dev-mode-dirs = ["../../src"]
 
 [project]
 name = "uoft_nautobot"
-version = "2022.08.08"
+version = "1.0.0"
 description = "A collection of UofT-specific modifications and extensions to Nautobot."
 readme = "README.md"
 authors = [

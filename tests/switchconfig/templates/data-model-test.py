@@ -9,12 +9,7 @@ The process_template_data function in this template module demonstrates two diff
 interactively getting and validating template data
 """
 
-from ipaddress import IPv4Network, IPv4Address
-from pathlib import Path
-from typing import Any, Literal, Union
-
-from uoft_switchconfig.generate import model_questionnaire
-from uoft_switchconfig.util import Choice
+from uoft_switchconfig.types import IPv4Address, IPv4Network, Path, Literal, Union ,Choice
 from pydantic import BaseModel, Field
 
 PATH = Path(__file__).parent
@@ -32,7 +27,7 @@ class Filters:
         for a given subnet in CIDR notation, return the IP address of the default gateway.
         Example: {{subnet|gateway_ip}} where example subnet 10.0.0.0/24 produces 10.0.0.1
         """
-        return str(next(IPv4Network(subnet).hosts()))
+        return str(IPv4Network(subnet)[1])
 
     @staticmethod
     def network_address(subnet: str) -> str:

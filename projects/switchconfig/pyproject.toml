@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uoft_switchconfig"
-version = "2022.4.26.1"
+version = "1.0.0"
 description = "A tool to easily provision switches on the bench"
 readme = "README.md"
 authors = [
