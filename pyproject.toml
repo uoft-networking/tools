@@ -1,8 +1,6 @@
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = [
-    "tests",
-]
+testpaths = ["tests"]
 
 [tool.poe.tasks]
 publish.script = "tools:call('publish')"

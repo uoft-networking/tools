@@ -1,0 +1,20 @@
+[project]
+name = "uoft_aruba"
+version = "1.0.0"
+description = "Collection of utilities for interacting with Aruba infrastructure"
+authors = [{ name = "Kyle-Fozo", email = "kyle.fozo@utoronto.ca" }]
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = ["pydantic[dotenv]", "uoft_core", "typer"]
+
+license = { text = "MIT" }
+
+[project.urls]
+Repository = "https://github.com/uoft-networking/tools"
+
+[build-system]
+requires = ["hatchling>=0.22.0"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cpsec_whitelist:run"
