@@ -46,11 +46,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-if (
-    not settings.md_vrrp_hostname
-    or not settings.mm_vrrp_hostname
-    or not settings.svc_account
-    or not settings.organizational_division
+if not all(
+    [
+        settings.md_vrrp_hostname,
+        settings.mm_vrrp_hostname,
+        settings.svc_account,
+        settings.organizational_division,
+    ]
 ):
     raise Exception(f"Empty field(s) in .env! Configure your supplied .env file prior to the use of this tool!")
 
