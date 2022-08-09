@@ -2,13 +2,13 @@
 
 from typing import TYPE_CHECKING
 
-from utsc.switchconfig.util import (
+from uoft_switchconfig.util import (
     CommentBlockField,
     get_comment_block_schema,
     model_source_from_comment_block_schema,
     construct_model_from_comment_block_schema,
 )
-from utsc.core import txt
+from uoft_core import txt
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
@@ -168,6 +168,9 @@ def test_model_source_from_comment_block_schema():
     assert res == txt(
         """
         from typing import *
+        from pydantic.types import *
+        from ipaddress import *
+        from netaddr import *
         from pydantic import BaseModel, Field
         from ipaddress import IPv4Network
         from ipaddress import IPv4Address
@@ -192,6 +195,9 @@ def test_model_source_from_comment_block_schema():
     assert res == txt(
         """
         from typing import *
+        from pydantic.types import *
+        from ipaddress import *
+        from netaddr import *
         from pydantic import BaseModel, Field
         from ipaddress import IPv4Address
         from ipaddress import IPv4Network

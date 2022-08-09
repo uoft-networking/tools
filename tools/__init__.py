@@ -31,8 +31,8 @@ def gather_dependencies():
         # if project in ["nautobot"]:
         #     continue
         data = tomlkit.loads(pyproject_file.read_text("utf-8"))
-        if "utsc.core" in data["tool"]["poetry"]["dependencies"]:  # type: ignore
-            del data["tool"]["poetry"]["dependencies"]["utsc.core"]  # type: ignore
+        if "uoft_core" in data["tool"]["poetry"]["dependencies"]:  # type: ignore
+            del data["tool"]["poetry"]["dependencies"]["uoft_core"]  # type: ignore
         root_data["tool"]["poetry"]["dependencies"].update(data["tool"]["poetry"]["dependencies"])  # type: ignore
 
     root.write_text(tomlkit.dumps(root_data), "utf-8")
@@ -104,7 +104,7 @@ def build1(project: str, bump_version: bool = False, skip_core: bool = False):
     rmtree(project_path/'dist', ignore_errors=True)
     src = Path("src").absolute()
     run(
-        f"docker run -it --rm -v {project_path}:/code -v {src}:/code/src utsc-poetry-builder".split(),
+        f"docker run -it --rm -v {project_path}:/code -v {src}:/code/src uoft_poetry-builder".split(),
         check=True,
     )
 
@@ -172,9 +172,9 @@ def _bump_version(curr_version: str):
 
 
 def _get_poetry_builder():
-    "ensures that docker is installed / available, and builds+tags the 'utsc-poetry-builder' docker image if needed"
+    "ensures that docker is installed / available, and builds+tags the 'uoft_poetry-builder' docker image if needed"
     r = run(
-        "docker image inspect utsc-poetry-builder:latest".split(),
+        "docker image inspect uoft_poetry-builder:latest".split(),
         check=False,
         capture_output=True,
     )
@@ -182,7 +182,7 @@ def _get_poetry_builder():
         case 127:
             raise Exception("`docker` command not found. Please install docker.")
         case 1:
-            print("Building `utsc-poetry-builder` image...")
+            print("Building `uoft_poetry-builder` image...")
             uid = str(os.geteuid())
             run(
                 [
@@ -191,7 +191,7 @@ def _get_poetry_builder():
                     "--build-arg",
                     "uid=" + uid,
                     "-t",
-                    "utsc-poetry-builder",
+                    "uoft_poetry-builder",
                     "./tools",
                 ],
                 check=True,
@@ -201,7 +201,7 @@ def _get_poetry_builder():
             return
         case _:
             raise Exception(
-                "checking for `utsc-poetry-builder` docker image failed unexpectedly:"
+                "checking for `uoft_poetry-builder` docker image failed unexpectedly:"
                 + r.stdout.decode()
                 + r.stderr.decode()
             )
@@ -217,7 +217,7 @@ def _get_metadata(project: str, key: str) -> str:
 def _get_pypi_version(project: str):
     with TemporaryDirectory() as tmp:
         run(
-            f"pip download --no-deps utsc.{project}".split(),
+            f"pip download --no-deps uoft_{project}".split(),
             cwd=tmp,
             check=True,
             capture_output=True,

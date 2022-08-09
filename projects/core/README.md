@@ -7,13 +7,13 @@ It's designed to be easy to include in other projects. all of its mainline depen
 # Install
 
 ```
-pip install utsc.core
+pip install uoft_core
 ```
 
 to include all optional dependencies, run
 
 ```
-pip install utsc.core[all]
+pip install uoft_core[all]
 ```
 
 # Usage

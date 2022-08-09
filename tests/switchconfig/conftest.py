@@ -3,7 +3,7 @@ import pytest
 
 from . import CapturedOutput
 
-from utsc.switchconfig import config
+from uoft_switchconfig import config
 
 from prompt_toolkit.application import create_app_session
 from prompt_toolkit.input import create_pipe_input
@@ -23,13 +23,11 @@ def mock_config(mocker: "MockerFixture", mock_util: "MockedUtil"):
 
 @pytest.fixture(scope="function")
 def mock_pt_app():
-    pipe_input = create_pipe_input()
+    
     pipe_output = CapturedOutput()
-    try:
+    with create_pipe_input() as pipe_input:
         with create_app_session(input=pipe_input, output=pipe_output) as app:
             yield app
-    finally:
-        pipe_input.close()
 
 
 # endregion

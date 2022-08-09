@@ -1,13 +1,12 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling >= 1.6.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build]
-packages = ["utsc"]
 
 [project]
-name = "utsc.core"
-version = "2022.05.27"
+name = "uoft_core"
+version = "1.0.0"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = [

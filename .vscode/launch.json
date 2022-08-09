@@ -5,12 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Nautobot UTSC Debug",
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            
+        },
+        {
+            "name": "Python: Nautobot UofT_Debug",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/.venv/bin/nautobot-server",
             "args": [
-                "utsc_debug",
+                "uoft_debug",
             ],
             "django": true,
             "justMyCode": false,
@@ -33,6 +42,25 @@
             "justMyCode": false,
             "cwd": "${workspaceFolder}/projects/nautobot",
             "env": {
+                "VSCODE_DEBUGGER": "1"
+            },
+        },
+        {
+            "name": "Python: Nautobot Worker",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/.venv/bin/nautobot-server",
+            "args": [
+                "celery",
+                "worker",
+                "--loglevel",
+                "DEBUG",
+            ],
+            "django": true,
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/projects/nautobot",
+            "env": {
+                "PYDEBUG": "1",
                 "VSCODE_DEBUGGER": "1"
             },
         },
@@ -66,7 +94,7 @@
             "name": "Python: Module: __main__",
             "type": "python",
             "request": "launch",
-            "module": "utsc.__main__",
+            "module": "uoft___main__",
             "console": "integratedTerminal",
             "env": {
                 "PYDEBUG": "1"
@@ -74,10 +102,10 @@
             "justMyCode": false
         },
         {
-            "name": "Python: Module: utsc.switchconfig.__main__",
+            "name": "Python: Module: uoft_switchconfig.__main__",
             "type": "python",
             "request": "launch",
-            "module": "utsc.switchconfig.__main__",
+            "module": "uoft_switchconfig.__main__",
             "console": "integratedTerminal",
             "env": {
                 "PYDEBUG": "1"
@@ -85,10 +113,10 @@
             "justMyCode": false
         },
         {
-            "name": "Python: Module: utsc.scripts.__main__",
+            "name": "Python: Module: uoft_scripts.__main__",
             "type": "python",
             "request": "launch",
-            "module": "utsc.scripts.__main__",
+            "module": "uoft_scripts.__main__",
             "console": "integratedTerminal",
             "env": {
                 "PYDEBUG": "1"
@@ -106,5 +134,6 @@
             },
             "justMyCode": false
         },
+        
     ]
 }
