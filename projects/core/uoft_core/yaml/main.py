@@ -122,14 +122,14 @@ class YAML:
     @property
     def constructor(self) -> Constructor:
         if not self._constructor:
-            self._constructor = Constructor(preserve_quotes=self.preserve_quotes, loader=self)
+            self._constructor = Constructor(loader=self)
             self._constructor.allow_duplicate_keys = self.allow_duplicate_keys
         return self._constructor
 
     @property
     def resolver(self) -> Resolver:
         if not self._resolver:
-            self._resolver = Resolver(version=self.version, loader=self)
+            self._resolver = Resolver(loader=self)
         return self._resolver
 
     @property

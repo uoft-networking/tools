@@ -15,7 +15,11 @@ class Node:
 
     def __init__(self, tag, value, start_mark, end_mark, comment=None, anchor=None):
         # type: (Any, Any, Any, Any, Any, Any) -> None
-        self.id: str = "base" 
+        try:
+            self.id: str = "base" 
+        except AttributeError:
+            # we are initializing a suclass with a read-only id attribute
+            pass
         self.tag = tag
         self.value = value
         self.start_mark = start_mark

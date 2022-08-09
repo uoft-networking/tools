@@ -155,18 +155,11 @@ class Scanner:
         try:
             return self._scanner_reader  # type: ignore
         except AttributeError:
-            if hasattr(self.loader, "typ"):
-                self._scanner_reader = self.loader.reader
-            else:
-                self._scanner_reader = self.loader._reader
-            return self._scanner_reader
+            return self.loader.reader
 
     @property
-    def scanner_processing_version(self):  # prefix until un-composited
-        # type: () -> Any
-        if hasattr(self.loader, "typ"):
-            return self.loader.resolver.processing_version
-        return self.loader.processing_version
+    def scanner_processing_version(self):
+        return self.loader.resolver.processing_version
 
     # Public methods.
 

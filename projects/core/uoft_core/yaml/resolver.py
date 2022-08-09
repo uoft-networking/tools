@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Dict, List, Union, Text, Optional  # NOQA
+    from . import YAML
     from .compat import VersionType  # NOQA
 
 from .compat import _DEFAULT_YAML_VERSION, _F  # NOQA
@@ -333,12 +334,9 @@ class VersionedResolver(BaseResolver):
     and Yes/No/On/Off booleans.
     """
 
-    def __init__(self, version=None, loader=None, loadumper=None):
-        # type: (Optional[VersionType], Any, Any) -> None
-        if loader is None and loadumper is not None:
-            loader = loadumper
+    def __init__(self, loader: "YAML"):
         BaseResolver.__init__(self, loader)
-        self._loader_version = self.get_loader_version(version)
+        self._loader_version = self.get_loader_version(loader.version)
         self._version_implicit_resolver = {}  # type: Dict[Any, Any]
 
     def add_version_implicit_resolver(self, version, tag, regexp, first):

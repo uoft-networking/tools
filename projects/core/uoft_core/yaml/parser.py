@@ -128,17 +128,11 @@ class Parser:
 
     @property
     def scanner(self):
-        # type: () -> Any
-        if hasattr(self.loader, "typ"):
-            return self.loader.scanner
-        return self.loader._scanner
+        return self.loader.scanner
 
     @property
     def resolver(self):
-        # type: () -> Any
-        if hasattr(self.loader, "typ"):
-            return self.loader.resolver
-        return self.loader._resolver
+        return self.loader.resolver
 
     def check_event(self, *choices):
         # type: (Any) -> bool
