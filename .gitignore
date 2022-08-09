@@ -1,5 +1,6 @@
+# Monorepo-wide entries
 __pycache__
-# Pants workspace files
+.venv
 /.pants.*
 /dist/
 /.pids
@@ -8,6 +9,7 @@ __pycache__
 cov.xml
 .coverage
 *.pkl
+# Project-specific entries
 nautobot_ssot_infoblox
 utsc_templates
 /projects/*/dist
