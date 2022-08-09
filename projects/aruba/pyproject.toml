@@ -2,7 +2,10 @@
 name = "uoft_aruba"
 version = "1.0.0"
 description = "Collection of utilities for interacting with Aruba infrastructure"
-authors = [{ name = "Kyle-Fozo", email = "kyle.fozo@utoronto.ca" }]
+authors = [
+    { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
+    { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" },
+]
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = ["pydantic[dotenv]", "uoft_core", "typer"]
