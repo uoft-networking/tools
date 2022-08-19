@@ -12,4 +12,4 @@ mkdocstrings
 mkdocs-material
 black >= 22.3.0
 tomlkit
-https://github.com/alextremblay/pypi-command-line
+git+https://github.com/alextremblay/pypi-command-line
