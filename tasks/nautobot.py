@@ -8,7 +8,8 @@ DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
 
 @task()
 def start(ctx: Context):
-    ctx.run("nautobot-server start --ini dev_data/uwsgi.ini")
+    with ctx.cd("projects/nautobot"):
+        ctx.run("direnv exec . nautobot-server runserver --noreload")
 
 
 @task(
@@ -17,6 +18,10 @@ def start(ctx: Context):
     }
 )
 def systemd(ctx: Context, action: str, prod: bool = False):
+    """
+    Run systemd commands on the services
+    """
+
     services = PROD_SERVICES if prod else DEV_SERVICES
     if action == "edit":
         services = " ".join([f"/etc/systemd/system/{s}.service" for s in services])
