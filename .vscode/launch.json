@@ -14,12 +14,12 @@
             
         },
         {
-            "name": "Python: Nautobot UofT_Debug",
+            "name": "Python: Nautobot UTSC_Debug",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/.venv/bin/nautobot-server",
             "args": [
-                "uoft_debug",
+                "utsc_debug",
             ],
             "django": true,
             "justMyCode": false,
