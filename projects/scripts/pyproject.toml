@@ -28,18 +28,3 @@ dependencies = [
 
 [project.scripts]
 "uoft_scripts" = "uoft_scripts.__main__:cli"
-
-[tool.poe.tasks]
-cov.cmd = "pytest --cov-report xml:cov.xml --cov-report term-missing --cov"
-publish.cmd = "git push origin main --tags"
-sudo-install.shell = """\
-    rm -f dist/*
-    poetry build
-    sudo /usr/local/bin/pip3 install dist/*.whl
-    """
-check.shell = """\
-    black .
-    mypy .
-    prospector .
-    pytest .
-    """
