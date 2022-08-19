@@ -1,4 +1,7 @@
+"""commands ported over from this monorepo's old adhoc task runner"""
+
 from pathlib import Path
+from invoke import task, Context
 from tempfile import TemporaryDirectory
 from subprocess import run
 from datetime import date
@@ -11,6 +14,69 @@ from shutil import rmtree
 
 import tomlkit
 import typer
+
+@task()
+def build_base(ctx: Context, project: str = "all"):
+    """write a bash script to a tempfile and execute it with ctx.run"""
+    tempfile = Path("./tempfile")
+    tempfile.write_text(
+        """
+        #!/usr/bin/env bash
+
+        set -euo pipefail
+
+        echo "Initializing..."
+        build_date="20211017"
+        build_time="1616"
+        declare -A os=(["Darwin"]="apple-darwin" ["Linux"]='unknown-linux-gnu')
+        os="${os[`uname`]}"
+        declare -A arch=(["arm64"]="aarch64" ["x86_64"]="x86_64")
+        arch="${arch[`uname -m`]}"
+        tar_file="cpython-3.10.0-${arch}-${os}-pgo+lto-${build_date}T${build_time}.tar"
+        tarz_file="${tar_file}.zst"
+        url="https://github.com/indygreg/python-build-standalone/releases/download/${build_date}/${tarz_file}"
+
+        cd dist
+        test -f build.log && rm build.log
+        test ! -f "${tarz_file}" && echo "Fetching portable python build from indygreg/python-build-standalone" && wget "${url}" &>> build.log
+        test ! -f "${tar_file}" && echo "Decompressing zstd archive..." && zstd -d "${tarz_file}" &>> build.log
+
+        echo "Unpacking decompressed tar file..."
+        tar -xvf "${tar_file}" &>> build.log
+        test -d uoft-tools && rm -r uoft-tools
+
+        echo "Prepping uoft-tools python distribution..."
+        mkdir uoft-tools
+        mv python/install/* uoft-tools/
+        cp ../scripts/fix-shebangs.py uoft-tools/bin/
+
+        echo "installing 'uoft' python package into distribution..."
+        uoft-tools/bin/pip install uoft_core &>> build.log
+        uoft-tools/bin/fix-shebangs.py
+        echo "Packing uoft-tools distribution into gzip-compressed archive..."
+        tar -czvf "uoft-tools-$(uname)-$(uname -m).tar.gz" uoft-tools/ &>> build.log
+
+        echo "Done!"
+        """,
+        encoding="utf-8",
+    )
+    ctx.run(f"bash {tempfile}")
+    tempfile.unlink()
+    
+@task()
+def check_dist_files(project: str):
+    project_path = Path(f"projects/{project}")
+    dists = project_path / 'dist'
+    for package in dists.iterdir():
+        print(package, ':')
+        if package.suffix == '.whl':
+            with ZipFile(package) as z:
+                for n in z.namelist():
+                    print('    ', n)
+        if package.suffix == '.gz':
+            with TarFile.open(package) as t:
+                for n in t.getnames():
+                    print('    ', n)
 
 
 def call(fn_name: str):
@@ -256,12 +322,3 @@ def _published_state(project: str) -> Literal['unpublished', 'outdated', 'publis
     if local_hash == pypi_hash:
         return 'published'
     return 'outdated'
-
-
-if __name__ == "__main__":
-    # DEBUG CODE HERE
-    t = _bump_version('2020.01.01')
-    t2 = _bump_version('2022.05.17')
-    t3 = _bump_version('2022.05.17.post0')
-    t4 = _bump_version('2022.05.17.post3')
-    print()
