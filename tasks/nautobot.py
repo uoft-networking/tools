@@ -11,6 +11,10 @@ def start(ctx: Context):
     with ctx.cd("projects/nautobot"):
         ctx.run("direnv exec . nautobot-server runserver --noreload")
 
+@task()
+def server(ctx: Context, cmdline: str):
+    with ctx.cd("projects/nautobot"):
+        ctx.run(f"direnv exec . nautobot-server {cmdline}")
 
 @task(
     help={
