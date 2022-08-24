@@ -9,6 +9,6 @@
     "python.linting.lintOnSave": false,
     "pylint.args": [
         "--max-line-length=120",
-        "--disable=I,C,no-name-in-module"
+        "--disable=I,C,no-name-in-module,unspecified-encoding,unused-argument,redefined-outer-name"
       ]
 }
