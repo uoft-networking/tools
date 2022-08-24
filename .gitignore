@@ -9,6 +9,7 @@ __pycache__
 cov.xml
 .coverage
 *.pkl
+*.uoft_core.debug*
 # Project-specific entries
 nautobot_ssot_infoblox
 utsc_templates
