@@ -4,7 +4,7 @@ from pathlib import Path
 from uoft_core import debug_cache
 from django.core.management.base import BaseCommand
 from jinja2 import StrictUndefined
-from nautobot.dcim.models import Device, DeviceRole, DeviceType, Rack, Site
+from nautobot.dcim.models import Device
 
 
 def librenms_stuff():
@@ -17,9 +17,7 @@ def librenms_stuff():
             devices,
         )
     )
-    for device in devices:
-        Device()
-    print()
+    print(devices)
 
 
 @debug_cache
@@ -42,7 +40,7 @@ def golden_config_data():
     settings = GoldenConfigSetting.objects.get(
         id=UUID("92368e69-14db-4471-8b66-f71ccbfe4d76")
     )
-    status, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
+    _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
     data.update(device_data)
     return data
 
@@ -53,7 +51,7 @@ def golden_config_test():
     from jinja2 import Environment
 
     data = golden_config_data()
-    git_repo = Path("./gitlab_repo")
+    git_repo = Path("projects/nautobot/gitlab_repo")
     template = "templates/Distribution Switches/WS-C3850-24XS-E.j2"
 
     jinja_settings = Jinja2.get_default()
@@ -63,9 +61,8 @@ def golden_config_test():
     jinja_env.loader = FileSystemLoader(git_repo)
 
     t = jinja_env.get_template(template)
-    text = t.render(**data)  # need to add nornir host object to jinja context
+    text = t.render(**data)
     print(text)
-    pass
 
 
 def refresh_device_types():
@@ -85,9 +82,11 @@ def prod_workbench():
         "https://engine.server.utsc.utoronto.ca", os.environ.get("MY_API_TOKEN")
     )
 
+    print(prod)
+
 
 class Command(BaseCommand):
     help = "Run debug code from the uoft_nautobot plugin"
 
     def handle(self, *args, **options):
-        golden_config_test()        
+        golden_config_test()

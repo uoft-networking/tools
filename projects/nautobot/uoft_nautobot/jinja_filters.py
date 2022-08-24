@@ -1,6 +1,4 @@
-from nautobot.ipam.models import VLAN
-from nautobot.dcim.models import Device
-from nautobot.dcim.models.device_components import Interface
+from nautobot.extras.models import Secret
 from django_jinja import library
 
 from netaddr import IPNetwork
@@ -8,18 +6,47 @@ from box import Box
 
 
 @library.filter
-def interfaces(data: Device):
-    interfaces = list(data.interfaces.all())
-    for module in data.devicebays.all():
-        if dev := module.installed_device:
-            interfaces.extend(dev.interfaces.all())
-    return interfaces
+def combine_with(list_one: list, *other_lists: list):
+    "combine multiple lists into a single list"
+    res = list_one.copy()
+    for l in other_lists:
+        res.extend(l)
+    return res
 
 
 @library.filter
-def vlans(data: Device):
-    for vlan in data.site.vlan_groups.first().vlans.all():
-        if vlan.vid != 666:
+def sort_interfaces(intf_list):
+    """
+    takes a list of interfaces, and returns an equivalent list, 
+    sorted to match the order that interfaces show up in a cisco 
+    `show run` config backup
+    """
+    d = {
+        "Loopback" : [],
+        "Port-channel" : [],
+        "GigabitEthernet" : [],
+        "TenGigabitEthernet1" : [],
+        "FortyGigabitEthernet1" : [],
+        "other" : [],
+    }
+    for i in intf_list:
+        for k in d:
+            if i.name.startswith(k):
+                d[k].append(i)
+                break
+        else:
+            d["other"].append(i)
+    res = []
+    for l in d.values():
+        res.extend(l)
+    return res
+
+
+@library.filter
+def except_vlan(vlans: list, exc: int):
+    "take a list of VLANs and return an equivalent list with a single VLAN filtered out"
+    for vlan in vlans:
+        if vlan.vid != exc:
             yield vlan
 
 
@@ -29,12 +56,16 @@ def uplinks(interfaces):
 
 
 @library.filter
-def ip_info(intf: Interface):
-    res = Box()
-    res.v4 = []
-    res.v6 = []
-    for addr in intf.ip_addresses.all():
-        if addr.family == 4:
+def ip_info(intf: list[Box]):
+    """
+    take a mixed list of ipv4 and ipv6 addresses,
+    and convert it into a box with two attributes, 'v4' and 'v6',
+    each of which contain a list of `netaddr.IPNetwork objects
+    """
+    res = Box(v4=[], v6=[])
+    for addr in intf:
+        addr = IPNetwork(addr.address)
+        if addr.version == 4:
             res.v4.append(addr)
         else:
             res.v6.append(addr)
@@ -43,6 +74,9 @@ def ip_info(intf: Interface):
 
 @library.filter
 def allowed_vlans(native_vlan: int):
+    """
+    for a given native vlan, return a string containing a 
+    cisco-style range of all vlans excluding this native vlan"""
     match native_vlan:
         case 1:
             return "2-4094"
@@ -57,13 +91,16 @@ def allowed_vlans(native_vlan: int):
 
 
 @library.filter
-def vlan_ip_info(vlan: VLAN):
+def vlan_ip_info(vlan: Box):
+    """
+    convert a `Box(ipv4: dict,ipv6: dict)` object into 
+    a `Box(v4: netaddr.IPNetwork, v6: netaddr.IPNetwork)` object
+    """
     res = Box(dict(v4=None, v6=None))
-    for pfx in vlan.prefixes.all():
-        if pfx.family == 4:
-            res.v4 = IPNetwork(pfx.cidr_str)
-        else:
-            res.v6 = IPNetwork(pfx.cidr_str)
+    if vlan.ipv4:
+        res.v4 = IPNetwork(vlan.ipv4[0].prefix)
+    if vlan.ipv6:
+        res.v6 = IPNetwork(vlan.ipv6[0].prefix)
     return res
 
 
@@ -79,94 +116,40 @@ def convert_to_IS_id(ipv4: str):
     return f"49.0000.{a:04}.{b:04}.{c:0>4}.00"
 
 
-def _sla_object(num, s_ip, s_name, t_ip, t_name):
-    res = Box(dict(source={}, target={}))
-    res.source.ip = s_ip
-    res.source.name = s_name
-    res.target.ip = t_ip
-    res.target.name = t_name
-    res.num = num
-    return res
-
-
 @library.filter
-def sla_info(data: Device):
+def sla_info(vlans):
     count = 1
-    for vlan in vlans(data):
+    for vlan in vlans:
         ip = vlan_ip_info(vlan)
         if ip.v4:
             if vlan.vid == 100:
                 # UTSG SLA
-                yield _sla_object(
-                    count,
-                    ip.v4[1],
-                    vlan.name,
-                    "128.100.100.123",
-                    "UTSG",
+                yield Box(
+                    dict(
+                        num=count,
+                        source=dict(ip=ip.v4[1], name=vlan.name),
+                        target=dict(ip="128.100.100.123", name="UTSG"),
+                    )
                 )
                 count += 1
 
             if ip.v4.is_unicast() and not ip.v4.is_private():
                 # GOOGLEV4 SLA
-                yield _sla_object(
-                    count,
-                    ip.v4[1],
-                    vlan.name,
-                    "8.8.8.8",
-                    "GOOGLEV4",
+                yield Box(
+                    dict(
+                        num=count,
+                        source=dict(ip=ip.v4[1], name=vlan.name),
+                        target=dict(ip="8.8.8.8", name="GOOGLEV4"),
+                    )
                 )
                 count += 1
         if ip.v6:
-            yield _sla_object(
-                count,
-                ip.v6[1],
-                vlan.name,
-                "2001:4860:4860::8888",
-                "GOOGLEV6",
+            # GOOGLEV4 SLA
+            yield Box(
+                dict(
+                    num=count,
+                    source=dict(ip=ip.v6[1], name=vlan.name),
+                    target=dict(ip="2001:4860:4860::8888", name="GOOGLEV6"),
+                )
             )
             count += 1
-
-
-@library.filter
-def ip_sla_data(vlan_list: list[dict]):
-    """
-    Take a list of ip network prefixes as CIDR strings,
-    and filter out all prefixes which are not publicly routable
-    """
-
-    def is_public(net):
-        return net.is_unicast() and not net.is_private()
-
-    def slas():
-        for vlan in vlan_list:
-            for family in ("ipv4", "ipv6"):
-                if not vlan[family]:
-                    continue
-
-                pfx = vlan[family][0]["prefix"]
-                net = IPNetwork(pfx)
-                if net.version == 4:
-                    target = "8.8.8.8"
-                    target_name = "GOOGLEV4"
-                else:
-                    target = "2001:4860:4860::8888"
-                    target_name = "GOOGLEV6"
-                if is_public(net):
-                    yield dict(
-                        target=target,
-                        source=net[1],
-                        target_name=target_name,
-                        source_name=vlan["name"],
-                    )
-                    if not (vlan["vid"] == 100 and net.version == 4):
-                        continue
-                    target = "128.100.100.123"
-                    target_name = "UTSGV4"
-                    yield dict(
-                        target=target,
-                        source=net[1],
-                        target_name=target_name,
-                        source_name=vlan["name"],
-                    )
-
-    return list(slas())

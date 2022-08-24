@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build]
 packages = ["uoft_nautobot"]
-dev-mode-dirs = ["../../src"]
 
 
 [project]
