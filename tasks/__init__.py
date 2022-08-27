@@ -3,9 +3,13 @@ from pathlib import Path
 
 # all tasks should run relative to the project root,
 # so we will set the working directory to the project root at the moment invoke imports tasks
+# when running subtasks with invoke called from a parent invoke task, 
+# we want the subtask to run in whichever directory we told it to
 ROOT = Path(__file__).parent.parent
 CWD = os.getcwd()
-os.chdir(ROOT)
+if not os.environ.get("RUNNING_INSIDE_INVOKE"):
+    os.chdir(ROOT)
+    os.environ["RUNNING_INSIDE_INVOKE"] = 'true'
 
 
 # Invoke currently still supports python 2.7, and therefore does not support annotations in task signatures
