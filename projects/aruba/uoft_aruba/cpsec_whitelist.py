@@ -20,13 +20,10 @@ as well as modifying their certs to 'factory-approved' so the registrations do n
 # Used for settings import from .env
 from functools import cached_property
 from subprocess import SubprocessError
-from typing import Literal
 from pydantic import BaseSettings, root_validator, Field
-from pydantic.env_settings import SettingsSourceCallable
 
 # Used for settings import from TOML config file and prompting for missing config
 from uoft_core import UofTCoreError, Util, toml
-from uoft_core.other import Prompt
 
 # Used for help and argument control
 import typer
@@ -148,52 +145,36 @@ def callback(
         settings(new_settings=new_settings)
 
 
-provision = typer.Typer()
-run.add_typer(  # Create the 'provision' subcommand within typer.
-    provision,
-    name="provision",
-    help="This command is used to single or batch provision new Aruba WAPs into the CPSEC WDB and modify theirs certs to 'factory-approved' so that they do not expire.  Read the specific HELP entries first as input must be escaped in certain situations.",
-    no_args_is_help=True,
-)
-
-
 @run.command()
 def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
     debug: bool = typer.Option(False, help="Turn on debug logging"),
 ):
     "Returns a list of valid AP_GROUPs and exits."
-    try:
-        passwd = shell(f"pass show {settings().svc_account}")
-        with (
-            ArubaRESTAPIClient(
-                f"{settings().md_vrrp_hostname}:4343",
-                f"{settings().svc_account}",
-                passwd,
-            ) as host1
-        ):
-            raw_controller_ap_groups = host1.wlan.get_ap_groups()["_data"]["ap_group"]
-            controller_ap_groups = []
-            for raw_controller_ap_group in raw_controller_ap_groups:
-                controller_ap_groups.append(
-                    raw_controller_ap_group["profile-name"].rpartition("'")[2]
-                )
-            print(
-                f"Below you will find a list of valid AP_GROUPs to use in your input:\n"
+    with (
+        ArubaRESTAPIClient(
+            f"{settings().md_vrrp_hostname}:4343",
+            settings().svc_account,
+            settings().password,
+        ) as host1
+    ):
+        raw_controller_ap_groups = host1.wlan.get_ap_groups()["_data"]["ap_group"]
+        controller_ap_groups = []
+        for raw_controller_ap_group in raw_controller_ap_groups:
+            controller_ap_groups.append(
+                raw_controller_ap_group["profile-name"].rpartition("'")[2]
             )
-            print(*controller_ap_groups, sep="\n")
-            sys.exit()
-    except Exception as error:
-        if debug:
-            raise error
-        else:
-            print(f"Error!: {error}")
+        print(
+            "Below you will find a list of valid AP_GROUPs to use in your input:"
+        )
+        print(*controller_ap_groups, sep="\n")
+        sys.exit()
 
 
-@provision.command(  # Create the 'from-file' subcommand within 'provision'.
+@run.command(  # Create the 'from-file' subcommand within 'provision'.
     no_args_is_help=True,
-    short_help=f"Provisions a CSV list of MAC_ADDRESS,AP_GROUP,AP_NAME's, one per line.",
+    short_help="Provisions a CSV list of MAC_ADDRESS,AP_GROUP,AP_NAME's, one per line.",
 )
-def From_File(
+def Provision(
     filename: Path = typer.Argument(
         ...,
         exists=True,
@@ -206,26 +187,29 @@ def From_File(
     debug: bool = typer.Option(False, help="Turn on debug logging"),
 ):
     """
-    FILENAME must be a CSV file of WAP instances, one per line, formatted as such:\n
-    MAC_ADDRESS,AP_GROUP,AP_NAME\n
-    MAC_ADDRESS,AP_GROUP,AP_NAME\n\n\n
-    Note that my example AP_GROUP is "-CC Lab" with a space.  This does -not- need to be escaped when you are importing from CSV.\n\n\n
-    Example:\n
-    00:01:10:12:02:21,-CC Lab,test_ap_name_18\n
-    00:01:02:12:02:21,-CC Lab,test_ap_name_19\n
+    Provision a list of APs using information from a provided CSV file.
+    Each row in the CSV file represents an AP to be provisioned.
+    The CSV file must consist of 3 columns: MAC_ADDRESS, AP_GROUP, and AP_NAME.
+    The CSV file must not contain a header row.
+
+    If FILENAME is a single dash (ex. "-"), data will be read from stdin
+
+    Note that my example AP_GROUP is "-CC Lab" with a space.  This does -not- need to be escaped when you are importing from CSV.
+    Example:
+    Given a file names `my_aps.csv` with the following contents
+    ```csv
+    00:01:10:12:02:21,-CC Lab,test_ap_name_18
+    00:01:02:12:02:21,-CC Lab,test_ap_name_19
+    ```
+    
+    running the command `
     """
     if filename.name == "-":
         file = sys.stdin.readlines()
     else:
         file = filename.open().readlines()
-    try:
-        input_WAPs = Read_From_File(file)
-        Verify_And_Create(input_WAPs)
-    except Exception as error:
-        if debug:
-            raise error
-        else:
-            print(f"Error!: {error}")
+    input_WAPs = Read_From_File(file)
+    Verify_And_Create(input_WAPs)
 
 
 def Read_From_CLI(input_table: list[str]) -> InputTable:
@@ -353,4 +337,4 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(
 if __name__ == "__main__":
     # sys.argv.extend('provision from-file -'.split())
     # run()
-    t = Settings()
+    t = Settings() #type: ignore
