@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 # Scanner produces tokens of the following types:
 # STREAM-START
@@ -33,10 +34,14 @@ from .error import MarkedYAMLError, CommentMark  # NOQA
 from .tokens import *  # NOQA
 from .compat import _F, check_anchorname_char, nprint, nprintf  # NOQA
 
-from typing import TYPE_CHECKING
+from typing import Tuple, Type, TYPE_CHECKING
+from uoft_core.yaml.error import StringMark
+from uoft_core.yaml.reader import Reader
+from uoft_core.yaml.tokens import AliasToken, AnchorToken, DirectiveToken, ScalarToken, TagToken, Token
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Union, Text  # NOQA
+    from uoft_core.yaml.main import YAML    
     from .compat import VersionType  # NOQA
 
 __all__ = ["Scanner", "RoundTripScanner", "ScannerError"]
@@ -48,7 +53,7 @@ _SPACE_TAB = " \t"
 
 
 def xprintf(*args, **kw):
-    # type: (Any, Any) -> Any
+
     return nprintf(*args, **kw)
     pass
 
@@ -60,8 +65,8 @@ class ScannerError(MarkedYAMLError):
 class SimpleKey:
     # See below simple keys treatment.
 
-    def __init__(self, token_number, required, index, line, column, mark):
-        # type: (Any, Any, int, int, int, Any) -> None
+    def __init__(self, token_number: int, required: bool, index: int, line: int, column: int, mark: StringMark) -> None:
+
         self.token_number = token_number
         self.required = required
         self.index = index
@@ -71,8 +76,8 @@ class SimpleKey:
 
 
 class Scanner:
-    def __init__(self, loader=None):
-        # type: (Any) -> None
+    def __init__(self, loader: Optional[YAML]=None) -> None:
+
         """Initialize the scanner."""
         # It is assumed that Scanner and Reader will have a common descendant.
         # Reader do the dirty work of checking for BOM and converting the
@@ -88,24 +93,24 @@ class Scanner:
             self.loader._scanner = self
         self.reset_scanner()
         self.first_time = False
-        self.yaml_version = None  # type: Any
+        self.yaml_version = None
 
     @property
-    def flow_level(self):
-        # type: () -> int
+    def flow_level(self) -> int:
+
         return len(self.flow_context)
 
-    def reset_scanner(self):
-        # type: () -> None
+    def reset_scanner(self) -> None:
+
         # Had we reached the end of the stream?
         self.done = False
 
         # flow_context is an expanding/shrinking list consisting of '{' and '['
         # for each unclosed flow context. If empty list that means block context
-        self.flow_context = []  # type: List[Text]
+        self.flow_context = []
 
         # List of processed tokens that are not yet emitted.
-        self.tokens = []  # type: List[Any]
+        self.tokens = []
 
         # Add the STREAM-START token.
         self.fetch_stream_start()
@@ -117,7 +122,7 @@ class Scanner:
         self.indent = -1
 
         # Past indentation levels.
-        self.indents = []  # type: List[int]
+        self.indents = []
 
         # Variables related to simple keys treatment.
 
@@ -147,24 +152,24 @@ class Scanner:
         #   (token_number, required, index, line, column, mark)
         # A simple key may start with ALIAS, ANCHOR, TAG, SCALAR(flow),
         # '[', or '{' tokens.
-        self.possible_simple_keys = {}  # type: Dict[Any, Any]
+        self.possible_simple_keys = {}
 
     @property
-    def reader(self):
-        # type: () -> Any
+    def reader(self) -> Reader:
+
         try:
-            return self._scanner_reader  # type: ignore
+            return self._scanner_reader
         except AttributeError:
             return self.loader.reader
 
     @property
-    def scanner_processing_version(self):
+    def scanner_processing_version(self) -> Tuple[int, int]:
         return self.loader.resolver.processing_version
 
     # Public methods.
 
     def check_token(self, *choices):
-        # type: (Any) -> bool
+
         # Check if the next token is one of the given types.
         while self.need_more_tokens():
             self.fetch_more_tokens()
@@ -177,7 +182,7 @@ class Scanner:
         return False
 
     def peek_token(self):
-        # type: () -> Any
+
         # Return the next token, but do not delete if from the queue.
         while self.need_more_tokens():
             self.fetch_more_tokens()
@@ -185,7 +190,7 @@ class Scanner:
             return self.tokens[0]
 
     def get_token(self):
-        # type: () -> Any
+
         # Return the next token.
         while self.need_more_tokens():
             self.fetch_more_tokens()
@@ -195,8 +200,8 @@ class Scanner:
 
     # Private methods.
 
-    def need_more_tokens(self):
-        # type: () -> bool
+    def need_more_tokens(self) -> bool:
+
         if self.done:
             return False
         if len(self.tokens) == 0:
@@ -209,11 +214,11 @@ class Scanner:
         return False
 
     def fetch_comment(self, comment):
-        # type: (Any) -> None
+
         raise NotImplementedError
 
-    def fetch_more_tokens(self):
-        # type: () -> Any
+    def fetch_more_tokens(self) -> None:
+
         # Eat whitespaces and comments until we reach the next token.
         comment = self.scan_to_next_token()
         if comment is not None:  # never happens for base scanner
@@ -324,8 +329,8 @@ class Scanner:
 
     # Simple keys treatment.
 
-    def next_possible_simple_key(self):
-        # type: () -> Any
+    def next_possible_simple_key(self) -> Optional[int]:
+
         # Return the number of the nearest possible simple key. Actually we
         # don't need to loop through the whole dictionary. We may replace it
         # with the following code:
@@ -340,8 +345,8 @@ class Scanner:
                 min_token_number = key.token_number
         return min_token_number
 
-    def stale_possible_simple_keys(self):
-        # type: () -> None
+    def stale_possible_simple_keys(self) -> None:
+
         # Remove entries that are no longer possible simple keys. According to
         # the YAML specification, simple keys
         # - should be limited to a single line,
@@ -360,8 +365,8 @@ class Scanner:
                     )
                 del self.possible_simple_keys[level]
 
-    def save_possible_simple_key(self):
-        # type: () -> None
+    def save_possible_simple_key(self) -> None:
+
         # The next token may start a simple key. We check if it's possible
         # and save its position. This function is called for
         #   ALIAS, ANCHOR, TAG, SCALAR(flow), '[', and '{'.
@@ -384,8 +389,8 @@ class Scanner:
             )
             self.possible_simple_keys[self.flow_level] = key
 
-    def remove_possible_simple_key(self):
-        # type: () -> None
+    def remove_possible_simple_key(self) -> None:
+
         # Remove the saved possible key position at the current flow level.
         if self.flow_level in self.possible_simple_keys:
             key = self.possible_simple_keys[self.flow_level]
@@ -402,8 +407,8 @@ class Scanner:
 
     # Indentation functions.
 
-    def unwind_indent(self, column):
-        # type: (Any) -> None
+    def unwind_indent(self, column: int) -> None:
+
         # In flow context, tokens should respect indentation.
         # Actually the condition should be `self.indent >= column` according to
         # the spec. But this condition will prohibit intuitively correct
@@ -427,8 +432,8 @@ class Scanner:
             self.indent = self.indents.pop()
             self.tokens.append(BlockEndToken(mark, mark))
 
-    def add_indent(self, column):
-        # type: (int) -> bool
+    def add_indent(self, column: int) -> bool:
+
         # Check if we need to increase indentation.
         if self.indent < column:
             self.indents.append(self.indent)
@@ -438,8 +443,8 @@ class Scanner:
 
     # Fetchers.
 
-    def fetch_stream_start(self):
-        # type: () -> None
+    def fetch_stream_start(self) -> None:
+
         # We always add STREAM-START as the first token and STREAM-END as the
         # last token.
         # Read the token.
@@ -447,8 +452,8 @@ class Scanner:
         # Add STREAM-START.
         self.tokens.append(StreamStartToken(mark, mark, encoding=self.reader.encoding))
 
-    def fetch_stream_end(self):
-        # type: () -> None
+    def fetch_stream_end(self) -> None:
+
         # Set the current intendation to -1.
         self.unwind_indent(-1)
         # Reset simple keys.
@@ -462,8 +467,8 @@ class Scanner:
         # The steam is finished.
         self.done = True
 
-    def fetch_directive(self):
-        # type: () -> None
+    def fetch_directive(self) -> None:
+
         # Set the current intendation to -1.
         self.unwind_indent(-1)
 
@@ -474,16 +479,16 @@ class Scanner:
         # Scan and add DIRECTIVE.
         self.tokens.append(self.scan_directive())
 
-    def fetch_document_start(self):
-        # type: () -> None
+    def fetch_document_start(self) -> None:
+
         self.fetch_document_indicator(DocumentStartToken)
 
-    def fetch_document_end(self):
-        # type: () -> None
+    def fetch_document_end(self) -> None:
+
         self.fetch_document_indicator(DocumentEndToken)
 
-    def fetch_document_indicator(self, TokenClass):
-        # type: (Any) -> None
+    def fetch_document_indicator(self, TokenClass: Union[Type[DocumentStartToken], Type[DocumentEndToken]]) -> None:
+
         # Set the current intendation to -1.
         self.unwind_indent(-1)
 
@@ -498,16 +503,16 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(TokenClass(start_mark, end_mark))
 
-    def fetch_flow_sequence_start(self):
-        # type: () -> None
+    def fetch_flow_sequence_start(self) -> None:
+
         self.fetch_flow_collection_start(FlowSequenceStartToken, to_push="[")
 
-    def fetch_flow_mapping_start(self):
-        # type: () -> None
+    def fetch_flow_mapping_start(self) -> None:
+
         self.fetch_flow_collection_start(FlowMappingStartToken, to_push="{")
 
-    def fetch_flow_collection_start(self, TokenClass, to_push):
-        # type: (Any, Text) -> None
+    def fetch_flow_collection_start(self, TokenClass: Union[Type[FlowMappingStartToken], Type[FlowSequenceStartToken]], to_push: str) -> None:
+
         # '[' and '{' may start a simple key.
         self.save_possible_simple_key()
         # Increase the flow level.
@@ -520,16 +525,16 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(TokenClass(start_mark, end_mark))
 
-    def fetch_flow_sequence_end(self):
-        # type: () -> None
+    def fetch_flow_sequence_end(self) -> None:
+
         self.fetch_flow_collection_end(FlowSequenceEndToken)
 
-    def fetch_flow_mapping_end(self):
-        # type: () -> None
+    def fetch_flow_mapping_end(self) -> None:
+
         self.fetch_flow_collection_end(FlowMappingEndToken)
 
-    def fetch_flow_collection_end(self, TokenClass):
-        # type: (Any) -> None
+    def fetch_flow_collection_end(self, TokenClass: Union[Type[FlowSequenceEndToken], Type[FlowMappingEndToken]]) -> None:
+
         # Reset possible simple key on the current level.
         self.remove_possible_simple_key()
         # Decrease the flow level.
@@ -547,8 +552,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(TokenClass(start_mark, end_mark))
 
-    def fetch_flow_entry(self):
-        # type: () -> None
+    def fetch_flow_entry(self) -> None:
+
         # Simple keys are allowed after ','.
         self.allow_simple_key = True
         # Reset possible simple key on the current level.
@@ -559,8 +564,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(FlowEntryToken(start_mark, end_mark))
 
-    def fetch_block_entry(self):
-        # type: () -> None
+    def fetch_block_entry(self) -> None:
+
         # Block context needs additional checks.
         if not self.flow_level:
             # Are we allowed to start a new entry?
@@ -590,8 +595,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(BlockEntryToken(start_mark, end_mark))
 
-    def fetch_key(self):
-        # type: () -> None
+    def fetch_key(self) -> None:
+
         # Block context needs additional checks.
         if not self.flow_level:
 
@@ -621,8 +626,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(KeyToken(start_mark, end_mark))
 
-    def fetch_value(self):
-        # type: () -> None
+    def fetch_value(self) -> None:
+
         # Do we determine a simple key?
         if self.flow_level in self.possible_simple_keys:
             # Add KEY.
@@ -682,8 +687,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         self.tokens.append(ValueToken(start_mark, end_mark))
 
-    def fetch_alias(self):
-        # type: () -> None
+    def fetch_alias(self) -> None:
+
         # ALIAS could be a simple key.
         self.save_possible_simple_key()
         # No simple keys after ALIAS.
@@ -691,8 +696,8 @@ class Scanner:
         # Scan and add ALIAS.
         self.tokens.append(self.scan_anchor(AliasToken))
 
-    def fetch_anchor(self):
-        # type: () -> None
+    def fetch_anchor(self) -> None:
+
         # ANCHOR could start a simple key.
         self.save_possible_simple_key()
         # No simple keys after ANCHOR.
@@ -700,8 +705,8 @@ class Scanner:
         # Scan and add ANCHOR.
         self.tokens.append(self.scan_anchor(AnchorToken))
 
-    def fetch_tag(self):
-        # type: () -> None
+    def fetch_tag(self) -> None:
+
         # TAG could start a simple key.
         self.save_possible_simple_key()
         # No simple keys after TAG.
@@ -709,16 +714,16 @@ class Scanner:
         # Scan and add TAG.
         self.tokens.append(self.scan_tag())
 
-    def fetch_literal(self):
-        # type: () -> None
+    def fetch_literal(self) -> None:
+
         self.fetch_block_scalar(style="|")
 
-    def fetch_folded(self):
-        # type: () -> None
+    def fetch_folded(self) -> None:
+
         self.fetch_block_scalar(style=">")
 
-    def fetch_block_scalar(self, style):
-        # type: (Any) -> None
+    def fetch_block_scalar(self, style: str) -> None:
+
         # A simple key may follow a block scalar.
         self.allow_simple_key = True
         # Reset possible simple key on the current level.
@@ -726,16 +731,16 @@ class Scanner:
         # Scan and add SCALAR.
         self.tokens.append(self.scan_block_scalar(style))
 
-    def fetch_single(self):
-        # type: () -> None
+    def fetch_single(self) -> None:
+
         self.fetch_flow_scalar(style="'")
 
-    def fetch_double(self):
-        # type: () -> None
+    def fetch_double(self) -> None:
+
         self.fetch_flow_scalar(style='"')
 
-    def fetch_flow_scalar(self, style):
-        # type: (Any) -> None
+    def fetch_flow_scalar(self, style: str) -> None:
+
         # A flow scalar could be a simple key.
         self.save_possible_simple_key()
         # No simple keys after flow scalars.
@@ -743,8 +748,8 @@ class Scanner:
         # Scan and add SCALAR.
         self.tokens.append(self.scan_flow_scalar(style))
 
-    def fetch_plain(self):
-        # type: () -> None
+    def fetch_plain(self) -> None:
+
         # A plain scalar could be a simple key.
         self.save_possible_simple_key()
         # No simple keys after plain scalars. But note that `scan_plain` will
@@ -756,16 +761,16 @@ class Scanner:
 
     # Checkers.
 
-    def check_directive(self):
-        # type: () -> Any
+    def check_directive(self) -> bool:
+
         # DIRECTIVE:        ^ '%' ...
         # The '%' indicator is already checked.
         if self.reader.column == 0:
             return True
         return None
 
-    def check_document_start(self):
-        # type: () -> Any
+    def check_document_start(self) -> Optional[bool]:
+
         # DOCUMENT-START:   ^ '---' (' '|'\n')
         if self.reader.column == 0:
             if (
@@ -775,8 +780,8 @@ class Scanner:
                 return True
         return None
 
-    def check_document_end(self):
-        # type: () -> Any
+    def check_document_end(self) -> Optional[bool]:
+
         # DOCUMENT-END:     ^ '...' (' '|'\n')
         if self.reader.column == 0:
             if (
@@ -786,21 +791,21 @@ class Scanner:
                 return True
         return None
 
-    def check_block_entry(self):
-        # type: () -> Any
+    def check_block_entry(self) -> bool:
+
         # BLOCK-ENTRY:      '-' (' '|'\n')
         return self.reader.peek(1) in _THE_END_SPACE_TAB
 
-    def check_key(self):
-        # type: () -> Any
+    def check_key(self) -> bool:
+
         # KEY(flow context):    '?'
         if bool(self.flow_level):
             return True
         # KEY(block context):   '?' (' '|'\n')
         return self.reader.peek(1) in _THE_END_SPACE_TAB
 
-    def check_value(self):
-        # type: () -> Any
+    def check_value(self) -> bool:
+
         # VALUE(flow context):  ':'
         if self.scanner_processing_version == (1, 1):
             if bool(self.flow_level):
@@ -818,8 +823,8 @@ class Scanner:
         # VALUE(block context): ':' (' '|'\n')
         return self.reader.peek(1) in _THE_END_SPACE_TAB
 
-    def check_plain(self):
-        # type: () -> Any
+    def check_plain(self) -> bool:
+
         # A plain scalar may start with any non-space character except:
         #   '-', '?', ':', ',', '[', ']', '{', '}',
         #   '#', '&', '*', '!', '|', '>', '\'', '\"',
@@ -856,7 +861,7 @@ class Scanner:
     # Scanners.
 
     def scan_to_next_token(self):
-        # type: () -> Any
+
         # We ignore spaces, line breaks and comments.
         # If we find a line break in the block context, we set the flag
         # `allow_simple_key` on.
@@ -894,8 +899,8 @@ class Scanner:
                 found = True
         return None
 
-    def scan_directive(self):
-        # type: () -> Any
+    def scan_directive(self) -> DirectiveToken:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -916,8 +921,8 @@ class Scanner:
         self.scan_directive_ignored_line(start_mark)
         return DirectiveToken(name, value, start_mark, end_mark)
 
-    def scan_directive_name(self, start_mark):
-        # type: (Any) -> Any
+    def scan_directive_name(self, start_mark: StringMark) -> str:
+
         # See the specification for details.
         length = 0
         srp = self.reader.peek
@@ -944,8 +949,8 @@ class Scanner:
             )
         return value
 
-    def scan_yaml_directive_value(self, start_mark):
-        # type: (Any) -> Any
+    def scan_yaml_directive_value(self, start_mark: StringMark) -> Tuple[int, int]:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -971,8 +976,8 @@ class Scanner:
         self.yaml_version = (major, minor)
         return self.yaml_version
 
-    def scan_yaml_directive_number(self, start_mark):
-        # type: (Any) -> Any
+    def scan_yaml_directive_number(self, start_mark: StringMark) -> int:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -992,7 +997,7 @@ class Scanner:
         return value
 
     def scan_tag_directive_value(self, start_mark):
-        # type: (Any) -> Any
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -1005,7 +1010,7 @@ class Scanner:
         return (handle, prefix)
 
     def scan_tag_directive_handle(self, start_mark):
-        # type: (Any) -> Any
+
         # See the specification for details.
         value = self.scan_tag_handle("directive", start_mark)
         ch = self.reader.peek()
@@ -1019,7 +1024,7 @@ class Scanner:
         return value
 
     def scan_tag_directive_prefix(self, start_mark):
-        # type: (Any) -> Any
+
         # See the specification for details.
         value = self.scan_tag_uri("directive", start_mark)
         ch = self.reader.peek()
@@ -1032,8 +1037,8 @@ class Scanner:
             )
         return value
 
-    def scan_directive_ignored_line(self, start_mark):
-        # type: (Any) -> None
+    def scan_directive_ignored_line(self, start_mark: StringMark) -> None:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -1052,8 +1057,8 @@ class Scanner:
             )
         self.scan_line_break()
 
-    def scan_anchor(self, TokenClass):
-        # type: (Any) -> Any
+    def scan_anchor(self, TokenClass: Union[Type[AliasToken], Type[AnchorToken]]) -> Union[AnchorToken, AliasToken]:
+
         # The specification does not restrict characters for anchors and
         # aliases. This may lead to problems, for instance, the document:
         #   [ *alias, value ]
@@ -1099,8 +1104,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         return TokenClass(value, start_mark, end_mark)
 
-    def scan_tag(self):
-        # type: () -> Any
+    def scan_tag(self) -> TagToken:
+
         # See the specification for details.
         srp = self.reader.peek
         start_mark = self.reader.get_mark()
@@ -1149,8 +1154,8 @@ class Scanner:
         end_mark = self.reader.get_mark()
         return TagToken(value, start_mark, end_mark)
 
-    def scan_block_scalar(self, style, rt=False):
-        # type: (Any, Optional[bool]) -> Any
+    def scan_block_scalar(self, style: str, rt: bool=False) -> ScalarToken:
+
         # See the specification for details.
         srp = self.reader.peek
         if style == ">":
@@ -1158,7 +1163,7 @@ class Scanner:
         else:
             folded = False
 
-        chunks = []  # type: List[Any]
+        chunks = []
         start_mark = self.reader.get_mark()
 
         # Scan the header.
@@ -1241,7 +1246,7 @@ class Scanner:
 
         # Process trailing line breaks. The 'chomping' setting determines
         # whether they are included in the value.
-        trailing = []  # type: List[Any]
+        trailing = []
         if chomping in [None, True]:
             chunks.append(line_break)
         if chomping is True:
@@ -1264,7 +1269,7 @@ class Scanner:
                     line = end_mark.line - len(trailing)
                     for x in trailing:
                         assert x[-1] == "\n"
-                        self.comments.add_blank_line(x, 0, line)  # type: ignore
+                        self.comments.add_blank_line(x, 0, line)
                         line += 1
             comment = self.scan_to_next_token()
             while comment:
@@ -1282,8 +1287,8 @@ class Scanner:
                     token.add_post_comment(comment)
         return token
 
-    def scan_block_scalar_indicators(self, start_mark):
-        # type: (Any) -> Any
+    def scan_block_scalar_indicators(self, start_mark: StringMark) -> Union[Tuple[None, int], Tuple[bool, None], Tuple[None, None]]:
+
         # See the specification for details.
         srp = self.reader.peek
         chomping = None
@@ -1337,8 +1342,8 @@ class Scanner:
             )
         return chomping, increment
 
-    def scan_block_scalar_ignored_line(self, start_mark):
-        # type: (Any) -> Any
+    def scan_block_scalar_ignored_line(self, start_mark: StringMark) -> Optional[str]:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -1363,8 +1368,8 @@ class Scanner:
         self.scan_line_break()
         return comment
 
-    def scan_block_scalar_indentation(self):
-        # type: () -> Any
+    def scan_block_scalar_indentation(self) -> Tuple[List[Any], int, StringMark]:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -1381,8 +1386,8 @@ class Scanner:
                     max_indent = self.reader.column
         return chunks, max_indent, end_mark
 
-    def scan_block_scalar_breaks(self, indent):
-        # type: (int) -> Any
+    def scan_block_scalar_breaks(self, indent: int) -> Union[Tuple[List[str], StringMark], Tuple[List[Any], StringMark]]:
+
         # See the specification for details.
         chunks = []
         srp = self.reader.peek
@@ -1397,8 +1402,8 @@ class Scanner:
                 srf()
         return chunks, end_mark
 
-    def scan_flow_scalar(self, style):
-        # type: (Any) -> Any
+    def scan_flow_scalar(self, style: str) -> ScalarToken:
+
         # See the specification for details.
         # Note that we loose indentation rules for quoted scalars. Quoted
         # scalars don't need to adhere indentation because " and ' clearly
@@ -1410,7 +1415,7 @@ class Scanner:
         else:
             double = False
         srp = self.reader.peek
-        chunks = []  # type: List[Any]
+        chunks = []
         start_mark = self.reader.get_mark()
         quote = srp()
         self.reader.forward()
@@ -1445,10 +1450,10 @@ class Scanner:
 
     ESCAPE_CODES = {"x": 2, "u": 4, "U": 8}
 
-    def scan_flow_scalar_non_spaces(self, double, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StringMark) -> List[Union[Any, str]]:
+
         # See the specification for details.
-        chunks = []  # type: List[Any]
+        chunks = []
         srp = self.reader.peek
         srf = self.reader.forward
         while True:
@@ -1503,8 +1508,8 @@ class Scanner:
             else:
                 return chunks
 
-    def scan_flow_scalar_spaces(self, double, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_flow_scalar_spaces(self, double: bool, start_mark: StringMark) -> List[str]:
+
         # See the specification for details.
         srp = self.reader.peek
         chunks = []
@@ -1533,10 +1538,10 @@ class Scanner:
             chunks.append(whitespaces)
         return chunks
 
-    def scan_flow_scalar_breaks(self, double, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_flow_scalar_breaks(self, double: bool, start_mark: StringMark) -> List[Any]:
+
         # See the specification for details.
-        chunks = []  # type: List[Any]
+        chunks = []
         srp = self.reader.peek
         srf = self.reader.forward
         while True:
@@ -1557,8 +1562,8 @@ class Scanner:
             else:
                 return chunks
 
-    def scan_plain(self):
-        # type: () -> Any
+    def scan_plain(self) -> ScalarToken:
+
         # See the specification for details.
         # We add an additional restriction for the flow context:
         #   plain scalars in the flow context cannot contain ',', ': '  and '?'.
@@ -1566,7 +1571,7 @@ class Scanner:
         # Indentation rules are loosed for the flow context.
         srp = self.reader.peek
         srf = self.reader.forward
-        chunks = []  # type: List[Any]
+        chunks = []
         start_mark = self.reader.get_mark()
         end_mark = start_mark
         indent = self.indent + 1
@@ -1574,7 +1579,7 @@ class Scanner:
         # document separators at the beginning of the line.
         # if indent == 0:
         #     indent = 1
-        spaces = []  # type: List[Any]
+        spaces = []
         while True:
             length = 0
             if srp() == "#":
@@ -1641,13 +1646,13 @@ class Scanner:
                 line = start_mark.line + 1
                 for ch in spaces:
                     if ch == "\n":
-                        self.comments.add_blank_line("\n", 0, line)  # type: ignore
+                        self.comments.add_blank_line("\n", 0, line)
                         line += 1
 
         return token
 
-    def scan_plain_spaces(self, indent, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_plain_spaces(self, indent: int, start_mark: StringMark) -> Optional[List[str]]:
+
         # See the specification for details.
         # The specification is really confusing about tabs in plain scalars.
         # We just forbid them completely. Do not use tabs in YAML!
@@ -1686,8 +1691,8 @@ class Scanner:
             chunks.append(whitespaces)
         return chunks
 
-    def scan_tag_handle(self, name, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_tag_handle(self, name: str, start_mark: StringMark) -> str:
+
         # See the specification for details.
         # For some strange reasons, the specification does not allow '_' in
         # tag handles. I have allowed it anyway.
@@ -1721,8 +1726,8 @@ class Scanner:
         self.reader.forward(length)
         return value
 
-    def scan_tag_uri(self, name, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_tag_uri(self, name: str, start_mark: StringMark) -> str:
+
         # See the specification for details.
         # Note: we do not check if URI is well-formed.
         srp = self.reader.peek
@@ -1757,12 +1762,12 @@ class Scanner:
             )
         return "".join(chunks)
 
-    def scan_uri_escapes(self, name, start_mark):
-        # type: (Any, Any) -> Any
+    def scan_uri_escapes(self, name: str, start_mark: StringMark) -> str:
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
-        code_bytes = []  # type: List[Any]
+        code_bytes = []
         mark = self.reader.get_mark()
         while srp() == "%":
             srf()
@@ -1789,7 +1794,7 @@ class Scanner:
         return value
 
     def scan_line_break(self):
-        # type: () -> Any
+
         # Transforms:
         #   '\r\n'      :   '\n'
         #   '\r'        :   '\n'
@@ -1812,8 +1817,8 @@ class Scanner:
 
 
 class RoundTripScanner(Scanner):
-    def check_token(self, *choices):
-        # type: (Any) -> bool
+    def check_token(self, *choices) -> bool:
+
         # Check if the next token is one of the given types.
         while self.need_more_tokens():
             self.fetch_more_tokens()
@@ -1826,8 +1831,8 @@ class RoundTripScanner(Scanner):
                     return True
         return False
 
-    def peek_token(self):
-        # type: () -> Any
+    def peek_token(self) -> Token:
+
         # Return the next token, but do not delete if from the queue.
         while self.need_more_tokens():
             self.fetch_more_tokens()
@@ -1836,10 +1841,10 @@ class RoundTripScanner(Scanner):
             return self.tokens[0]
         return None
 
-    def _gather_comments(self):
-        # type: () -> Any
+    def _gather_comments(self) -> None:
+
         """combine multiple comment lines and assign to next non-comment-token"""
-        comments = []  # type: List[Any]
+        comments = []
         if not self.tokens:
             return comments
         if isinstance(self.tokens[0], CommentToken):
@@ -1861,8 +1866,8 @@ class RoundTripScanner(Scanner):
         if not self.done and len(self.tokens) < 2:
             self.fetch_more_tokens()
 
-    def get_token(self):
-        # type: () -> Any
+    def get_token(self) -> Token:
+
         # Return the next token.
         while self.need_more_tokens():
             self.fetch_more_tokens()
@@ -1920,8 +1925,8 @@ class RoundTripScanner(Scanner):
             return self.tokens.pop(0)
         return None
 
-    def fetch_comment(self, comment):
-        # type: (Any) -> None
+    def fetch_comment(self, comment: Tuple[str, StringMark, StringMark]) -> None:
+
         value, start_mark, end_mark = comment
         while value and value[-1] == " ":
             # empty line within indented key context
@@ -1931,8 +1936,8 @@ class RoundTripScanner(Scanner):
 
     # scanner
 
-    def scan_to_next_token(self):
-        # type: () -> Any
+    def scan_to_next_token(self) -> Optional[Tuple[str, StringMark, StringMark]]:
+
         # We ignore spaces, line breaks and comments.
         # If we find a line break in the block context, we set the flag
         # `allow_simple_key` on.
@@ -2004,8 +2009,8 @@ class RoundTripScanner(Scanner):
                 found = True
         return None
 
-    def scan_line_break(self, empty_line=False):
-        # type: (bool) -> Text
+    def scan_line_break(self, empty_line: bool=False) -> str:
+
         # Transforms:
         #   '\r\n'      :   '\n'
         #   '\r'        :   '\n'
@@ -2014,7 +2019,7 @@ class RoundTripScanner(Scanner):
         #   '\u2028'    :   '\u2028'
         #   '\u2029     :   '\u2029'
         #   default     :   ''
-        ch = self.reader.peek()  # type: Text
+        ch = self.reader.peek()
         if ch in "\r\n\x85":
             if self.reader.prefix(2) == "\r\n":
                 self.reader.forward(2)
@@ -2029,8 +2034,8 @@ class RoundTripScanner(Scanner):
             return ch
         return ""
 
-    def scan_block_scalar(self, style, rt=True):
-        # type: (Any, Optional[bool]) -> Any
+    def scan_block_scalar(self, style: str, rt: bool=True) -> ScalarToken:
+
         return Scanner.scan_block_scalar(self, style, rt=rt)
 
 
@@ -2055,7 +2060,7 @@ class CommentBase:
     )
 
     def __init__(self, value, line, column):
-        # type: (Any, Any, Any) -> None
+
         self.value = value
         self.line = line
         self.column = column
@@ -2067,29 +2072,29 @@ class CommentBase:
         self.uline = None
 
     def set_used(self, v="+"):
-        # type: (Any) -> None
+
         self.used = v
         info = inspect.getframeinfo(inspect.stack()[1][0])
-        self.ufun = info.function  # type: ignore
-        self.uline = info.lineno  # type: ignore
+        self.ufun = info.function
+        self.uline = info.lineno
 
     def set_assigned(self):
-        # type: () -> None
+
         self.used = "|"
 
     def __str__(self):
-        # type: () -> str
-        return _F("{value}", value=self.value)  # type: ignore
+
+        return _F("{value}", value=self.value)
 
     def __repr__(self):
-        # type: () -> str
-        return _F("{value!r}", value=self.value)  # type: ignore
+
+        return _F("{value!r}", value=self.value)
 
     def info(self):
-        # type: () -> str
-        return _F(  # type: ignore
+
+        return _F(
             '{name}{used} {line:2}:{column:<2} "{value:40s} {function}:{fline} {ufun}:{uline}',
-            name=self.name,  # type: ignore
+            name=self.name,
             line=self.line,
             column=self.column,
             value=self.value + '"',
@@ -2105,7 +2110,7 @@ class EOLComment(CommentBase):
     name = "EOLC"
 
     def __init__(self, value, line, column):
-        # type: (Any, Any, Any) -> None
+
         super().__init__(value, line, column)
 
 
@@ -2113,7 +2118,7 @@ class FullLineComment(CommentBase):
     name = "FULL"
 
     def __init__(self, value, line, column):
-        # type: (Any, Any, Any) -> None
+
         super().__init__(value, line, column)
 
 
@@ -2121,18 +2126,18 @@ class BlankLineComment(CommentBase):
     name = "BLNK"
 
     def __init__(self, value, line, column):
-        # type: (Any, Any, Any) -> None
+
         super().__init__(value, line, column)
 
 
 class ScannedComments:
     def __init__(self):
-        # type: (Any) -> None
-        self.comments = {}  # type: ignore
-        self.unused = []  # type: ignore
+
+        self.comments = {}
+        self.unused = []
 
     def add_eol_comment(self, comment, column, line):
-        # type: (Any, Any, Any) -> Any
+
         # info = inspect.getframeinfo(inspect.stack()[1][0])
         if comment.count("\n") == 1:
             assert comment[-1] == "\n"
@@ -2143,7 +2148,7 @@ class ScannedComments:
         return retval
 
     def add_blank_line(self, comment, column, line):
-        # type: (Any, Any, Any) -> Any
+
         # info = inspect.getframeinfo(inspect.stack()[1][0])
         assert comment.count("\n") == 1 and comment[-1] == "\n"
         assert line not in self.comments
@@ -2152,7 +2157,7 @@ class ScannedComments:
         return retval
 
     def add_full_line_comment(self, comment, column, line):
-        # type: (Any, Any, Any) -> Any
+
         # info = inspect.getframeinfo(inspect.stack()[1][0])
         assert comment.count("\n") == 1 and comment[-1] == "\n"
         # if comment.startswith('# C12'):
@@ -2163,11 +2168,11 @@ class ScannedComments:
         return retval
 
     def __getitem__(self, idx):
-        # type: (Any) -> Any
+
         return self.comments[idx]
 
     def __str__(self):
-        # type: () -> Any
+
         return (
             "ParsedComments:\n  "
             + "\n  ".join(
@@ -2180,12 +2185,12 @@ class ScannedComments:
         )
 
     def last(self):
-        # type: () -> str
+
         lineno, x = list(self.comments.items())[-1]
-        return _F("{lineno:2} {x}\n", lineno=lineno, x=x.info())  # type: ignore
+        return _F("{lineno:2} {x}\n", lineno=lineno, x=x.info())
 
     def any_unprocessed(self):
-        # type: () -> bool
+
         # ToDo: might want to differentiate based on lineno
         return len(self.unused) > 0
         # for lno, comment in reversed(self.comments.items()):
@@ -2194,7 +2199,7 @@ class ScannedComments:
         # return False
 
     def unprocessed(self, use=False):
-        # type: (Any) -> Any
+
         while len(self.unused) > 0:
             first = self.unused.pop(0) if use else self.unused[0]
             info = inspect.getframeinfo(inspect.stack()[1][0])
@@ -2206,7 +2211,7 @@ class ScannedComments:
                 self.comments[first].set_used()
 
     def assign_pre(self, token):
-        # type: (Any) -> Any
+
         token_line = token.start_mark.line
         info = inspect.getframeinfo(inspect.stack()[1][0])
         xprintf("assign_pre", token_line, self.unused, info.function, info.lineno)
@@ -2220,7 +2225,7 @@ class ScannedComments:
         return gobbled
 
     def assign_eol(self, tokens):
-        # type: (Any) -> Any
+
         try:
             comment_line = self.unused[0]
         except IndexError:
@@ -2276,7 +2281,7 @@ class ScannedComments:
         sys.exit(0)
 
     def assign_post(self, token):
-        # type: (Any) -> Any
+
         token_line = token.start_mark.line
         info = inspect.getframeinfo(inspect.stack()[1][0])
         xprintf("assign_post", token_line, self.unused, info.function, info.lineno)
@@ -2290,7 +2295,7 @@ class ScannedComments:
         return gobbled
 
     def str_unprocessed(self):
-        # type: () -> Any
+
         return "".join(
             (
                 _F("  {ind:2} {x}\n", ind=ind, x=x.info())
@@ -2302,7 +2307,7 @@ class ScannedComments:
 
 class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
     def __init__(self, *arg, **kw):
-        # type: (Any, Any) -> None
+
         super().__init__(*arg, **kw)
         assert self.loader is not None
         # comments isinitialised on .need_more_tokens and persist on
@@ -2310,22 +2315,22 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
         self.comments = None
 
     def get_token(self):
-        # type: () -> Any
+
         # Return the next token.
         while self.need_more_tokens():
             self.fetch_more_tokens()
         if len(self.tokens) > 0:
             if isinstance(self.tokens[0], BlockEndToken):
-                self.comments.assign_post(self.tokens[0])  # type: ignore
+                self.comments.assign_post(self.tokens[0])
             else:
-                self.comments.assign_pre(self.tokens[0])  # type: ignore
+                self.comments.assign_pre(self.tokens[0])
             self.tokens_taken += 1
             return self.tokens.pop(0)
 
     def need_more_tokens(self):
-        # type: () -> bool
+
         if self.comments is None:
-            self.loader.parsed_comments = self.comments = ScannedComments()  # type: ignore
+            self.loader.parsed_comments = self.comments = ScannedComments()
         if self.done:
             return False
         if len(self.tokens) == 0:
@@ -2344,13 +2349,13 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
             for t in self.tokens:
                 xprintf(t)
             # xprintf(self.comments.last())
-            xprintf(self.comments.str_unprocessed())  # type: ignore
-        self.comments.assign_pre(self.tokens[0])  # type: ignore
-        self.comments.assign_eol(self.tokens)  # type: ignore
+            xprintf(self.comments.str_unprocessed())
+        self.comments.assign_pre(self.tokens[0])
+        self.comments.assign_eol(self.tokens)
         return False
 
     def scan_to_next_token(self):
-        # type: () -> None
+
         srp = self.reader.peek
         srf = self.reader.forward
         if self.reader.index == 0 and srp() == "\uFEFF":
@@ -2378,11 +2383,11 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
                     srf()
                 # we have a comment
                 if start_mark.column == 0:
-                    self.comments.add_full_line_comment(  # type: ignore
+                    self.comments.add_full_line_comment(
                         comment, comment_start_mark.column, comment_start_mark.line
                     )
                 else:
-                    self.comments.add_eol_comment(  # type: ignore
+                    self.comments.add_eol_comment(
                         comment, comment_start_mark.column, comment_start_mark.line
                     )
                     comment = ""
@@ -2414,7 +2419,7 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
         return None
 
     def scan_empty_or_full_line_comments(self):
-        # type: () -> None
+
         blmark = self.reader.get_mark()
         assert blmark.column == 0
         blanks = ""
@@ -2434,7 +2439,7 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
                     comment = None
                 else:
                     blanks += "\n"
-                    self.comments.add_blank_line(blanks, blmark.column, blmark.line)  # type: ignore # NOQA
+                    self.comments.add_blank_line(blanks, blmark.column, blmark.line)
                 blanks = ""
                 blmark = self.reader.get_mark()
                 ch = self.reader.peek()
@@ -2454,7 +2459,7 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
             ch = self.reader.peek()
 
     def scan_block_scalar_ignored_line(self, start_mark):
-        # type: (Any) -> Any
+
         # See the specification for details.
         srp = self.reader.peek
         srf = self.reader.forward
@@ -2469,7 +2474,7 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
             while srp() not in _THE_END:
                 comment += srp()
                 srf()
-            comment += "\n"  # type: ignore
+            comment += "\n"
         ch = srp()
         if ch not in _THE_END:
             raise ScannerError(
@@ -2479,6 +2484,6 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
                 self.reader.get_mark(),
             )
         if comment is not None:
-            self.comments.add_eol_comment(comment, mark.column, mark.line)  # type: ignore
+            self.comments.add_eol_comment(comment, mark.column, mark.line)
         self.scan_line_break()
         return None

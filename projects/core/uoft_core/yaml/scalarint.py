@@ -1,8 +1,10 @@
 # coding: utf-8
+from __future__ import annotations
 
 from .anchor import Anchor
 
-from typing import TYPE_CHECKING
+from typing import Type, Union, TYPE_CHECKING
+from uoft_core.yaml.anchor import Anchor
 
 if TYPE_CHECKING:
     from typing import Text, Any, Dict, List  # NOQA
@@ -11,8 +13,8 @@ __all__ = ["ScalarInt", "BinaryInt", "OctalInt", "HexInt", "HexCapsInt", "Decima
 
 
 class ScalarInt(int):
-    def __new__(cls, *args, **kw):
-        # type: (Any, Any, Any) -> Any
+    def __new__(cls: Union[Type[OctalInt], Type[ScalarInt], Type[HexCapsInt]], *args, **kw) -> Union[ScalarInt, OctalInt, HexCapsInt]:
+
         width = kw.pop("width", None)
         underscore = kw.pop("underscore", None)
         anchor = kw.pop("anchor", None)
@@ -23,60 +25,60 @@ class ScalarInt(int):
             v.yaml_set_anchor(anchor, always_dump=True)
         return v
 
-    def __iadd__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __iadd__(self, a):
+
         x = type(self)(self + a)
-        x._width = self._width  # type: ignore
-        x._underscore = (  # type: ignore
-            self._underscore[:] if self._underscore is not None else None  # type: ignore
+        x._width = self._width
+        x._underscore = (
+            self._underscore[:] if self._underscore is not None else None
         )  # NOQA
         return x
 
-    def __ifloordiv__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __ifloordiv__(self, a):
+
         x = type(self)(self // a)
-        x._width = self._width  # type: ignore
-        x._underscore = (  # type: ignore
-            self._underscore[:] if self._underscore is not None else None  # type: ignore
+        x._width = self._width
+        x._underscore = (
+            self._underscore[:] if self._underscore is not None else None
         )  # NOQA
         return x
 
-    def __imul__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __imul__(self, a):
+
         x = type(self)(self * a)
-        x._width = self._width  # type: ignore
-        x._underscore = (  # type: ignore
-            self._underscore[:] if self._underscore is not None else None  # type: ignore
+        x._width = self._width
+        x._underscore = (
+            self._underscore[:] if self._underscore is not None else None
         )  # NOQA
         return x
 
-    def __ipow__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __ipow__(self, a):
+
         x = type(self)(self**a)
-        x._width = self._width  # type: ignore
-        x._underscore = (  # type: ignore
-            self._underscore[:] if self._underscore is not None else None  # type: ignore
+        x._width = self._width
+        x._underscore = (
+            self._underscore[:] if self._underscore is not None else None
         )  # NOQA
         return x
 
-    def __isub__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __isub__(self, a):
+
         x = type(self)(self - a)
-        x._width = self._width  # type: ignore
-        x._underscore = (  # type: ignore
-            self._underscore[:] if self._underscore is not None else None  # type: ignore
+        x._width = self._width
+        x._underscore = (
+            self._underscore[:] if self._underscore is not None else None
         )  # NOQA
         return x
 
     @property
-    def anchor(self):
-        # type: () -> Any
+    def anchor(self) -> Anchor:
+
         if not hasattr(self, Anchor.attrib):
             setattr(self, Anchor.attrib, Anchor())
         return getattr(self, Anchor.attrib)
 
-    def yaml_anchor(self, any=False):
-        # type: (bool) -> Any
+    def yaml_anchor(self, any: bool=False) -> Anchor:
+
         if not hasattr(self, Anchor.attrib):
             return None
         if any or self.anchor.always_dump:
@@ -84,22 +86,22 @@ class ScalarInt(int):
         return None
 
     def yaml_set_anchor(self, value, always_dump=False):
-        # type: (Any, bool) -> None
+
         self.anchor.value = value
         self.anchor.always_dump = always_dump
 
 
 class BinaryInt(ScalarInt):
     def __new__(cls, value, width=None, underscore=None, anchor=None):
-        # type: (Any, Any, Any, Any) -> Any
+
         return ScalarInt.__new__(
             cls, value, width=width, underscore=underscore, anchor=anchor
         )
 
 
 class OctalInt(ScalarInt):
-    def __new__(cls, value, width=None, underscore=None, anchor=None):
-        # type: (Any, Any, Any, Any) -> Any
+    def __new__(cls: Type[OctalInt], value: int, width: None=None, underscore: None=None, anchor: None=None) -> "OctalInt":
+
         return ScalarInt.__new__(
             cls, value, width=width, underscore=underscore, anchor=anchor
         )
@@ -113,7 +115,7 @@ class HexInt(ScalarInt):
     """uses lower case (a-f)"""
 
     def __new__(cls, value, width=None, underscore=None, anchor=None):
-        # type: (Any, Any, Any, Any) -> Any
+
         return ScalarInt.__new__(
             cls, value, width=width, underscore=underscore, anchor=anchor
         )
@@ -122,8 +124,8 @@ class HexInt(ScalarInt):
 class HexCapsInt(ScalarInt):
     """uses upper case (A-F)"""
 
-    def __new__(cls, value, width=None, underscore=None, anchor=None):
-        # type: (Any, Any, Any, Any) -> Any
+    def __new__(cls: Type[HexCapsInt], value: int, width: None=None, underscore: None=None, anchor: None=None) -> "HexCapsInt":
+
         return ScalarInt.__new__(
             cls, value, width=width, underscore=underscore, anchor=anchor
         )
@@ -133,7 +135,7 @@ class DecimalInt(ScalarInt):
     """needed if anchor"""
 
     def __new__(cls, value, width=None, underscore=None, anchor=None):
-        # type: (Any, Any, Any, Any) -> Any
+
         return ScalarInt.__new__(
             cls, value, width=width, underscore=underscore, anchor=anchor
         )

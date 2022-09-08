@@ -1,6 +1,7 @@
 # coding: utf-8
 # pylint: disable=unused-import, unused-wildcard-import, wildcard-import, unused-argument, redefined-outer-name
 
+from __future__ import annotations
 import sys
 import os
 import glob
@@ -28,10 +29,21 @@ from .serializer import Serializer
 
 from .comments import CommentedMap, CommentedSeq, C_PRE
 
-from typing import List, Set, Dict, Union, Any, Callable, Optional, Text  # NOQA
+from typing import Iterator, Tuple, Type, List, Set, Dict, Union, Any, Callable, Optional, Text  # NOQA
 from .compat import StreamType, StreamTextType, VersionType  # NOQA
 from pathlib import Path
-
+from _pytest.capture import CaptureIO
+from io import StringIO
+from uoft_core.yaml.comments import CommentedMap
+from uoft_core.yaml.composer import Composer
+from uoft_core.yaml.constructor import RoundTripConstructor
+from uoft_core.yaml.emitter import Emitter
+from uoft_core.yaml.parser import RoundTripParser
+from uoft_core.yaml.reader import Reader
+from uoft_core.yaml.representer import RoundTripRepresenter
+from uoft_core.yaml.resolver import VersionedResolver
+from uoft_core.yaml.scanner import RoundTripScanner
+from uoft_core.yaml.serializer import Serializer
 
 
 # YAML is an acronym, i.e. spoken: rhymes with "camel". And thus a
@@ -39,10 +51,8 @@ from pathlib import Path
 
 
 class YAML:
-    def __init__(
-        self, *, pure=False, output=None, plug_ins=None
-    ):  # input=None,
-        # type: (Any, Optional[Text], Any, Any, Any) -> None
+    def __init__(self, *, pure=False, output=None, plug_ins=None) -> None:  # input=None,
+
         """
         typ: 'rt'/None -> RoundTripLoader/RoundTripDumper,  (default)
         pure: if True only use Python modules
@@ -102,13 +112,13 @@ class YAML:
         return self._reader
 
     @property
-    def scanner(self) -> Scanner:
+    def scanner(self) -> RoundTripScanner:
         if not self._scanner:
             self._scanner = Scanner(loader=self)
         return self._scanner
 
     @property
-    def parser(self) -> Parser:
+    def parser(self) -> RoundTripParser:
         if not self._parser:
             self._parser = Parser(loader=self)
         return self._parser
@@ -120,14 +130,14 @@ class YAML:
         return self._composer
 
     @property
-    def constructor(self) -> Constructor:
+    def constructor(self) -> RoundTripConstructor:
         if not self._constructor:
             self._constructor = Constructor(loader=self)
             self._constructor.allow_duplicate_keys = self.allow_duplicate_keys
         return self._constructor
 
     @property
-    def resolver(self) -> Resolver:
+    def resolver(self) -> VersionedResolver:
         if not self._resolver:
             self._resolver = Resolver(loader=self)
         return self._resolver
@@ -172,7 +182,7 @@ class YAML:
         return self._serializer
 
     @property
-    def representer(self) -> Representer:
+    def representer(self) -> RoundTripRepresenter:
         if not self._representer:
             repres = Representer(
                 default_style=self.default_style,
@@ -187,7 +197,7 @@ class YAML:
         return self._representer
 
     def scan(self, stream):
-        # type: (StreamTextType) -> Any
+
         """
         Scan a YAML stream and produce scanning tokens.
         """
@@ -211,7 +221,7 @@ class YAML:
                 pass
 
     def parse(self, stream):
-        # type: (StreamTextType) -> Any
+
         """
         Parse a YAML stream and produce parsing events.
         """
@@ -235,7 +245,7 @@ class YAML:
                 pass
 
     def compose(self, stream):
-        # type: (Union[Path, StreamTextType]) -> Any
+
         """
         Parse the first YAML document in a stream
         and produce the corresponding representation tree.
@@ -259,7 +269,7 @@ class YAML:
                 pass
 
     def compose_all(self, stream):
-        # type: (Union[Path, StreamTextType]) -> Any
+
         """
         Parse all YAML documents in a stream
         and produce corresponding representation trees.
@@ -292,8 +302,8 @@ class YAML:
     #         raise TypeError("Need a stream argument when not loading from context manager")
     #     return self.load_one(stream)
 
-    def load(self, stream):
-        # type: (Union[Path, StreamTextType]) -> Any
+    def load(self, stream: str) -> Any:
+
         """
         at this point you either have the non-pure Parser (which has its own reader and
         scanner) or you have the pure Parser.
@@ -319,8 +329,8 @@ class YAML:
             except AttributeError:
                 pass
 
-    def load_all(self, stream):  # *, skip=None):
-        # type: (Union[Path, StreamTextType]) -> Any
+    def load_all(self, stream: str) -> Iterator[CommentedMap]:  # *, skip=None):
+
         if not hasattr(stream, "read") and hasattr(stream, "open"):
             # pathlib.Path() instance
             with stream.open("r") as fp:
@@ -346,8 +356,8 @@ class YAML:
             except AttributeError:
                 pass
 
-    def get_constructor_parser(self, stream):
-        # type: (StreamTextType) -> Any
+    def get_constructor_parser(self, stream: str) -> Tuple[RoundTripConstructor, RoundTripParser]:
+
         """
         the old cyaml needs special setup, and therefore the stream
         """
@@ -355,7 +365,7 @@ class YAML:
         return self.constructor, self.parser
 
     def emit(self, events, stream):
-        # type: (Any, Any) -> None
+
         """
         Emit YAML parsing events into a stream.
         If stream is None, return the produced string instead.
@@ -368,7 +378,7 @@ class YAML:
             emitter.dispose()
 
     def serialize(self, node, stream):
-        # type: (Any, Optional[StreamType]) -> Any
+
         """
         Serialize a representation tree into a YAML stream.
         If stream is None, return the produced string instead.
@@ -376,7 +386,7 @@ class YAML:
         self.serialize_all([node], stream)
 
     def serialize_all(self, nodes, stream):
-        # type: (Any, Optional[StreamType]) -> Any
+
         """
         Serialize a sequence of representation trees into a YAML stream.
         If stream is None, return the produced string instead.
@@ -390,8 +400,8 @@ class YAML:
         finally:
             emitter.dispose()
 
-    def dump(self, data, stream=None, *, transform=None):
-        # type: (Any, Union[Path, StreamType], Any, Any) -> Any
+    def dump(self, data: Any, stream: Optional[Union[StringIO, CaptureIO]]=None, *, transform=None) -> None:
+
         if self._context_manager:
             if not self._output:
                 raise TypeError(
@@ -410,7 +420,7 @@ class YAML:
                 )
             return self.dump_all([data], stream, transform=transform)
 
-    def dump_all(self, documents, stream: Union[Path, StreamType], *, transform=None):
+    def dump_all(self, documents: List[Any], stream: Union[StringIO, CaptureIO], *, transform=None) -> None:
         if self._context_manager:
             raise NotImplementedError
         self._output = stream
@@ -456,8 +466,8 @@ class YAML:
                 fstream.write(transform(val))
         return None
 
-    def get_serializer_representer_emitter(self, stream, tlca):
-        # type: (StreamType, Any) -> Any
+    def get_serializer_representer_emitter(self, stream: Union[StringIO, CaptureIO], tlca: Optional[int]) -> Tuple[Serializer, RoundTripRepresenter, Emitter]:
+
         # we have only .Serializer to deal with (vs .Reader & .Scanner), much simpler
         self.emitter.stream = stream
         self.emitter.top_level_colon_align = tlca
@@ -467,22 +477,14 @@ class YAML:
 
     # basic types
     def map(self, **kw):
-        # type: (Any) -> Any
-        if "rt" in self.typ:
             return CommentedMap(**kw)
-        else:
-            return dict(**kw)
 
     def seq(self, *args):
-        # type: (Any) -> Any
-        if "rt" in self.typ:
             return CommentedSeq(*args)
-        else:
-            return list(*args)
 
     # helpers
     def official_plug_ins(self):
-        # type: () -> Any
+
         """search for list of subdirs that are plug-ins, if __file__ is not available, e.g.
         single file installers that are not properly emulating a file-system (issue 324)
         no plug-ins will be found. If any are packaged, you know which file that are
@@ -511,7 +513,7 @@ class YAML:
         except AttributeError:
 
             def t_y(representer, data):
-                # type: (Any, Any) -> Any
+
                 return representer.represent_yaml_object(
                     tag, data, cls, flow_style=representer.default_flow_style
                 )
@@ -522,7 +524,7 @@ class YAML:
         except AttributeError:
 
             def f_y(constructor, node):
-                # type: (Any, Any) -> Any
+
                 return constructor.construct_yaml_object(node, cls)
 
             self.constructor.add_constructor(tag, f_y)
@@ -531,12 +533,12 @@ class YAML:
     # ### context manager
 
     def __enter__(self):
-        # type: () -> Any
+
         self._context_manager = YAMLContextManager(self)
         return self
 
     def __exit__(self, typ, value, traceback):
-        # type: (Any, Any, Any) -> None
+
         if typ:
             nprint("typ", typ)
         self._context_manager.teardown_output()
@@ -544,8 +546,8 @@ class YAML:
         self._context_manager = None
 
     # ### backwards compatibility
-    def _indent(self, mapping=None, sequence=None, offset=None):
-        # type: (Any, Any, Any) -> None
+    def _indent(self, mapping: Optional[int]=None, sequence: Optional[int]=None, offset: Optional[int]=None) -> None:
+
         if mapping is not None:
             self.map_indent = mapping
         if sequence is not None:
@@ -555,33 +557,33 @@ class YAML:
 
     @property
     def indent(self):
-        # type: () -> Any
+
         return self._indent
 
     @indent.setter
     def indent(self, val):
-        # type: (Any) -> None
+
         self.old_indent = val
 
     @property
     def block_seq_indent(self):
-        # type: () -> Any
+
         return self.sequence_dash_offset
 
     @block_seq_indent.setter
     def block_seq_indent(self, val):
-        # type: (Any) -> None
+
         self.sequence_dash_offset = val
 
     def compact(self, seq_seq=None, seq_map=None):
-        # type: (Any, Any) -> None
+
         self.compact_seq_seq = seq_seq
         self.compact_seq_map = seq_map
 
 
 class YAMLContextManager:
-    def __init__(self, yaml, transform=None):
-        # type: (Any, Any) -> None  # used to be: (Any, Optional[Callable]) -> None
+    def __init__(self, yaml: YAML, transform: None=None) -> None:
+
         self._yaml = yaml
         self._output_inited = False
         self._output_path = None
@@ -612,8 +614,8 @@ class YAMLContextManager:
             else:
                 self._output = BytesIO()
 
-    def teardown_output(self):
-        # type: () -> None
+    def teardown_output(self) -> None:
+
         if self._output_inited:
             self._yaml.serializer.close()
         else:
@@ -634,18 +636,18 @@ class YAMLContextManager:
         if self._output_path is not None:
             self._output.close()
 
-    def init_output(self, first_data):
-        # type: (Any) -> None
+    def init_output(self, first_data: Any) -> None:
+
         if self._yaml.top_level_colon_align is True:
-            tlca = max([len(str(x)) for x in first_data])  # type: Any
+            tlca = max([len(str(x)) for x in first_data])
         else:
             tlca = self._yaml.top_level_colon_align
         self._yaml.get_serializer_representer_emitter(self._output, tlca)
         self._yaml.serializer.open()
         self._output_inited = True
 
-    def dump(self, data):
-        # type: (Any) -> None
+    def dump(self, data: Any) -> None:
+
         if not self._output_inited:
             self.init_output(data)
         self._yaml.representer.represent(data)
@@ -666,17 +668,17 @@ class YAMLContextManager:
     #     finally:
     #         parser.dispose()
     #         try:
-    #             self._reader.reset_reader()  # type: ignore
+    #             self._reader.reset_reader()
     #         except AttributeError:
     #             pass
     #         try:
-    #             self._scanner.reset_scanner()  # type: ignore
+    #             self._scanner.reset_scanner()
     #         except AttributeError:
     #             pass
 
 
 def yaml_object(yml):
-    # type: (Any) -> Any
+
     """decorator for classes that needs to dump/load objects
     The tag for such objects is taken from the class attribute yaml_tag (or the
     class name in lowercase in case unavailable)
@@ -685,14 +687,14 @@ def yaml_object(yml):
     """
 
     def yo_deco(cls):
-        # type: (Any) -> Any
+
         tag = getattr(cls, "yaml_tag", "!" + cls.__name__)
         try:
             yml.representer.add_representer(cls, cls.to_yaml)
         except AttributeError:
 
             def t_y(representer, data):
-                # type: (Any, Any) -> Any
+
                 return representer.represent_yaml_object(
                     tag, data, cls, flow_style=representer.default_flow_style
                 )
@@ -703,13 +705,14 @@ def yaml_object(yml):
         except AttributeError:
 
             def f_y(constructor, node):
-                # type: (Any, Any) -> Any
+
                 return constructor.construct_yaml_object(node, cls)
 
             yml.constructor.add_constructor(tag, f_y)
         return cls
 
     return yo_deco
+
 
 # Loader/Dumper are no longer composites, to get to the associated
 # Resolver()/Representer(), etc., you need to instantiate the class
@@ -761,8 +764,8 @@ def add_path_resolver(
             Resolver.add_path_resolver(tag, path, kind)
 
 
-def add_constructor(tag, object_constructor, Loader=None, constructor=Constructor):
-    # type: (Any, Any, Any, Any) -> None
+def add_constructor(tag: str, object_constructor: Callable, Loader: None=None, constructor: Type[RoundTripConstructor]=Constructor) -> None:
+
     """
     Add an object constructor for the given tag.
     object_onstructor is a function that accepts a Loader instance
@@ -792,7 +795,7 @@ def add_multi_constructor(
 def add_representer(
     data_type, object_representer, Dumper=Dumper, representer=Representer
 ):
-    # type: (Any, Any, Any, Any) -> None
+
     """
     Add a representer for the given type.
     object_representer is a function accepting a Dumper instance
@@ -809,7 +812,7 @@ def add_representer(
 def add_multi_representer(
     data_type, multi_representer, Dumper=Dumper, representer=Representer
 ):
-    # type: (Any, Any, Any, Any) -> None
+
     """
     Add a representer for the given type.
     multi_representer is a function accepting a Dumper instance
@@ -828,14 +831,14 @@ class YAMLObjectMetaclass(type):
     """
 
     def __init__(cls, name, bases, kwds):
-        # type: (Any, Any, Any) -> None
+
         super().__init__(name, bases, kwds)
         if "yaml_tag" in kwds and kwds["yaml_tag"] is not None:
-            cls.yaml_constructor.add_constructor(cls.yaml_tag, cls.from_yaml)  # type: ignore
-            cls.yaml_representer.add_representer(cls, cls.to_yaml)  # type: ignore
+            cls.yaml_constructor.add_constructor(cls.yaml_tag, cls.from_yaml)
+            cls.yaml_representer.add_representer(cls, cls.to_yaml)
 
 
-class YAMLObject(with_metaclass(YAMLObjectMetaclass)):  # type: ignore
+class YAMLObject(with_metaclass(YAMLObjectMetaclass)):
     """
     An object that can dump itself to a YAML stream
     and load itself from a YAML stream.
@@ -846,12 +849,12 @@ class YAMLObject(with_metaclass(YAMLObjectMetaclass)):  # type: ignore
     yaml_constructor = Constructor
     yaml_representer = Representer
 
-    yaml_tag = None  # type: Any
-    yaml_flow_style = None  # type: Any
+    yaml_tag = None
+    yaml_flow_style = None
 
     @classmethod
     def from_yaml(cls, constructor, node):
-        # type: (Any, Any) -> Any
+
         """
         Convert a representation node to a Python object.
         """
@@ -859,7 +862,7 @@ class YAMLObject(with_metaclass(YAMLObjectMetaclass)):  # type: ignore
 
     @classmethod
     def to_yaml(cls, representer, data):
-        # type: (Any, Any) -> Any
+
         """
         Convert a Python object to a representation node.
         """
