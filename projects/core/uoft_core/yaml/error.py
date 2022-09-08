@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 import warnings
 import textwrap
@@ -27,15 +28,15 @@ __all__ = [
 class StreamMark:
     __slots__ = "name", "index", "line", "column"
 
-    def __init__(self, name, index, line, column):
-        # type: (Any, int, int, int) -> None
+    def __init__(self, name: Optional[str], index: int, line: int, column: int) -> None:
+
         self.name = name
         self.index = index
         self.line = line
         self.column = column
 
     def __str__(self):
-        # type: () -> Any
+
         where = _F(
             '  in "{sname!s}", line {sline1:d}, column {scolumn1:d}',
             sname=self.name,
@@ -45,7 +46,7 @@ class StreamMark:
         return where
 
     def __eq__(self, other):
-        # type: (Any) -> bool
+
         if self.line != other.line or self.column != other.column:
             return False
         if self.name != other.name or self.index != other.index:
@@ -53,7 +54,7 @@ class StreamMark:
         return True
 
     def __ne__(self, other):
-        # type: (Any) -> bool
+
         return not self.__eq__(other)
 
 
@@ -64,14 +65,14 @@ class FileMark(StreamMark):
 class StringMark(StreamMark):
     __slots__ = "name", "index", "line", "column", "buffer", "pointer"
 
-    def __init__(self, name, index, line, column, buffer, pointer):
-        # type: (Any, int, int, int, Any, Any) -> None
+    def __init__(self, name: Optional[str], index: int, line: int, column: int, buffer: str, pointer: int) -> None:
+
         StreamMark.__init__(self, name, index, line, column)
         self.buffer = buffer
         self.pointer = pointer
 
     def get_snippet(self, indent=4, max_length=75):
-        # type: (int, int) -> Any
+
         if self.buffer is None:  # always False
             return None
         head = ""
@@ -106,7 +107,7 @@ class StringMark(StreamMark):
         )
 
     def __str__(self):
-        # type: () -> Any
+
         snippet = self.get_snippet()
         where = _F(
             '  in "{sname!s}", line {sline1:d}, column {scolumn1:d}',
@@ -119,7 +120,7 @@ class StringMark(StreamMark):
         return where
 
     def __repr__(self):
-        # type: () -> Any
+
         snippet = self.get_snippet()
         where = _F(
             '  in "{sname!s}", line {sline1:d}, column {scolumn1:d}',
@@ -136,7 +137,7 @@ class CommentMark:
     __slots__ = ("column",)
 
     def __init__(self, column):
-        # type: (Any) -> None
+
         self.column = column
 
 
@@ -154,7 +155,7 @@ class MarkedYAMLError(YAMLError):
         note=None,
         warn=None,
     ):
-        # type: (Any, Any, Any, Any, Any, Any) -> None
+
         self.context = context
         self.context_mark = context_mark
         self.problem = problem
@@ -163,8 +164,8 @@ class MarkedYAMLError(YAMLError):
         # warn is ignored
 
     def __str__(self):
-        # type: () -> Any
-        lines = []  # type: List[str]
+
+        lines = []
         if self.context is not None:
             lines.append(self.context)
         if self.context_mark is not None and (
@@ -203,7 +204,7 @@ class MarkedYAMLWarning(YAMLWarning):
         note=None,
         warn=None,
     ):
-        # type: (Any, Any, Any, Any, Any, Any) -> None
+
         self.context = context
         self.context_mark = context_mark
         self.problem = problem
@@ -212,8 +213,8 @@ class MarkedYAMLWarning(YAMLWarning):
         self.warn = warn
 
     def __str__(self):
-        # type: () -> Any
-        lines = []  # type: List[str]
+
+        lines = []
         if self.context is not None:
             lines.append(self.context)
         if self.context_mark is not None and (
@@ -259,12 +260,12 @@ warnings.simplefilter("once", UnsafeLoaderWarning)
 
 class MantissaNoDotYAML1_1Warning(YAMLWarning):
     def __init__(self, node, flt_str):
-        # type: (Any, Any) -> None
+
         self.node = node
         self.flt = flt_str
 
     def __str__(self):
-        # type: () -> Any
+
         line = self.node.start_mark.line
         col = self.node.start_mark.column
         return """
@@ -301,7 +302,7 @@ class MarkedYAMLFutureWarning(YAMLFutureWarning):
         note=None,
         warn=None,
     ):
-        # type: (Any, Any, Any, Any, Any, Any) -> None
+
         self.context = context
         self.context_mark = context_mark
         self.problem = problem
@@ -310,8 +311,8 @@ class MarkedYAMLFutureWarning(YAMLFutureWarning):
         self.warn = warn
 
     def __str__(self):
-        # type: () -> Any
-        lines = []  # type: List[str]
+
+        lines = []
         if self.context is not None:
             lines.append(self.context)
 

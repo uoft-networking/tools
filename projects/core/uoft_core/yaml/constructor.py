@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 import datetime
 import base64
@@ -101,7 +102,7 @@ class BaseConstructor:
         return None
 
     def construct_document(self, node: Node):
-        # type: (Any) -> Any
+
         data = self.construct_object(node)
         while bool(self.state_generators):
             state_generators = self.state_generators
@@ -115,7 +116,7 @@ class BaseConstructor:
         return data
 
     def construct_object(self, node: Node, deep=False):
-        # type: (Any, bool) -> Any
+
         """deep is True when creating an object/mapping recursively,
         in that case want the underlying elements available during construction
         """
@@ -171,9 +172,9 @@ class BaseConstructor:
                         problem_mark=node.start_mark,
                     )
         if tag_suffix is None:
-            data = constructor(self, node) # type: ignore
+            data = constructor(self, node)
         else:
-            data = constructor(self, tag_suffix, node) # type: ignore
+            data = constructor(self, tag_suffix, node)
         if isinstance(data, types.GeneratorType):
             generator = data
             data = next(generator)
@@ -206,7 +207,7 @@ class BaseConstructor:
         return [self.construct_object(child, deep=deep) for child in node.value]
 
     def construct_mapping(self, node: MappingNode, deep=False):
-        # type: (Any, bool) -> Any
+
         """deep is True when creating an object/mapping recursively,
         in that case want the underlying elements available during construction
         """
@@ -247,7 +248,9 @@ class BaseConstructor:
             total_mapping.update(mapping)
         return total_mapping
 
-    def check_mapping_key(self, node: Node, key_node: Node, mapping, key, value) -> bool:
+    def check_mapping_key(
+        self, node: Node, key_node: Node, mapping, key, value
+    ) -> bool:
         """return True if key is unique"""
         if key in mapping:
             if not self.allow_duplicate_keys:
@@ -402,7 +405,7 @@ class SafeConstructor(BaseConstructor):
             node.value = merge + node.value
 
     def construct_mapping(self, node, deep=False):
-        # type: (Any, bool) -> Any
+
         """deep is True when creating an object/mapping recursively,
         in that case want the underlying elements available during construction
         """
@@ -411,7 +414,7 @@ class SafeConstructor(BaseConstructor):
         return BaseConstructor.construct_mapping(self, node, deep=deep)
 
     def construct_yaml_null(self, node):
-        # type: (Any) -> Any
+
         self.construct_scalar(node)
         return None
 
@@ -428,12 +431,12 @@ class SafeConstructor(BaseConstructor):
     }
 
     def construct_yaml_bool(self, node):
-        # type: (Any) -> bool
+
         value = self.construct_scalar(node)
         return self.bool_values[value.lower()]
 
     def construct_yaml_int(self, node):
-        # type: (Any) -> int
+
         value_s = self.construct_scalar(node)
         value_s = value_s.replace("_", "")
         sign = +1
@@ -469,7 +472,7 @@ class SafeConstructor(BaseConstructor):
     nan_value = -inf_value / inf_value  # Trying to make a quiet NaN (like C99).
 
     def construct_yaml_float(self, node):
-        # type: (Any) -> float
+
         value_so = self.construct_scalar(node)
         value_s = value_so.replace("_", "").lower()
         sign = +1
@@ -499,7 +502,7 @@ class SafeConstructor(BaseConstructor):
             return sign * float(value_s)
 
     def construct_yaml_binary(self, node):
-        # type: (Any) -> Any
+
         try:
             value = self.construct_scalar(node).encode("ascii")
         except UnicodeEncodeError as exc:
@@ -522,7 +525,7 @@ class SafeConstructor(BaseConstructor):
     timestamp_regexp = timestamp_regexp  # moved to util 0.17.17
 
     def construct_yaml_timestamp(self, node, values=None):
-        # type: (Any, Any) -> Any
+
         if values is None:
             try:
                 match = self.timestamp_regexp.match(node.value)
@@ -539,9 +542,9 @@ class SafeConstructor(BaseConstructor):
         return create_timestamp(**values)
 
     def construct_yaml_pairs(self, node):
-        # type: (Any) -> Any
+
         # Note: the same code as `construct_yaml_omap`.
-        pairs = []  # type: List[Any]
+        pairs = []
         yield pairs
         if not isinstance(node, SequenceNode):
             raise ConstructorError(
@@ -577,21 +580,20 @@ class SafeConstructor(BaseConstructor):
             pairs.append((key, value))
 
 
-
 class RoundTripConstructor(SafeConstructor):
     """need to store the comments on the node itself,
     as well as on the items
     """
 
     def comment(self, idx):
-        # type: (Any) -> Any
+
         assert self.loader.comment_handling is not None
         x = self.scanner.comments[idx]
         x.set_assigned()
         return x
 
     def comments(self, list_of_comments, idx=None):
-        # type: (Any, Optional[Any]) -> Any
+
         # hand in the comment and optional pre, eol, post segment
         if list_of_comments is None:
             return []
@@ -603,7 +605,7 @@ class RoundTripConstructor(SafeConstructor):
             yield self.comment(x)
 
     def construct_scalar(self, node):
-        # type: (Any) -> Any
+
         if not isinstance(node, ScalarNode):
             raise ConstructorError(
                 None,
@@ -616,16 +618,16 @@ class RoundTripConstructor(SafeConstructor):
             lss = LiteralScalarString(node.value, anchor=node.anchor)
             if self.loader and self.loader.comment_handling is None:
                 if node.comment and node.comment[1]:
-                    lss.comment = node.comment[1][0]  # type: ignore
+                    lss.comment = node.comment[1][0]
             else:
                 # NEWCMNT
                 if node.comment is not None and node.comment[1]:
                     # nprintf('>>>>nc1', node.comment)
                     # EOL comment after |
-                    lss.comment = self.comment(node.comment[1][0])  # type: ignore
+                    lss.comment = self.comment(node.comment[1][0])
             return lss
         if node.style == ">" and isinstance(node.value, str):
-            fold_positions = []  # type: List[int]
+            fold_positions = []
             idx = -1
             while True:
                 idx = node.value.find("\a", idx + 1)
@@ -635,15 +637,15 @@ class RoundTripConstructor(SafeConstructor):
             fss = FoldedScalarString(node.value.replace("\a", ""), anchor=node.anchor)
             if self.loader and self.loader.comment_handling is None:
                 if node.comment and node.comment[1]:
-                    fss.comment = node.comment[1][0]  # type: ignore
+                    fss.comment = node.comment[1][0]
             else:
                 # NEWCMNT
                 if node.comment is not None and node.comment[1]:
                     # nprintf('>>>>nc2', node.comment)
                     # EOL comment after >
-                    fss.comment = self.comment(node.comment[1][0])  # type: ignore
+                    fss.comment = self.comment(node.comment[1][0])
             if fold_positions:
-                fss.fold_pos = fold_positions  # type: ignore
+                fss.fold_pos = fold_positions
             return fss
         elif bool(self._preserve_quotes) and isinstance(node.value, str):
             if node.style == "'":
@@ -655,12 +657,12 @@ class RoundTripConstructor(SafeConstructor):
         return node.value
 
     def construct_yaml_int(self, node):
-        # type: (Any) -> Any
-        width = None  # type: Any
+
+        width = None
         value_su = self.construct_scalar(node)
         try:
             sx = value_su.rstrip("_")
-            underscore = [len(sx) - sx.rindex("_") - 1, False, False]  # type: Any
+            underscore = [len(sx) - sx.rindex("_") - 1, False, False]
         except ValueError:
             underscore = None
         except IndexError:
@@ -689,7 +691,7 @@ class RoundTripConstructor(SafeConstructor):
             # default to lower-case if no a-fA-F in string
             if self.resolver.processing_version > (1, 1) and value_s[2] == "0":
                 width = len(value_s[2:])
-            hex_fun = HexInt  # type: Any
+            hex_fun = HexInt
             for ch in value_s[2:]:
                 if ch in "ABCDEF":  # first non-digit is capital
                     hex_fun = HexCapsInt
@@ -751,9 +753,8 @@ class RoundTripConstructor(SafeConstructor):
             return sign * int(value_s)
 
     def construct_yaml_float(self, node):
-        # type: (Any) -> Any
         def leading_zeros(v):
-            # type: (Any) -> int
+
             lead0 = 0
             idx = 0
             while idx < len(v) and v[idx] in "0.":
@@ -763,7 +764,7 @@ class RoundTripConstructor(SafeConstructor):
             return lead0
 
         # underscore = None
-        m_sign = False  # type: Any
+        m_sign = False
         value_so = self.construct_scalar(node)
         value_s = value_so.replace("_", "").lower()
         sign = +1
@@ -830,14 +831,14 @@ class RoundTripConstructor(SafeConstructor):
         )
 
     def construct_yaml_str(self, node):
-        # type: (Any) -> Any
+
         value = self.construct_scalar(node)
         if isinstance(value, ScalarString):
             return value
         return value
 
     def construct_rt_sequence(self, node, seqtyp, deep=False):
-        # type: (Any, Any, bool) -> Any
+
         if not isinstance(node, SequenceNode):
             raise ConstructorError(
                 None,
@@ -874,7 +875,7 @@ class RoundTripConstructor(SafeConstructor):
         return ret_val
 
     def flatten_mapping(self, node):
-        # type: (Any) -> Any
+
         """
         This implements the merge key feature http://yaml.org/type/merge.html
         by inserting keys from the merge dict/list of dicts if not yet
@@ -882,7 +883,7 @@ class RoundTripConstructor(SafeConstructor):
         """
 
         def constructed(value_node):
-            # type: (Any) -> Any
+
             # If the contents of a merge are defined within the
             # merge marker, then they won't have been constructed
             # yet. But if they were already constructed, we need to use
@@ -894,7 +895,7 @@ class RoundTripConstructor(SafeConstructor):
             return value
 
         # merge = []
-        merge_map_list = []  # type: List[Any]
+        merge_map_list = []
         index = 0
         while index < len(node.value):
             key_node, value_node = node.value[index]
@@ -967,11 +968,11 @@ class RoundTripConstructor(SafeConstructor):
         #     node.value = merge + node.value
 
     def _sentinel(self):
-        # type: () -> None
+
         pass
 
-    def construct_mapping(self, node, maptyp, deep=False):  # type: ignore
-        # type: (Any, Any, bool) -> Any
+    def construct_mapping(self, node, maptyp, deep=False):
+
         if not isinstance(node, MappingNode):
             raise ConstructorError(
                 None,
@@ -1080,7 +1081,7 @@ class RoundTripConstructor(SafeConstructor):
             maptyp.add_yaml_merge(merge_map)
 
     def construct_setting(self, node, typ, deep=False):
-        # type: (Any, Any, bool) -> Any
+
         if not isinstance(node, MappingNode):
             raise ConstructorError(
                 None,
@@ -1133,7 +1134,7 @@ class RoundTripConstructor(SafeConstructor):
             typ.add(key)
 
     def construct_yaml_seq(self, node):
-        # type: (Any) -> Any
+
         data = CommentedSeq()
         data._yaml_set_line_col(node.start_mark.line, node.start_mark.column)
         # if node.comment:
@@ -1143,7 +1144,7 @@ class RoundTripConstructor(SafeConstructor):
         self.set_collection_style(data, node)
 
     def construct_yaml_map(self, node):
-        # type: (Any) -> Any
+
         data = CommentedMap()
         data._yaml_set_line_col(node.start_mark.line, node.start_mark.column)
         yield data
@@ -1151,7 +1152,7 @@ class RoundTripConstructor(SafeConstructor):
         self.set_collection_style(data, node)
 
     def set_collection_style(self, data, node):
-        # type: (Any, Any) -> None
+
         if len(data) == 0:
             return
         if node.flow_style is True:
@@ -1160,7 +1161,7 @@ class RoundTripConstructor(SafeConstructor):
             data.fa.set_block_style()
 
     def construct_yaml_object(self, node, cls):
-        # type: (Any, Any) -> Any
+
         data = cls.__new__(cls)
         yield data
         if hasattr(data, "__setstate__"):
@@ -1185,7 +1186,7 @@ class RoundTripConstructor(SafeConstructor):
                 a.value = node.anchor
 
     def construct_yaml_omap(self, node):
-        # type: (Any) -> Any
+
         # Note: we do now check for duplicate keys
         omap = CommentedOrderedMap()
         omap._yaml_set_line_col(node.start_mark.line, node.start_mark.column)
@@ -1253,14 +1254,14 @@ class RoundTripConstructor(SafeConstructor):
             omap[key] = value
 
     def construct_yaml_set(self, node):
-        # type: (Any) -> Any
+
         data = CommentedSet()
         data._yaml_set_line_col(node.start_mark.line, node.start_mark.column)
         yield data
         self.construct_setting(node, data)
 
     def construct_undefined(self, node):
-        # type: (Any) -> Any
+
         try:
             if isinstance(node, MappingNode):
                 data = CommentedMap()
@@ -1319,7 +1320,7 @@ class RoundTripConstructor(SafeConstructor):
         )
 
     def construct_yaml_timestamp(self, node, values=None):
-        # type: (Any, Any) -> Any
+
         try:
             match = self.timestamp_regexp.match(node.value)
         except TypeError:
@@ -1369,7 +1370,7 @@ class RoundTripConstructor(SafeConstructor):
         return data
 
     def construct_yaml_bool(self, node):
-        # type: (Any) -> Any
+
         b = SafeConstructor.construct_yaml_bool(self, node)
         if node.anchor:
             return ScalarBoolean(b, anchor=node.anchor)

@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 import warnings
 
@@ -31,29 +32,29 @@ class ComposerError(MarkedYAMLError):
 
 class Composer:
     def __init__(self, loader=None):
-        # type: (Any) -> None
+
         self.loader = loader
         if self.loader is not None and getattr(self.loader, "_composer", None) is None:
             self.loader._composer = self
-        self.anchors = {}  # type: Dict[Any, Any]
+        self.anchors = {}
 
     @property
     def parser(self):
-        # type: () -> Any
+
         if hasattr(self.loader, "typ"):
             self.loader.parser
         return self.loader._parser
 
     @property
     def resolver(self):
-        # type: () -> Any
+
         # assert self.loader._resolver is not None
         if hasattr(self.loader, "typ"):
             self.loader.resolver
         return self.loader._resolver
 
     def check_node(self):
-        # type: () -> Any
+
         # Drop the STREAM-START event.
         if self.parser.check_event(StreamStartEvent):
             self.parser.get_event()
@@ -62,18 +63,18 @@ class Composer:
         return not self.parser.check_event(StreamEndEvent)
 
     def get_node(self):
-        # type: () -> Any
+
         # Get the root node of the next document.
         if not self.parser.check_event(StreamEndEvent):
             return self.compose_document()
 
     def get_single_node(self):
-        # type: () -> Any
+
         # Drop the STREAM-START event.
         self.parser.get_event()
 
         # Compose a document if the stream is not empty.
-        document = None  # type: Any
+        document = None
         if not self.parser.check_event(StreamEndEvent):
             document = self.compose_document()
 
@@ -93,7 +94,7 @@ class Composer:
         return document
 
     def compose_document(self):
-        # type: (Any) -> Any
+
         # Drop the DOCUMENT-START event.
         self.parser.get_event()
 
@@ -107,11 +108,11 @@ class Composer:
         return node
 
     def return_alias(self, a):
-        # type: (Any) -> Any
+
         return a
 
     def compose_node(self, parent, index):
-        # type: (Any, Any) -> Any
+
         if self.parser.check_event(AliasEvent):
             event = self.parser.get_event()
             alias = event.anchor
@@ -149,7 +150,7 @@ class Composer:
         return node
 
     def compose_scalar_node(self, anchor):
-        # type: (Any) -> Any
+
         event = self.parser.get_event()
         tag = event.tag
         if tag is None or tag == "!":
@@ -168,7 +169,7 @@ class Composer:
         return node
 
     def compose_sequence_node(self, anchor):
-        # type: (Any) -> Any
+
         start_event = self.parser.get_event()
         tag = start_event.tag
         if tag is None or tag == "!":
@@ -201,7 +202,7 @@ class Composer:
         return node
 
     def compose_mapping_node(self, anchor):
-        # type: (Any) -> Any
+
         start_event = self.parser.get_event()
         tag = start_event.tag
         if tag is None or tag == "!":
@@ -235,7 +236,7 @@ class Composer:
         return node
 
     def check_end_doc_comment(self, end_event, node):
-        # type: (Any, Any) -> None
+
         if end_event.comment and end_event.comment[1]:
             # pre comments on an end_event, no following to move to
             if node.comment is None:

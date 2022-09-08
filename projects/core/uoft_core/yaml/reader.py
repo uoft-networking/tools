@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 # This module contains abstractions for the input stream. You don't have to
 # looks further, there are no pretty code.
@@ -26,6 +27,9 @@ from .compat import _F  # NOQA
 from .util import RegExp
 
 from typing import TYPE_CHECKING
+from uoft_core.yaml.error import StringMark
+if TYPE_CHECKING:
+    from uoft_core.yaml.main import YAML
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Union, Text, Tuple, Optional  # NOQA
@@ -36,7 +40,7 @@ __all__ = ["Reader", "ReaderError"]
 
 class ReaderError(YAMLError):
     def __init__(self, name, position, character, encoding, reason):
-        # type: (Any, Any, Any, Any, Any) -> None
+
         self.name = name
         self.character = character
         self.position = position
@@ -44,7 +48,7 @@ class ReaderError(YAMLError):
         self.reason = reason
 
     def __str__(self):
-        # type: () -> Any
+
         if isinstance(self.character, bytes):
             return _F(
                 "'{self_encoding!s}' codec can't decode byte #x{ord_self_character:02x}: "
@@ -81,31 +85,31 @@ class Reader:
 
     # Yeah, it's ugly and slow.
 
-    def __init__(self, stream, loader=None):
-        # type: (Any, Any) -> None
+    def __init__(self, stream: None, loader: Optional[YAML]=None) -> None:
+
         self.loader = loader
         if self.loader is not None and getattr(self.loader, "_reader", None) is None:
             self.loader._reader = self
         self.reset_reader()
-        self.stream = stream  # type: Any  # as .read is called
+        self.stream = stream
 
-    def reset_reader(self):
-        # type: () -> None
-        self.name = None  # type: Any
+    def reset_reader(self) -> None:
+
+        self.name = None
         self.stream_pointer = 0
         self.eof = True
         self.buffer = ""
         self.pointer = 0
-        self.raw_buffer = None  # type: Any
+        self.raw_buffer = None
         self.raw_decode = None
-        self.encoding = None  # type: Optional[Text]
+        self.encoding = None
         self.index = 0
         self.line = 0
         self.column = 0
 
     @property
     def stream(self):
-        # type: () -> Any
+
         try:
             return self._stream
         except AttributeError:
@@ -113,7 +117,7 @@ class Reader:
 
     @stream.setter
     def stream(self, val):
-        # type: (Any) -> None
+
         if val is None:
             return
         self._stream = None
@@ -134,22 +138,22 @@ class Reader:
             self.raw_buffer = None
             self.determine_encoding()
 
-    def peek(self, index=0):
-        # type: (int) -> Text
+    def peek(self, index: int=0) -> str:
+
         try:
             return self.buffer[self.pointer + index]
         except IndexError:
             self.update(index + 1)
             return self.buffer[self.pointer + index]
 
-    def prefix(self, length=1):
-        # type: (int) -> Any
+    def prefix(self, length: int=1) -> str:
+
         if self.pointer + length >= len(self.buffer):
             self.update(length)
         return self.buffer[self.pointer : self.pointer + length]
 
     def forward_1_1(self, length=1):
-        # type: (int) -> None
+
         if self.pointer + length + 1 >= len(self.buffer):
             self.update(length + 1)
         while length != 0:
@@ -165,8 +169,8 @@ class Reader:
                 self.column += 1
             length -= 1
 
-    def forward(self, length=1):
-        # type: (int) -> None
+    def forward(self, length: int=1) -> None:
+
         if self.pointer + length + 1 >= len(self.buffer):
             self.update(length + 1)
         while length != 0:
@@ -180,8 +184,8 @@ class Reader:
                 self.column += 1
             length -= 1
 
-    def get_mark(self):
-        # type: () -> Any
+    def get_mark(self) -> StringMark:
+
         if self.stream is None:
             return StringMark(
                 self.name, self.index, self.line, self.column, self.buffer, self.pointer
@@ -190,18 +194,18 @@ class Reader:
             return FileMark(self.name, self.index, self.line, self.column)
 
     def determine_encoding(self):
-        # type: () -> None
+
         while not self.eof and (self.raw_buffer is None or len(self.raw_buffer) < 2):
             self.update_raw()
         if isinstance(self.raw_buffer, bytes):
             if self.raw_buffer.startswith(codecs.BOM_UTF16_LE):
-                self.raw_decode = codecs.utf_16_le_decode  # type: ignore
+                self.raw_decode = codecs.utf_16_le_decode
                 self.encoding = "utf-16-le"
             elif self.raw_buffer.startswith(codecs.BOM_UTF16_BE):
-                self.raw_decode = codecs.utf_16_be_decode  # type: ignore
+                self.raw_decode = codecs.utf_16_be_decode
                 self.encoding = "utf-16-be"
             else:
-                self.raw_decode = codecs.utf_8_decode  # type: ignore
+                self.raw_decode = codecs.utf_8_decode
                 self.encoding = "utf-8"
         self.update(1)
 
@@ -218,33 +222,33 @@ class Reader:
     )
 
     @classmethod
-    def _get_non_printable_ascii(cls, data):  # type: ignore
-        # type: (Text, bytes) -> Optional[Tuple[int, Text]]
-        ascii_bytes = data.encode("ascii")  # type: ignore
-        non_printables = ascii_bytes.translate(None, cls._printable_ascii)  # type: ignore
+    def _get_non_printable_ascii(cls, data: str) -> None:
+
+        ascii_bytes = data.encode("ascii")
+        non_printables = ascii_bytes.translate(None, cls._printable_ascii)
         if not non_printables:
             return None
         non_printable = non_printables[:1]
         return ascii_bytes.index(non_printable), non_printable.decode("ascii")
 
     @classmethod
-    def _get_non_printable_regex(cls, data):
-        # type: (Text) -> Optional[Tuple[int, Text]]
+    def _get_non_printable_regex(cls, data: str) -> None:
+
         match = cls.NON_PRINTABLE.search(data)
         if not bool(match):
             return None
         return match.start(), match.group()
 
     @classmethod
-    def _get_non_printable(cls, data):
-        # type: (Text) -> Optional[Tuple[int, Text]]
+    def _get_non_printable(cls, data: str) -> None:
+
         try:
-            return cls._get_non_printable_ascii(data)  # type: ignore
+            return cls._get_non_printable_ascii(data)
         except UnicodeEncodeError:
             return cls._get_non_printable_regex(data)
 
-    def check_printable(self, data):
-        # type: (Any) -> None
+    def check_printable(self, data: str) -> None:
+
         non_printable_match = self._get_non_printable(data)
         if non_printable_match is not None:
             start, character = non_printable_match
@@ -257,8 +261,8 @@ class Reader:
                 "special characters are not allowed",
             )
 
-    def update(self, length):
-        # type: (int) -> None
+    def update(self, length: int) -> None:
+
         if self.raw_buffer is None:
             return
         self.buffer = self.buffer[self.pointer :]
@@ -298,7 +302,7 @@ class Reader:
                 break
 
     def update_raw(self, size=None):
-        # type: (Optional[int]) -> None
+
         if size is None:
             size = 4096
         data = self.stream.read(size)

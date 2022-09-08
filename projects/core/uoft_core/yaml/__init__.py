@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
@@ -45,19 +46,11 @@ _package_data = dict(
     # universal=True,
     python_requires=">=3",
     rtfd="yaml",
-)  # type: Dict[Any, Any]
+)
 
 
 version_info = _package_data["version_info"]
 __version__ = _package_data["__version__"]
-
-try:
-    from .cyaml import *  # NOQA
-
-    __with_libyaml__ = True
-except (ImportError, ValueError):  # for Jython
-    __with_libyaml__ = False
-
 from .main import *  # NOQA
 
 

@@ -1,8 +1,9 @@
 # coding: utf-8
+from __future__ import annotations
 
 import re
 
-from typing import TYPE_CHECKING
+from typing import Tuple, Type, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Any, Dict, List, Union, Text, Optional  # NOQA
@@ -13,6 +14,10 @@ from .compat import _DEFAULT_YAML_VERSION, _F  # NOQA
 from .error import *  # NOQA
 from .nodes import MappingNode, ScalarNode, SequenceNode  # NOQA
 from .util import RegExp  # NOQA
+if TYPE_CHECKING:
+    from uoft_core.yaml.main import YAML
+from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
+from uoft_core.yaml.util import LazyEval
 
 __all__ = ["BaseResolver", "Resolver", "VersionedResolver"]
 
@@ -110,24 +115,24 @@ class BaseResolver:
     DEFAULT_SEQUENCE_TAG = "tag:yaml.org,2002:seq"
     DEFAULT_MAPPING_TAG = "tag:yaml.org,2002:map"
 
-    yaml_implicit_resolvers = {}  # type: Dict[Any, Any]
-    yaml_path_resolvers = {}  # type: Dict[Any, Any]
+    yaml_implicit_resolvers = {}
+    yaml_path_resolvers = {}
 
-    def __init__(self, loadumper=None):
-        # type: (Any, Any) -> None
+    def __init__(self, loadumper: Optional[YAML]=None) -> None:
+
         self.loadumper = loadumper
         if (
             self.loadumper is not None
             and getattr(self.loadumper, "_resolver", None) is None
         ):
             self.loadumper._resolver = self.loadumper
-        self._loader_version = None  # type: Any
-        self.resolver_exact_paths = []  # type: List[Any]
-        self.resolver_prefix_paths = []  # type: List[Any]
+        self._loader_version = None
+        self.resolver_exact_paths = []
+        self.resolver_prefix_paths = []
 
     @property
     def parser(self):
-        # type: () -> Any
+
         if self.loadumper is not None:
             if hasattr(self.loadumper, "typ"):
                 return self.loadumper.parser
@@ -136,7 +141,7 @@ class BaseResolver:
 
     @classmethod
     def add_implicit_resolver_base(cls, tag, regexp, first):
-        # type: (Any, Any, Any) -> None
+
         if "yaml_implicit_resolvers" not in cls.__dict__:
             # deepcopy doesn't work here
             cls.yaml_implicit_resolvers = dict(
@@ -150,7 +155,7 @@ class BaseResolver:
 
     @classmethod
     def add_implicit_resolver(cls, tag, regexp, first):
-        # type: (Any, Any, Any) -> None
+
         if "yaml_implicit_resolvers" not in cls.__dict__:
             # deepcopy doesn't work here
             cls.yaml_implicit_resolvers = dict(
@@ -168,7 +173,7 @@ class BaseResolver:
 
     @classmethod
     def add_path_resolver(cls, tag, path, kind=None):
-        # type: (Any, Any, Any) -> None
+
         # Note: `add_path_resolver` is experimental.  The API could be changed.
         # `new_path` is a pattern that is matched against the path from the
         # root to the node that is being considered.  `node_path` elements are
@@ -183,7 +188,7 @@ class BaseResolver:
         # against a sequence value with the index equal to `index_check`.
         if "yaml_path_resolvers" not in cls.__dict__:
             cls.yaml_path_resolvers = cls.yaml_path_resolvers.copy()
-        new_path = []  # type: List[Any]
+        new_path = []
         for element in path:
             if isinstance(element, (list, tuple)):
                 if len(element) == 2:
@@ -230,8 +235,8 @@ class BaseResolver:
             raise ResolverError(_F("Invalid node kind: {kind!s}", kind=kind))
         cls.yaml_path_resolvers[tuple(new_path), kind] = tag
 
-    def descend_resolver(self, current_node, current_index):
-        # type: (Any, Any) -> None
+    def descend_resolver(self, current_node: Optional[Union[MappingNode, SequenceNode]], current_index: Optional[Union[ScalarNode, int]]) -> None:
+
         if not self.yaml_path_resolvers:
             return
         exact_paths = {}
@@ -255,15 +260,15 @@ class BaseResolver:
         self.resolver_exact_paths.append(exact_paths)
         self.resolver_prefix_paths.append(prefix_paths)
 
-    def ascend_resolver(self):
-        # type: () -> None
+    def ascend_resolver(self) -> None:
+
         if not self.yaml_path_resolvers:
             return
         self.resolver_exact_paths.pop()
         self.resolver_prefix_paths.pop()
 
     def check_resolver_prefix(self, depth, path, kind, current_node, current_index):
-        # type: (int, Any, Any, Any, Any) -> bool
+
         node_check, index_check = path[depth - 1]
         if isinstance(node_check, str):
             if current_node.tag != node_check:
@@ -287,7 +292,7 @@ class BaseResolver:
         return True
 
     def resolve(self, kind, value, implicit):
-        # type: (Any, Any, Any) -> Any
+
         if kind is ScalarNode and implicit[0]:
             if value == "":
                 resolvers = self.yaml_implicit_resolvers.get("", [])
@@ -313,7 +318,7 @@ class BaseResolver:
 
     @property
     def processing_version(self):
-        # type: () -> Any
+
         return None
 
 
@@ -334,21 +339,21 @@ class VersionedResolver(BaseResolver):
     and Yes/No/On/Off booleans.
     """
 
-    def __init__(self, loader: "YAML"):
+    def __init__(self, loader: YAML) -> None:
         BaseResolver.__init__(self, loader)
         self._loader_version = self.get_loader_version(loader.version)
-        self._version_implicit_resolver = {}  # type: Dict[Any, Any]
+        self._version_implicit_resolver = {}
 
-    def add_version_implicit_resolver(self, version, tag, regexp, first):
-        # type: (VersionType, Any, Any, Any) -> None
+    def add_version_implicit_resolver(self, version: Tuple[int, int], tag: str, regexp: LazyEval, first: List[str]) -> None:
+
         if first is None:
             first = [None]
         impl_resolver = self._version_implicit_resolver.setdefault(version, {})
         for ch in first:
             impl_resolver.setdefault(ch, []).append((tag, regexp))
 
-    def get_loader_version(self, version):
-        # type: (Optional[VersionType]) -> Any
+    def get_loader_version(self, version: Optional[Union[str, Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
+
         if version is None or isinstance(version, tuple):
             return version
         if isinstance(version, list):
@@ -357,8 +362,8 @@ class VersionedResolver(BaseResolver):
         return tuple(map(int, version.split(".")))
 
     @property
-    def versioned_resolver(self):
-        # type: () -> Any
+    def versioned_resolver(self) -> Dict[str, List[Tuple[str, LazyEval]]]:
+
         """
         select the resolver based on the version we are parsing
         """
@@ -371,8 +376,8 @@ class VersionedResolver(BaseResolver):
                     self.add_version_implicit_resolver(version, x[1], x[2], x[3])
         return self._version_implicit_resolver[version]
 
-    def resolve(self, kind, value, implicit):
-        # type: (Any, Any, Any) -> Any
+    def resolve(self, kind: Union[Type[SequenceNode], Type[MappingNode], Type[ScalarNode]], value: Any, implicit: Union[bool, Tuple[bool, bool]]) -> str:
+
         if kind is ScalarNode and implicit[0]:
             if value == "":
                 resolvers = self.versioned_resolver.get("", [])
@@ -397,8 +402,8 @@ class VersionedResolver(BaseResolver):
             return self.DEFAULT_MAPPING_TAG
 
     @property
-    def processing_version(self):
-        # type: () -> Any
+    def processing_version(self) -> Tuple[int, int]:
+
         try:
             version = self.loadumper._scanner.yaml_version
         except AttributeError:

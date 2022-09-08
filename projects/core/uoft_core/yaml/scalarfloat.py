@@ -1,9 +1,11 @@
 # coding: utf-8
+from __future__ import annotations
 
 import sys
 from .anchor import Anchor
 
-from typing import TYPE_CHECKING
+from typing import Type, TYPE_CHECKING
+from uoft_core.yaml.anchor import Anchor
 
 if TYPE_CHECKING:
     from typing import Text, Any, Dict, List  # NOQA
@@ -12,8 +14,8 @@ __all__ = ["ScalarFloat", "ExponentialFloat", "ExponentialCapsFloat"]
 
 
 class ScalarFloat(float):
-    def __new__(cls, *args, **kw):
-        # type: (Any, Any, Any) -> Any
+    def __new__(cls: Type[ScalarFloat], *args, **kw) -> "ScalarFloat":
+
         width = kw.pop("width", None)
         prec = kw.pop("prec", None)
         m_sign = kw.pop("m_sign", None)
@@ -36,8 +38,8 @@ class ScalarFloat(float):
             v.yaml_set_anchor(anchor, always_dump=True)
         return v
 
-    def __iadd__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __iadd__(self, a):
+
         return float(self) + a
         x = type(self)(self + a)
         x._width = self._width
@@ -46,8 +48,8 @@ class ScalarFloat(float):
         )  # NOQA
         return x
 
-    def __ifloordiv__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __ifloordiv__(self, a):
+
         return float(self) // a
         x = type(self)(self // a)
         x._width = self._width
@@ -56,8 +58,8 @@ class ScalarFloat(float):
         )  # NOQA
         return x
 
-    def __imul__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __imul__(self, a):
+
         return float(self) * a
         x = type(self)(self * a)
         x._width = self._width
@@ -67,8 +69,8 @@ class ScalarFloat(float):
         x._prec = self._prec  # check for others
         return x
 
-    def __ipow__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __ipow__(self, a):
+
         return float(self) ** a
         x = type(self)(self**a)
         x._width = self._width
@@ -77,8 +79,8 @@ class ScalarFloat(float):
         )  # NOQA
         return x
 
-    def __isub__(self, a):  # type: ignore
-        # type: (Any) -> Any
+    def __isub__(self, a):
+
         return float(self) - a
         x = type(self)(self - a)
         x._width = self._width
@@ -88,14 +90,14 @@ class ScalarFloat(float):
         return x
 
     @property
-    def anchor(self):
-        # type: () -> Any
+    def anchor(self) -> Anchor:
+
         if not hasattr(self, Anchor.attrib):
             setattr(self, Anchor.attrib, Anchor())
         return getattr(self, Anchor.attrib)
 
-    def yaml_anchor(self, any=False):
-        # type: (bool) -> Any
+    def yaml_anchor(self, any: bool=False) -> Anchor:
+
         if not hasattr(self, Anchor.attrib):
             return None
         if any or self.anchor.always_dump:
@@ -103,34 +105,34 @@ class ScalarFloat(float):
         return None
 
     def yaml_set_anchor(self, value, always_dump=False):
-        # type: (Any, bool) -> None
+
         self.anchor.value = value
         self.anchor.always_dump = always_dump
 
     def dump(self, out=sys.stdout):
-        # type: (Any) -> Any
+
         out.write(
             "ScalarFloat({}| w:{}, p:{}, s:{}, lz:{}, _:{}|{}, w:{}, s:{})\n".format(
                 self,
-                self._width,  # type: ignore
-                self._prec,  # type: ignore
-                self._m_sign,  # type: ignore
-                self._m_lead0,  # type: ignore
-                self._underscore,  # type: ignore
-                self._exp,  # type: ignore
-                self._e_width,  # type: ignore
-                self._e_sign,  # type: ignore
+                self._width,
+                self._prec,
+                self._m_sign,
+                self._m_lead0,
+                self._underscore,
+                self._exp,
+                self._e_width,
+                self._e_sign,
             )
         )
 
 
 class ExponentialFloat(ScalarFloat):
     def __new__(cls, value, width=None, underscore=None):
-        # type: (Any, Any, Any) -> Any
+
         return ScalarFloat.__new__(cls, value, width=width, underscore=underscore)
 
 
 class ExponentialCapsFloat(ScalarFloat):
     def __new__(cls, value, width=None, underscore=None):
-        # type: (Any, Any, Any) -> Any
+
         return ScalarFloat.__new__(cls, value, width=width, underscore=underscore)
