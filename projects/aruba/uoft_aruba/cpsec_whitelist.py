@@ -5,9 +5,28 @@
 # ***The service account password must be encrypted in it without an access password.
 # ***Ensure that you set your own CONFIG PARAMETERS in the supplied .env file.
 #
+"""
+Welcome to the Aruba CPSEC Whitelist Provisioning Tool.
+
+The Aruba wireless system utilizes the 'Control Plane Security' (CPSEC) 'Whitelist Database' (WDB) 
+to authorize and provision WAPs onto the Aruba Wireless Platform. 
+This is done by generating certificates for each WAP we will bring online within the CPSEC WDB.
+
+This tool has been designed to automate single or batch provisioning of WAPs into the CPSEC WDB, 
+as well as modifying their certs to 'factory-approved' so the registrations do not expire.
+
+"""
 
 # Used for settings import from .env
-from pydantic import BaseSettings
+from functools import cached_property
+from subprocess import SubprocessError
+from typing import Literal
+from pydantic import BaseSettings, root_validator, Field
+from pydantic.env_settings import SettingsSourceCallable
+
+# Used for settings import from TOML config file and prompting for missing config
+from uoft_core import UofTCoreError, Util, toml
+from uoft_core.other import Prompt
 
 # Used for help and argument control
 import typer
@@ -27,41 +46,106 @@ from uoft_core import shell
 # useful data types
 from pathlib import Path
 
+from uoft_switchconfig.util import model_questionnaire
+
 # a type alias to clean up code below
 InputTable = list[tuple[str, str, str]]
 
-# Supress traces, debug flag provided.
-sys.tracebacklimit = 0
-
 
 class Settings(BaseSettings):
-    organizational_division: str = ""
-    svc_account: str = ""
-    mm_vrrp_hostname: str = ""
-    md_vrrp_hostname: str = ""
+    _app_name = "aruba"
+    svc_account: str = Field(title="Aruba API Authentication Account")
+    mm_vrrp_hostname: str = Field(
+        title="Aruba Mobility Master Primary IP Adress / Hostname"
+    )
+    md_vrrp_hostname: str = Field(
+        title="Aruba Controller (Managed Device) Primary IP Adress / Hostname"
+    )
+    password: str = Field(title="Aruba API Authentication Password")
+
+    @root_validator(pre=True)
+    @classmethod
+    def prompt_for_missing_values(cls, values):  # pylint: disable=no-self-argument
+        missing_keys = [key for key in cls.__fields__ if key not in values]
+        if not missing_keys:
+            # Everything's present and accounted for. nothing to do here
+            return values
+        if not sys.stdout.isatty():
+            # Return values as is and let pydantic report validation errors on missing fields
+            return values
+        values = model_questionnaire(cls, values).dict()
+        return values
+
+    @cached_property
+    def _util(self):
+        return Util(self._app_name)
 
     class Config:
         env_file = ".env"
-        env_file_encoding = "utf-8"
+
+        @classmethod
+        def customise_sources(cls, init_settings, env_settings, file_secret_settings):
+            return (
+                init_settings,
+                env_settings,
+                file_secret_settings,
+                cls.settings_from_pass,
+                cls.config_file_settings,
+            )
+
+        @staticmethod
+        def config_file_settings(settings: 'Settings'):
+            try:
+                cfg = settings._util.config # pylint: disable=protected-access
+                return cfg.merged_data
+            except UofTCoreError:
+                # If no config files exist, that may not necessarily be an error.
+                # We'll let pydantic check all settings sources and determine if a given setting is missing
+                return {}
+
+        @staticmethod
+        def settings_from_pass(settings: 'Settings'):
+            try:
+                name = settings._app_name # pylint: disable=protected-access
+                text = shell(f"pass show uoft-{name}")
+                return toml.loads(text)
+            except SubprocessError:
+                return {}
 
 
-settings = Settings()
-if not all(
-    [
-        settings.md_vrrp_hostname,
-        settings.mm_vrrp_hostname,
-        settings.svc_account,
-        settings.organizational_division,
-    ]
-):
-    raise Exception(f"Empty field(s) in .env! Configure your supplied .env file prior to the use of this tool!")
+_settings = None
+
+
+def settings(new_settings: Settings | None = None) -> Settings:
+    "initialize a global settings instance on demand, optionally replacing it with a new instance as needed"
+    global _settings  # pylint: disable=global-statement
+    if new_settings:
+        _settings = new_settings
+    if _settings is None:
+        _settings = Settings()  # type: ignore
+    return _settings
 
 
 run = typer.Typer(  # If run as main create a 'typer.Typer' app instance to run the program within.
     no_args_is_help=True,
-    help=f"Welcome to the Aruba CPSEC Whitelist Provisioning Tool for {settings.organizational_division}.\n\n \n\nThe Aruba wireless system at {settings.organizational_division} utilizes the 'Control Plane Security' (CPSEC) 'Whitelist Database' (WDB) to authorize and provision WAPs onto the Aruba Wireless Platform.  This is done by generating certificates for each WAP we will bring online within the CPSEC WDB.\n\n \n\nThis tool has been designed to automate single or batch provisioning of WAPs into the CPSEC WDB, as well as modifying their certs to 'factory-approved' so the registrations do not expire.\n\n \n\nYou will require a valid, configured, AP_GROUP along with a MAC_ADDRESS and AP_NAME to be provisioned.\n\n \n\nRun commands without arguemnts for HELP information, or add the --help option after any command for more information and format requirements.",
+    help=__doc__,  # Use this module's docstring as the main program help text
     add_completion=False,
 )
+
+
+@run.callback(
+    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
+)
+def callback(
+    svc_account: str = typer.Option(None),
+    mm_vrrp_hostname: str = typer.Option(None),
+    md_vrrp_hostname: str = typer.Option(None),
+):
+    new_settings = locals().copy()
+    new_settings = {k: v for k, v in new_settings.items() if v is not None}
+    if new_settings:
+        new_settings = Settings(**new_settings)
+        settings(new_settings=new_settings)
 
 
 provision = typer.Typer()
@@ -79,13 +163,23 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
 ):
     "Returns a list of valid AP_GROUPs and exits."
     try:
-        passwd = shell(f"pass show {settings.svc_account}")
-        with (ArubaRESTAPIClient(f"{settings.md_vrrp_hostname}:4343", f"{settings.svc_account}", passwd) as host1):
+        passwd = shell(f"pass show {settings().svc_account}")
+        with (
+            ArubaRESTAPIClient(
+                f"{settings().md_vrrp_hostname}:4343",
+                f"{settings().svc_account}",
+                passwd,
+            ) as host1
+        ):
             raw_controller_ap_groups = host1.wlan.get_ap_groups()["_data"]["ap_group"]
             controller_ap_groups = []
             for raw_controller_ap_group in raw_controller_ap_groups:
-                controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
-            print(f"Below you will find a list of valid AP_GROUPs to use in your input:\n")
+                controller_ap_groups.append(
+                    raw_controller_ap_group["profile-name"].rpartition("'")[2]
+                )
+            print(
+                f"Below you will find a list of valid AP_GROUPs to use in your input:\n"
+            )
             print(*controller_ap_groups, sep="\n")
             sys.exit()
     except Exception as error:
@@ -97,13 +191,22 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
 
 @provision.command(  # Create the 'from-file' subcommand within 'provision'.
     no_args_is_help=True,
-    short_help=f"READ THE FROM-CLI HELP BEFORE USE! ... from-cli --help\n\nProvisions a CSV list of MAC_ADDRESS,AP_GROUP,AP_NAME's, one per line.",
+    short_help=f"Provisions a CSV list of MAC_ADDRESS,AP_GROUP,AP_NAME's, one per line.",
 )
 def From_File(
-    filename: Path,
+    filename: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        allow_dash=True,
+    ),
     debug: bool = typer.Option(False, help="Turn on debug logging"),
-) -> InputTable:
-    """FILENAME must be a CSV file of WAP instances, one per line, formatted as such:\n
+):
+    """
+    FILENAME must be a CSV file of WAP instances, one per line, formatted as such:\n
     MAC_ADDRESS,AP_GROUP,AP_NAME\n
     MAC_ADDRESS,AP_GROUP,AP_NAME\n\n\n
     Note that my example AP_GROUP is "-CC Lab" with a space.  This does -not- need to be escaped when you are importing from CSV.\n\n\n
@@ -111,32 +214,12 @@ def From_File(
     00:01:10:12:02:21,-CC Lab,test_ap_name_18\n
     00:01:02:12:02:21,-CC Lab,test_ap_name_19\n
     """
+    if filename.name == "-":
+        file = sys.stdin.readlines()
+    else:
+        file = filename.open().readlines()
     try:
-        input_WAPs = Read_From_File(filename)
-        Verify_And_Create(input_WAPs)
-    except Exception as error:
-        if debug:
-            raise error
-        else:
-            print(f"Error!: {error}")
-
-
-@provision.command(  # Create the 'from-cli' subcommand within 'provision'.
-    no_args_is_help=True,
-    short_help="READ THE FROM-CLI HELP BEFORE USE! ... from-cli --help\n\nProvisions a single WAP comprised of a single \escaped\ MAC_ADDRESS,AP_GROUP,AP_NAME entry, from cli.",
-)
-def From_CLI(
-    input: list[str],
-    debug: bool = typer.Option(False, help="Turn on debug logging"),
-):
-    """INPUT must be a single WAP instance formattted as such:\n
-    MAC_ADDRESS,AP_GROUP,AP_NAME\n\n\n
-    Note that my example AP_GROUP is "-CC Lab" with a space.  This -does- need to be escaped when you are inputting from CLI.\n\n\n
-    Example:\n
-    00:01:00:12:02:21,-CC\ Lab,test_ap_name_16\n
-    """
-    try:
-        input_WAPs = Read_From_CLI(input)
+        input_WAPs = Read_From_File(file)
         Verify_And_Create(input_WAPs)
     except Exception as error:
         if debug:
@@ -156,10 +239,10 @@ def Read_From_CLI(input_table: list[str]) -> InputTable:
     return response
 
 
-def Read_From_File(filename: Path) -> InputTable:
+def Read_From_File(file: list[str]) -> InputTable:
     "Reads a CSV list of 'MAC_ADDRESS,AP_GROUP,AP_NAME's, one per line."
     response = []
-    for line in filename.read_text().splitlines():
+    for line in file:
         items = line.split(",")
         # confirm we only have 3 fields in CSV and split into list 'items'
         assert len(items) == 3, f"Error in input {line} has more than three fields."
@@ -172,12 +255,22 @@ def Verify_And_Create(input_table: InputTable):
     outer_lambda = lambda row: tuple(map(lambda item: item[:75], row))
     input_table = list(map(outer_lambda, input_table))
     # Lambda prevent input overflow.
-    passwd = shell(f"pass show {settings.svc_account}")
+    passwd = shell(f"pass show {settings().svc_account}")
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
-    with (ArubaRESTAPIClient(f"{settings.md_vrrp_hostname}:4343", f"{settings.svc_account}", passwd) as host1):
+    with (
+        ArubaRESTAPIClient(
+            f"{settings().md_vrrp_hostname}:4343", f"{settings().svc_account}", passwd
+        ) as host1
+    ):
         Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MM
-    with (ArubaRESTAPIClient(f"{settings.mm_vrrp_hostname}:4343", f"{settings.svc_account}", passwd) as host2):
-        Check_Input_Names_Macs(host2, input_table)  # Confirm mac format / names or macs not already in use on MM.
+    with (
+        ArubaRESTAPIClient(
+            f"{settings().mm_vrrp_hostname}:4343", f"{settings().svc_account}", passwd
+        ) as host2
+    ):
+        Check_Input_Names_Macs(
+            host2, input_table
+        )  # Confirm mac format / names or macs not already in use on MM.
         Create_Whitelist_Entry_CPSEC_And_Approve(host2, input_table)
 
 
@@ -187,7 +280,9 @@ def Check_Input_Groups(host: ArubaRESTAPIClient, input_table: InputTable):
     controller_ap_groups = []
     group_assertion_list = []
     for raw_controller_ap_group in raw_controller_ap_groups:
-        controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
+        controller_ap_groups.append(
+            raw_controller_ap_group["profile-name"].rpartition("'")[2]
+        )
     input_ap_groups = [line[1] for line in input_table]
     for input_ap_group in input_ap_groups:
         if input_ap_group not in controller_ap_groups:
@@ -236,11 +331,15 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
     ), f"The following MAC_ADDRESS(es) are already in use on the controller!\n '{mac_assertion_list}'\nConfirm input!  Run --help for help."
 
 
-def Create_Whitelist_Entry_CPSEC_And_Approve(host: ArubaRESTAPIClient, input_table: InputTable):
+def Create_Whitelist_Entry_CPSEC_And_Approve(
+    host: ArubaRESTAPIClient, input_table: InputTable
+):
     "Creates the CPSEC Whitelist entries, and then modifies this certificate types to 'factory-approved'."
     for line in input_table:
         input_mac_address, input_ap_group, input_ap_name = line
-        host.ap_provisioning.wdb_cpsec_add_mac(input_mac_address, input_ap_group, input_ap_name)
+        host.ap_provisioning.wdb_cpsec_add_mac(
+            input_mac_address, input_ap_group, input_ap_name
+        )
         print(
             f"Added new CPSEC whitelist entry for {input_ap_name} / {input_mac_address}"
         )  # Create a CPSEC whitelist entry, for each WAP in the supplied file.
@@ -252,4 +351,6 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(host: ArubaRESTAPIClient, input_tab
 
 # Is only run if script run directly, otherwise allows for import.
 if __name__ == "__main__":
-    run()
+    # sys.argv.extend('provision from-file -'.split())
+    # run()
+    t = Settings()

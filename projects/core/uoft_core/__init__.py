@@ -51,7 +51,7 @@ def memoize(f: F) -> F:
         return cache[key]
 
     f.cache = {}
-    return decorate(f, _memoize)
+    return decorate(f, _memoize)  # type: ignore
 
 
 def debug_cache(func: F) -> F:
