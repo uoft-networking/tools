@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Nautobot UTSC_Debug",
             "type": "python",
@@ -54,22 +55,6 @@
                 "PYDEBUG": "1",
                 "VSCODE_DEBUGGER": "1"
             },
-        },
-        {
-            "name": "Python: Remote Attach (nautobot-dev)",
-            "type": "python",
-            "request": "attach",
-            "connect": {
-                "host": "localhost",
-                "port": 5678
-            },
-            "pathMappings": [
-                {
-                    "localRoot": "/",
-                    "remoteRoot": "/"
-                }
-            ],
-            "justMyCode": false
         },
         {
             "name": "Debug Tests",
