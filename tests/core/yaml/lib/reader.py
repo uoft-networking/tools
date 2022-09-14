@@ -1,7 +1,7 @@
 import codecs  # NOQA
 import io
 
-import uoft_core.yaml.reader
+import uoft_core.yaml.io
 
 
 def _run_reader(data, verbose):

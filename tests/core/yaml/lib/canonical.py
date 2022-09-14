@@ -1,6 +1,6 @@
 import uoft_core.yaml
 from uoft_core.yaml.composer import Composer
-from uoft_core.yaml.constructor import RoundTripConstructor as Constructor
+from uoft_core.yaml.constructor import Constructor
 from uoft_core.yaml.resolver import Resolver
 
 

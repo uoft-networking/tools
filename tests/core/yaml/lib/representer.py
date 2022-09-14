@@ -1,31 +1,31 @@
 from uoft_core.yaml import YAML
-import test_constructor
+import tests.core.yaml.lib.constructor as constructor
 import pprint
 
 
 def test_representer_types(code_filename, verbose=False):
     yaml = YAML(typ="safe", pure=True)
-    test_constructor._make_objects()
+    constructor._make_objects()
     for allow_unicode in [False, True]:
         for encoding in ["utf-8", "utf-16-be", "utf-16-le"]:
             with open(code_filename, "rb") as fp0:
-                native1 = test_constructor._load_code(fp0.read())
+                native1 = constructor._load_code(fp0.read())
             native2 = None
             try:
                 output = yaml.dump(
                     native1,
-                    Dumper=test_constructor.MyDumper,
+                    Dumper=constructor.MyDumper,
                     allow_unicode=allow_unicode,
                     encoding=encoding,
                 )
-                native2 = yaml.load(output, Loader=test_constructor.MyLoader)
+                native2 = yaml.load(output, Loader=constructor.MyLoader)
                 try:
                     if native1 == native2:
                         continue
                 except TypeError:
                     pass
-                value1 = test_constructor._serialize_value(native1)
-                value2 = test_constructor._serialize_value(native2)
+                value1 = constructor._serialize_value(native1)
+                value2 = constructor._serialize_value(native2)
                 if verbose:
                     print("SERIALIZED NATIVE1:")
                     print(value1)

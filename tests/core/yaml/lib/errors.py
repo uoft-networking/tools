@@ -2,7 +2,7 @@ import uoft_core.yaml
 
 YAML = uoft_core.yaml.YAML
 
-import test_emitter
+import tests.core.yaml.lib.emitter as emitter
 import warnings
 
 warnings.simplefilter("ignore", uoft_core.yaml.error.UnsafeLoaderWarning)
@@ -56,7 +56,7 @@ test_loader_error_single.unittest = [".single-loader-error"]
 def test_emitter_error(error_filename, verbose=False):
     yaml = YAML(typ="safe", pure=True)
     with open(error_filename, "rb") as fp0:
-        events = list(yaml.load(fp0, Loader=test_emitter.EventsLoader))
+        events = list(yaml.load(fp0, Loader=emitter.EventsLoader))
     try:
         uoft_core.yaml.emit(events)
     except yaml.YAMLError as exc:

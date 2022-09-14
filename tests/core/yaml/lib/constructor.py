@@ -259,7 +259,7 @@ def _make_objects():
 
 
 try:
-    from ruamel.ordereddict import ordereddict
+    from uoft_core.ordereddict import ordereddict
 except ImportError:
     from collections import OrderedDict
 
@@ -366,7 +366,7 @@ test_roundtrip_data.unittest = [".data", ".roundtrip"]
 
 if __name__ == "__main__":
     import sys
-    import test_constructor  # NOQA
+    import tests.core.yaml.lib.constructor as constructor  # NOQA
 
     sys.modules["test_constructor"] = sys.modules["__main__"]
     import test_appliance
