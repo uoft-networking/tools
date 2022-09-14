@@ -7,6 +7,10 @@ import sys
 import textwrap
 import io
 from pathlib import Path
+from subprocess import check_output, STDOUT, CalledProcessError
+
+from uoft_core.yaml.compat import StringIO
+from uoft_core.yaml import YAML as _YAML
 
 unset = object()
 
@@ -25,20 +29,18 @@ def dedent(data):
 
 
 def round_trip_load(inp, preserve_quotes=None, version=None):
-    import uoft_core.yaml  # NOQA
 
     dinp = dedent(inp)
-    yaml = uoft_core.yaml.YAML()
+    yaml = _YAML()
     yaml.preserve_quotes = preserve_quotes
     yaml.version = version
     return yaml.load(dinp)
 
 
 def round_trip_load_all(inp, preserve_quotes=None, version=None):
-    import uoft_core.yaml  # NOQA
 
     dinp = dedent(inp)
-    yaml = uoft_core.yaml.YAML()
+    yaml = _YAML()
     yaml.preserve_quotes = preserve_quotes
     yaml.version = version
     return yaml.load_all(dinp)
@@ -57,9 +59,8 @@ def round_trip_dump(
     version=None,
     allow_unicode=True,
 ):
-    import uoft_core.yaml  # NOQA
 
-    yaml = uoft_core.yaml.YAML()
+    yaml = _YAML()
     yaml.indent(mapping=indent, sequence=indent, offset=block_seq_indent)
     if default_flow_style is not unset:
         yaml.default_flow_style = default_flow_style
@@ -90,9 +91,8 @@ def round_trip_dump_all(
     version=None,
     allow_unicode=None,
 ):
-    import uoft_core.yaml  # NOQA
 
-    yaml = uoft_core.yaml.YAML()
+    yaml = _YAML()
     yaml.indent(mapping=indent, sequence=indent, offset=block_seq_indent)
     if default_flow_style is not unset:
         yaml.default_flow_style = default_flow_style
@@ -233,82 +233,73 @@ def na_round_trip(
     return res
 
 
-def YAML(**kw):
-    import uoft_core.yaml  # NOQA
+class YAML(_YAML):
+    """auto dedent string parameters on load"""
 
-    class MyYAML(uoft_core.yaml.YAML):
-        """auto dedent string parameters on load"""
-
-        def load(self, stream):
-            if isinstance(stream, str):
-                if stream and stream[0] == "\n":
-                    stream = stream[1:]
-                stream = textwrap.dedent(stream)
-            return uoft_core.yaml.YAML.load(self, stream)
-
-        def load_all(self, stream):
-            if isinstance(stream, str):
-                if stream and stream[0] == "\n":
-                    stream = stream[1:]
-                stream = textwrap.dedent(stream)
-            for d in uoft_core.yaml.YAML.load_all(self, stream):
-                yield d
-
-        def dump(self, data, **kw):
-            from uoft_core.yaml.compat import StringIO, BytesIO  # NOQA
-
-            assert ("stream" in kw) ^ ("compare" in kw)
-            if "stream" in kw:
-                return uoft_core.yaml.YAML.dump(data, **kw)
-            lkw = kw.copy()
-            expected = textwrap.dedent(lkw.pop("compare"))
-            unordered_lines = lkw.pop("unordered_lines", False)
-            if expected and expected[0] == "\n":
-                expected = expected[1:]
-            lkw["stream"] = st = StringIO()
-            uoft_core.yaml.YAML.dump(self, data, **lkw)
-            res = st.getvalue()
-            print(res)
-            if unordered_lines:
-                res = sorted(res.splitlines())
-                expected = sorted(expected.splitlines())
-            assert res == expected
-
-        def round_trip(self, stream, **kw):
-            from uoft_core.yaml.compat import StringIO, BytesIO  # NOQA
-
-            assert isinstance(stream, str)
-            lkw = kw.copy()
+    def load(self, stream):
+        if isinstance(stream, str):
             if stream and stream[0] == "\n":
                 stream = stream[1:]
             stream = textwrap.dedent(stream)
-            data = uoft_core.yaml.YAML.load(self, stream)
-            outp = lkw.pop("outp", stream)
-            lkw["stream"] = st = StringIO()
-            uoft_core.yaml.YAML.dump(self, data, **lkw)
-            res = st.getvalue()
-            if res != outp:
-                diff(outp, res, "input string")
-            assert res == outp
+        return super().load(stream)
 
-        def round_trip_all(self, stream, **kw):
-            from uoft_core.yaml.compat import StringIO, BytesIO  # NOQA
-
-            assert isinstance(stream, str)
-            lkw = kw.copy()
+    def load_all(self, stream):
+        if isinstance(stream, str):
             if stream and stream[0] == "\n":
                 stream = stream[1:]
             stream = textwrap.dedent(stream)
-            data = list(uoft_core.yaml.YAML.load_all(self, stream))
-            outp = lkw.pop("outp", stream)
-            lkw["stream"] = st = StringIO()
-            uoft_core.yaml.YAML.dump_all(self, data, **lkw)
-            res = st.getvalue()
-            if res != outp:
-                diff(outp, res, "input string")
-            assert res == outp
+        for d in super().load_all(stream):
+            yield d
 
-    return MyYAML(**kw)
+    def dump(self, data, **kw):
+        assert ("stream" in kw) ^ ("compare" in kw)
+        if "stream" in kw:
+            return super().dump(data, **kw)
+        lkw = kw.copy()
+        expected = textwrap.dedent(lkw.pop("compare"))
+        unordered_lines = lkw.pop("unordered_lines", False)
+        if expected and expected[0] == "\n":
+            expected = expected[1:]
+        lkw["stream"] = st = StringIO()
+        super().dump(data, **lkw)
+        res = st.getvalue()
+        print(res)
+        if unordered_lines:
+            res = sorted(res.splitlines())
+            expected = sorted(expected.splitlines())
+        assert res == expected
+
+    def round_trip(self, stream, **kw):
+
+        assert isinstance(stream, str)
+        lkw = kw.copy()
+        if stream and stream[0] == "\n":
+            stream = stream[1:]
+        stream = textwrap.dedent(stream)
+        data = super().load(stream)
+        outp = lkw.pop("outp", stream)
+        lkw["stream"] = st = StringIO()
+        super().dump(data, **lkw)
+        res = st.getvalue()
+        if res != outp:
+            diff(outp, res, "input string")
+        assert res == outp
+
+    def round_trip_all(self, stream, **kw):
+
+        assert isinstance(stream, str)
+        lkw = kw.copy()
+        if stream and stream[0] == "\n":
+            stream = stream[1:]
+        stream = textwrap.dedent(stream)
+        data = list(super().load_all(stream))
+        outp = lkw.pop("outp", stream)
+        lkw["stream"] = st = StringIO()
+        super().dump_all(data, **lkw)
+        res = st.getvalue()
+        if res != outp:
+            diff(outp, res, "input string")
+        assert res == outp
 
 
 def save_and_run(program, base_dir=None, output=None, file_name=None, optimized=False):
@@ -316,7 +307,6 @@ def save_and_run(program, base_dir=None, output=None, file_name=None, optimized=
     safe and run a python program, thereby circumventing any restrictions on module level
     imports
     """
-    from subprocess import check_output, STDOUT, CalledProcessError
 
     if not hasattr(base_dir, "hash"):
         base_dir = Path(str(base_dir))

@@ -4,25 +4,6 @@ import pytest  # NOQA
 
 from .roundtrip import round_trip, round_trip_load, YAML
 
-
-def register_xxx(**kw):
-    from uoft_core import yaml
-
-    class XXX(yaml.comments.CommentedMap):
-        @staticmethod
-        def yaml_dump(dumper, data):
-            return dumper.represent_mapping("!xxx", data)
-
-        @classmethod
-        def yaml_load(cls, constructor, node):
-            data = cls()
-            yield data
-            constructor.construct_mapping(node, data)
-
-    yaml.add_constructor("!xxx", XXX.yaml_load, constructor=yaml.Constructor)
-    yaml.add_representer(XXX, XXX.yaml_dump, representer=yaml.Representer)
-
-
 class TestIndentFailures:
     def test_tag(self):
         round_trip(
@@ -71,67 +52,6 @@ class TestIndentFailures:
         name: Anthon
         location: Germany
         language: python
-        """
-        )
-
-
-class TestRoundTripCustom:
-    def test_X1(self):
-        register_xxx()
-        round_trip(
-            """\
-        !xxx
-        name: Anthon
-        location: Germany
-        language: python
-        """
-        )
-
-    @pytest.mark.xfail(strict=True)
-    def test_X_pre_tag_comment(self):
-        register_xxx()
-        round_trip(
-            """\
-        -
-          # hello
-          !xxx
-          name: Anthon
-          location: Germany
-          language: python
-        """
-        )
-
-    @pytest.mark.xfail(strict=True)
-    def test_X_post_tag_comment(self):
-        register_xxx()
-        round_trip(
-            """\
-        - !xxx
-          # hello
-          name: Anthon
-          location: Germany
-          language: python
-        """
-        )
-
-    def test_scalar_00(self):
-        # https://stackoverflow.com/a/45967047/1307905
-        round_trip(
-            """\
-        Outputs:
-          Vpc:
-            Value: !Ref: vpc    # first tag
-            Export:
-              Name: !Sub "${AWS::StackName}-Vpc"  # second tag
-        """
-        )
-
-
-class TestIssue201:
-    def test_encoded_unicode_tag(self):
-        round_trip_load(
-            """
-        s: !!python/%75nicode 'abc'
         """
         )
 

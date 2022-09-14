@@ -1,8 +1,9 @@
+"Test UofT's usage of the vendored yaml library"
+
 from uoft_core import yaml, txt
 from uoft_core.yaml import CommentedSeq
 
-
-def test_yaml():
+def test_to_yaml():
     t = yaml.to_yaml(
         {
             "hello": "world",
@@ -10,6 +11,8 @@ def test_yaml():
         }
     )
     assert t == "hello: world\nlist:\n  - 1\n  - 2\n  - 3\n  - 4\n"
+
+def test_from_yaml():
     s = yaml.from_yaml(
         txt(
             """

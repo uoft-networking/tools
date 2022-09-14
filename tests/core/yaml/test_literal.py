@@ -49,48 +49,6 @@ class TestNoIndent:
         print(d)
         assert d == s + "\n"
 
-    def test_root_literal_scalar_no_indent_1_1(self):
-        yaml = YAML()
-        s = "testing123"
-        inp = """
-        %YAML 1.1
-        --- |
-        {}
-        """
-        d = yaml.load(inp.format(s))
-        print(d)
-        assert d == s + "\n"
-
-    def test_root_literal_scalar_no_indent_1_1_old_style(self):
-        from textwrap import dedent
-        from uoft_core.yaml import YAML
-
-        yaml = YAML(pure=True)
-        s = "testing123"
-        inp = """
-        %YAML 1.1
-        --- |
-          {}
-        """
-        d = yaml.load(dedent(inp.format(s)))
-        print(d)
-        assert d == s + "\n"
-
-    def test_root_literal_scalar_no_indent_1_1_no_raise(self):
-        # from uoft_core.yaml.parser import ParserError
-
-        yaml = YAML()
-        yaml.root_level_block_style_scalar_no_indent_error_1_1 = True
-        s = "testing123"
-        # with pytest.raises(ParserError):
-        if True:
-            inp = """
-            %YAML 1.1
-            --- |
-            {}
-            """
-            yaml.load(inp.format(s))
-
     def test_root_literal_scalar_indent_offset_one(self):
         yaml = YAML()
         s = "testing123"
@@ -170,7 +128,7 @@ class TestNoIndent:
         assert d == s + "\n"
 
     def test_root_literal_multi_doc(self):
-        yaml = YAML(typ="safe", pure=True)
+        yaml = YAML()
         s1 = "abc"
         s2 = "klm"
         inp = """
