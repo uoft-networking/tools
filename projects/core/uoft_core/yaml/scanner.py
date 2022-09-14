@@ -22,8 +22,6 @@ from __future__ import annotations
 # ANCHOR(value)
 # TAG(value)
 # SCALAR(value, plain, style)
-#
-# RoundTripScanner
 # COMMENT(value)
 #
 # Read comments in the Scanner code for more details.
@@ -32,19 +30,18 @@ from __future__ import annotations
 import inspect
 from .error import MarkedYAMLError, CommentMark  # NOQA
 from .tokens import *  # NOQA
-from .compat import _F, check_anchorname_char, nprint, nprintf  # NOQA
+from .compat import _F, check_anchorname_char, nprintf  # NOQA
 
 from typing import Tuple, Type, TYPE_CHECKING
 from uoft_core.yaml.error import StringMark
-from uoft_core.yaml.reader import Reader
+from uoft_core.yaml.io import Reader
 from uoft_core.yaml.tokens import AliasToken, AnchorToken, DirectiveToken, ScalarToken, TagToken, Token
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Optional, List, Union, Text  # NOQA
-    from uoft_core.yaml.main import YAML    
-    from .compat import VersionType  # NOQA
+    from typing import Any, Optional, List, Union
+    from uoft_core.yaml.main import YAML
 
-__all__ = ["Scanner", "RoundTripScanner", "ScannerError"]
+__all__ = ["Scanner", "RoundTripScannerSC", "ScannerError"]
 
 
 _THE_END = "\n\0\r\x85\u2028\u2029"
@@ -53,9 +50,7 @@ _SPACE_TAB = " \t"
 
 
 def xprintf(*args, **kw):
-
     return nprintf(*args, **kw)
-    pass
 
 
 class ScannerError(MarkedYAMLError):
@@ -76,7 +71,7 @@ class SimpleKey:
 
 
 class Scanner:
-    def __init__(self, loader: Optional[YAML]=None) -> None:
+    def __init__(self, loader: YAML) -> None:
 
         """Initialize the scanner."""
         # It is assumed that Scanner and Reader will have a common descendant.
@@ -89,8 +84,6 @@ class Scanner:
         #   self.forward(l=1) # read the next l characters and move the pointer
 
         self.loader = loader
-        if self.loader is not None and getattr(self.loader, "_scanner", None) is None:
-            self.loader._scanner = self
         self.reset_scanner()
         self.first_time = False
         self.yaml_version = None
@@ -156,11 +149,7 @@ class Scanner:
 
     @property
     def reader(self) -> Reader:
-
-        try:
-            return self._scanner_reader
-        except AttributeError:
-            return self.loader.reader
+        return self.loader.reader
 
     @property
     def scanner_processing_version(self) -> Tuple[int, int]:
@@ -168,11 +157,12 @@ class Scanner:
 
     # Public methods.
 
-    def check_token(self, *choices):
+    def check_token(self, *choices) -> bool:
 
         # Check if the next token is one of the given types.
         while self.need_more_tokens():
             self.fetch_more_tokens()
+        self._gather_comments()
         if len(self.tokens) > 0:
             if not choices:
                 return True
@@ -181,22 +171,74 @@ class Scanner:
                     return True
         return False
 
-    def peek_token(self):
+    def peek_token(self) -> Token:
 
         # Return the next token, but do not delete if from the queue.
         while self.need_more_tokens():
             self.fetch_more_tokens()
+        self._gather_comments()
         if len(self.tokens) > 0:
             return self.tokens[0]
-
-    def get_token(self):
+        return None
+ 
+    def get_token(self) -> Token:
 
         # Return the next token.
         while self.need_more_tokens():
             self.fetch_more_tokens()
+        self._gather_comments()
         if len(self.tokens) > 0:
+            # nprint('tk', self.tokens)
+            # only add post comment to single line tokens:
+            # scalar, value token. FlowXEndToken, otherwise
+            # hidden streamtokens could get them (leave them and they will be
+            # pre comments for the next map/seq
+            if (
+                len(self.tokens) > 1
+                and isinstance(
+                    self.tokens[0],
+                    (
+                        ScalarToken,
+                        ValueToken,
+                        FlowSequenceEndToken,
+                        FlowMappingEndToken,
+                    ),
+                )
+                and isinstance(self.tokens[1], CommentToken)
+                and self.tokens[0].end_mark.line == self.tokens[1].start_mark.line
+            ):
+                self.tokens_taken += 1
+                c = self.tokens.pop(1)
+                self.fetch_more_tokens()
+                while len(self.tokens) > 1 and isinstance(self.tokens[1], CommentToken):
+                    self.tokens_taken += 1
+                    c1 = self.tokens.pop(1)
+                    c.value = c.value + (" " * c1.start_mark.column) + c1.value
+                    self.fetch_more_tokens()
+                self.tokens[0].add_post_comment(c)
+            elif (
+                len(self.tokens) > 1
+                and isinstance(self.tokens[0], ScalarToken)
+                and isinstance(self.tokens[1], CommentToken)
+                and self.tokens[0].end_mark.line != self.tokens[1].start_mark.line
+            ):
+                self.tokens_taken += 1
+                c = self.tokens.pop(1)
+                c.value = (
+                    "\n" * (c.start_mark.line - self.tokens[0].end_mark.line)
+                    + (" " * c.start_mark.column)
+                    + c.value
+                )
+                self.tokens[0].add_post_comment(c)
+                self.fetch_more_tokens()
+                while len(self.tokens) > 1 and isinstance(self.tokens[1], CommentToken):
+                    self.tokens_taken += 1
+                    c1 = self.tokens.pop(1)
+                    c.value = c.value + (" " * c1.start_mark.column) + c1.value
+                    self.fetch_more_tokens()
             self.tokens_taken += 1
             return self.tokens.pop(0)
+        return None
 
     # Private methods.
 
@@ -213,9 +255,14 @@ class Scanner:
             return True
         return False
 
-    def fetch_comment(self, comment):
+    def fetch_comment(self, comment: Tuple[str, StringMark, StringMark]) -> None:
 
-        raise NotImplementedError
+        value, start_mark, end_mark = comment
+        while value and value[-1] == " ":
+            # empty line within indented key context
+            # no need to update end-mark, that is not used
+            value = value[:-1]
+        self.tokens.append(CommentToken(value, start_mark, end_mark))
 
     def fetch_more_tokens(self) -> None:
 
@@ -511,7 +558,7 @@ class Scanner:
 
         self.fetch_flow_collection_start(FlowMappingStartToken, to_push="{")
 
-    def fetch_flow_collection_start(self, TokenClass: Union[Type[FlowMappingStartToken], Type[FlowSequenceStartToken]], to_push: str) -> None:
+    def fetch_flow_collection_start(self, TokenClass: Union[Type[FlowSequenceStartToken], Type[FlowMappingStartToken]], to_push: str) -> None:
 
         # '[' and '{' may start a simple key.
         self.save_possible_simple_key()
@@ -533,7 +580,7 @@ class Scanner:
 
         self.fetch_flow_collection_end(FlowMappingEndToken)
 
-    def fetch_flow_collection_end(self, TokenClass: Union[Type[FlowSequenceEndToken], Type[FlowMappingEndToken]]) -> None:
+    def fetch_flow_collection_end(self, TokenClass: Union[Type[FlowMappingEndToken], Type[FlowSequenceEndToken]]) -> None:
 
         # Reset possible simple key on the current level.
         self.remove_possible_simple_key()
@@ -858,9 +905,34 @@ class Scanner:
             ch == "-" or (not self.flow_level and ch in "?:")
         )
 
+    def _gather_comments(self) -> None:
+
+        """combine multiple comment lines and assign to next non-comment-token"""
+        comments = []
+        if not self.tokens:
+            return comments
+        if isinstance(self.tokens[0], CommentToken):
+            comment = self.tokens.pop(0)
+            self.tokens_taken += 1
+            comments.append(comment)
+        while self.need_more_tokens():
+            self.fetch_more_tokens()
+            if not self.tokens:
+                return comments
+            if isinstance(self.tokens[0], CommentToken):
+                self.tokens_taken += 1
+                comment = self.tokens.pop(0)
+                # nprint('dropping2', comment)
+                comments.append(comment)
+        if len(comments) >= 1:
+            self.tokens[0].add_pre_comments(comments)
+        # pull in post comment on e.g. ':'
+        if not self.done and len(self.tokens) < 2:
+            self.fetch_more_tokens()
+
     # Scanners.
 
-    def scan_to_next_token(self):
+    def scan_to_next_token(self) -> Optional[Tuple[str, StringMark, StringMark]]:
 
         # We ignore spaces, line breaks and comments.
         # If we find a line break in the block context, we set the flag
@@ -880,21 +952,55 @@ class Scanner:
         # We also need to add the check for `allow_simple_keys == True` to
         # `unwind_indent` before issuing BLOCK-END.
         # Scanners for block, flow, and plain scalars need to be modified.
+
         srp = self.reader.peek
         srf = self.reader.forward
         if self.reader.index == 0 and srp() == "\uFEFF":
             srf()
         found = False
-        _the_end = _THE_END
         while not found:
             while srp() == " ":
                 srf()
-            if srp() == "#":
-                while srp() not in _the_end:
+            ch = srp()
+            if ch == "#":
+                start_mark = self.reader.get_mark()
+                comment = ch
+                srf()
+                while ch not in _THE_END:
+                    ch = srp()
+                    if ch == "\0":  # don't gobble the end-of-stream character
+                        # but add an explicit newline as "YAML processors should terminate
+                        # the stream with an explicit line break
+                        # https://yaml.org/spec/1.2/spec.html#id2780069
+                        comment += "\n"
+                        break
+                    comment += ch
                     srf()
-            if self.scan_line_break():
+                # gather any blank lines following the comment too
+                ch = self.scan_line_break()
+                while len(ch) > 0:
+                    comment += ch
+                    ch = self.scan_line_break()
+                end_mark = self.reader.get_mark()
                 if not self.flow_level:
                     self.allow_simple_key = True
+                return comment, start_mark, end_mark
+            if self.scan_line_break() != "":
+                start_mark = self.reader.get_mark()
+                if not self.flow_level:
+                    self.allow_simple_key = True
+                ch = srp()
+                if ch == "\n":  # empty toplevel lines
+                    start_mark = self.reader.get_mark()
+                    comment = ""
+                    while ch:
+                        ch = self.scan_line_break(empty_line=True)
+                        comment += ch
+                    if srp() == "#":
+                        # empty line followed by indented real comment
+                        comment = comment.rsplit("\n", 1)[0] + "\n"
+                    end_mark = self.reader.get_mark()
+                    return comment, start_mark, end_mark
             else:
                 found = True
         return None
@@ -1057,7 +1163,7 @@ class Scanner:
             )
         self.scan_line_break()
 
-    def scan_anchor(self, TokenClass: Union[Type[AliasToken], Type[AnchorToken]]) -> Union[AnchorToken, AliasToken]:
+    def scan_anchor(self, TokenClass: Union[Type[AnchorToken], Type[AliasToken]]) -> Union[AliasToken, AnchorToken]:
 
         # The specification does not restrict characters for anchors and
         # aliases. This may lead to problems, for instance, the document:
@@ -1154,7 +1260,7 @@ class Scanner:
         end_mark = self.reader.get_mark()
         return TagToken(value, start_mark, end_mark)
 
-    def scan_block_scalar(self, style: str, rt: bool=False) -> ScalarToken:
+    def scan_block_scalar(self, style: str, rt: bool=True) -> ScalarToken:
 
         # See the specification for details.
         srp = self.reader.peek
@@ -1450,7 +1556,7 @@ class Scanner:
 
     ESCAPE_CODES = {"x": 2, "u": 4, "U": 8}
 
-    def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StringMark) -> List[Union[Any, str]]:
+    def scan_flow_scalar_non_spaces(self, double: bool, start_mark: StringMark) -> List[Union[str, Any]]:
 
         # See the specification for details.
         chunks = []
@@ -1793,222 +1899,6 @@ class Scanner:
             )
         return value
 
-    def scan_line_break(self):
-
-        # Transforms:
-        #   '\r\n'      :   '\n'
-        #   '\r'        :   '\n'
-        #   '\n'        :   '\n'
-        #   '\x85'      :   '\n'
-        #   '\u2028'    :   '\u2028'
-        #   '\u2029     :   '\u2029'
-        #   default     :   ''
-        ch = self.reader.peek()
-        if ch in "\r\n\x85":
-            if self.reader.prefix(2) == "\r\n":
-                self.reader.forward(2)
-            else:
-                self.reader.forward()
-            return "\n"
-        elif ch in "\u2028\u2029":
-            self.reader.forward()
-            return ch
-        return ""
-
-
-class RoundTripScanner(Scanner):
-    def check_token(self, *choices) -> bool:
-
-        # Check if the next token is one of the given types.
-        while self.need_more_tokens():
-            self.fetch_more_tokens()
-        self._gather_comments()
-        if len(self.tokens) > 0:
-            if not choices:
-                return True
-            for choice in choices:
-                if isinstance(self.tokens[0], choice):
-                    return True
-        return False
-
-    def peek_token(self) -> Token:
-
-        # Return the next token, but do not delete if from the queue.
-        while self.need_more_tokens():
-            self.fetch_more_tokens()
-        self._gather_comments()
-        if len(self.tokens) > 0:
-            return self.tokens[0]
-        return None
-
-    def _gather_comments(self) -> None:
-
-        """combine multiple comment lines and assign to next non-comment-token"""
-        comments = []
-        if not self.tokens:
-            return comments
-        if isinstance(self.tokens[0], CommentToken):
-            comment = self.tokens.pop(0)
-            self.tokens_taken += 1
-            comments.append(comment)
-        while self.need_more_tokens():
-            self.fetch_more_tokens()
-            if not self.tokens:
-                return comments
-            if isinstance(self.tokens[0], CommentToken):
-                self.tokens_taken += 1
-                comment = self.tokens.pop(0)
-                # nprint('dropping2', comment)
-                comments.append(comment)
-        if len(comments) >= 1:
-            self.tokens[0].add_pre_comments(comments)
-        # pull in post comment on e.g. ':'
-        if not self.done and len(self.tokens) < 2:
-            self.fetch_more_tokens()
-
-    def get_token(self) -> Token:
-
-        # Return the next token.
-        while self.need_more_tokens():
-            self.fetch_more_tokens()
-        self._gather_comments()
-        if len(self.tokens) > 0:
-            # nprint('tk', self.tokens)
-            # only add post comment to single line tokens:
-            # scalar, value token. FlowXEndToken, otherwise
-            # hidden streamtokens could get them (leave them and they will be
-            # pre comments for the next map/seq
-            if (
-                len(self.tokens) > 1
-                and isinstance(
-                    self.tokens[0],
-                    (
-                        ScalarToken,
-                        ValueToken,
-                        FlowSequenceEndToken,
-                        FlowMappingEndToken,
-                    ),
-                )
-                and isinstance(self.tokens[1], CommentToken)
-                and self.tokens[0].end_mark.line == self.tokens[1].start_mark.line
-            ):
-                self.tokens_taken += 1
-                c = self.tokens.pop(1)
-                self.fetch_more_tokens()
-                while len(self.tokens) > 1 and isinstance(self.tokens[1], CommentToken):
-                    self.tokens_taken += 1
-                    c1 = self.tokens.pop(1)
-                    c.value = c.value + (" " * c1.start_mark.column) + c1.value
-                    self.fetch_more_tokens()
-                self.tokens[0].add_post_comment(c)
-            elif (
-                len(self.tokens) > 1
-                and isinstance(self.tokens[0], ScalarToken)
-                and isinstance(self.tokens[1], CommentToken)
-                and self.tokens[0].end_mark.line != self.tokens[1].start_mark.line
-            ):
-                self.tokens_taken += 1
-                c = self.tokens.pop(1)
-                c.value = (
-                    "\n" * (c.start_mark.line - self.tokens[0].end_mark.line)
-                    + (" " * c.start_mark.column)
-                    + c.value
-                )
-                self.tokens[0].add_post_comment(c)
-                self.fetch_more_tokens()
-                while len(self.tokens) > 1 and isinstance(self.tokens[1], CommentToken):
-                    self.tokens_taken += 1
-                    c1 = self.tokens.pop(1)
-                    c.value = c.value + (" " * c1.start_mark.column) + c1.value
-                    self.fetch_more_tokens()
-            self.tokens_taken += 1
-            return self.tokens.pop(0)
-        return None
-
-    def fetch_comment(self, comment: Tuple[str, StringMark, StringMark]) -> None:
-
-        value, start_mark, end_mark = comment
-        while value and value[-1] == " ":
-            # empty line within indented key context
-            # no need to update end-mark, that is not used
-            value = value[:-1]
-        self.tokens.append(CommentToken(value, start_mark, end_mark))
-
-    # scanner
-
-    def scan_to_next_token(self) -> Optional[Tuple[str, StringMark, StringMark]]:
-
-        # We ignore spaces, line breaks and comments.
-        # If we find a line break in the block context, we set the flag
-        # `allow_simple_key` on.
-        # The byte order mark is stripped if it's the first character in the
-        # stream. We do not yet support BOM inside the stream as the
-        # specification requires. Any such mark will be considered as a part
-        # of the document.
-        #
-        # TODO: We need to make tab handling rules more sane. A good rule is
-        #   Tabs cannot precede tokens
-        #   BLOCK-SEQUENCE-START, BLOCK-MAPPING-START, BLOCK-END,
-        #   KEY(block), VALUE(block), BLOCK-ENTRY
-        # So the checking code is
-        #   if <TAB>:
-        #       self.allow_simple_keys = False
-        # We also need to add the check for `allow_simple_keys == True` to
-        # `unwind_indent` before issuing BLOCK-END.
-        # Scanners for block, flow, and plain scalars need to be modified.
-
-        srp = self.reader.peek
-        srf = self.reader.forward
-        if self.reader.index == 0 and srp() == "\uFEFF":
-            srf()
-        found = False
-        while not found:
-            while srp() == " ":
-                srf()
-            ch = srp()
-            if ch == "#":
-                start_mark = self.reader.get_mark()
-                comment = ch
-                srf()
-                while ch not in _THE_END:
-                    ch = srp()
-                    if ch == "\0":  # don't gobble the end-of-stream character
-                        # but add an explicit newline as "YAML processors should terminate
-                        # the stream with an explicit line break
-                        # https://yaml.org/spec/1.2/spec.html#id2780069
-                        comment += "\n"
-                        break
-                    comment += ch
-                    srf()
-                # gather any blank lines following the comment too
-                ch = self.scan_line_break()
-                while len(ch) > 0:
-                    comment += ch
-                    ch = self.scan_line_break()
-                end_mark = self.reader.get_mark()
-                if not self.flow_level:
-                    self.allow_simple_key = True
-                return comment, start_mark, end_mark
-            if self.scan_line_break() != "":
-                start_mark = self.reader.get_mark()
-                if not self.flow_level:
-                    self.allow_simple_key = True
-                ch = srp()
-                if ch == "\n":  # empty toplevel lines
-                    start_mark = self.reader.get_mark()
-                    comment = ""
-                    while ch:
-                        ch = self.scan_line_break(empty_line=True)
-                        comment += ch
-                    if srp() == "#":
-                        # empty line followed by indented real comment
-                        comment = comment.rsplit("\n", 1)[0] + "\n"
-                    end_mark = self.reader.get_mark()
-                    return comment, start_mark, end_mark
-            else:
-                found = True
-        return None
-
     def scan_line_break(self, empty_line: bool=False) -> str:
 
         # Transforms:
@@ -2034,9 +1924,7 @@ class RoundTripScanner(Scanner):
             return ch
         return ""
 
-    def scan_block_scalar(self, style: str, rt: bool=True) -> ScalarToken:
 
-        return Scanner.scan_block_scalar(self, style, rt=rt)
 
 
 # commenthandling 2021, differentiatiation not needed
@@ -2058,6 +1946,7 @@ class CommentBase:
         "ufun",
         "uline",
     )
+    name = "BASE"
 
     def __init__(self, value, line, column):
 
@@ -2084,11 +1973,11 @@ class CommentBase:
 
     def __str__(self):
 
-        return _F("{value}", value=self.value)
+        return str(self.value)
 
     def __repr__(self):
 
-        return _F("{value!r}", value=self.value)
+        return repr(self.value)
 
     def info(self):
 
@@ -2109,25 +1998,13 @@ class CommentBase:
 class EOLComment(CommentBase):
     name = "EOLC"
 
-    def __init__(self, value, line, column):
-
-        super().__init__(value, line, column)
-
 
 class FullLineComment(CommentBase):
     name = "FULL"
 
-    def __init__(self, value, line, column):
-
-        super().__init__(value, line, column)
-
 
 class BlankLineComment(CommentBase):
     name = "BLNK"
-
-    def __init__(self, value, line, column):
-
-        super().__init__(value, line, column)
 
 
 class ScannedComments:

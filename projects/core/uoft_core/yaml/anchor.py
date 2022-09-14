@@ -12,7 +12,7 @@ class Anchor:
     __slots__ = "value", "always_dump"
     attrib = anchor_attrib
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self.value = None
         self.always_dump = False

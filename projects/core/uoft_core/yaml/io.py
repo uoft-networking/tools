@@ -21,12 +21,13 @@ from __future__ import annotations
 #      character.
 
 import codecs
+from pathlib import Path
 
 from .error import YAMLError, FileMark, StringMark, YAMLStreamError
-from .compat import _F  # NOQA
+from .compat import _F, StringIO  # NOQA
 from .util import RegExp
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TextIO
 from uoft_core.yaml.error import StringMark
 if TYPE_CHECKING:
     from uoft_core.yaml.main import YAML
@@ -85,13 +86,11 @@ class Reader:
 
     # Yeah, it's ugly and slow.
 
-    def __init__(self, stream: None, loader: Optional[YAML]=None) -> None:
+    def __init__(self, loader: YAML, stream: None = None) -> None:
 
         self.loader = loader
-        if self.loader is not None and getattr(self.loader, "_reader", None) is None:
-            self.loader._reader = self
         self.reset_reader()
-        self.stream = stream
+        self._stream = stream
 
     def reset_reader(self) -> None:
 
@@ -313,10 +312,3 @@ class Reader:
         self.stream_pointer += len(data)
         if not data:
             self.eof = True
-
-
-# try:
-#     import psyco
-#     psyco.bind(Reader)
-# except ImportError:
-#     pass

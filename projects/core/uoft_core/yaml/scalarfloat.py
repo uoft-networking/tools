@@ -58,7 +58,7 @@ class ScalarFloat(float):
         )  # NOQA
         return x
 
-    def __imul__(self, a):
+    def __imul__(self, a: int) -> float:
 
         return float(self) * a
         x = type(self)(self * a)

@@ -7,12 +7,12 @@ from .compat import _F
 
 from typing import List, Optional, Union, TYPE_CHECKING
 from uoft_core.yaml.anchor import Anchor
-from uoft_core.yaml.error import StringMark
 from uoft_core.yaml.scalarstring import DoubleQuotedScalarString, LiteralScalarString, PlainScalarString, SingleQuotedScalarString
 from uoft_core.yaml.tokens import CommentToken
 
 if TYPE_CHECKING:
     from typing import Dict, Any, Text  # NOQA
+    from uoft_core.yaml.error import StringMark
 
 
 class Node:
@@ -123,7 +123,7 @@ class CollectionNode(Node):
         start_mark: Optional[StringMark]=None,
         end_mark: None=None,
         flow_style: Optional[bool]=None,
-        comment: Optional[Union[List[Optional[CommentToken]], List[Optional[List[CommentToken]]], List[CommentToken]]]=None,
+        comment: Optional[Union[List[Optional[List[CommentToken]]], List[CommentToken], List[Optional[CommentToken]]]]=None,
         anchor: Optional[Union[str, Anchor]]=None,
     ) -> None:
 
@@ -148,7 +148,7 @@ class MappingNode(CollectionNode):
         start_mark: Optional[StringMark]=None,
         end_mark: None=None,
         flow_style: Optional[bool]=None,
-        comment: Optional[Union[List[Optional[CommentToken]], List[Optional[List[CommentToken]]]]]=None,
+        comment: Optional[Union[List[Optional[List[CommentToken]]], List[Optional[CommentToken]]]]=None,
         anchor: Optional[Union[str, Anchor]]=None,
     ) -> None:
 

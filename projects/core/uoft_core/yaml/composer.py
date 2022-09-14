@@ -18,10 +18,13 @@ from .events import (
 )
 from .nodes import MappingNode, ScalarNode, SequenceNode
 
-from typing import TYPE_CHECKING
+from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Any, Dict, Optional, List  # NOQA
+    from typing import Optional  # NOQA
+    from uoft_core.yaml.events import MappingEndEvent, SequenceEndEvent
+    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 
 __all__ = ["Composer", "ComposerError"]
 
@@ -31,56 +34,38 @@ class ComposerError(MarkedYAMLError):
 
 
 class Composer:
-    def __init__(self, loader=None):
-
+    def __init__(self, loader: YAML) -> None:
         self.loader = loader
-        if self.loader is not None and getattr(self.loader, "_composer", None) is None:
-            self.loader._composer = self
         self.anchors = {}
 
-    @property
-    def parser(self):
-
-        if hasattr(self.loader, "typ"):
-            self.loader.parser
-        return self.loader._parser
-
-    @property
-    def resolver(self):
-
-        # assert self.loader._resolver is not None
-        if hasattr(self.loader, "typ"):
-            self.loader.resolver
-        return self.loader._resolver
-
-    def check_node(self):
+    def check_node(self) -> bool:
 
         # Drop the STREAM-START event.
-        if self.parser.check_event(StreamStartEvent):
-            self.parser.get_event()
+        if self.loader.parser.check_event(StreamStartEvent):
+            self.loader.parser.get_event()
 
         # If there are more documents available?
-        return not self.parser.check_event(StreamEndEvent)
+        return not self.loader.parser.check_event(StreamEndEvent)
 
-    def get_node(self):
+    def get_node(self) -> Union[ScalarNode, MappingNode, SequenceNode]:
 
         # Get the root node of the next document.
-        if not self.parser.check_event(StreamEndEvent):
+        if not self.loader.parser.check_event(StreamEndEvent):
             return self.compose_document()
 
-    def get_single_node(self):
+    def get_single_node(self) -> Union[MappingNode, SequenceNode, ScalarNode]:
 
         # Drop the STREAM-START event.
-        self.parser.get_event()
+        self.loader.parser.get_event()
 
         # Compose a document if the stream is not empty.
         document = None
-        if not self.parser.check_event(StreamEndEvent):
+        if not self.loader.parser.check_event(StreamEndEvent):
             document = self.compose_document()
 
         # Ensure that the stream contains no more documents.
-        if not self.parser.check_event(StreamEndEvent):
-            event = self.parser.get_event()
+        if not self.loader.parser.check_event(StreamEndEvent):
+            event = self.loader.parser.get_event()
             raise ComposerError(
                 "expected a single document in the stream",
                 document.start_mark,
@@ -89,32 +74,32 @@ class Composer:
             )
 
         # Drop the STREAM-END event.
-        self.parser.get_event()
+        self.loader.parser.get_event()
 
         return document
 
-    def compose_document(self):
+    def compose_document(self) -> Union[ScalarNode, MappingNode, SequenceNode]:
 
         # Drop the DOCUMENT-START event.
-        self.parser.get_event()
+        self.loader.parser.get_event()
 
         # Compose the root node.
         node = self.compose_node(None, None)
 
         # Drop the DOCUMENT-END event.
-        self.parser.get_event()
+        self.loader.parser.get_event()
 
         self.anchors = {}
         return node
 
-    def return_alias(self, a):
+    def return_alias(self, a: Union[ScalarNode, MappingNode]) -> Union[ScalarNode, MappingNode]:
 
         return a
 
-    def compose_node(self, parent, index):
+    def compose_node(self, parent: Optional[Union[MappingNode, SequenceNode]], index: Optional[Union[ScalarNode, SequenceNode, int]]) -> Union[MappingNode, SequenceNode, ScalarNode]:
 
-        if self.parser.check_event(AliasEvent):
-            event = self.parser.get_event()
+        if self.loader.parser.check_event(AliasEvent):
+            event = self.loader.parser.get_event()
             alias = event.anchor
             if alias not in self.anchors:
                 raise ComposerError(
@@ -124,7 +109,7 @@ class Composer:
                     event.start_mark,
                 )
             return self.return_alias(self.anchors[alias])
-        event = self.parser.peek_event()
+        event = self.loader.parser.peek_event()
         anchor = event.anchor
         if anchor is not None:  # have an anchor
             if anchor in self.anchors:
@@ -139,22 +124,22 @@ class Composer:
                     )
                 )
                 warnings.warn(ws, ReusedAnchorWarning)
-        self.resolver.descend_resolver(parent, index)
-        if self.parser.check_event(ScalarEvent):
+        self.loader.resolver.descend_resolver(parent, index)
+        if self.loader.parser.check_event(ScalarEvent):
             node = self.compose_scalar_node(anchor)
-        elif self.parser.check_event(SequenceStartEvent):
+        elif self.loader.parser.check_event(SequenceStartEvent):
             node = self.compose_sequence_node(anchor)
-        elif self.parser.check_event(MappingStartEvent):
+        elif self.loader.parser.check_event(MappingStartEvent):
             node = self.compose_mapping_node(anchor)
-        self.resolver.ascend_resolver()
+        self.loader.resolver.ascend_resolver()
         return node
 
-    def compose_scalar_node(self, anchor):
+    def compose_scalar_node(self, anchor: Optional[str]) -> ScalarNode:
 
-        event = self.parser.get_event()
+        event = self.loader.parser.get_event()
         tag = event.tag
         if tag is None or tag == "!":
-            tag = self.resolver.resolve(ScalarNode, event.value, event.implicit)
+            tag = self.loader.resolver.resolve(ScalarNode, event.value, event.implicit)
         node = ScalarNode(
             tag,
             event.value,
@@ -168,12 +153,12 @@ class Composer:
             self.anchors[anchor] = node
         return node
 
-    def compose_sequence_node(self, anchor):
+    def compose_sequence_node(self, anchor: None) -> SequenceNode:
 
-        start_event = self.parser.get_event()
+        start_event = self.loader.parser.get_event()
         tag = start_event.tag
         if tag is None or tag == "!":
-            tag = self.resolver.resolve(SequenceNode, None, start_event.implicit)
+            tag = self.loader.resolver.resolve(SequenceNode, None, start_event.implicit)
         node = SequenceNode(
             tag,
             [],
@@ -186,10 +171,10 @@ class Composer:
         if anchor is not None:
             self.anchors[anchor] = node
         index = 0
-        while not self.parser.check_event(SequenceEndEvent):
+        while not self.loader.parser.check_event(SequenceEndEvent):
             node.value.append(self.compose_node(node, index))
             index += 1
-        end_event = self.parser.get_event()
+        end_event = self.loader.parser.get_event()
         if node.flow_style is True and end_event.comment is not None:
             if node.comment is not None:
                 nprint(
@@ -201,12 +186,12 @@ class Composer:
         self.check_end_doc_comment(end_event, node)
         return node
 
-    def compose_mapping_node(self, anchor):
+    def compose_mapping_node(self, anchor: Optional[str]) -> MappingNode:
 
-        start_event = self.parser.get_event()
+        start_event = self.loader.parser.get_event()
         tag = start_event.tag
         if tag is None or tag == "!":
-            tag = self.resolver.resolve(MappingNode, None, start_event.implicit)
+            tag = self.loader.resolver.resolve(MappingNode, None, start_event.implicit)
         node = MappingNode(
             tag,
             [],
@@ -218,7 +203,7 @@ class Composer:
         )
         if anchor is not None:
             self.anchors[anchor] = node
-        while not self.parser.check_event(MappingEndEvent):
+        while not self.loader.parser.check_event(MappingEndEvent):
             # key_event = self.parser.peek_event()
             item_key = self.compose_node(node, None)
             # if item_key in node.value:
@@ -228,14 +213,14 @@ class Composer:
             item_value = self.compose_node(node, item_key)
             # node.value[item_key] = item_value
             node.value.append((item_key, item_value))
-        end_event = self.parser.get_event()
+        end_event = self.loader.parser.get_event()
         if node.flow_style is True and end_event.comment is not None:
             node.comment = end_event.comment
         node.end_mark = end_event.end_mark
         self.check_end_doc_comment(end_event, node)
         return node
 
-    def check_end_doc_comment(self, end_event, node):
+    def check_end_doc_comment(self, end_event: Union[SequenceEndEvent, MappingEndEvent], node: Union[MappingNode, SequenceNode]) -> None:
 
         if end_event.comment and end_event.comment[1]:
             # pre comments on an end_event, no following to move to

@@ -3,11 +3,11 @@ from __future__ import annotations
 from .compat import _F, nprintf  # NOQA
 
 from typing import Tuple, Union, TYPE_CHECKING
-from uoft_core.yaml.error import CommentMark, StringMark
 
 if TYPE_CHECKING:
     from typing import Text, Any, Dict, Optional, List  # NOQA
     from .error import StreamMark  # NOQA
+    from uoft_core.yaml.error import CommentMark, StringMark
 
 SHOW_LINES = True
 
@@ -77,7 +77,7 @@ class Token:
         self._comment[0] = comment
 
     # going to be deprecated in favour of add_comment_pre
-    def add_pre_comments(self, comments: List[Union[CommentToken, str]]) -> None:
+    def add_pre_comments(self, comments: List[Union[str, CommentToken]]) -> None:
 
         if not hasattr(self, "_comment"):
             self._comment = [None, None]
@@ -126,11 +126,11 @@ class Token:
     #     return getattr(self, '_comment', None)
 
     @property
-    def comment(self) -> Optional[Union[List[Union[CommentToken, List[str]]], List[Optional[List[CommentToken]]], List[None], List[Optional[CommentToken]]]]:
+    def comment(self) -> Optional[Union[List[Union[CommentToken, List[str]]], List[None], List[Optional[List[CommentToken]]], List[Optional[CommentToken]]]]:
 
         return getattr(self, "_comment", None)
 
-    def move_old_comment(self, target: "Token", empty: bool=False) -> Optional[Union[BlockEntryToken, ValueToken, KeyToken, BlockEndToken]]:
+    def move_old_comment(self, target: "Token", empty: bool=False) -> Optional[Union[BlockEndToken, BlockEntryToken, ValueToken, KeyToken]]:
 
         """move a comment from this token to target (normally next token)
         used to combine e.g. comments before a BlockEntryToken to the
