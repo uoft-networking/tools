@@ -68,8 +68,8 @@ timestamp_regexp = RegExp(
 
 
 def create_timestamp(
-    year, month, day, t, hour, minute, second, fraction, tz, tz_sign, tz_hour, tz_minute
-):
+    year: str, month: str, day: str, t: None, hour: None, minute: None, second: None, fraction: None, tz: None, tz_sign: None, tz_hour: None, tz_minute: None
+) -> datetime.date:
 
     # create a timestamp from match against timestamp_regexp
     MAX_FRAC = 999999
@@ -127,7 +127,7 @@ def create_timestamp(
 # before upgrades to this code break your round-tripped YAML
 def load_yaml_guess_indent(
     stream: str, **kw
-) -> Tuple[CommentedMap, int, int | None]:
+) -> Union[Tuple[CommentedMap, int, None], Tuple[CommentedMap, int, int]]:
 
     """guess the indent and block sequence indent of yaml stream/string
 

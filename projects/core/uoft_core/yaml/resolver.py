@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 from uoft_core.yaml.util import LazyEval
 
-__all__ = ["BaseResolver", "Resolver", "VersionedResolver"]
+__all__ = ["Resolver", "ResolverError"]
 
 
 # fmt: off
@@ -109,8 +109,13 @@ class ResolverError(YAMLError):
     pass
 
 
-class BaseResolver:
-
+class Resolver:
+    """
+    this resolver delays loading
+    the pattern matching rules. That way it can decide to load 1.1 rules
+    or the (default) 1.2 rules, that no longer support octal without 0o, sexagesimals
+    and Yes/No/On/Off booleans.
+    """
     DEFAULT_SCALAR_TAG = "tag:yaml.org,2002:str"
     DEFAULT_SEQUENCE_TAG = "tag:yaml.org,2002:seq"
     DEFAULT_MAPPING_TAG = "tag:yaml.org,2002:map"
@@ -118,26 +123,52 @@ class BaseResolver:
     yaml_implicit_resolvers = {}
     yaml_path_resolvers = {}
 
-    def __init__(self, loadumper: Optional[YAML]=None) -> None:
+    def __init__(self, loader: YAML) -> None:
 
-        self.loadumper = loadumper
-        if (
-            self.loadumper is not None
-            and getattr(self.loadumper, "_resolver", None) is None
-        ):
-            self.loadumper._resolver = self.loadumper
-        self._loader_version = None
+        self.loader = loader
         self.resolver_exact_paths = []
         self.resolver_prefix_paths = []
+        self._version_implicit_resolver = {}
+
+    @property
+    def loader_version(self):
+        return self.get_loader_version(self.loader.version)
 
     @property
     def parser(self):
+        return self.loader.parser
 
-        if self.loadumper is not None:
-            if hasattr(self.loadumper, "typ"):
-                return self.loadumper.parser
-            return self.loadumper._parser
-        return None
+    def get_loader_version(self, version: Optional[Union[str, Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
+
+        if version is None or isinstance(version, tuple):
+            return version
+        if isinstance(version, list):
+            return tuple(version)
+        # assume string
+        return tuple(map(int, version.split(".")))
+
+    def add_version_implicit_resolver(self, version: Tuple[int, int], tag: str, regexp: LazyEval, first: List[str]) -> None:
+
+        if first is None:
+            first = [None]
+        impl_resolver = self._version_implicit_resolver.setdefault(version, {})
+        for ch in first:
+            impl_resolver.setdefault(ch, []).append((tag, regexp))
+
+    @property
+    def versioned_resolver(self) -> Dict[str, List[Tuple[str, LazyEval]]]:
+
+        """
+        select the resolver based on the version we are parsing
+        """
+        version = self.processing_version
+        if isinstance(version, str):
+            version = tuple(map(int, version.split(".")))
+        if version not in self._version_implicit_resolver:
+            for x in implicit_resolvers:
+                if version in x[0]:
+                    self.add_version_implicit_resolver(version, x[1], x[2], x[3])
+        return self._version_implicit_resolver[version]
 
     @classmethod
     def add_implicit_resolver_base(cls, tag, regexp, first):
@@ -167,9 +198,6 @@ class BaseResolver:
         for ch in first:
             cls.yaml_implicit_resolvers.setdefault(ch, []).append((tag, regexp))
         implicit_resolvers.append(([(1, 2), (1, 1)], tag, regexp, first))
-
-    # @classmethod
-    # def add_implicit_resolver(cls, tag, regexp, first):
 
     @classmethod
     def add_path_resolver(cls, tag, path, kind=None):
@@ -235,7 +263,7 @@ class BaseResolver:
             raise ResolverError(_F("Invalid node kind: {kind!s}", kind=kind))
         cls.yaml_path_resolvers[tuple(new_path), kind] = tag
 
-    def descend_resolver(self, current_node: Optional[Union[MappingNode, SequenceNode]], current_index: Optional[Union[ScalarNode, int]]) -> None:
+    def descend_resolver(self, current_node: Optional[Union[MappingNode, SequenceNode]], current_index: Optional[Union[ScalarNode, SequenceNode, int]]) -> None:
 
         if not self.yaml_path_resolvers:
             return
@@ -291,92 +319,7 @@ class BaseResolver:
                 return False
         return True
 
-    def resolve(self, kind, value, implicit):
-
-        if kind is ScalarNode and implicit[0]:
-            if value == "":
-                resolvers = self.yaml_implicit_resolvers.get("", [])
-            else:
-                resolvers = self.yaml_implicit_resolvers.get(value[0], [])
-            resolvers += self.yaml_implicit_resolvers.get(None, [])
-            for tag, regexp in resolvers:
-                if regexp.match(value):
-                    return tag
-            implicit = implicit[1]
-        if bool(self.yaml_path_resolvers):
-            exact_paths = self.resolver_exact_paths[-1]
-            if kind in exact_paths:
-                return exact_paths[kind]
-            if None in exact_paths:
-                return exact_paths[None]
-        if kind is ScalarNode:
-            return self.DEFAULT_SCALAR_TAG
-        elif kind is SequenceNode:
-            return self.DEFAULT_SEQUENCE_TAG
-        elif kind is MappingNode:
-            return self.DEFAULT_MAPPING_TAG
-
-    @property
-    def processing_version(self):
-
-        return None
-
-
-class Resolver(BaseResolver):
-    pass
-
-
-for ir in implicit_resolvers:
-    if (1, 2) in ir[0]:
-        Resolver.add_implicit_resolver_base(*ir[1:])
-
-
-class VersionedResolver(BaseResolver):
-    """
-    contrary to the "normal" resolver, the smart resolver delays loading
-    the pattern matching rules. That way it can decide to load 1.1 rules
-    or the (default) 1.2 rules, that no longer support octal without 0o, sexagesimals
-    and Yes/No/On/Off booleans.
-    """
-
-    def __init__(self, loader: YAML) -> None:
-        BaseResolver.__init__(self, loader)
-        self._loader_version = self.get_loader_version(loader.version)
-        self._version_implicit_resolver = {}
-
-    def add_version_implicit_resolver(self, version: Tuple[int, int], tag: str, regexp: LazyEval, first: List[str]) -> None:
-
-        if first is None:
-            first = [None]
-        impl_resolver = self._version_implicit_resolver.setdefault(version, {})
-        for ch in first:
-            impl_resolver.setdefault(ch, []).append((tag, regexp))
-
-    def get_loader_version(self, version: Optional[Union[str, Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
-
-        if version is None or isinstance(version, tuple):
-            return version
-        if isinstance(version, list):
-            return tuple(version)
-        # assume string
-        return tuple(map(int, version.split(".")))
-
-    @property
-    def versioned_resolver(self) -> Dict[str, List[Tuple[str, LazyEval]]]:
-
-        """
-        select the resolver based on the version we are parsing
-        """
-        version = self.processing_version
-        if isinstance(version, str):
-            version = tuple(map(int, version.split(".")))
-        if version not in self._version_implicit_resolver:
-            for x in implicit_resolvers:
-                if version in x[0]:
-                    self.add_version_implicit_resolver(version, x[1], x[2], x[3])
-        return self._version_implicit_resolver[version]
-
-    def resolve(self, kind: Union[Type[SequenceNode], Type[MappingNode], Type[ScalarNode]], value: Any, implicit: Union[bool, Tuple[bool, bool]]) -> str:
+    def resolve(self, kind: Union[Type[MappingNode], Type[ScalarNode], Type[SequenceNode]], value: Any, implicit: Union[bool, Tuple[bool, bool]]) -> str:
 
         if kind is ScalarNode and implicit[0]:
             if value == "":
@@ -405,17 +348,18 @@ class VersionedResolver(BaseResolver):
     def processing_version(self) -> Tuple[int, int]:
 
         try:
-            version = self.loadumper._scanner.yaml_version
+            version = self.loader._scanner.yaml_version
         except AttributeError:
             try:
-                if hasattr(self.loadumper, "typ"):
-                    version = self.loadumper.version
+                if hasattr(self.loader, "typ"):
+                    version = self.loader.version
                 else:
-                    version = self.loadumper._serializer.use_version  # dumping
+                    version = self.loader._serializer.use_version  # dumping
             except AttributeError:
                 version = None
         if version is None:
-            version = self._loader_version
+            version = self.loader_version
             if version is None:
                 version = _DEFAULT_YAML_VERSION
         return version
+

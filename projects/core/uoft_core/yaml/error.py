@@ -7,6 +7,7 @@ import textwrap
 from .compat import _F
 
 from typing import TYPE_CHECKING
+from uoft_core.yaml.nodes import ScalarNode
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Text  # NOQA
@@ -136,7 +137,7 @@ class StringMark(StreamMark):
 class CommentMark:
     __slots__ = ("column",)
 
-    def __init__(self, column):
+    def __init__(self, column: int) -> None:
 
         self.column = column
 
@@ -148,13 +149,13 @@ class YAMLError(Exception):
 class MarkedYAMLError(YAMLError):
     def __init__(
         self,
-        context=None,
-        context_mark=None,
-        problem=None,
-        problem_mark=None,
-        note=None,
-        warn=None,
-    ):
+        context: Optional[str]=None,
+        context_mark: Optional[StringMark]=None,
+        problem: Optional[str]=None,
+        problem_mark: Optional[StringMark]=None,
+        note: None=None,
+        warn: None=None,
+    ) -> None:
 
         self.context = context
         self.context_mark = context_mark
@@ -259,12 +260,12 @@ warnings.simplefilter("once", UnsafeLoaderWarning)
 
 
 class MantissaNoDotYAML1_1Warning(YAMLWarning):
-    def __init__(self, node, flt_str):
+    def __init__(self, node: ScalarNode, flt_str: str) -> None:
 
         self.node = node
         self.flt = flt_str
 
-    def __str__(self):
+    def __str__(self) -> str:
 
         line = self.node.start_mark.line
         col = self.node.start_mark.column

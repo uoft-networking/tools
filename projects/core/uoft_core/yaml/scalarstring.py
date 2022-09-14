@@ -28,7 +28,7 @@ __all__ = [
 class ScalarString(str):
     __slots__ = Anchor.attrib
 
-    def __new__(cls: Union[Type[FoldedScalarString], Type[DoubleQuotedScalarString], Type[LiteralScalarString], Type[SingleQuotedScalarString], Type[PlainScalarString]], *args, **kw) -> Union[SingleQuotedScalarString, LiteralScalarString, PlainScalarString, FoldedScalarString, DoubleQuotedScalarString]:
+    def __new__(cls: Union[Type[PlainScalarString], Type[FoldedScalarString], Type[DoubleQuotedScalarString], Type[LiteralScalarString], Type[SingleQuotedScalarString]], *args, **kw) -> Union[FoldedScalarString, LiteralScalarString, DoubleQuotedScalarString, PlainScalarString, SingleQuotedScalarString]:
 
         anchor = kw.pop("anchor", None)
         ret_val = str.__new__(cls, *args, **kw)
@@ -36,7 +36,7 @@ class ScalarString(str):
             ret_val.yaml_set_anchor(anchor, always_dump=True)
         return ret_val
 
-    def replace(self, old: str, new: str, maxreplace: int=-1) -> Union[LiteralScalarString, DoubleQuotedScalarString]:
+    def replace(self, old: str, new: str, maxreplace: int=-1) -> Union[DoubleQuotedScalarString, LiteralScalarString]:
 
         return type(self)((str.replace(self, old, new, maxreplace)))
 

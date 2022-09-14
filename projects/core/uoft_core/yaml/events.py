@@ -99,7 +99,7 @@ class CollectionStartEvent(NodeEvent):
         start_mark: Optional[StringMark]=None,
         end_mark: Optional[StringMark]=None,
         flow_style: Optional[bool]=None,
-        comment: Optional[Union[List[CommentToken], List[Optional[CommentToken]], List[Optional[List[CommentToken]]], List[None]]]=None,
+        comment: Optional[Union[List[Optional[List[CommentToken]]], List[CommentToken], List[None], List[Optional[CommentToken]]]]=None,
         nr_items: Optional[int]=None,
     ) -> None:
 
@@ -176,12 +176,12 @@ class ScalarEvent(NodeEvent):
         self,
         anchor: Optional[str],
         tag: Optional[str],
-        implicit: Union[Tuple[bool, bool], Tuple[bool, bool, bool]],
-        value: Union[str, PlainScalarString, DoubleQuotedScalarString, SingleQuotedScalarString, LiteralScalarString],
+        implicit: Union[Tuple[bool, bool, bool], Tuple[bool, bool]],
+        value: Union[LiteralScalarString, str, DoubleQuotedScalarString, PlainScalarString, SingleQuotedScalarString],
         start_mark: Optional[StringMark]=None,
         end_mark: Optional[StringMark]=None,
         style: Optional[str]=None,
-        comment: Optional[Union[List[Union[CommentToken, List[str]]], List[Optional[CommentToken]], List[Optional[List[CommentToken]]], List[None]]]=None,
+        comment: Optional[Union[List[Union[CommentToken, List[str]]], List[Optional[List[CommentToken]]], List[None], List[Optional[CommentToken]]]]=None,
     ) -> None:
 
         NodeEvent.__init__(self, anchor, start_mark, end_mark, comment)

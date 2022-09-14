@@ -22,7 +22,7 @@ from .nodes import MappingNode, ScalarNode, SequenceNode
 from typing import TYPE_CHECKING
 from uoft_core.yaml.emitter import Emitter
 from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
-from uoft_core.yaml.resolver import VersionedResolver
+from uoft_core.yaml.resolver import Resolver
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Union, Text, Optional  # NOQA
@@ -42,27 +42,17 @@ class Serializer:
     ANCHOR_TEMPLATE = "id%03d"
     ANCHOR_RE = RegExp("id(?!000$)\\d{3,}")
 
-    def __init__(
-        self,
-        encoding: Optional[str]=None,
-        explicit_start: Optional[bool]=None,
-        explicit_end: Optional[bool]=None,
-        version: Optional[str]=None,
-        tags: None=None,
-        dumper: Optional[YAML]=None,
-    ) -> None:
+    def __init__(self, dumper: YAML) -> None:
 
         self.dumper = dumper
-        if self.dumper is not None:
-            self.dumper._serializer = self
-        self.use_encoding = encoding
-        self.use_explicit_start = explicit_start
-        self.use_explicit_end = explicit_end
-        if isinstance(version, str):
-            self.use_version = tuple(map(int, version.split(".")))
+        self.use_encoding = dumper.encoding
+        self.use_explicit_start = dumper.explicit_start
+        self.use_explicit_end = dumper.explicit_end
+        if isinstance(dumper.version, str):
+            self.use_version = tuple(map(int, dumper.version.split(".")))
         else:
-            self.use_version = version
-        self.use_tags = tags
+            self.use_version = dumper.version
+        self.use_tags = dumper.tags
         self.serialized_nodes = {}
         self.anchors = {}
         self.last_anchor_id = 0
@@ -74,7 +64,7 @@ class Serializer:
         return self.dumper.emitter
 
     @property
-    def resolver(self) -> VersionedResolver:
+    def resolver(self) -> Resolver:
         return self.dumper.resolver
 
     def open(self) -> None:
@@ -153,7 +143,12 @@ class Serializer:
             return self.ANCHOR_TEMPLATE % self.last_anchor_id
         return anchor
 
-    def serialize_node(self, node: Union[MappingNode, ScalarNode, SequenceNode], parent: Optional[Union[MappingNode, SequenceNode]], index: Optional[Union[ScalarNode, int]]) -> None:
+    def serialize_node(
+        self,
+        node: Union[MappingNode, ScalarNode, SequenceNode],
+        parent: Optional[Union[MappingNode, SequenceNode]],
+        index: Optional[Union[int, ScalarNode, SequenceNode]],
+    ) -> None:
 
         alias = self.anchors[node]
         if node in self.serialized_nodes:

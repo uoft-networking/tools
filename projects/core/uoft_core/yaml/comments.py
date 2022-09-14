@@ -17,7 +17,9 @@ from .anchor import Anchor
 
 from collections.abc import MutableSet, Sized, Set, Mapping
 
-from typing import TYPE_CHECKING
+from typing import Callable, Tuple, TYPE_CHECKING
+from uoft_core.yaml.anchor import Anchor
+from uoft_core.yaml.tokens import CommentToken
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Union, Optional, Iterator  # NOQA
@@ -96,7 +98,7 @@ class Comment:
     __slots__ = "comment", "_items", "_post", "_pre"
     attrib = comment_attrib
 
-    def __init__(self, old=True):
+    def __init__(self, old: bool=True) -> None:
 
         self._pre = None if old else []
         self.comment = None  # [post, [pre]]
@@ -107,7 +109,7 @@ class Comment:
         # self._start = [] # should not put these on first item
         self._post = []
 
-    def __str__(self):
+    def __str__(self) -> str:
 
         if bool(self._post):
             end = ",\n  end=" + str(self._post)
@@ -154,7 +156,7 @@ class Comment:
         return "Comment(\n  pre={},\n  items={{{}}}{})".format(self.pre, it, end)
 
     @property
-    def items(self):
+    def items(self) -> Any:
 
         return self._items
 
@@ -229,19 +231,19 @@ class Format:
     __slots__ = ("_flow_style",)
     attrib = format_attrib
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self._flow_style = None
 
-    def set_flow_style(self):
+    def set_flow_style(self) -> None:
 
         self._flow_style = True
 
-    def set_block_style(self):
+    def set_block_style(self) -> None:
 
         self._flow_style = False
 
-    def flow_style(self, default=None):
+    def flow_style(self, default: Optional[bool]=None) -> Optional[bool]:
 
         """if default (the flow_style) is None, the flow style tacked on to
         the object explicitly will be taken. If that is None as well the
@@ -259,40 +261,40 @@ class LineCol:
 
     attrib = line_col_attrib
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self.line = None
         self.col = None
         self.data = None
 
-    def add_kv_line_col(self, key, data):
+    def add_kv_line_col(self, key: Union[CommentedKeySeq, str], data: List[int]) -> None:
 
         if self.data is None:
             self.data = {}
         self.data[key] = data
 
-    def key(self, k):
+    def key(self, k: str) -> Tuple[int, int]:
 
         return self._kv(k, 0, 1)
 
-    def value(self, k):
+    def value(self, k: str) -> Tuple[int, int]:
 
         return self._kv(k, 2, 3)
 
-    def _kv(self, k, x0, x1):
+    def _kv(self, k: str, x0: int, x1: int) -> Tuple[int, int]:
 
         if self.data is None:
             return None
         data = self.data[k]
         return data[x0], data[x1]
 
-    def item(self, idx):
+    def item(self, idx: int) -> Tuple[int, int]:
 
         if self.data is None:
             return None
         return self.data[idx][0], self.data[idx][1]
 
-    def add_idx_line_col(self, key, data):
+    def add_idx_line_col(self, key: int, data: List[int]) -> None:
 
         if self.data is None:
             self.data = {}
@@ -309,7 +311,7 @@ class Tag:
     __slots__ = ("value",)
     attrib = tag_attrib
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self.value = None
 
@@ -320,13 +322,13 @@ class Tag:
 
 class CommentedBase:
     @property
-    def ca(self):
+    def ca(self) -> Comment:
 
         if not hasattr(self, Comment.attrib):
             setattr(self, Comment.attrib, Comment())
         return getattr(self, Comment.attrib)
 
-    def yaml_end_comment_extend(self, comment, clear=False):
+    def yaml_end_comment_extend(self, comment: None, clear: bool=False) -> None:
 
         if comment is None:
             return
@@ -334,7 +336,7 @@ class CommentedBase:
             self.ca.end = []
         self.ca.end.extend(comment)
 
-    def yaml_key_comment_extend(self, key, comment, clear=False):
+    def yaml_key_comment_extend(self, key: Union[int, str], comment: List[Optional[Union[CommentToken, List[CommentToken]]]], clear: bool=False) -> None:
 
         r = self.ca._items.setdefault(key, [None, None, None, None])
         if clear or r[1] is None:
@@ -345,7 +347,7 @@ class CommentedBase:
             r[1].extend(comment[0])
         r[0] = comment[0]
 
-    def yaml_value_comment_extend(self, key, comment, clear=False):
+    def yaml_value_comment_extend(self, key: str, comment: List[Optional[Union[CommentToken, List[CommentToken], List[str]]]], clear: bool=False) -> None:
 
         r = self.ca._items.setdefault(key, [None, None, None, None])
         if clear or r[3] is None:
@@ -356,7 +358,7 @@ class CommentedBase:
             r[3].extend(comment[0])
         r[2] = comment[0]
 
-    def yaml_set_start_comment(self, comment, indent=0):
+    def yaml_set_start_comment(self, comment: str, indent: int=0) -> None:
 
         """overwrites any preceding comment lines on an object
         expects comment to be without `#` and possible have multiple lines
@@ -375,8 +377,8 @@ class CommentedBase:
             pre_comments.append(CommentToken(com + "\n", start_mark))
 
     def yaml_set_comment_before_after_key(
-        self, key, before=None, indent=0, after=None, after_indent=None
-    ):
+        self, key: str, before: Optional[str]=None, indent: int=0, after: Optional[str]=None, after_indent: Optional[int]=None
+    ) -> None:
 
         """
         expects comment (before/after) to be without `#` and possible have multiple lines
@@ -413,7 +415,7 @@ class CommentedBase:
                 c[3].append(comment_token(com, start_mark))
 
     @property
-    def fa(self):
+    def fa(self) -> Format:
 
         """format attribute
 
@@ -422,7 +424,7 @@ class CommentedBase:
             setattr(self, Format.attrib, Format())
         return getattr(self, Format.attrib)
 
-    def yaml_add_eol_comment(self, comment, key=NoComment, column=None):
+    def yaml_add_eol_comment(self, comment: str, key: Union[int, str]=NoComment, column: Optional[int]=None) -> None:
 
         """
         there is a problem as eol comments should start with ' #'
@@ -448,51 +450,51 @@ class CommentedBase:
         self._yaml_add_eol_comment(ct, key=key)
 
     @property
-    def lc(self):
+    def lc(self) -> LineCol:
 
         if not hasattr(self, LineCol.attrib):
             setattr(self, LineCol.attrib, LineCol())
         return getattr(self, LineCol.attrib)
 
-    def _yaml_set_line_col(self, line, col):
+    def _yaml_set_line_col(self, line: int, col: int) -> None:
 
         self.lc.line = line
         self.lc.col = col
 
-    def _yaml_set_kv_line_col(self, key, data):
+    def _yaml_set_kv_line_col(self, key: Union[CommentedKeySeq, str], data: List[int]) -> None:
 
         self.lc.add_kv_line_col(key, data)
 
-    def _yaml_set_idx_line_col(self, key, data):
+    def _yaml_set_idx_line_col(self, key: int, data: List[int]) -> None:
 
         self.lc.add_idx_line_col(key, data)
 
     @property
-    def anchor(self):
+    def anchor(self) -> Anchor:
 
         if not hasattr(self, Anchor.attrib):
             setattr(self, Anchor.attrib, Anchor())
         return getattr(self, Anchor.attrib)
 
-    def yaml_anchor(self):
+    def yaml_anchor(self) -> Optional[Anchor]:
 
         if not hasattr(self, Anchor.attrib):
             return None
         return self.anchor
 
-    def yaml_set_anchor(self, value, always_dump=False):
+    def yaml_set_anchor(self, value: str, always_dump: bool=False) -> None:
 
         self.anchor.value = value
         self.anchor.always_dump = always_dump
 
     @property
-    def tag(self):
+    def tag(self) -> Tag:
 
         if not hasattr(self, Tag.attrib):
             setattr(self, Tag.attrib, Tag())
         return getattr(self, Tag.attrib)
 
-    def yaml_set_tag(self, value):
+    def yaml_set_tag(self, value: str) -> None:
 
         self.tag.value = value
 
@@ -524,15 +526,15 @@ class CommentedBase:
 class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
     __slots__ = (Comment.attrib, "_lst")
 
-    def __init__(self, *args, **kw):
+    def __init__(self, *args, **kw) -> None:
 
         list.__init__(self, *args, **kw)
 
-    def __getsingleitem__(self, idx):
+    def __getsingleitem__(self, idx: int) -> Any:
 
         return list.__getitem__(self, idx)
 
-    def __setsingleitem__(self, idx, value):
+    def __setsingleitem__(self, idx: int, value: Any) -> None:
 
         # try to preserve the scalarstring type if setting an existing key to a new value
         if idx < len(self):
@@ -544,7 +546,7 @@ class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
                 value = type(self[idx])(value)
         list.__setitem__(self, idx, value)
 
-    def __delsingleitem__(self, idx=None):
+    def __delsingleitem__(self, idx: Optional[int]=None) -> None:
 
         list.__delitem__(self, idx)
         self.ca.items.pop(idx, None)  # might not be there -> default value
@@ -553,11 +555,11 @@ class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
                 continue
             self.ca.items[list_index - 1] = self.ca.items.pop(list_index)
 
-    def __len__(self):
+    def __len__(self) -> int:
 
         return list.__len__(self)
 
-    def insert(self, idx, val):
+    def insert(self, idx: int, val: str) -> None:
 
         """the comments after the insertion have to move forward"""
         list.insert(self, idx, val)
@@ -566,7 +568,7 @@ class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
                 break
             self.ca.items[list_index + 1] = self.ca.items.pop(list_index)
 
-    def extend(self, val):
+    def extend(self, val: List[Any]) -> None:
 
         list.extend(self, val)
 
@@ -574,22 +576,22 @@ class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
 
         return list.__eq__(self, other)
 
-    def _yaml_add_comment(self, comment, key=NoComment):
+    def _yaml_add_comment(self, comment: List[Optional[Union[CommentToken, List[CommentToken]]]], key: Union[Callable, int]=NoComment) -> None:
 
         if key is not NoComment:
             self.yaml_key_comment_extend(key, comment)
         else:
             self.ca.comment = comment
 
-    def _yaml_add_eol_comment(self, comment, key):
+    def _yaml_add_eol_comment(self, comment: List[Optional[CommentToken]], key: int) -> None:
 
         self._yaml_add_comment(comment, key=key)
 
-    def _yaml_get_columnX(self, key):
+    def _yaml_get_columnX(self, key: int) -> int:
 
         return self.ca.items[key][0].start_mark.column
 
-    def _yaml_get_column(self, key):
+    def _yaml_get_column(self, key: int) -> int:
 
         column = None
         sel_idx = None
@@ -619,7 +621,7 @@ class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
             pre_comments = self.ca.comment[1]
         return pre_comments
 
-    def _yaml_clear_pre_comment(self):
+    def _yaml_clear_pre_comment(self) -> List[Any]:
 
         pre_comments = []
         if self.ca.comment is None:
@@ -658,7 +660,7 @@ class CommentedSeq(MutableSliceableSequence, list, CommentedBase):
             if old_index in itm:
                 self.ca.items[idx] = itm[old_index]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
 
         return list.__repr__(self)
 
@@ -724,11 +726,11 @@ class CommentedKeySeq(tuple, CommentedBase):
 class CommentedMapView(Sized):
     __slots__ = ("_mapping",)
 
-    def __init__(self, mapping):
+    def __init__(self, mapping: "CommentedMap") -> None:
 
         self._mapping = mapping
 
-    def __len__(self):
+    def __len__(self) -> int:
 
         count = len(self._mapping)
         return count
@@ -746,7 +748,7 @@ class CommentedMapKeysView(CommentedMapView, Set):
 
         return key in self._mapping
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
 
         # for x in self._mapping._keys():
         for x in self._mapping:
@@ -771,7 +773,7 @@ class CommentedMapItemsView(CommentedMapView, Set):
         else:
             return v == value
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
 
         for key in self._mapping._keys():
             yield (key, self._mapping[key])
@@ -796,13 +798,13 @@ class CommentedMapValuesView(CommentedMapView):
 class CommentedMap(ordereddict, CommentedBase):
     __slots__ = (Comment.attrib, "_ok", "_ref")
 
-    def __init__(self, *args, **kw):
+    def __init__(self, *args, **kw) -> None:
 
         self._ok = set()
         self._ref = []
         ordereddict.__init__(self, *args, **kw)
 
-    def _yaml_add_comment(self, comment, key=NoComment, value=NoComment):
+    def _yaml_add_comment(self, comment: List[Optional[Union[CommentToken, List[CommentToken], List[str]]]], key: Union[Callable, str]=NoComment, value: Union[Callable, str]=NoComment) -> None:
 
         """values is set to key to indicate a value attachment of comment"""
         if key is not NoComment:
@@ -813,16 +815,16 @@ class CommentedMap(ordereddict, CommentedBase):
         else:
             self.ca.comment = comment
 
-    def _yaml_add_eol_comment(self, comment, key):
+    def _yaml_add_eol_comment(self, comment: List[Optional[CommentToken]], key: str) -> None:
 
         """add on the value line, with value specified by the key"""
         self._yaml_add_comment(comment, value=key)
 
-    def _yaml_get_columnX(self, key):
+    def _yaml_get_columnX(self, key: str) -> int:
 
         return self.ca.items[key][2].start_mark.column
 
-    def _yaml_get_column(self, key):
+    def _yaml_get_column(self, key: str) -> Optional[int]:
 
         column = None
         sel_idx = None
@@ -859,7 +861,7 @@ class CommentedMap(ordereddict, CommentedBase):
             pre_comments = self.ca.comment[1]
         return pre_comments
 
-    def _yaml_clear_pre_comment(self):
+    def _yaml_clear_pre_comment(self) -> List[Any]:
 
         pre_comments = []
         if self.ca.comment is None:
@@ -886,7 +888,7 @@ class CommentedMap(ordereddict, CommentedBase):
         if kw:
             self._ok.add(*kw.keys())
 
-    def insert(self, pos, key, value, comment=None):
+    def insert(self, pos: int, key: str, value: str, comment: Optional[str]=None) -> None:
 
         """insert key value into given position
         attach comment if provided
@@ -901,7 +903,7 @@ class CommentedMap(ordereddict, CommentedBase):
         if comment is not None:
             self.yaml_add_eol_comment(comment, key=key)
 
-    def mlget(self, key, default=None, list_ok=False):
+    def mlget(self, key: List[Union[str, int]], default: None=None, list_ok: bool=False) -> int:
 
         """multi-level get that expects dicts within dicts"""
         if not isinstance(key, list):
@@ -927,7 +929,7 @@ class CommentedMap(ordereddict, CommentedBase):
                 raise
             return default
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[CommentedKeySeq, int, str]) -> Any:
 
         try:
             return ordereddict.__getitem__(self, key)
@@ -937,7 +939,7 @@ class CommentedMap(ordereddict, CommentedBase):
                     return merged[1][key]
             raise
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Union[CommentedKeySeq, int, str], value: Any) -> None:
 
         # try to preserve the scalarstring type if setting an existing key to a new value
         if key in self:
@@ -956,7 +958,7 @@ class CommentedMap(ordereddict, CommentedBase):
             return True
         return None
 
-    def __contains__(self, key):
+    def __contains__(self, key: Union[CommentedKeySeq, int, str]) -> bool:
 
         return bool(ordereddict.__contains__(self, key))
 
@@ -967,17 +969,17 @@ class CommentedMap(ordereddict, CommentedBase):
         except:  # NOQA
             return default
 
-    def __repr__(self):
+    def __repr__(self) -> str:
 
         return ordereddict.__repr__(self).replace("CommentedMap", "ordereddict")
 
-    def non_merged_items(self):
+    def non_merged_items(self) -> Iterator[Tuple[str, str]]:
 
         for x in ordereddict.__iter__(self):
             if x in self._ok:
                 yield x, ordereddict.__getitem__(self, x)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
 
         # for merged in getattr(self, merge_attrib, []):
         #     if key in merged[1]:
@@ -997,25 +999,25 @@ class CommentedMap(ordereddict, CommentedBase):
         for referer in self._ref:
             referer.update_key_value(key)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Union[int, str]]:
 
         for x in ordereddict.__iter__(self):
             yield x
 
-    def _keys(self):
+    def _keys(self) -> Iterator[Union[CommentedKeySeq, int, str]]:
 
         for x in ordereddict.__iter__(self):
             yield x
 
-    def __len__(self):
+    def __len__(self) -> int:
 
         return int(ordereddict.__len__(self))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Union[Dict[str, str], CommentedMap]) -> bool:
 
         return bool(dict(self) == other)
 
-    def keys(self):
+    def keys(self) -> CommentedMapKeysView:
 
         return CommentedMapKeysView(self)
 
@@ -1028,12 +1030,12 @@ class CommentedMap(ordereddict, CommentedBase):
         for x in ordereddict.__iter__(self):
             yield x, ordereddict.__getitem__(self, x)
 
-    def items(self):
+    def items(self) -> CommentedMapItemsView:
 
         return CommentedMapItemsView(self)
 
     @property
-    def merge(self):
+    def merge(self) -> List[Any]:
 
         if not hasattr(self, merge_attrib):
             setattr(self, merge_attrib, [])
@@ -1047,12 +1049,12 @@ class CommentedMap(ordereddict, CommentedBase):
         self.copy_attributes(x)
         return x
 
-    def add_referent(self, cm):
+    def add_referent(self, cm: "CommentedMap") -> None:
 
         if cm not in self._ref:
             self._ref.append(cm)
 
-    def add_yaml_merge(self, value):
+    def add_yaml_merge(self, value: List[Tuple[int, CommentedMap]]) -> None:
 
         for v in value:
             v[1].add_referent(self)
@@ -1188,14 +1190,14 @@ class CommentedOrderedMap(CommentedMap):
 class CommentedSet(MutableSet, CommentedBase):
     __slots__ = Comment.attrib, "odict"
 
-    def __init__(self, values=None):
+    def __init__(self, values: Optional[List[str]]=None) -> None:
 
         self.odict = ordereddict()
         MutableSet.__init__(self)
         if values is not None:
             self |= values
 
-    def _yaml_add_comment(self, comment, key=NoComment, value=NoComment):
+    def _yaml_add_comment(self, comment: List[Optional[Union[CommentToken, List[CommentToken]]]], key: Union[Callable, str]=NoComment, value: Callable=NoComment) -> None:
 
         """values is set to key to indicate a value attachment of comment"""
         if key is not NoComment:
@@ -1211,26 +1213,26 @@ class CommentedSet(MutableSet, CommentedBase):
         """add on the value line, with value specified by the key"""
         self._yaml_add_comment(comment, value=key)
 
-    def add(self, value):
+    def add(self, value: str) -> None:
 
         """Add an element."""
         self.odict[value] = None
 
-    def discard(self, value):
+    def discard(self, value: str) -> None:
 
         """Remove an element.  Do not raise an exception if absent."""
         del self.odict[value]
 
-    def __contains__(self, x):
+    def __contains__(self, x: str) -> bool:
 
         return x in self.odict
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
 
         for x in self.odict:
             yield x
 
-    def __len__(self):
+    def __len__(self) -> int:
 
         return len(self.odict)
 
@@ -1241,7 +1243,7 @@ class CommentedSet(MutableSet, CommentedBase):
 
 class TaggedScalar(CommentedBase):
     # the value and style attributes are set during roundtrip construction
-    def __init__(self, value=None, style=None, tag=None):
+    def __init__(self, value: None=None, style: None=None, tag: None=None) -> None:
 
         self.value = value
         self.style = style

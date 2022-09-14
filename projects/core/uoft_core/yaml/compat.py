@@ -36,7 +36,7 @@ except ImportError:
 class ordereddict(OrderedDict):
     if not hasattr(OrderedDict, "insert"):
 
-        def insert(self, pos, key, value):
+        def insert(self, pos: int, key: str, value: str) -> None:
 
             if pos >= len(self):
                 self[key] = value
@@ -215,13 +215,13 @@ def version_tnf(t1: Tuple[int, int, int], t2: Optional[Tuple[int, int]]=None) ->
 class MutableSliceableSequence(collections.abc.MutableSequence):
     __slots__ = ()
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Any:
 
         if not isinstance(index, slice):
             return self.__getsingleitem__(index)
         return type(self)([self[i] for i in range(*index.indices(len(self)))])
 
-    def __setitem__(self, index, value):
+    def __setitem__(self, index: int, value: Any) -> None:
 
         if not isinstance(index, slice):
             return self.__setsingleitem__(index, value)
@@ -252,7 +252,7 @@ class MutableSliceableSequence(collections.abc.MutableSequence):
             for idx, i in enumerate(range(*range_parms)):
                 self[i] = value[idx]
 
-    def __delitem__(self, index):
+    def __delitem__(self, index: int) -> None:
 
         if not isinstance(index, slice):
             return self.__delsingleitem__(index)
