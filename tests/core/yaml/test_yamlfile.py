@@ -23,10 +23,9 @@ class TestYAML:
 
     def test_omap_out(self):
         # ordereddict mapped to !!omap
-        from uoft_core.yaml.compat import ordereddict
-        import uoft_core.yaml  # NOQA
+        from collections import OrderedDict
 
-        x = ordereddict([("a", 1), ("b", 2)])
+        x = OrderedDict([("a", 1), ("b", 2)])
         res = round_trip_dump(x, default_flow_style=False)
         assert res == dedent(
             """
@@ -68,7 +67,7 @@ class TestYAML:
         reason="uoft_core.yaml not available",
     )
     def test_dump_ruamel_ordereddict(self):
-        from ruamel.ordereddict import ordereddict
+        from uoft_core.ordereddict import ordereddict
         import uoft_core.yaml  # NOQA
 
         # OrderedDict mapped to !!omap

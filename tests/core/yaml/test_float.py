@@ -59,7 +59,7 @@ class TestFloat:
         print(data)
 
     def test_yaml_1_1_no_dot(self):
-        from ruamel.yaml.error import MantissaNoDotYAML1_1Warning
+        from uoft_core.yaml.error import MantissaNoDotYAML1_1Warning
 
         with pytest.warns(MantissaNoDotYAML1_1Warning):
             round_trip_load("""\

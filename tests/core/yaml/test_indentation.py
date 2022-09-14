@@ -202,34 +202,6 @@ class TestIndent:
         """
         assert round_trip_dump(round_trip_load(inp)) == dedent(exp)
 
-
-class TestYpkgIndent:
-    def test_00(self):
-        inp = """
-        name       : nano
-        version    : 2.3.2
-        release    : 1
-        homepage   : http://www.nano-editor.org
-        source     :
-          - http://www.nano-editor.org/dist/v2.3/nano-2.3.2.tar.gz : ff30924807ea289f5b60106be8
-        license    : GPL-2.0
-        summary    : GNU nano is an easy-to-use text editor
-        builddeps  :
-          - ncurses-devel
-        description: |
-            GNU nano is an easy-to-use text editor originally designed
-            as a replacement for Pico, the ncurses-based editor from the non-free mailer
-            package Pine (itself now available under the Apache License as Alpine).
-        """
-        round_trip(
-            inp,
-            indent=4,
-            block_seq_indent=2,
-            top_level_colon_align=True,
-            prefix_colon=" ",
-        )
-
-
 def guess(s):
     from uoft_core.yaml.util import load_yaml_guess_indent
 

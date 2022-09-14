@@ -18,7 +18,7 @@ import platform
 
 # from uoft_core.yaml.compat import ordereddict
 from .roundtrip import round_trip, dedent, round_trip_load, round_trip_dump  # NOQA
-
+from uoft_core.yaml.scalarstring import LiteralScalarString, DoubleQuotedScalarString
 
 class TestLiteralScalarString:
     def test_basic_string(self):
@@ -148,7 +148,6 @@ class TestReplace:
     """inspired by issue 110 from sandres23"""
 
     def test_replace_preserved_scalar_string(self):
-        import ruamel
 
         s = dedent(
             """\
@@ -161,7 +160,7 @@ class TestReplace:
         )
         data = round_trip_load(s, preserve_quotes=True)
         so = data["foo"].replace("foo", "bar", 2)
-        assert isinstance(so, uoft_core.yaml.scalarstring.LiteralScalarString)
+        assert isinstance(so, LiteralScalarString)
         assert so == dedent(
             """
         bar
@@ -172,8 +171,7 @@ class TestReplace:
         )
 
     def test_replace_double_quoted_scalar_string(self):
-        import ruamel
-
+       
         s = dedent(
             """\
         foo: "foo foo bar foo"
@@ -181,7 +179,7 @@ class TestReplace:
         )
         data = round_trip_load(s, preserve_quotes=True)
         so = data["foo"].replace("foo", "bar", 2)
-        assert isinstance(so, uoft_core.yaml.scalarstring.DoubleQuotedScalarString)
+        assert isinstance(so, DoubleQuotedScalarString)
         assert so == "bar bar bar foo"
 
 
