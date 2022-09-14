@@ -37,7 +37,7 @@ def systemd(c: Context, action: str, prod: bool = False):
         services = " ".join([f"-u {s}" for s in services])
         c.run(f"sudo journalctl -f {services}")
     else:
-        c.run(f"sudo systemctl {action} {' '.join(services)}")
+        c.run(f"sudo systemctl -n 0 {action} {' '.join(services)}")
 
 
 @task()
