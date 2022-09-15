@@ -109,6 +109,7 @@ class Dumper:
         self.serializer.open()
         for data in documents:
             self.representer.represent(data)
+        self.serializer.close()
 
         if isinstance(stream, Path):
             assert isinstance(output, StringIO)
