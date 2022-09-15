@@ -9,13 +9,12 @@ if TYPE_CHECKING:
     from typing import Any, Dict, List, Union, Text, Optional  # NOQA
     from . import YAML
     from .compat import VersionType  # NOQA
+    from .main import Loader, Dumper
 
 from .compat import _DEFAULT_YAML_VERSION, _F  # NOQA
 from .error import *  # NOQA
 from .nodes import MappingNode, ScalarNode, SequenceNode  # NOQA
 from .util import RegExp  # NOQA
-if TYPE_CHECKING:
-    from uoft_core.yaml.main import YAML
 from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 from uoft_core.yaml.util import LazyEval
 
@@ -123,31 +122,34 @@ class Resolver:
     yaml_implicit_resolvers = {}
     yaml_path_resolvers = {}
 
-    def __init__(self, loader: YAML) -> None:
-
-        self.loader = loader
+    def __init__(self, parent: Loader | Dumper) -> None:
+        from .main import Loader, Dumper # imported here to avoid circular import
+        if isinstance(parent, Loader):
+            self.loader = parent
+            self.dumper = None
+        elif isinstance(parent, Dumper):
+            self.loader = None
+            self.dumper = parent
         self.resolver_exact_paths = []
         self.resolver_prefix_paths = []
         self._version_implicit_resolver = {}
 
     @property
     def loader_version(self):
-        return self.get_loader_version(self.loader.version)
-
-    @property
-    def parser(self):
-        return self.loader.parser
+        if not self.loader:
+            return None
+        return self.get_loader_version(self.loader.conf.version)
 
     def get_loader_version(self, version: Optional[Union[str, Tuple[int, int]]]) -> Optional[Tuple[int, int]]:
 
         if version is None or isinstance(version, tuple):
             return version
-        if isinstance(version, list):
+        if isinstance(version, list) and not isinstance(version, str):
             return tuple(version)
         # assume string
         return tuple(map(int, version.split(".")))
 
-    def add_version_implicit_resolver(self, version: Tuple[int, int], tag: str, regexp: LazyEval, first: List[str]) -> None:
+    def add_version_implicit_resolver(self, version: Tuple[int, int], tag: str, regexp: LazyEval, first: List[str | None]) -> None:
 
         if first is None:
             first = [None]
@@ -156,7 +158,7 @@ class Resolver:
             impl_resolver.setdefault(ch, []).append((tag, regexp))
 
     @property
-    def versioned_resolver(self) -> Dict[str, List[Tuple[str, LazyEval]]]:
+    def versioned_resolver(self) -> Dict[str | None, List[Tuple[str, LazyEval]]]:
 
         """
         select the resolver based on the version we are parsing
@@ -347,19 +349,12 @@ class Resolver:
     @property
     def processing_version(self) -> Tuple[int, int]:
 
-        try:
-            version = self.loader._scanner.yaml_version
-        except AttributeError:
-            try:
-                if hasattr(self.loader, "typ"):
-                    version = self.loader.version
-                else:
-                    version = self.loader._serializer.use_version  # dumping
-            except AttributeError:
-                version = None
+        version = None
+        if self.loader:
+            version = self.loader.scanner.yaml_version
         if version is None:
             version = self.loader_version
-            if version is None:
-                version = _DEFAULT_YAML_VERSION
+        if version is None:
+            version = _DEFAULT_YAML_VERSION
         return version
 

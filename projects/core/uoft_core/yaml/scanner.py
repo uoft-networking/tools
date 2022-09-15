@@ -39,7 +39,7 @@ from uoft_core.yaml.tokens import AliasToken, AnchorToken, DirectiveToken, Scala
 
 if TYPE_CHECKING:
     from typing import Any, Optional, List, Union
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Loader
 
 __all__ = ["Scanner", "RoundTripScannerSC", "ScannerError"]
 
@@ -71,7 +71,7 @@ class SimpleKey:
 
 
 class Scanner:
-    def __init__(self, loader: YAML) -> None:
+    def __init__(self, loader: Loader) -> None:
 
         """Initialize the scanner."""
         # It is assumed that Scanner and Reader will have a common descendant.
@@ -1286,7 +1286,7 @@ class Scanner:
                 style not in "|>"
                 or (self.scanner_processing_version == (1, 1))
                 and getattr(
-                    self.loader,
+                    self.loader.conf,
                     "top_level_block_style_scalar_no_indent_error_1_1",
                     False,
                 )
@@ -1363,14 +1363,14 @@ class Scanner:
         # We are done.
         token = ScalarToken("".join(chunks), False, start_mark, end_mark, style)
         if self.loader is not None:
-            comment_handler = getattr(self.loader, "comment_handling", False)
+            comment_handler = getattr(self.loader.conf, "comment_handling", False)
             if comment_handler is None:
                 if block_scalar_comment is not None:
                     token.add_pre_comments([block_scalar_comment])
         if len(trailing) > 0:
             # Eat whitespaces and comments until we reach the next token.
             if self.loader is not None:
-                comment_handler = getattr(self.loader, "comment_handling", None)
+                comment_handler = getattr(self.loader.conf, "comment_handling", None)
                 if comment_handler is not None:
                     line = end_mark.line - len(trailing)
                     for x in trailing:
@@ -1382,7 +1382,7 @@ class Scanner:
                 trailing.append(" " * comment[1].column + comment[0])
                 comment = self.scan_to_next_token()
             if self.loader is not None:
-                comment_handler = getattr(self.loader, "comment_handling", False)
+                comment_handler = getattr(self.loader.conf, "comment_handling", False)
                 if comment_handler is None:
                     # Keep track of the trailing whitespace and following comments
                     # as a comment token, if isn't all included in the actual value.
@@ -1742,7 +1742,7 @@ class Scanner:
         # getattr provides True so C type loader, which cannot handle comment,
         # will not make CommentToken
         if self.loader is not None:
-            comment_handler = getattr(self.loader, "comment_handling", False)
+            comment_handler = getattr(self.loader.conf, "comment_handling", False)
             if comment_handler is None:
                 if spaces and spaces[0] == "\n":
                     # Create a comment token to preserve the trailing line breaks.

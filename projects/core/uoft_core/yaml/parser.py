@@ -81,13 +81,13 @@ from .events import *  # NOQA
 from .scanner import Scanner, ScannerError  # NOQA
 from .scanner import BlankLineComment
 from .comments import C_PRE, C_POST, C_SPLIT_ON_FIRST_BLANK
-from .compat import _F, nprint, nprintf  # NOQA
+from .compat import _F, nprintf  # NOQA
 
 from typing import Tuple, Union, TYPE_CHECKING
 from uoft_core.yaml.error import StringMark
 from uoft_core.yaml.events import AliasEvent, DocumentEndEvent, DocumentStartEvent, Event, MappingEndEvent, MappingStartEvent, ScalarEvent, SequenceEndEvent, SequenceStartEvent, StreamEndEvent, StreamStartEvent
 if TYPE_CHECKING: 
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Loader
 from uoft_core.yaml.resolver import Resolver
 from uoft_core.yaml.tokens import CommentToken, Token
 
@@ -113,11 +113,9 @@ class Parser:
 
     DEFAULT_TAGS = {"!": "!", "!!": "tag:yaml.org,2002:"}
 
-    def __init__(self, loader: YAML) -> None:
+    def __init__(self, loader: Loader) -> None:
 
         self.loader = loader
-        if self.loader is not None and getattr(self.loader, "_parser", None) is None:
-            self.loader._parser = self
         self.reset_parser()
 
     def reset_parser(self) -> None:
@@ -328,11 +326,11 @@ class Parser:
         else:
             value = yaml_version, None
         if self.loader is not None and hasattr(self.loader, "tags"):
-            self.loader.version = yaml_version
-            if self.loader.tags is None:
-                self.loader.tags = {}
+            self.loader.conf.version = yaml_version
+            if self.loader.conf.tags is None:
+                self.loader.conf.tags = {}
             for k in self.tag_handles:
-                self.loader.tags[k] = self.tag_handles[k]
+                self.loader.conf.tags[k] = self.tag_handles[k]
         for key in self.DEFAULT_TAGS:
             if key not in self.tag_handles:
                 self.tag_handles[key] = self.DEFAULT_TAGS[key]
@@ -442,7 +440,7 @@ class Parser:
         if indentless_sequence and self.scanner.check_token(BlockEntryToken):
             comment = None
             pt = self.scanner.peek_token()
-            if self.loader and self.loader.comment_handling is None:
+            if self.loader and self.loader.conf.comment_handling is None:
                 if pt.comment and pt.comment[0]:
                     comment = [pt.comment[0], []]
                     pt.comment[0] = None
@@ -627,7 +625,7 @@ class Parser:
                 return self.process_empty_scalar(token.end_mark)
         token = self.scanner.peek_token()
         c = None
-        if self.loader and self.loader.comment_handling is None:
+        if self.loader and self.loader.conf.comment_handling is None:
             c = token.comment
             start_mark = token.start_mark
         else:
@@ -881,7 +879,7 @@ class RoundTripParserSC(Parser):
     """roundtrip is a safe loader, that wants to see the unmangled tag"""
 
     # some of the differences are based on the superclass testing
-    # if self.loader.comment_handling is not None
+    # if self.loader.conf.comment_handling is not None
 
     def move_token_comment(self, token, nt=None, empty=False):
 
@@ -901,7 +899,7 @@ class RoundTripParserSC(Parser):
         assert comment[0][0] == line + 1
         # if comment[0] - line > 1:
         #     return
-        typ = self.loader.comment_handling & 0b11
+        typ = self.loader.conf.comment_handling & 0b11
         # nprintf('>>>dca', comment, line, typ)
         if typ == C_POST:
             return None

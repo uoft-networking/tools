@@ -23,7 +23,7 @@ from typing import Union, TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Optional  # NOQA
     from uoft_core.yaml.events import MappingEndEvent, SequenceEndEvent
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Loader
     from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 
 __all__ = ["Composer", "ComposerError"]
@@ -34,7 +34,7 @@ class ComposerError(MarkedYAMLError):
 
 
 class Composer:
-    def __init__(self, loader: YAML) -> None:
+    def __init__(self, loader: Loader) -> None:
         self.loader = loader
         self.anchors = {}
 
@@ -47,7 +47,7 @@ class Composer:
         # If there are more documents available?
         return not self.loader.parser.check_event(StreamEndEvent)
 
-    def get_node(self) -> Union[ScalarNode, MappingNode, SequenceNode]:
+    def get_node(self) -> ScalarNode | MappingNode | SequenceNode | None:
 
         # Get the root node of the next document.
         if not self.loader.parser.check_event(StreamEndEvent):

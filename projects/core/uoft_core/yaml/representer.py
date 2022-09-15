@@ -42,7 +42,7 @@ from uoft_core.yaml.anchor import Anchor
 from uoft_core.yaml.comments import CommentedKeySeq, CommentedMap, CommentedOrderedMap, CommentedSeq, CommentedSet, TaggedScalar
 from uoft_core.yaml.compat import ordereddict
 if TYPE_CHECKING:
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Dumper
 from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 from uoft_core.yaml.scalarfloat import ScalarFloat
 from uoft_core.yaml.scalarint import BinaryInt, HexInt, HexCapsInt, OctalInt, ScalarInt
@@ -68,15 +68,15 @@ class Representer:
     yaml_representers = {}
     yaml_multi_representers = {}
 
-    def __init__(self, dumper: YAML) -> None:
+    def __init__(self, dumper: Dumper) -> None:
 
         self.dumper = dumper
-        self.default_style = dumper.default_style
-        self.default_flow_style = dumper.default_flow_style
+        self.default_style = dumper.conf.default_style
+        self.default_flow_style = dumper.conf.default_flow_style
         self.represented_objects = {}
         self.object_keeper = []
         self.alias_key = None
-        if (sbmt := dumper.sort_base_mapping_type_on_output) is not None:
+        if (sbmt := dumper.conf.sort_base_mapping_type_on_output) is not None:
             self.sort_base_mapping_type_on_output = sbmt
         else:
             self.sort_base_mapping_type_on_output = True
@@ -418,7 +418,7 @@ class Representer:
                 for ct in node.comment[1]:
                     ct.reset()
             item_comments = comment.items
-            if self.dumper.comment_handling is None:
+            if self.dumper.conf.comment_handling is None:
                 for v in item_comments.values():
                     if v and v[1]:
                         for ct in v[1]:

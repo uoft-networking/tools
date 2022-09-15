@@ -55,7 +55,7 @@ if TYPE_CHECKING:  # MYPY
         CommentedSet,
         TaggedScalar,
     )
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Loader
     from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
     from uoft_core.yaml.scalarfloat import ScalarFloat
     from uoft_core.yaml.scalarstring import LiteralScalarString
@@ -92,7 +92,7 @@ class Constructor:
         "off": False,
     }
 
-    def __init__(self, loader: YAML) -> None:
+    def __init__(self, loader: Loader) -> None:
         self.loader = loader
         self.yaml_constructors = {
             "tag:yaml.org,2002:null": self.construct_yaml_null,
@@ -130,11 +130,11 @@ class Constructor:
 
     @property
     def preserve_quotes(self):
-        return self.loader.preserve_quotes
+        return self.loader.conf.preserve_quotes
 
     @property
     def allow_duplicate_keys(self):
-        return self.loader.allow_duplicate_keys
+        return self.loader.conf.allow_duplicate_keys
 
     def check_data(self) -> bool:
         # If there are more documents available?
@@ -347,7 +347,7 @@ class Constructor:
 
         if node.style == "|" and isinstance(node.value, str):
             lss = LiteralScalarString(node.value, anchor=node.anchor)
-            if self.loader and self.loader.comment_handling is None:
+            if self.loader and self.loader.conf.comment_handling is None:
                 if node.comment and node.comment[1]:
                     lss.comment = node.comment[1][0]
             else:
@@ -366,7 +366,7 @@ class Constructor:
                     break
                 fold_positions.append(idx - len(fold_positions))
             fss = FoldedScalarString(node.value.replace("\a", ""), anchor=node.anchor)
-            if self.loader and self.loader.comment_handling is None:
+            if self.loader and self.loader.conf.comment_handling is None:
                 if node.comment and node.comment[1]:
                     fss.comment = node.comment[1][0]
             else:
@@ -413,7 +413,7 @@ class Constructor:
             )
         merge_map = self.flatten_mapping(node)
         # mapping = {}
-        if self.loader and self.loader.comment_handling is None:
+        if self.loader and self.loader.conf.comment_handling is None:
             if node.comment:
                 maptyp._yaml_add_comment(node.comment[:2])
                 if len(node.comment) > 2:
@@ -460,7 +460,7 @@ class Constructor:
                 )
             value = self.construct_object(value_node, deep=deep)
             if self.check_mapping_key(node, key_node, maptyp, key, value):
-                if self.loader and self.loader.comment_handling is None:
+                if self.loader and self.loader.conf.comment_handling is None:
                     if (
                         key_node.comment
                         and len(key_node.comment) > 4
@@ -581,7 +581,7 @@ class Constructor:
                 node.start_mark,
             )
         ret_val = []
-        if self.loader and self.loader.comment_handling is None:
+        if self.loader and self.loader.conf.comment_handling is None:
             if node.comment:
                 seqtyp._yaml_add_comment(node.comment[:2])
                 if len(node.comment) > 2:
@@ -926,7 +926,7 @@ class Constructor:
         elif node.flow_style is False:
             omap.fa.set_block_style()
         yield omap
-        if self.loader and self.loader.comment_handling is None:
+        if self.loader and self.loader.conf.comment_handling is None:
             if node.comment:
                 omap._yaml_add_comment(node.comment[:2])
                 if len(node.comment) > 2:
@@ -967,7 +967,7 @@ class Constructor:
             key = self.construct_object(key_node)
             assert key not in omap
             value = self.construct_object(value_node)
-            if self.loader and self.loader.comment_handling is None:
+            if self.loader and self.loader.conf.comment_handling is None:
                 if key_node.comment:
                     omap._yaml_add_comment(key_node.comment, key=key)
                 if subnode.comment:
@@ -1007,7 +1007,7 @@ class Constructor:
                 _F("expected a mapping node, but found {node_id!s}", node_id=node.id),
                 node.start_mark,
             )
-        if self.loader and self.loader.comment_handling is None:
+        if self.loader and self.loader.conf.comment_handling is None:
             if node.comment:
                 typ._yaml_add_comment(node.comment[:2])
                 if len(node.comment) > 2:
@@ -1038,7 +1038,7 @@ class Constructor:
             # construct but should be null
             value = self.construct_object(value_node, deep=deep)  # NOQA
             self.check_set_key(node, key_node, typ, key)
-            if self.loader and self.loader.comment_handling is None:
+            if self.loader and self.loader.conf.comment_handling is None:
                 if key_node.comment:
                     typ._yaml_add_comment(key_node.comment, key=key)
                 if value_node.comment:
@@ -1121,7 +1121,7 @@ class Constructor:
 
     def comment(self, idx):
 
-        assert self.loader.comment_handling is not None
+        assert self.loader.conf.comment_handling is not None
         x = self.scanner.comments[idx]
         x.set_assigned()
         return x

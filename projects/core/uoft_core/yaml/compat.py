@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import sys
 import os
-import io
+from io import StringIO, BytesIO
 import traceback
 from abc import abstractmethod
 import collections.abc
@@ -64,10 +64,6 @@ def _F(s: str, *superfluous, **kw) -> str:
     if superfluous:
         raise TypeError
     return s.format(**kw)
-
-
-StringIO = io.StringIO
-BytesIO = io.BytesIO
 
 StreamType = BinaryIO | TextIO | BytesIO | StringIO
 
@@ -196,20 +192,6 @@ def check_anchorname_char(ch: str) -> bool:
     if ch in ",[]{}":
         return False
     return check_namespace_char(ch)
-
-
-def version_tnf(t1: Tuple[int, int, int], t2: Optional[Tuple[int, int]]=None) -> bool:
-
-    """
-    return True if ruamel.yaml version_info < t1, None if t2 is specified and bigger else False
-    """
-    from . import version_info  # NOQA
-
-    if version_info < t1:
-        return True
-    if t2 is not None and version_info < t2:
-        return None
-    return False
 
 
 class MutableSliceableSequence(collections.abc.MutableSequence):
