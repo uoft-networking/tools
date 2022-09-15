@@ -30,7 +30,7 @@ from .util import RegExp
 from typing import TYPE_CHECKING, TextIO
 from uoft_core.yaml.error import StringMark
 if TYPE_CHECKING:
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Loader
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Union, Text, Tuple, Optional  # NOQA
@@ -86,7 +86,7 @@ class Reader:
 
     # Yeah, it's ugly and slow.
 
-    def __init__(self, loader: YAML, stream: None = None) -> None:
+    def __init__(self, loader: Loader, stream: None = None) -> None:
 
         self.loader = loader
         self.reset_reader()

@@ -24,7 +24,7 @@ from uoft_core.yaml.tokens import CommentToken
 
 if TYPE_CHECKING:
     from typing import Union, Tuple, Optional
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import YAML, Dumper
     from uoft_core.yaml.serializer import Serializer
 
 __all__ = ["Emitter", "EmitterError"]
@@ -111,7 +111,7 @@ class Emitter:
 
     def __init__(
         self,
-        dumper: YAML,
+        dumper: Dumper,
     ) -> None:
 
         self.dumper = dumper
@@ -163,44 +163,44 @@ class Emitter:
 
         # colon handling
         self.colon = ":"
-        prefix_colon = self.dumper.prefix_colon
+        prefix_colon = self.dumper.conf.prefix_colon
         self.prefixed_colon = (
             self.colon if prefix_colon is None else prefix_colon + self.colon
         )
         # single entry mappings in flow sequence
-        self.brace_single_entry_mapping_in_flow_sequence = self.dumper.brace_single_entry_mapping_in_flow_sequence
+        self.brace_single_entry_mapping_in_flow_sequence = self.dumper.conf.brace_single_entry_mapping_in_flow_sequence
 
         # Formatting details.
         self.canonical = None
-        self.allow_unicode = self.dumper.allow_unicode
+        self.allow_unicode = self.dumper.conf.allow_unicode
         # set to False to get "\Uxxxxxxxx" for non-basic unicode like emojis
         self.unicode_supplementary = sys.maxunicode > 0xFFFF
         self.sequence_dash_offset = 0
         self.top_level_colon_align = None
         self.best_sequence_indent = 2
-        indent = self.dumper.old_indent
+        indent = self.dumper.conf.scalar_indent
         self.requested_indent = indent  # specific for literal zero indent
         if indent and 1 < indent < 10:
             self.best_sequence_indent = indent
         self.best_map_indent = self.best_sequence_indent
         self.best_width = 80
-        width = self.dumper.width
+        width = self.dumper.conf.width
         if width and width > self.best_sequence_indent * 2:
             self.best_width = width
         self.best_line_break = "\n"
-        line_break = self.dumper.line_break
+        line_break = self.dumper.conf.line_break
         if line_break in ["\r", "\n", "\r\n"]:
             self.best_line_break = line_break
-        if self.dumper.map_indent is not None:
-            self.best_map_indent = self.dumper.map_indent
-        if self.dumper.sequence_indent is not None:
-            self.best_sequence_indent = self.dumper.sequence_indent
-        if self.dumper.sequence_dash_offset is not None:
-            self.sequence_dash_offset = self.dumper.sequence_dash_offset
-        if self.dumper.compact_seq_seq is not None:
-            self.compact_seq_seq = self.dumper.compact_seq_seq
-        if self.dumper.compact_seq_map is not None:
-            self.compact_seq_map = self.dumper.compact_seq_map
+        if self.dumper.conf.map_indent is not None:
+            self.best_map_indent = self.dumper.conf.map_indent
+        if self.dumper.conf.sequence_indent is not None:
+            self.best_sequence_indent = self.dumper.conf.sequence_indent
+        if self.dumper.conf.sequence_dash_offset is not None:
+            self.sequence_dash_offset = self.dumper.conf.sequence_dash_offset
+        if self.dumper.conf.compact_seq_seq is not None:
+            self.compact_seq_seq = self.dumper.conf.compact_seq_seq
+        if self.dumper.conf.compact_seq_map is not None:
+            self.compact_seq_map = self.dumper.conf.compact_seq_map
 
         # Tag prefixes.
         self.tag_prefixes = None
@@ -213,7 +213,7 @@ class Emitter:
         self.analysis = None
         self.style = None
 
-        if (sca := self.dumper.scalar_after_indicator) is not None:
+        if (sca := self.dumper.conf.scalar_after_indicator) is not None:
             self.scalar_after_indicator = sca
         else:    
             self.scalar_after_indicator = True  # write a scalar on the same line as `---`
@@ -1019,7 +1019,7 @@ class Emitter:
             end = 1
         ch_set = "-;/?:@&=+$,_.~*'()[]"
         if self.dumper:
-            version = getattr(self.dumper, "version", (1, 2))
+            version = getattr(self.dumper.conf, "version", (1, 2))
             if version is None or version >= (1, 2):
                 ch_set += "#"
         while end < len(prefix):
@@ -1054,7 +1054,7 @@ class Emitter:
         start = end = 0
         ch_set = "-;/?:@&=+$,_.~*'()[]"
         if self.dumper:
-            version = getattr(self.dumper, "version", (1, 2))
+            version = getattr(self.dumper.conf, "version", (1, 2))
             if version is None or version >= (1, 2):
                 ch_set += "#"
         while end < len(suffix):

@@ -26,7 +26,7 @@ from uoft_core.yaml.resolver import Resolver
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Union, Text, Optional  # NOQA
-    from uoft_core.yaml.main import YAML
+    from uoft_core.yaml.main import Dumper
     from .compat import VersionType  # NOQA
 
 __all__ = ["Serializer", "SerializerError"]
@@ -42,17 +42,17 @@ class Serializer:
     ANCHOR_TEMPLATE = "id%03d"
     ANCHOR_RE = RegExp("id(?!000$)\\d{3,}")
 
-    def __init__(self, dumper: YAML) -> None:
+    def __init__(self, dumper: Dumper) -> None:
 
         self.dumper = dumper
-        self.use_encoding = dumper.encoding
-        self.use_explicit_start = dumper.explicit_start
-        self.use_explicit_end = dumper.explicit_end
-        if isinstance(dumper.version, str):
-            self.use_version = tuple(map(int, dumper.version.split(".")))
+        self.use_encoding = dumper.conf.encoding
+        self.use_explicit_start = dumper.conf.explicit_start
+        self.use_explicit_end = dumper.conf.explicit_end
+        if isinstance(dumper.conf.version, str):
+            self.use_version = tuple(map(int, dumper.conf.version.split(".")))
         else:
-            self.use_version = dumper.version
-        self.use_tags = dumper.tags
+            self.use_version = dumper.conf.version
+        self.use_tags = dumper.conf.tags
         self.serialized_nodes = {}
         self.anchors = {}
         self.last_anchor_id = 0
