@@ -40,4 +40,3 @@ def test_from_yaml():
     assert "comment on list item" in c2
     c3 = yaml.get_comment(s["list"], 1)  # type: ignore
     assert c3 is None
-    print(yaml.to_yaml(s))
