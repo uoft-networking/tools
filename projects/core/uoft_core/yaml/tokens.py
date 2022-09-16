@@ -1,12 +1,13 @@
 # coding: utf-8
-
+from __future__ import annotations
 from .compat import _F, nprintf  # NOQA
 
-from typing import TYPE_CHECKING
+from typing import Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import Text, Any, Dict, Optional, List  # NOQA
     from .error import StreamMark  # NOQA
+    from uoft_core.yaml.error import CommentMark, StringMark
 
 SHOW_LINES = True
 
@@ -14,13 +15,13 @@ SHOW_LINES = True
 class Token:
     __slots__ = "start_mark", "end_mark", "_comment"
 
-    def __init__(self, start_mark, end_mark):
-        # type: (StreamMark, StreamMark) -> None
+    def __init__(self, start_mark: Union[CommentMark, StringMark], end_mark: Optional[StringMark]) -> None:
+
         self.start_mark = start_mark
         self.end_mark = end_mark
 
     def __repr__(self):
-        # type: () -> Any
+
         # attributes = [key for key in self.__slots__ if not key.endswith('_mark') and
         #               hasattr('self', key)]
         attributes = [key for key in self.__slots__ if not key.endswith("_mark")]
@@ -45,12 +46,12 @@ class Token:
 
     @property
     def column(self):
-        # type: () -> int
+
         return self.start_mark.column
 
     @column.setter
     def column(self, pos):
-        # type: (Any) -> None
+
         self.start_mark.column = pos
 
     # old style ( <= 0.17) is a TWO element list with first being the EOL
@@ -64,8 +65,8 @@ class Token:
     # new style routines add one comment at a time
 
     # going to be deprecated in favour of add_comment_eol/post
-    def add_post_comment(self, comment):
-        # type: (Any) -> None
+    def add_post_comment(self, comment: "CommentToken") -> None:
+
         if not hasattr(self, "_comment"):
             self._comment = [None, None]
         else:
@@ -76,8 +77,8 @@ class Token:
         self._comment[0] = comment
 
     # going to be deprecated in favour of add_comment_pre
-    def add_pre_comments(self, comments):
-        # type: (Any) -> None
+    def add_pre_comments(self, comments: List[Union[str, CommentToken]]) -> None:
+
         if not hasattr(self, "_comment"):
             self._comment = [None, None]
         else:
@@ -88,49 +89,49 @@ class Token:
 
     # new style
     def add_comment_pre(self, comment):
-        # type: (Any) -> None
+
         if not hasattr(self, "_comment"):
-            self._comment = [[], None, None]  # type: ignore
+            self._comment = [[], None, None]
         else:
             assert len(self._comment) == 3
             if self._comment[0] is None:
-                self._comment[0] = []  # type: ignore
-        self._comment[0].append(comment)  # type: ignore
+                self._comment[0] = []
+        self._comment[0].append(comment)
 
     def add_comment_eol(self, comment, comment_type):
-        # type: (Any, Any) -> None
+
         if not hasattr(self, "_comment"):
             self._comment = [None, None, None]
         else:
             assert len(self._comment) == 3
             assert self._comment[1] is None
         if self.comment[1] is None:
-            self._comment[1] = []  # type: ignore
-        self._comment[1].extend([None] * (comment_type + 1 - len(self.comment[1])))  # type: ignore # NOQA
+            self._comment[1] = []
+        self._comment[1].extend([None] * (comment_type + 1 - len(self.comment[1])))
         # nprintf('commy', self.comment, comment_type)
-        self._comment[1][comment_type] = comment  # type: ignore
+        self._comment[1][comment_type] = comment
 
     def add_comment_post(self, comment):
-        # type: (Any) -> None
+
         if not hasattr(self, "_comment"):
-            self._comment = [None, None, []]  # type: ignore
+            self._comment = [None, None, []]
         else:
             assert len(self._comment) == 3
             if self._comment[2] is None:
-                self._comment[2] = []  # type: ignore
-        self._comment[2].append(comment)  # type: ignore
+                self._comment[2] = []
+        self._comment[2].append(comment)
 
     # def get_comment(self):
-    #     # type: () -> Any
+    #
     #     return getattr(self, '_comment', None)
 
     @property
-    def comment(self):
-        # type: () -> Any
+    def comment(self) -> Optional[Union[List[Union[CommentToken, List[str]]], List[None], List[Optional[List[CommentToken]]], List[Optional[CommentToken]]]]:
+
         return getattr(self, "_comment", None)
 
-    def move_old_comment(self, target, empty=False):
-        # type: (Any, bool) -> Any
+    def move_old_comment(self, target: "Token", empty: bool=False) -> Optional[Union[BlockEndToken, BlockEntryToken, ValueToken, KeyToken]]:
+
         """move a comment from this token to target (normally next token)
         used to combine e.g. comments before a BlockEntryToken to the
         ScalarToken that follows it
@@ -159,8 +160,8 @@ class Token:
             tc[1] = c[1]
         return self
 
-    def split_old_comment(self):
-        # type: () -> Any
+    def split_old_comment(self) -> Optional[List[Optional[CommentToken]]]:
+
         """split the post part of a comment, and return it
         as comment to be added. Delete second part if [None, None]
          abc:  # this goes to sequence
@@ -176,7 +177,7 @@ class Token:
         return ret_val
 
     def move_new_comment(self, target, empty=False):
-        # type: (Any, bool) -> Any
+
         """move a comment from this token to target (normally next token)
         used to combine e.g. comments before a BlockEntryToken to the
         ScalarToken that follows it
@@ -218,8 +219,8 @@ class DirectiveToken(Token):
     __slots__ = "name", "value"
     id = "<directive>"
 
-    def __init__(self, name, value, start_mark, end_mark):
-        # type: (Any, Any, Any, Any) -> None
+    def __init__(self, name: str, value: Tuple[int, int], start_mark: StringMark, end_mark: StringMark) -> None:
+
         Token.__init__(self, start_mark, end_mark)
         self.name = name
         self.value = value
@@ -239,8 +240,8 @@ class StreamStartToken(Token):
     __slots__ = ("encoding",)
     id = "<stream start>"
 
-    def __init__(self, start_mark=None, end_mark=None, encoding=None):
-        # type: (Any, Any, Any) -> None
+    def __init__(self, start_mark: Optional[StringMark]=None, end_mark: Optional[StringMark]=None, encoding: None=None) -> None:
+
         Token.__init__(self, start_mark, end_mark)
         self.encoding = encoding
 
@@ -313,8 +314,8 @@ class AliasToken(Token):
     __slots__ = ("value",)
     id = "<alias>"
 
-    def __init__(self, value, start_mark, end_mark):
-        # type: (Any, Any, Any) -> None
+    def __init__(self, value: str, start_mark: StringMark, end_mark: StringMark) -> None:
+
         Token.__init__(self, start_mark, end_mark)
         self.value = value
 
@@ -323,8 +324,8 @@ class AnchorToken(Token):
     __slots__ = ("value",)
     id = "<anchor>"
 
-    def __init__(self, value, start_mark, end_mark):
-        # type: (Any, Any, Any) -> None
+    def __init__(self, value: str, start_mark: StringMark, end_mark: StringMark) -> None:
+
         Token.__init__(self, start_mark, end_mark)
         self.value = value
 
@@ -333,8 +334,8 @@ class TagToken(Token):
     __slots__ = ("value",)
     id = "<tag>"
 
-    def __init__(self, value, start_mark, end_mark):
-        # type: (Any, Any, Any) -> None
+    def __init__(self, value: Tuple[str, str], start_mark: StringMark, end_mark: StringMark) -> None:
+
         Token.__init__(self, start_mark, end_mark)
         self.value = value
 
@@ -343,8 +344,8 @@ class ScalarToken(Token):
     __slots__ = "value", "plain", "style"
     id = "<scalar>"
 
-    def __init__(self, value, plain, start_mark, end_mark, style=None):
-        # type: (Any, Any, Any, Any, Any) -> None
+    def __init__(self, value: str, plain: bool, start_mark: StringMark, end_mark: StringMark, style: Optional[str]=None) -> None:
+
         Token.__init__(self, start_mark, end_mark)
         self.value = value
         self.plain = plain
@@ -355,33 +356,33 @@ class CommentToken(Token):
     __slots__ = "_value", "pre_done"
     id = "<comment>"
 
-    def __init__(self, value, start_mark=None, end_mark=None, column=None):
-        # type: (Any, Any, Any, Any) -> None
+    def __init__(self, value: str, start_mark: Optional[Union[CommentMark, StringMark]]=None, end_mark: Optional[StringMark]=None, column: None=None) -> None:
+
         if start_mark is None:
             assert column is not None
             self._column = column
-        Token.__init__(self, start_mark, None)  # type: ignore
+        Token.__init__(self, start_mark, None)
         self._value = value
 
     @property
     def value(self):
-        # type: () -> str
+
         if isinstance(self._value, str):
             return self._value
         return "".join(self._value)
 
     @value.setter
     def value(self, val):
-        # type: (Any) -> None
+
         self._value = val
 
-    def reset(self):
-        # type: () -> None
+    def reset(self) -> None:
+
         if hasattr(self, "pre_done"):
             delattr(self, "pre_done")
 
-    def __repr__(self):
-        # type: () -> Any
+    def __repr__(self) -> str:
+
         v = "{!r}".format(self.value)
         if SHOW_LINES:
             try:
@@ -395,7 +396,7 @@ class CommentToken(Token):
         return "CommentToken({})".format(v)
 
     def __eq__(self, other):
-        # type: (Any) -> bool
+
         if self.start_mark != other.start_mark:
             return False
         if self.end_mark != other.end_mark:
@@ -405,5 +406,5 @@ class CommentToken(Token):
         return True
 
     def __ne__(self, other):
-        # type: (Any) -> bool
+
         return not self.__eq__(other)

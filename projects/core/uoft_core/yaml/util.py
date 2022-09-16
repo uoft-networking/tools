@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 """
 some helper functions that might be generally useful
@@ -9,7 +10,8 @@ from functools import partial
 import re
 
 
-from typing import TYPE_CHECKING
+from typing import Callable, Tuple, Union, TYPE_CHECKING
+from uoft_core.yaml.comments import CommentedMap
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Text  # NOQA
@@ -28,24 +30,23 @@ class LazyEval:
     """
 
     def __init__(self, func, *args, **kwargs):
-        # type: (Any, Any, Any) -> None
         def lazy_self():
-            # type: () -> Any
+
             return_value = func(*args, **kwargs)
             object.__setattr__(self, "lazy_self", lambda: return_value)
             return return_value
 
         object.__setattr__(self, "lazy_self", lazy_self)
 
-    def __getattribute__(self, name):
-        # type: (Any) -> Any
+    def __getattribute__(self, name: str) -> Callable:
+
         lazy_self = object.__getattribute__(self, "lazy_self")
         if name == "lazy_self":
             return lazy_self
         return getattr(lazy_self(), name)
 
     def __setattr__(self, name, value):
-        # type: (Any, Any) -> None
+
         setattr(self.lazy_self(), name, value)
 
 
@@ -67,9 +68,9 @@ timestamp_regexp = RegExp(
 
 
 def create_timestamp(
-    year, month, day, t, hour, minute, second, fraction, tz, tz_sign, tz_hour, tz_minute
-):
-    # type: (Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any) -> Any
+    year: str, month: str, day: str, t: None, hour: None, minute: None, second: None, fraction: None, tz: None, tz_sign: None, tz_hour: None, tz_minute: None
+) -> datetime.date:
+
     # create a timestamp from match against timestamp_regexp
     MAX_FRAC = 999999
     year = int(year)
@@ -124,8 +125,10 @@ def create_timestamp(
 # if you use this in your code, I suggest adding a test in your test suite
 # that check this routines output against a known piece of your YAML
 # before upgrades to this code break your round-tripped YAML
-def load_yaml_guess_indent(stream, **kw):
-    # type: (StreamTextType, Any) -> Any
+def load_yaml_guess_indent(
+    stream: str, **kw
+) -> Union[Tuple[CommentedMap, int, None], Tuple[CommentedMap, int, int]]:
+
     """guess the indent and block sequence indent of yaml stream/string
 
     returns round_trip_loaded stream, indent level, block sequence indent
@@ -137,14 +140,14 @@ def load_yaml_guess_indent(stream, **kw):
 
     # load a YAML document, guess the indentation, if you use TABs you are on your own
     def leading_spaces(line):
-        # type: (Any) -> int
+
         idx = 0
         while idx < len(line) and line[idx] == " ":
             idx += 1
         return idx
 
     if isinstance(stream, str):
-        yaml_str = stream  # type: Any
+        yaml_str = stream
     elif isinstance(stream, bytes):
         # most likely, but the Reader checks BOM for this
         yaml_str = stream.decode("utf-8")
@@ -185,16 +188,16 @@ def load_yaml_guess_indent(stream, **kw):
     if indent is None and map_indent is not None:
         indent = map_indent
     yaml = YAML()
-    return yaml.load(yaml_str, **kw), indent, block_seq_indent  # type: ignore
+    return yaml.load(yaml_str, **kw), indent, block_seq_indent
 
 
 def configobj_walker(cfg):
-    # type: (Any) -> Any
+
     """
     walks over a ConfigObj (INI file with comments) generating
     corresponding YAML output (including comments
     """
-    from configobj import ConfigObj  # type: ignore
+    from configobj import ConfigObj
 
     assert isinstance(cfg, ConfigObj)
     for c in cfg.initial_comment:
@@ -209,7 +212,7 @@ def configobj_walker(cfg):
 
 
 def _walk_section(s, level=0):
-    # type: (Any, int) -> Any
+
     from configobj import Section
 
     assert isinstance(s, Section)

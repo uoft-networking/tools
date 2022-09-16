@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 # The following YAML grammar is LL(1) and is parsed by a recursive descent
 # parser.
@@ -77,21 +78,27 @@
 from .error import MarkedYAMLError
 from .tokens import *  # NOQA
 from .events import *  # NOQA
-from .scanner import Scanner, RoundTripScanner, ScannerError  # NOQA
+from .scanner import Scanner, ScannerError  # NOQA
 from .scanner import BlankLineComment
 from .comments import C_PRE, C_POST, C_SPLIT_ON_FIRST_BLANK
-from .compat import _F, nprint, nprintf  # NOQA
+from .compat import _F, nprintf  # NOQA
 
-from typing import TYPE_CHECKING
+from typing import Tuple, Union, TYPE_CHECKING
+from uoft_core.yaml.error import StringMark
+from uoft_core.yaml.events import AliasEvent, DocumentEndEvent, DocumentStartEvent, Event, MappingEndEvent, MappingStartEvent, ScalarEvent, SequenceEndEvent, SequenceStartEvent, StreamEndEvent, StreamStartEvent
+if TYPE_CHECKING: 
+    from uoft_core.yaml.main import Loader
+from uoft_core.yaml.resolver import Resolver
+from uoft_core.yaml.tokens import CommentToken, Token
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Optional, List, Optional  # NOQA
 
-__all__ = ["Parser", "RoundTripParser", "ParserError"]
+__all__ = ["Parser", "ParserError"]
 
 
-def xprintf(*args, **kw):
-    # type: (Any, Any) -> Any
+def xprintf(*args, **kw) -> None:
+
     return nprintf(*args, **kw)
     pass
 
@@ -106,36 +113,34 @@ class Parser:
 
     DEFAULT_TAGS = {"!": "!", "!!": "tag:yaml.org,2002:"}
 
-    def __init__(self, loader):
-        # type: (Any) -> None
+    def __init__(self, loader: Loader) -> None:
+
         self.loader = loader
-        if self.loader is not None and getattr(self.loader, "_parser", None) is None:
-            self.loader._parser = self
         self.reset_parser()
 
-    def reset_parser(self):
-        # type: () -> None
+    def reset_parser(self) -> None:
+
         # Reset the state attributes (to clear self-references)
         self.current_event = self.last_event = None
-        self.tag_handles = {}  # type: Dict[Any, Any]
-        self.states = []  # type: List[Any]
-        self.marks = []  # type: List[Any]
-        self.state = self.parse_stream_start  # type: Any
+        self.tag_handles = {}
+        self.states = []
+        self.marks = []
+        self.state = self.parse_stream_start
 
-    def dispose(self):
-        # type: () -> None
+    def dispose(self) -> None:
+
         self.reset_parser()
 
     @property
-    def scanner(self):
+    def scanner(self) -> Scanner:
         return self.loader.scanner
 
     @property
-    def resolver(self):
+    def resolver(self) -> Resolver:
         return self.loader.resolver
 
-    def check_event(self, *choices):
-        # type: (Any) -> bool
+    def check_event(self, *choices) -> bool:
+
         # Check the type of the next event.
         if self.current_event is None:
             if self.state:
@@ -148,16 +153,16 @@ class Parser:
                     return True
         return False
 
-    def peek_event(self):
-        # type: () -> Any
+    def peek_event(self) -> Event:
+
         # Get the next event.
         if self.current_event is None:
             if self.state:
                 self.current_event = self.state()
         return self.current_event
 
-    def get_event(self):
-        # type: () -> Any
+    def get_event(self) -> Event:
+
         # Get the next event and proceed further.
         if self.current_event is None:
             if self.state:
@@ -176,8 +181,8 @@ class Parser:
     # implicit_document ::= block_node DOCUMENT-END*
     # explicit_document ::= DIRECTIVE* DOCUMENT-START block_node? DOCUMENT-END*
 
-    def parse_stream_start(self):
-        # type: () -> Any
+    def parse_stream_start(self) -> StreamStartEvent:
+
         # Parse the stream start.
         token = self.scanner.get_token()
         self.move_token_comment(token)
@@ -190,8 +195,8 @@ class Parser:
 
         return event
 
-    def parse_implicit_document_start(self):
-        # type: () -> Any
+    def parse_implicit_document_start(self) -> Union[StreamEndEvent, DocumentStartEvent]:
+
         # Parse an implicit document.
         if not self.scanner.check_token(
             DirectiveToken, DocumentStartToken, StreamEndToken
@@ -210,8 +215,8 @@ class Parser:
         else:
             return self.parse_document_start()
 
-    def parse_document_start(self):
-        # type: () -> Any
+    def parse_document_start(self) -> Union[StreamEndEvent, DocumentStartEvent]:
+
         # Parse any extra document end indicators.
         while self.scanner.check_token(DocumentEndToken):
             self.scanner.get_token()
@@ -241,7 +246,7 @@ class Parser:
                 version=version,
                 tags=tags,
                 comment=token.comment,
-            )  # type: Any
+            )
             self.states.append(self.parse_document_end)
             self.state = self.parse_document_content
         else:
@@ -255,8 +260,8 @@ class Parser:
             self.state = None
         return event
 
-    def parse_document_end(self):
-        # type: () -> Any
+    def parse_document_end(self) -> DocumentEndEvent:
+
         # Parse the document end.
         token = self.scanner.peek_token()
         start_mark = end_mark = token.start_mark
@@ -275,8 +280,8 @@ class Parser:
 
         return event
 
-    def parse_document_content(self):
-        # type: () -> Any
+    def parse_document_content(self) -> Union[MappingStartEvent, SequenceStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(
             DirectiveToken, DocumentStartToken, DocumentEndToken, StreamEndToken
         ):
@@ -286,8 +291,8 @@ class Parser:
         else:
             return self.parse_block_node()
 
-    def process_directives(self):
-        # type: () -> Any
+    def process_directives(self) -> Union[Tuple[None, None], Tuple[Tuple[int, int], None]]:
+
         yaml_version = None
         self.tag_handles = {}
         while self.scanner.check_token(DirectiveToken):
@@ -317,15 +322,15 @@ class Parser:
                     )
                 self.tag_handles[handle] = prefix
         if bool(self.tag_handles):
-            value = yaml_version, self.tag_handles.copy()  # type: Any
+            value = yaml_version, self.tag_handles.copy()
         else:
             value = yaml_version, None
         if self.loader is not None and hasattr(self.loader, "tags"):
-            self.loader.version = yaml_version
-            if self.loader.tags is None:
-                self.loader.tags = {}
+            self.loader.conf.version = yaml_version
+            if self.loader.conf.tags is None:
+                self.loader.conf.tags = {}
             for k in self.tag_handles:
-                self.loader.tags[k] = self.tag_handles[k]
+                self.loader.conf.tags[k] = self.tag_handles[k]
         for key in self.DEFAULT_TAGS:
             if key not in self.tag_handles:
                 self.tag_handles[key] = self.DEFAULT_TAGS[key]
@@ -347,29 +352,42 @@ class Parser:
     # block_collection  ::= block_sequence | block_mapping
     # flow_collection   ::= flow_sequence | flow_mapping
 
-    def parse_block_node(self):
-        # type: () -> Any
+    def parse_block_node(self) -> Union[AliasEvent, MappingStartEvent, ScalarEvent, SequenceStartEvent]:
+
         return self.parse_node(block=True)
 
-    def parse_flow_node(self):
-        # type: () -> Any
+    def parse_flow_node(self) -> Union[MappingStartEvent, ScalarEvent]:
+
         return self.parse_node()
 
-    def parse_block_node_or_indentless_sequence(self):
-        # type: () -> Any
+    def parse_block_node_or_indentless_sequence(self) -> Union[AliasEvent, MappingStartEvent, SequenceStartEvent, ScalarEvent]:
+
         return self.parse_node(block=True, indentless_sequence=True)
 
-    def transform_tag(self, handle, suffix):
-        # type: (Any, Any) -> Any
-        return self.tag_handles[handle] + suffix
+    def transform_tag(self, handle: str, suffix: str) -> str:
 
-    def parse_node(self, block=False, indentless_sequence=False):
-        # type: (bool, bool) -> Any
+        if handle == "!!" and suffix in (
+            "null",
+            "bool",
+            "int",
+            "float",
+            "binary",
+            "timestamp",
+            "omap",
+            "pairs",
+            "set",
+            "str",
+            "seq",
+            "map",
+        ):
+            return self.tag_handles[handle]+suffix
+        return handle + suffix
+
+    def parse_node(self, block: bool=False, indentless_sequence: bool=False) -> Union[AliasEvent, MappingStartEvent, SequenceStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(AliasToken):
             token = self.scanner.get_token()
-            event = AliasEvent(
-                token.value, token.start_mark, token.end_mark
-            )  # type: Any
+            event = AliasEvent(token.value, token.start_mark, token.end_mark)
             self.state = self.states.pop()
             return event
 
@@ -422,7 +440,7 @@ class Parser:
         if indentless_sequence and self.scanner.check_token(BlockEntryToken):
             comment = None
             pt = self.scanner.peek_token()
-            if self.loader and self.loader.comment_handling is None:
+            if self.loader and self.loader.conf.comment_handling is None:
                 if pt.comment and pt.comment[0]:
                     comment = [pt.comment[0], []]
                     pt.comment[0] = None
@@ -550,16 +568,16 @@ class Parser:
     # block_sequence ::= BLOCK-SEQUENCE-START (BLOCK-ENTRY block_node?)*
     #                                                               BLOCK-END
 
-    def parse_block_sequence_first_entry(self):
-        # type: () -> Any
+    def parse_block_sequence_first_entry(self) -> Union[AliasEvent, MappingStartEvent, ScalarEvent, SequenceStartEvent]:
+
         token = self.scanner.get_token()
         # move any comment from start token
         # self.move_token_comment(token)
         self.marks.append(token.start_mark)
         return self.parse_block_sequence_entry()
 
-    def parse_block_sequence_entry(self):
-        # type: () -> Any
+    def parse_block_sequence_entry(self) -> Union[MappingStartEvent, SequenceEndEvent, ScalarEvent, AliasEvent, SequenceStartEvent]:
+
         if self.scanner.check_token(BlockEntryToken):
             token = self.scanner.get_token()
             self.move_token_comment(token)
@@ -592,8 +610,8 @@ class Parser:
     # - entry
     #  - nested
 
-    def parse_indentless_sequence_entry(self):
-        # type: () -> Any
+    def parse_indentless_sequence_entry(self) -> Union[SequenceEndEvent, MappingStartEvent, SequenceStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(BlockEntryToken):
             token = self.scanner.get_token()
             self.move_token_comment(token)
@@ -607,12 +625,12 @@ class Parser:
                 return self.process_empty_scalar(token.end_mark)
         token = self.scanner.peek_token()
         c = None
-        if self.loader and self.loader.comment_handling is None:
+        if self.loader and self.loader.conf.comment_handling is None:
             c = token.comment
             start_mark = token.start_mark
         else:
-            start_mark = self.last_event.end_mark  # type: ignore
-            c = self.distribute_comment(token.comment, start_mark.line)  # type: ignore
+            start_mark = self.last_event.end_mark
+            c = self.distribute_comment(token.comment, start_mark.line)
         event = SequenceEndEvent(start_mark, start_mark, comment=c)
         self.state = self.states.pop()
         return event
@@ -622,14 +640,14 @@ class Parser:
     #                       (VALUE block_node_or_indentless_sequence?)?)*
     #                       BLOCK-END
 
-    def parse_block_mapping_first_key(self):
-        # type: () -> Any
+    def parse_block_mapping_first_key(self) -> Union[SequenceStartEvent, ScalarEvent]:
+
         token = self.scanner.get_token()
         self.marks.append(token.start_mark)
         return self.parse_block_mapping_key()
 
-    def parse_block_mapping_key(self):
-        # type: () -> Any
+    def parse_block_mapping_key(self) -> Union[MappingEndEvent, SequenceStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(KeyToken):
             token = self.scanner.get_token()
             self.move_token_comment(token)
@@ -659,8 +677,8 @@ class Parser:
         self.marks.pop()
         return event
 
-    def parse_block_mapping_value(self):
-        # type: () -> Any
+    def parse_block_mapping_value(self) -> Union[AliasEvent, MappingStartEvent, SequenceStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(ValueToken):
             token = self.scanner.get_token()
             # value token might have post comment move it to e.g. block
@@ -699,14 +717,14 @@ class Parser:
     # For `flow_sequence_entry`, the part `KEY flow_node? (VALUE flow_node?)?`
     # generate an inline mapping (set syntax).
 
-    def parse_flow_sequence_first_entry(self):
-        # type: () -> Any
+    def parse_flow_sequence_first_entry(self) -> Union[SequenceEndEvent, ScalarEvent]:
+
         token = self.scanner.get_token()
         self.marks.append(token.start_mark)
         return self.parse_flow_sequence_entry(first=True)
 
-    def parse_flow_sequence_entry(self, first=False):
-        # type: (bool) -> Any
+    def parse_flow_sequence_entry(self, first: bool=False) -> Union[SequenceEndEvent, MappingStartEvent, ScalarEvent]:
+
         if not self.scanner.check_token(FlowSequenceEndToken):
             if not first:
                 if self.scanner.check_token(FlowEntryToken):
@@ -727,7 +745,7 @@ class Parser:
                 token = self.scanner.peek_token()
                 event = MappingStartEvent(
                     None, None, True, token.start_mark, token.end_mark, flow_style=True
-                )  # type: Any
+                )
                 self.state = self.parse_flow_sequence_entry_mapping_key
                 return event
             elif not self.scanner.check_token(FlowSequenceEndToken):
@@ -741,8 +759,8 @@ class Parser:
         self.marks.pop()
         return event
 
-    def parse_flow_sequence_entry_mapping_key(self):
-        # type: () -> Any
+    def parse_flow_sequence_entry_mapping_key(self) -> ScalarEvent:
+
         token = self.scanner.get_token()
         if not self.scanner.check_token(
             ValueToken, FlowEntryToken, FlowSequenceEndToken
@@ -753,8 +771,8 @@ class Parser:
             self.state = self.parse_flow_sequence_entry_mapping_value
             return self.process_empty_scalar(token.end_mark)
 
-    def parse_flow_sequence_entry_mapping_value(self):
-        # type: () -> Any
+    def parse_flow_sequence_entry_mapping_value(self) -> Union[MappingStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(ValueToken):
             token = self.scanner.get_token()
             if not self.scanner.check_token(FlowEntryToken, FlowSequenceEndToken):
@@ -768,8 +786,8 @@ class Parser:
             token = self.scanner.peek_token()
             return self.process_empty_scalar(token.start_mark)
 
-    def parse_flow_sequence_entry_mapping_end(self):
-        # type: () -> Any
+    def parse_flow_sequence_entry_mapping_end(self) -> MappingEndEvent:
+
         self.state = self.parse_flow_sequence_entry
         token = self.scanner.peek_token()
         return MappingEndEvent(token.start_mark, token.start_mark)
@@ -780,14 +798,14 @@ class Parser:
     #                   FLOW-MAPPING-END
     # flow_mapping_entry    ::= flow_node | KEY flow_node? (VALUE flow_node?)?
 
-    def parse_flow_mapping_first_key(self):
-        # type: () -> Any
+    def parse_flow_mapping_first_key(self) -> Union[MappingEndEvent, ScalarEvent]:
+
         token = self.scanner.get_token()
         self.marks.append(token.start_mark)
         return self.parse_flow_mapping_key(first=True)
 
-    def parse_flow_mapping_key(self, first=False):
-        # type: (Any) -> Any
+    def parse_flow_mapping_key(self, first: bool=False) -> Union[MappingEndEvent, ScalarEvent]:
+
         if not self.scanner.check_token(FlowMappingEndToken):
             if not first:
                 if self.scanner.check_token(FlowEntryToken):
@@ -827,8 +845,8 @@ class Parser:
         self.marks.pop()
         return event
 
-    def parse_flow_mapping_value(self):
-        # type: () -> Any
+    def parse_flow_mapping_value(self) -> Union[MappingStartEvent, ScalarEvent]:
+
         if self.scanner.check_token(ValueToken):
             token = self.scanner.get_token()
             if not self.scanner.check_token(FlowEntryToken, FlowMappingEndToken):
@@ -842,64 +860,35 @@ class Parser:
             token = self.scanner.peek_token()
             return self.process_empty_scalar(token.start_mark)
 
-    def parse_flow_mapping_empty_value(self):
-        # type: () -> Any
+    def parse_flow_mapping_empty_value(self) -> ScalarEvent:
+
         self.state = self.parse_flow_mapping_key
         return self.process_empty_scalar(self.scanner.peek_token().start_mark)
 
-    def process_empty_scalar(self, mark, comment=None):
-        # type: (Any, Any) -> Any
+    def process_empty_scalar(self, mark: StringMark, comment: Optional[Union[List[None], List[Optional[CommentToken]]]]=None) -> ScalarEvent:
+
         return ScalarEvent(None, None, (True, False), "", mark, mark, comment=comment)
 
-    def move_token_comment(self, token, nt=None, empty=False):
-        # type: (Any, Optional[Any], Optional[bool]) -> Any
-        pass
+    def move_token_comment(self, token: Token, new_token: Token | None = None, empty: bool = False) -> None:
 
+        if not new_token:
+            new_token = self.scanner.peek_token()
+        token.move_old_comment(new_token, empty=empty)
 
-class RoundTripParser(Parser):
-    """roundtrip is a safe loader, that wants to see the unmangled tag"""
-
-    def transform_tag(self, handle, suffix):
-        # type: (Any, Any) -> Any
-        # return self.tag_handles[handle]+suffix
-        if handle == "!!" and suffix in (
-            "null",
-            "bool",
-            "int",
-            "float",
-            "binary",
-            "timestamp",
-            "omap",
-            "pairs",
-            "set",
-            "str",
-            "seq",
-            "map",
-        ):
-            return Parser.transform_tag(self, handle, suffix)
-        return handle + suffix
-
-    def move_token_comment(self, token, nt=None, empty=False):
-        # type: (Any, Optional[Any], Optional[bool]) -> Any
-        token.move_old_comment(
-            self.scanner.peek_token() if nt is None else nt, empty=empty
-        )
-
-
-class RoundTripParserSC(RoundTripParser):
+class RoundTripParserSC(Parser):
     """roundtrip is a safe loader, that wants to see the unmangled tag"""
 
     # some of the differences are based on the superclass testing
-    # if self.loader.comment_handling is not None
+    # if self.loader.conf.comment_handling is not None
 
     def move_token_comment(self, token, nt=None, empty=False):
-        # type: (Any, Any, Any, Optional[bool]) -> None
+
         token.move_new_comment(
             self.scanner.peek_token() if nt is None else nt, empty=empty
         )
 
     def distribute_comment(self, comment, line):
-        # type: (Any, Any) -> Any
+
         # ToDo, look at indentation of the comment to determine attachment
         if comment is None:
             return None
@@ -910,7 +899,7 @@ class RoundTripParserSC(RoundTripParser):
         assert comment[0][0] == line + 1
         # if comment[0] - line > 1:
         #     return
-        typ = self.loader.comment_handling & 0b11
+        typ = self.loader.conf.comment_handling & 0b11
         # nprintf('>>>dca', comment, line, typ)
         if typ == C_POST:
             return None
