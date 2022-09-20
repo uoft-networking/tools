@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uoft_core"
-version = "1.0.1"
+version = "1.0.1.dev1"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = [
