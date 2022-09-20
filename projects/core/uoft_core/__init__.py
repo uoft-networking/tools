@@ -388,10 +388,6 @@ class StrEnum(str, Enum):
     def __str__(self) -> str:
         return self.name
 
-    # @property
-    # def str(self):
-    #     return self.__str__()
-
     @classmethod
     def from_str(cls, string):
         for member in cls:
