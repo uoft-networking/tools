@@ -239,7 +239,7 @@ def Verify_And_Create(input_table: InputTable):
     outer_lambda = lambda row: tuple(map(lambda item: item[:75], row))
     input_table = list(map(outer_lambda, input_table))
     # Lambda prevent input overflow.
-    passwd = shell(f"pass show {settings().svc_account}")
+    passwd = settings().password
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
     with (
         ArubaRESTAPIClient(
