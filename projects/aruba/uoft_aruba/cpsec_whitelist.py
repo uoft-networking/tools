@@ -17,13 +17,9 @@ as well as modifying their certs to 'factory-approved' so the registrations do n
 
 """
 
-# Used for settings import from .env
-from functools import cached_property
-from subprocess import SubprocessError
-from pydantic import BaseSettings, root_validator, Field
-
-# Used for settings import from TOML config file and prompting for missing config
-from uoft_core import UofTCoreError, Util, toml
+# Used for settings import from conf files, env vars, .env file, and interactive prompts
+from uoft_core import BaseSettings, Field
+from pydantic.types import SecretStr
 
 # Used for help and argument control
 import typer
@@ -37,15 +33,9 @@ import re
 # Used to simplify dealing with the Aruba API.
 from uoft_core.aruba import ArubaRESTAPIClient
 
-# used for shell interaction
-from uoft_core import shell
-
 # useful data types
 from pathlib import Path
 
-from uoft_switchconfig.util import model_questionnaire
-
-# a type alias to clean up code below
 InputTable = list[tuple[str, str, str]]
 
 
@@ -58,61 +48,13 @@ class Settings(BaseSettings):
     md_vrrp_hostname: str = Field(
         title="Aruba Controller (Managed Device) Primary IP Adress / Hostname"
     )
-    password: str = Field(title="Aruba API Authentication Password")
-
-    @root_validator(pre=True)
-    @classmethod
-    def prompt_for_missing_values(cls, values):  # pylint: disable=no-self-argument
-        missing_keys = [key for key in cls.__fields__ if key not in values]
-        if not missing_keys:
-            # Everything's present and accounted for. nothing to do here
-            return values
-        if not sys.stdout.isatty():
-            # Return values as is and let pydantic report validation errors on missing fields
-            return values
-        values = model_questionnaire(cls, values).dict()
-        return values
-
-    @cached_property
-    def _util(self):
-        return Util(self._app_name)
-
-    class Config:
-        env_file = ".env"
-
-        @classmethod
-        def customise_sources(cls, init_settings, env_settings, file_secret_settings):
-            return (
-                init_settings,
-                env_settings,
-                file_secret_settings,
-                cls.settings_from_pass,
-                cls.config_file_settings,
-            )
-
-        @staticmethod
-        def config_file_settings(settings: 'Settings'):
-            try:
-                cfg = settings._util.config # pylint: disable=protected-access
-                return cfg.merged_data
-            except UofTCoreError:
-                # If no config files exist, that may not necessarily be an error.
-                # We'll let pydantic check all settings sources and determine if a given setting is missing
-                return {}
-
-        @staticmethod
-        def settings_from_pass(settings: 'Settings'):
-            try:
-                name = settings._app_name # pylint: disable=protected-access
-                text = shell(f"pass show uoft-{name}")
-                return toml.loads(text)
-            except SubprocessError:
-                return {}
+    password: SecretStr = Field(
+        title="Aruba API Authentication Password",
+        description="Password used to authenticate to the Aruba API.",
+    )
 
 
 _settings = None
-
-
 def settings(new_settings: Settings | None = None) -> Settings:
     "initialize a global settings instance on demand, optionally replacing it with a new instance as needed"
     global _settings  # pylint: disable=global-statement
@@ -163,9 +105,7 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
             controller_ap_groups.append(
                 raw_controller_ap_group["profile-name"].rpartition("'")[2]
             )
-        print(
-            "Below you will find a list of valid AP_GROUPs to use in your input:"
-        )
+        print("Below you will find a list of valid AP_GROUPs to use in your input:")
         print(*controller_ap_groups, sep="\n")
         sys.exit()
 
@@ -201,7 +141,7 @@ def Provision(
     00:01:10:12:02:21,-CC Lab,test_ap_name_18
     00:01:02:12:02:21,-CC Lab,test_ap_name_19
     ```
-    
+
     running the command `
     """
     if filename.name == "-":
@@ -337,4 +277,4 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(
 if __name__ == "__main__":
     # sys.argv.extend('provision from-file -'.split())
     # run()
-    t = Settings() #type: ignore
+    t = Settings()  # type: ignore

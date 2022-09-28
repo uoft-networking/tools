@@ -4,7 +4,7 @@ import os, sys, time, logging, logging.handlers, re, platform
 from pathlib import Path
 from functools import cached_property
 from enum import Enum
-from typing import Callable, Dict, List, Any, Optional, Type, TYPE_CHECKING, TypeVar
+from typing import Callable, Dict, List, Any, Optional, Type, TYPE_CHECKING, TypeVar, ClassVar
 from textwrap import dedent
 from getpass import getuser
 from subprocess import run
@@ -16,6 +16,10 @@ from loguru import logger
 from rich.console import Console
 from ._vendor.platformdirs import PlatformDirs
 from ._vendor.decorator import decorate
+from . import toml
+from .prompt import Prompt
+from subprocess import SubprocessError
+from pydantic import BaseSettings as PydanticBaseSettings, root_validator, Field
 
 if TYPE_CHECKING:
     from loguru import Message
@@ -389,10 +393,8 @@ class StrEnum(str, Enum):
         return self.name
 
     @classmethod
-    def from_str(cls, string):
-        for member in cls:
-            if str(member) == string:
-                return member
+    def from_str(cls, name: str):
+        return cls.__members__[name]
 
 
 class File(StrEnum):
@@ -904,12 +906,77 @@ class Util:
 
     # endregion cache
 
+class BaseSettings(PydanticBaseSettings):
+
+    @root_validator(pre=True)
+    @classmethod
+    def prompt_for_missing_values(cls, values):
+        missing_keys = [key for key in cls.__fields__ if key not in values]
+        if not missing_keys:
+            # Everything's present and accounted for. nothing to do here
+            return values
+        if not sys.stdout.isatty():
+            # We're not in a terminal.  We can't prompt for input.
+            # Return values as is and let pydantic report validation errors on missing fields
+            return values
+        
+        p = Prompt(cls.__config__.util())
+        for key in missing_keys:
+            field = cls.__fields__[key]
+            values[key] = p.from_model_field(key, field)
+        return values
+
+    def __init_subclass__(cls, **kwargs):
+        app_name = getattr(cls, "_app_name", None)
+        if app_name is None:
+            raise TypeError("Subclasses of BaseSettings must define _app_name")
+        super().__init_subclass__(**kwargs)
+        cls.__config__.app_name = app_name
+
+    class Config:
+        env_file = ".env"
+        app_name = None
+
+        @classmethod
+        def util(cls):
+            if getattr(cls, "app_name", None) is None:
+                raise ValueError("app_name must be set in the config class")
+            if not hasattr(cls, "_util"):
+                cls._util = Util(cls.app_name) # type: ignore
+            return cls._util
+
+        @classmethod
+        def customise_sources(cls, init_settings, env_settings, file_secret_settings):
+            return (
+                init_settings,
+                env_settings,
+                file_secret_settings,
+                cls.settings_from_pass,
+                cls.config_file_settings,
+            )
+
+        @staticmethod
+        def config_file_settings(settings: 'BaseSettings'):
+            try:
+                cfg = settings.__config__.util().config
+                return cfg.merged_data
+            except UofTCoreError:
+                # If no config files exist, that may not necessarily be an error.
+                # We'll let pydantic check all settings sources and determine if a given setting is missing
+                return {}
+
+        @staticmethod
+        def settings_from_pass(settings: 'BaseSettings'):
+            try:
+                name = settings.__config__.app_name # pylint: disable=protected-access
+                text = shell(f"pass show uoft-{name}")
+                return toml.loads(text)
+            except SubprocessError:
+                return {}
+
+    __config__: ClassVar[Type[Config]]
 
 from .nested_data import *  # noqa
 
 if __name__ == "__main__":
-    from .other import *  # noqa
-
-    _u = Util(app_name="uoft-tools")
-    _v = Prompt(_u).list_(var="test", description="hello description")
-    print(_v)
+    pass
