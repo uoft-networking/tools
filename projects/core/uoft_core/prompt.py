@@ -1,39 +1,56 @@
 from enum import Enum
-from operator import truth
-from typing import Literal, Any, TYPE_CHECKING, get_args, get_origin
+from typing import Literal, Any, Sequence, get_args, get_origin
 from pathlib import Path
 import sys
+from base64 import b64encode
 
-from . import Util, StrEnum
+from . import Util
 
-from prompt_toolkit import prompt, PromptSession
+from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.completion import WordCompleter, PathCompleter
 from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.output.defaults import create_output 
+from prompt_toolkit.document import Document
+from prompt_toolkit.output.defaults import create_output
+from pydantic import BaseModel
+from pydantic.types import SecretStr, FilePath, DirectoryPath
+from pydantic.error_wrappers import ErrorWrapper
+from pydantic.fields import ModelField
 
-if TYPE_CHECKING:
-    from pydantic.fields import ModelField
+output = create_output(stdout=sys.stderr)
 
-output = lambda: create_output(stdout=sys.stderr)
 
-unpack_type = lambda tp: (get_origin(tp), get_args(tp))
+def _unpack_type(tp: Any):
+    name = get_origin(tp)
+    args = get_args(tp)
+
+    if name is None:
+        # for base types like str, bool, int, get_origin returns None
+        name = tp
+
+    return name, args
+
+
+def _hash(s: str) -> str:
+    return b64encode(s.encode()).decode()
 
 
 class Prompt:
-    def __init__(self, util: "Util"):
+    def __init__(self, util: Util):
 
         self.history_cache = util.history_cache
+        if not self.history_cache.exists():
+            self.history_cache.mkdir(parents=True)
 
     def get_string(
-        self, 
+        self,
         var: str,
         description: str | None,
         default_value: str | None = None,
-        password: bool = False,
+        is_password: bool = False,
         **kwargs,
     ) -> str:
 
@@ -47,20 +64,21 @@ class Prompt:
             opts["default"] = default_value
         if description:
             opts["bottom_toolbar"] = HTML(f"<b>{description}</b>")
-        
-        if password is not True:
-            history = FileHistory(f'{self.history_cache}/{hash(var)}')
-            opts["auto_suggest"] = AutoSuggestFromHistory()
-        else:
+
+        if is_password:
             history = None
+            opts["is_password"] = True
+        else:
+            history = FileHistory(f"{self.history_cache}/{_hash(var)}")
+            opts["auto_suggest"] = AutoSuggestFromHistory()
 
         opts.update(kwargs)
-        return PromptSession(history=history, output=output()).prompt(**opts)
+        return PromptSession(history=history, output=output).prompt(**opts)
 
     def get_from_choices(
         self,
         var: str,
-        choices: list[str],
+        choices: Sequence[str],
         description: str | None,
         default_value: str | None = None,
         **kwargs,
@@ -72,7 +90,7 @@ class Prompt:
         )
 
         opts = dict(
-            completer=WordCompleter(choices),
+            completer=WordCompleter(list(choices)),
             complete_while_typing=True,
             rprompt=HTML(f"Valid options are: <b>{', '.join(choices)}</b>"),
             validator=validator,
@@ -122,9 +140,16 @@ class Prompt:
             def validate(self, document) -> None:
                 if document.text.strip() not in all_valid:
                     raise ValidationError(message=f"Value must be one of: {all_valid}")
-        
-        val = self.get_from_choices(var, all_valid, description=description, default_value=default, validator=BoolValidator(), **kwargs)
-        
+
+        val = self.get_from_choices(
+            var,
+            all_valid,
+            description=description,
+            default_value=default,
+            validator=BoolValidator(),
+            **kwargs,
+        )
+
         return val.strip() in truths
 
     def get_int(
@@ -134,15 +159,22 @@ class Prompt:
         default_value: int | None = None,
         **kwargs,
     ) -> int:
-
         class IntValidator(Validator):
             def validate(self, document) -> None:
                 try:
                     int(document.text.strip())
-                except:
-                    raise ValidationError(message=f"{document.text} is not a valid integer")
+                except Exception as exc:
+                    raise ValidationError(
+                        message=f"{document.text} is not a valid integer"
+                    ) from exc
 
-        val = self.get_string(var, description=description, default_value=str(default_value), validator=IntValidator(), **kwargs)
+        val = self.get_string(
+            var,
+            description=description,
+            default_value=str(default_value) if default_value else None,
+            validator=IntValidator(),
+            **kwargs,
+        )
         return int(val.strip())
 
     def get_list(self, var: str, description: str | None, **kwargs) -> list[str]:
@@ -194,16 +226,67 @@ class Prompt:
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
 
-    def from_model_field(self, name: str, field: "ModelField"):
-        type_name, type_args = unpack_type(field.type_)
+    def from_model(self, model: type[BaseModel], prefix: str|None = None):
+        res = {}
+        for name, field in model.__fields__.items():
+            if prefix:
+                prompt_name = f"{prefix}.{name}"
+            else:
+                prompt_name = name
+            res[name] = self.from_model_field(prompt_name, field)
+        return res
+
+    def from_model_field(self, name: str, field: ModelField):
+        type_name, type_args = _unpack_type(field.outer_type_)
+        desc = field.field_info.description
+
+        class PydanticValidator(Validator):
+            def validate(self, document: Document):
+                _, errors = field.validate(document.text, {}, loc="")
+                if errors:
+                    if isinstance(errors, ErrorWrapper):
+                        msg = errors.exc
+                    else:
+                        # errors is a potentially recursive list of errors
+                        msg = errors
+                    raise ValidationError(message=str(msg))
+
         # TODO: add title handling
-        
-        match type_name:
-            case str:
-                return self.get_int(name, description=field.field_info.description)
-            case bool:
-                return self.get_bool(name, description=field.field_info.description)
-            case int:
-                return self.get_int(name, description=field.field_info.description)
-            case Literal:
-                return self.get_from_choices(name, type_args, description=field.field_info.description)
+
+        if type_name is str:
+            return self.get_string(name, desc)
+        elif type_name is SecretStr:
+            return self.get_string(name, desc, is_password=True)
+        elif type_name is bool:
+            return self.get_bool(name, desc)
+        elif type_name is int:
+            return self.get_int(name, desc)
+        elif type_name is Literal:
+            return self.get_from_choices(name, type_args, desc)
+        elif type_name is Path:
+            return self.get_path(name, desc)
+        elif type_name is FilePath:
+            return self.get_path(name, desc, validator=PydanticValidator())
+        elif type_name is DirectoryPath:
+            return self.get_path(
+                name, desc, only_directories=True, validator=PydanticValidator()
+            )
+        elif type_name is list:
+            return self.get_list(name, desc)
+        elif type_name is dict:
+            return self.get_dict(name, desc)
+        else:
+            if issubclass(type_name, Enum):
+                choices = list(type_name.__members__.keys())
+                val = self.get_from_choices(name, choices, desc)
+                return type_name.__members__[val]
+            elif issubclass(type_name, BaseModel):
+                return self.from_model(field.type_, prefix=name)
+
+            # this implementation only supports list[str], dict[str, str], and similar types like list[int],
+            # which pydantic can coerce directly from list[str] or dict[str, str].
+            # TODO: move list & dict handling down to this else block, and validate subtypes contained in them
+
+            raise RuntimeError(
+                f"{self.__class__} does not yet support prompting for values of type {field.type_}"
+            )
