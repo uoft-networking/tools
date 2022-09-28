@@ -95,6 +95,6 @@ def test_prompt_with_valid_inputs(monkeypatch: MonkeyPatch, tmp_path: Path):
     res = p.from_model(Ex)
     assert res
 
-if __name__ == "__main__":
+def _debug():
     p = Prompt(Util('prompt_test'))
     print(p.from_model(Ex))

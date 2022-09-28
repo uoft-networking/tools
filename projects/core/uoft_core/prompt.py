@@ -251,7 +251,7 @@ class Prompt:
                         msg = errors
                     raise ValidationError(message=str(msg))
 
-        # TODO: add title handling
+        # reminder: add title handling
 
         if type_name is str:
             return self.get_string(name, desc)
@@ -285,8 +285,9 @@ class Prompt:
 
             # this implementation only supports list[str], dict[str, str], and similar types like list[int],
             # which pydantic can coerce directly from list[str] or dict[str, str].
-            # TODO: move list & dict handling down to this else block, and validate subtypes contained in them
+            # reminder: move list & dict handling down to this else block, and validate subtypes contained in them
 
             raise RuntimeError(
                 f"{self.__class__} does not yet support prompting for values of type {field.type_}"
             )
+

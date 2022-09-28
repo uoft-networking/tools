@@ -2,8 +2,6 @@ import sys
 from typing import Optional
 from sys import version_info, platform, executable
 from importlib.metadata import version
-from subprocess import run
-from pathlib import Path
 
 from . import Util
 
@@ -63,7 +61,28 @@ if __name__ == "__main__":
     import os
 
     if os.environ.get("PYDEBUG"):
-        # Debug code goes here
+        # let's interactively prompt for a module to debug and execute that
 
+        from importlib import import_module
+        from importlib.util import find_spec
+        from .prompt import Prompt, Validator
+
+        p = Prompt(util)
+        v = Validator.from_callable(
+            lambda n: bool(find_spec(n)),
+            "no such module exists in the current python installation",
+        )
+        mod_name = p.get_string(
+            "module name",
+            'Enter the full dotted name of the module you\'d like to debug. Ex: "uoft_core.nested_data"',
+            validator=v,
+        )
+        args = p.get_string("args", "Enter any arguments you'd like to pass to the module")
+        sys.argv.extend(args.split())
+        mod = import_module(mod_name)
+        if hasattr(mod, "_debug"):
+            mod._debug() # pylint: disable=protected-access
+        else:
+            print(f"Module {mod_name} has no _debug() function")
         sys.exit()
     cli()
