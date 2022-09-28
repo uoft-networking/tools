@@ -55,6 +55,8 @@ class Settings(BaseSettings):
 
 
 _settings = None
+
+
 def settings(new_settings: Settings | None = None) -> Settings:
     "initialize a global settings instance on demand, optionally replacing it with a new instance as needed"
     global _settings  # pylint: disable=global-statement
@@ -273,8 +275,9 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(
         )  # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
 
 
-# Is only run if script run directly, otherwise allows for import.
-if __name__ == "__main__":
-    # sys.argv.extend('provision from-file -'.split())
-    # run()
+# Only used in active debugging sessions.
+def _debug():
+    l = "test"
+    # assert False, f"Debugging {l}"
     t = Settings()  # type: ignore
+    print(t)

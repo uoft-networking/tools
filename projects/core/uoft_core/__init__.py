@@ -17,7 +17,6 @@ from rich.console import Console
 from ._vendor.platformdirs import PlatformDirs
 from ._vendor.decorator import decorate
 from . import toml
-from .prompt import Prompt
 from subprocess import SubprocessError
 from pydantic import BaseSettings as PydanticBaseSettings, root_validator, Field
 
@@ -976,7 +975,6 @@ class BaseSettings(PydanticBaseSettings):
 
     __config__: ClassVar[Type[Config]]
 
+# These imports are placed down here to avoid circular imports
 from .nested_data import *  # noqa
-
-if __name__ == "__main__":
-    pass
+from .prompt import Prompt
