@@ -51,6 +51,7 @@ class Prompt:
         description: str | None,
         default_value: str | None = None,
         is_password: bool = False,
+        default_from_history: bool = False,
         **kwargs,
     ) -> str:
 
@@ -71,6 +72,11 @@ class Prompt:
         else:
             history = FileHistory(f"{self.history_cache}/{_hash(var)}")
             opts["auto_suggest"] = AutoSuggestFromHistory()
+            if default_from_history:
+                try:
+                    opts["default"] = next(history.load_history_strings()) # type: ignore
+                except StopIteration:
+                    pass
 
         opts.update(kwargs)
         return PromptSession(history=history, output=output).prompt(**opts)

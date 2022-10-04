@@ -76,8 +76,9 @@ if __name__ == "__main__":
             "module name",
             'Enter the full dotted name of the module you\'d like to debug. Ex: "uoft_core.nested_data"',
             validator=v,
+            default_from_history=True
         )
-        args = p.get_string("args", "Enter any arguments you'd like to pass to the module")
+        args = p.get_string("args", "Enter any arguments you'd like to pass to the module", default_from_history=True)
         sys.argv.extend(args.split())
         mod = import_module(mod_name)
         if hasattr(mod, "_debug"):
