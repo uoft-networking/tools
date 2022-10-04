@@ -10,7 +10,7 @@ packages = ["uoft_nautobot"]
 
 [project]
 name = "uoft_nautobot"
-version = "1.0.1.dev1"
+version = "1.0.1.dev2"
 description = "A collection of UofT-specific modifications and extensions to Nautobot."
 readme = "README.md"
 authors = [
