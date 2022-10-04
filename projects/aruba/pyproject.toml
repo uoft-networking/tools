@@ -21,3 +21,4 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cpsec_whitelist:run"
+uoft_aruba = "uoft_aruba.cli:app"

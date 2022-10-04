@@ -24,8 +24,17 @@ from uoft_core.other import Prompt
 import typer
 from loguru import logger
 
-app = typer.Typer(name="switchdeploy")
-generate = typer.Typer(name="generate")
+app = typer.Typer(
+    name="switchdeploy",
+    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
+    no_args_is_help=True,
+    help=__doc__,  # Use this module's docstring as the main program help text
+)
+generate = typer.Typer(
+    name="generate",
+    no_args_is_help=True,
+    help="Generate configuration files from templates",
+)
 app.add_typer(generate)
 
 prompt = Prompt(config.util)
@@ -170,7 +179,6 @@ def callback(
 
 
 def get_cache_dir(cache_dir: Optional[Path] = None):
-    # sourcery skip: merge-nested-ifs
     if not cache_dir:
         if config.data and config.data.generate:
             cache_dir = config.data.generate.templates_dir
@@ -195,7 +203,9 @@ def template_name_completion(ctx: typer.Context, partial: str):
 
 class args:
     cache_dir = typer.Option(
-        None, file_okay=False, help="The directory from which to select templates"
+        Path("/opt/uoft-tools/templates"),
+        file_okay=False,
+        help="The directory from which to select templates",
     )
     data_file = typer.Option(
         None,
