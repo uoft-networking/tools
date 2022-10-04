@@ -29,17 +29,15 @@ def golden_config_data():
 
     from uuid import UUID
 
-    device = Device.objects.get(id=UUID("d1726e48-e4f0-4c76-9af9-da3cfa676161"))
+    device = Device.objects.get(name="d1-aa")
     data = {"obj": device}
     request = NautobotFakeRequest(
         {
-            "user": User.objects.get(id=UUID("b728e599-09ae-41de-8734-f17045c42c50")),
+            "user": User.objects.get(username='trembl94'),
             "path": "/extras/jobs/plugins/nautobot_golden_config.jobs/AllGoldenConfig/",
         }
     )
-    settings = GoldenConfigSetting.objects.get(
-        id=UUID("92368e69-14db-4471-8b66-f71ccbfe4d76")
-    )
+    settings = GoldenConfigSetting.objects.get(slug='default')
     _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
     data.update(device_data)
     return data
@@ -52,7 +50,7 @@ def golden_config_test():
 
     data = golden_config_data()
     git_repo = Path("projects/nautobot/gitlab_repo")
-    template = "templates/Distribution Switches/WS-C3850-24XS-E.j2"
+    template = "templates/Distribution Switches/WS-C3850-24XS-E.cisco.j2"
 
     jinja_settings = Jinja2.get_default()
     jinja_env: Environment = jinja_settings.env
