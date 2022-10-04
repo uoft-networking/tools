@@ -1,18 +1,30 @@
-from pickle import load, dump
+from pickle import dump
 
-from . import config
-
+from uoft_core import BaseSettings, SecretStr
 from uoft_core._vendor.bluecat_libraries.address_manager.api import Client
 from uoft_core._vendor.bluecat_libraries.address_manager.constants import ObjectType
 from uoft_core import Timeit
 
+import typer
 
+app = typer.Typer(name="bluecat", help="Bluecat API")
+
+class Settings(BaseSettings):
+    _app_name = "bluecat"
+    url: str
+    username: str
+    password: SecretStr
+
+
+@app.command()
+@Settings.wrap_typer_command
 def collect(include_addresses=False):
     """Collect network data from Bluecat API"""
-    client = Client(url=config.data.bluecat.url)
+    s = Settings.from_cache()
+    client = Client(s.url)
     client.login(
-        username=config.data.bluecat.username,
-        password=config.data.bluecat.password,
+        username=s.username,
+        password=s.password.get_secret_value(),
     )
     root_object_id = client.get_entities(0, ObjectType.CONFIGURATION)[0]["id"]
     if include_addresses:

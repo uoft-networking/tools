@@ -48,45 +48,29 @@ class Settings(BaseSettings):
     md_vrrp_hostname: str = Field(
         title="Aruba Controller (Managed Device) Primary IP Adress / Hostname"
     )
+    
     password: SecretStr = Field(
         title="Aruba API Authentication Password",
         description="Password used to authenticate to the Aruba API.",
     )
 
 
-_settings = None
-
-
-def settings(new_settings: Settings | None = None) -> Settings:
-    "initialize a global settings instance on demand, optionally replacing it with a new instance as needed"
-    global _settings  # pylint: disable=global-statement
-    if new_settings:
-        _settings = new_settings
-    if _settings is None:
-        _settings = Settings()  # type: ignore
-    return _settings
+def settings() -> Settings:
+    return Settings.from_cache()  # pylint: disable=protected-access
 
 
 run = typer.Typer(  # If run as main create a 'typer.Typer' app instance to run the program within.
+    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
     add_completion=False,
 )
 
 
-@run.callback(
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
-)
-def callback(
-    svc_account: str = typer.Option(None),
-    mm_vrrp_hostname: str = typer.Option(None),
-    md_vrrp_hostname: str = typer.Option(None),
-):
-    new_settings = locals().copy()
-    new_settings = {k: v for k, v in new_settings.items() if v is not None}
-    if new_settings:
-        new_settings = Settings(**new_settings)
-        settings(new_settings=new_settings)
+@run.callback()
+@Settings.wrap_typer_command
+def callback(debug: bool = typer.Option(False, help="Enable debug mode.")):
+    pass
 
 
 @run.command()
@@ -275,9 +259,21 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(
         )  # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
 
 
-# Only used in active debugging sessions.
 def _debug():
-    l = "test"
-    # assert False, f"Debugging {l}"
-    t = Settings()  # type: ignore
-    print(t)
+    "Debugging function, only used in active debugging sessions."
+    # pylint: disable=all
+    class Base:
+        _name = "Base"
+        @classmethod
+        def update(cls, name):
+            cls._name = name
+
+    class A(Base):
+        pass
+
+    class B(Base):
+        pass
+
+    A.update("A")
+    B.update("B")
+    print()
