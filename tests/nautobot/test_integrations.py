@@ -31,7 +31,6 @@ def nautobot_initialized():
 
 
 def test_golden_config(nautobot_initialized):
-    os.environ["PYDEBUG"] = "1"
     from uoft_nautobot.management.commands.utsc_debug import golden_config_test
 
     golden_config_test()
