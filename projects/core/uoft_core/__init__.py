@@ -4,10 +4,20 @@ import os, sys, time, logging, logging.handlers, re, platform
 from pathlib import Path
 from functools import cached_property
 from enum import Enum
-from typing import Callable, Dict, List, Any, Optional, Type, TYPE_CHECKING, TypeVar, ClassVar
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Any,
+    Optional,
+    Type,
+    TYPE_CHECKING,
+    TypeVar,
+    ClassVar,
+)
 from textwrap import dedent
 from getpass import getuser
-from subprocess import run
+from subprocess import run, CalledProcessError
 from importlib.metadata import version
 import pickle
 import inspect
@@ -17,8 +27,8 @@ from rich.console import Console
 from ._vendor.platformdirs import PlatformDirs
 from ._vendor.decorator import decorate
 from . import toml
-from subprocess import SubprocessError
 from pydantic import BaseSettings as PydanticBaseSettings, root_validator, Field
+from pydantic.types import SecretStr
 
 if TYPE_CHECKING:
     from loguru import Message
@@ -905,7 +915,80 @@ class Util:
 
     # endregion cache
 
+
+S = TypeVar("S", bound="BaseSettings")
+
+
 class BaseSettings(PydanticBaseSettings):
+    _instance = None # type: ignore
+
+    @classmethod
+    def _update_cache_instance(cls, *args, **kwargs):
+        cls._instance = cls(*args, **kwargs) # type: ignore
+
+    @classmethod
+    def from_cache(cls: Type[S]) -> S:
+        # For each subclass of BaseSettings, this method should return an instance of that subclass
+        if cls._instance is None:
+            cls._instance = cls()
+        cls._instance: S
+        return cls._instance
+
+    def __init_subclass__(cls, **kwargs):
+        app_name = getattr(cls, "_app_name", None)
+        if app_name is None:
+            raise TypeError("Subclasses of BaseSettings must define _app_name")
+        super().__init_subclass__(**kwargs)
+        cls.__config__.app_name = app_name
+
+    @classmethod
+    def wrap_typer_command(cls, func):
+        # Here we import typer outside top-level scope because it only makes sense to import it
+        # when we're running in a typer app, which is the only situation where this method is used.
+        import typer  # pylint: disable=import-outside-toplevel
+
+        sig = inspect.signature(func)
+        settings_parameters = []
+        for field_name, field in cls.__fields__.items():
+            help_ = field.field_info.title or field.field_info.description
+            option = typer.Option(default=field.default, help=help_)
+            if field.outer_type_ == SecretStr:
+                type_ = str
+            else:
+                type_ = field.outer_type_
+            param = inspect.Parameter(
+                field_name,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=option,
+                annotation=Optional[type_],
+            )
+            settings_parameters.append(param)
+        parameters = settings_parameters + list(sig.parameters.values())
+        new_sig = sig.replace(parameters=parameters)
+        func.__signature__ = new_sig
+        func.settings_parameters = settings_parameters
+
+        # here we return the original function, but with the new signature,
+        # and let the original function handle the settings-related arguments passed in by typer,
+        # but we may want to wrap it in another function which pulls out and handles the
+        # settings-related arguments first and then calls the original function...
+        def _wrapper(f, *args):
+            # we need to pull out the settings-related arguments from the args list
+            # and pass them to the settings function
+            settings_kwargs = {}
+            for param, value in zip(func.settings_parameters, args):
+                if value is not None:
+                    settings_kwargs[param.name] = value
+
+            if settings_kwargs:
+                cls._update_cache_instance(
+                    **settings_kwargs
+                )  # pylint: disable=protected-access
+            number_of_settings_args = len(func.settings_parameters)
+            new_args = args[number_of_settings_args:]
+            return f(*new_args)
+
+        return decorate(func, _wrapper)  # type: ignore
 
     @root_validator(pre=True)
     @classmethod
@@ -918,19 +1001,12 @@ class BaseSettings(PydanticBaseSettings):
             # We're not in a terminal.  We can't prompt for input.
             # Return values as is and let pydantic report validation errors on missing fields
             return values
-        
+
         p = Prompt(cls.__config__.util())
         for key in missing_keys:
             field = cls.__fields__[key]
             values[key] = p.from_model_field(key, field)
         return values
-
-    def __init_subclass__(cls, **kwargs):
-        app_name = getattr(cls, "_app_name", None)
-        if app_name is None:
-            raise TypeError("Subclasses of BaseSettings must define _app_name")
-        super().__init_subclass__(**kwargs)
-        cls.__config__.app_name = app_name
 
     class Config:
         env_file = ".env"
@@ -941,7 +1017,7 @@ class BaseSettings(PydanticBaseSettings):
             if getattr(cls, "app_name", None) is None:
                 raise ValueError("app_name must be set in the config class")
             if not hasattr(cls, "_util"):
-                cls._util = Util(cls.app_name) # type: ignore
+                cls._util = Util(cls.app_name)  # type: ignore
             return cls._util
 
         @classmethod
@@ -955,7 +1031,7 @@ class BaseSettings(PydanticBaseSettings):
             )
 
         @staticmethod
-        def config_file_settings(settings: 'BaseSettings'):
+        def config_file_settings(settings: "BaseSettings"):
             try:
                 cfg = settings.__config__.util().config
                 return cfg.merged_data
@@ -965,15 +1041,16 @@ class BaseSettings(PydanticBaseSettings):
                 return {}
 
         @staticmethod
-        def settings_from_pass(settings: 'BaseSettings'):
+        def settings_from_pass(settings: "BaseSettings"):
             try:
-                name = settings.__config__.app_name # pylint: disable=protected-access
+                name = settings.__config__.app_name  # pylint: disable=protected-access
                 text = shell(f"pass show uoft-{name}")
                 return toml.loads(text)
-            except SubprocessError:
+            except CalledProcessError:
                 return {}
 
     __config__: ClassVar[Type[Config]]
+
 
 # These imports are placed down here to avoid circular imports
 from .nested_data import *  # noqa
