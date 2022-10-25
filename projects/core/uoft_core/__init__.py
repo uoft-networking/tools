@@ -1,34 +1,33 @@
 # flake8: noqa
 
-import os, sys, time, logging, logging.handlers, re, platform
-from pathlib import Path
-from functools import cached_property
-from enum import Enum
-from typing import (
-    Callable,
-    Dict,
-    List,
-    Any,
-    Optional,
-    Type,
-    TYPE_CHECKING,
-    TypeVar,
-    ClassVar,
-)
-from textwrap import dedent
-from getpass import getuser
-from subprocess import run, CalledProcessError
-from importlib.metadata import version
-import pickle
 import inspect
+import logging
+import logging.handlers
+import os
+import pickle
+import platform
+import re
+import sys
+import time
+from enum import Enum
+from functools import cached_property
+from getpass import getuser
+from importlib.metadata import version
+from pathlib import Path
+from subprocess import CalledProcessError, run
+from textwrap import dedent
+from typing import (TYPE_CHECKING, Any, Callable, ClassVar, Dict, List,
+                    Optional, Type, TypeVar)
 
 from loguru import logger
-from rich.console import Console
-from ._vendor.platformdirs import PlatformDirs
-from ._vendor.decorator import decorate
-from . import toml
-from pydantic import BaseSettings as PydanticBaseSettings, root_validator, Field
+from pydantic import BaseSettings as PydanticBaseSettings
+from pydantic import Field, root_validator
 from pydantic.types import SecretStr
+from rich.console import Console
+
+from . import toml
+from ._vendor.decorator import decorate
+from ._vendor.platformdirs import PlatformDirs
 
 if TYPE_CHECKING:
     from loguru import Message

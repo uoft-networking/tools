@@ -107,7 +107,7 @@ def add_comments_to_yaml_doc(doc: str, model: "BaseModel", indent=0):
             doc = add_comments_to_yaml_doc(doc, submodel, indent + 2)
     return doc
 
-
+# deprecated, use `uoft_core.prompt.Prompt` instead
 class Prompt:
     def __init__(self, util: "Util"):
 
