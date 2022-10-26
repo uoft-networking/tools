@@ -17,10 +17,6 @@ as well as modifying their certs to 'factory-approved' so the registrations do n
 
 """
 
-# Used for settings import from conf files, env vars, .env file, and interactive prompts
-from uoft_core import BaseSettings, Field
-from pydantic.types import SecretStr
-
 # Used for help and argument control
 import typer
 
@@ -36,41 +32,19 @@ from uoft_core.aruba import ArubaRESTAPIClient
 # useful data types
 from pathlib import Path
 
+# Used to easily retrieve config
+from . import settings
+
 InputTable = list[tuple[str, str, str]]
-
-
-class Settings(BaseSettings):
-    _app_name = "aruba"
-    svc_account: str = Field(title="Aruba API Authentication Account")
-    mm_vrrp_hostname: str = Field(
-        title="Aruba Mobility Master Primary IP Adress / Hostname"
-    )
-    md_vrrp_hostname: str = Field(
-        title="Aruba Controller (Managed Device) Primary IP Adress / Hostname"
-    )
-    
-    password: SecretStr = Field(
-        title="Aruba API Authentication Password",
-        description="Password used to authenticate to the Aruba API.",
-    )
-
-
-def settings() -> Settings:
-    return Settings.from_cache()  # pylint: disable=protected-access
 
 
 run = typer.Typer(  # If run as main create a 'typer.Typer' app instance to run the program within.
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
+    short_help="Aruba CPSEC Whitelist Provisioning Tool",
     add_completion=False,
 )
-
-
-@run.callback()
-@Settings.wrap_typer_command
-def callback(debug: bool = typer.Option(False, help="Enable debug mode.")):
-    pass
 
 
 @run.command()
@@ -80,7 +54,7 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
     "Returns a list of valid AP_GROUPs and exits."
     with (
         ArubaRESTAPIClient(
-            f"{settings().md_vrrp_hostname}:4343",
+            f"{settings().md_hostnames[0]}:4343",
             settings().svc_account,
             settings().password,
         ) as host1
@@ -169,7 +143,7 @@ def Verify_And_Create(input_table: InputTable):
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
     with (
         ArubaRESTAPIClient(
-            f"{settings().md_vrrp_hostname}:4343", f"{settings().svc_account}", passwd
+            f"{settings().md_hostnames[0]}:4343", f"{settings().svc_account}", passwd
         ) as host1
     ):
         Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MM
