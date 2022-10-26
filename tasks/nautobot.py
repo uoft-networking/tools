@@ -9,6 +9,7 @@ DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
 
 
 @task()
+
 def server(c: Context, cmdline: str):
     with c.cd("projects/nautobot"):
         c.run(f"direnv exec . nautobot-server {cmdline}")
@@ -17,7 +18,6 @@ def server(c: Context, cmdline: str):
 @task()
 def start(c: Context):
     server(c, "runserver --noreload")
-
 
 @task(
     help={
