@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 import datetime
 import copy
@@ -14,15 +15,15 @@ if TYPE_CHECKING:
 
 class TimeStamp(datetime.datetime):
     def __init__(self, *args, **kw):
-        # type: (Any, Any) -> None
-        self._yaml = dict(t=False, tz=None, delta=0)  # type: Dict[Any, Any]
+
+        self._yaml = dict(t=False, tz=None, delta=0)
 
     def __new__(cls, *args, **kw):  # datetime is immutable
-        # type: (Any, Any) -> Any
+
         return datetime.datetime.__new__(cls, *args, **kw)
 
     def __deepcopy__(self, memo):
-        # type: (Any) -> Any
+
         ts = TimeStamp(
             self.year, self.month, self.day, self.hour, self.minute, self.second
         )
@@ -41,7 +42,7 @@ class TimeStamp(datetime.datetime):
         tzinfo=True,
         fold=None,
     ):
-        # type: (Any, Any, Any, Any, Any, Any, Any, Any, Any) -> Any
+
         if year is None:
             year = self.year
         if month is None:

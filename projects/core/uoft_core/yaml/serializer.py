@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 from .error import YAMLError
 from .compat import nprint, DBG_NODE, dbg, nprintf  # NOQA
@@ -19,9 +20,13 @@ from .events import (
 from .nodes import MappingNode, ScalarNode, SequenceNode
 
 from typing import TYPE_CHECKING
+from uoft_core.yaml.emitter import Emitter
+from uoft_core.yaml.nodes import MappingNode, ScalarNode, SequenceNode
+from uoft_core.yaml.resolver import Resolver
 
 if TYPE_CHECKING:
     from typing import Any, Dict, Union, Text, Optional  # NOQA
+    from uoft_core.yaml.main import Dumper
     from .compat import VersionType  # NOQA
 
 __all__ = ["Serializer", "SerializerError"]
@@ -37,43 +42,33 @@ class Serializer:
     ANCHOR_TEMPLATE = "id%03d"
     ANCHOR_RE = RegExp("id(?!000$)\\d{3,}")
 
-    def __init__(
-        self,
-        encoding=None,
-        explicit_start=None,
-        explicit_end=None,
-        version=None,
-        tags=None,
-        dumper=None,
-    ):
-        # type: (Any, Optional[bool], Optional[bool], Optional[VersionType], Any, Any) -> None  # NOQA
+    def __init__(self, dumper: Dumper) -> None:
+
         self.dumper = dumper
-        if self.dumper is not None:
-            self.dumper._serializer = self
-        self.use_encoding = encoding
-        self.use_explicit_start = explicit_start
-        self.use_explicit_end = explicit_end
-        if isinstance(version, str):
-            self.use_version = tuple(map(int, version.split(".")))
+        self.use_encoding = dumper.conf.encoding
+        self.use_explicit_start = dumper.conf.explicit_start
+        self.use_explicit_end = dumper.conf.explicit_end
+        if isinstance(dumper.conf.version, str):
+            self.use_version = tuple(map(int, dumper.conf.version.split(".")))
         else:
-            self.use_version = version  # type: ignore
-        self.use_tags = tags
-        self.serialized_nodes = {}  # type: Dict[Any, Any]
-        self.anchors = {}  # type: Dict[Any, Any]
+            self.use_version = dumper.conf.version
+        self.use_tags = dumper.conf.tags
+        self.serialized_nodes = {}
+        self.anchors = {}
         self.last_anchor_id = 0
-        self.closed = None  # type: Optional[bool]
+        self.closed = None
         self._templated_id = None
 
     @property
-    def emitter(self):
+    def emitter(self) -> Emitter:
         return self.dumper.emitter
 
     @property
-    def resolver(self):
+    def resolver(self) -> Resolver:
         return self.dumper.resolver
 
-    def open(self):
-        # type: () -> None
+    def open(self) -> None:
+
         if self.closed is None:
             self.emitter.emit(StreamStartEvent(encoding=self.use_encoding))
             self.closed = False
@@ -82,8 +77,8 @@ class Serializer:
         else:
             raise SerializerError("serializer is already opened")
 
-    def close(self):
-        # type: () -> None
+    def close(self) -> None:
+
         if self.closed is None:
             raise SerializerError("serializer is not opened")
         elif not self.closed:
@@ -93,8 +88,8 @@ class Serializer:
     # def __del__(self):
     #     self.close()
 
-    def serialize(self, node):
-        # type: (Any) -> None
+    def serialize(self, node: Union[MappingNode, ScalarNode, SequenceNode]) -> None:
+
         if dbg(DBG_NODE):
             nprint("Serializing nodes")
             node.dump()
@@ -116,8 +111,8 @@ class Serializer:
         self.anchors = {}
         self.last_anchor_id = 0
 
-    def anchor_node(self, node):
-        # type: (Any) -> None
+    def anchor_node(self, node: Union[MappingNode, ScalarNode, SequenceNode]) -> None:
+
         if node in self.anchors:
             if self.anchors[node] is None:
                 self.anchors[node] = self.generate_anchor(node)
@@ -137,8 +132,8 @@ class Serializer:
                     self.anchor_node(key)
                     self.anchor_node(value)
 
-    def generate_anchor(self, node):
-        # type: (Any) -> Any
+    def generate_anchor(self, node: MappingNode) -> str:
+
         try:
             anchor = node.anchor.value
         except:  # NOQA
@@ -148,8 +143,13 @@ class Serializer:
             return self.ANCHOR_TEMPLATE % self.last_anchor_id
         return anchor
 
-    def serialize_node(self, node, parent, index):
-        # type: (Any, Any, Any) -> None
+    def serialize_node(
+        self,
+        node: Union[MappingNode, ScalarNode, SequenceNode],
+        parent: Optional[Union[MappingNode, SequenceNode]],
+        index: Optional[Union[int, ScalarNode, SequenceNode]],
+    ) -> None:
+
         alias = self.anchors[node]
         if node in self.serialized_nodes:
             node_style = getattr(node, "style", None)
@@ -242,6 +242,6 @@ class Serializer:
             self.resolver.ascend_resolver()
 
 
-def templated_id(s):
-    # type: (Text) -> Any
+def templated_id(s: str) -> None:
+
     return Serializer.ANCHOR_RE.match(s)

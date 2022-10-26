@@ -1,5 +1,5 @@
 from requests import Session
-import requests.packages
+import urllib3
 
 class ArubaRESTAPIClient:
     def __init__(self, host, username, password) -> None:
@@ -14,8 +14,9 @@ class ArubaRESTAPIClient:
         self.session.params.update({"json": 1, "config_path": "/mm"})  # type: ignore
 
         # pylint: disable=no-member
-        requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)  # type: ignore
+        # Aruba controller's cert is self-signed, and cannot be verified
         self.session.verify = False
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # type: ignore
 
         self.ap_provisioning = AP_Provisioning(self)
         self.controller = Controller(self)

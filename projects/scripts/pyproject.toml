@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uoft_scripts"
-version = "1.0.0"
+version = "1.0.1.dev3"
 description = "a collection of scripts and one-off tools"
 readme = "README.md"
 authors = [

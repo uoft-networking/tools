@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import annotations
 
 """
 You cannot subclass bool, and this is necessary for round-tripping anchored
@@ -21,22 +22,22 @@ __all__ = ["ScalarBoolean"]
 
 class ScalarBoolean(int):
     def __new__(cls, *args, **kw):
-        # type: (Any, Any, Any) -> Any
+
         anchor = kw.pop("anchor", None)
-        b = int.__new__(cls, *args, **kw)
+        b = super().__new__(*args, **kw)
         if anchor is not None:
             b.yaml_set_anchor(anchor, always_dump=True)
         return b
 
     @property
     def anchor(self):
-        # type: () -> Any
+
         if not hasattr(self, Anchor.attrib):
             setattr(self, Anchor.attrib, Anchor())
         return getattr(self, Anchor.attrib)
 
     def yaml_anchor(self, any=False):
-        # type: (bool) -> Any
+
         if not hasattr(self, Anchor.attrib):
             return None
         if any or self.anchor.always_dump:
@@ -44,6 +45,6 @@ class ScalarBoolean(int):
         return None
 
     def yaml_set_anchor(self, value, always_dump=False):
-        # type: (Any, bool) -> None
+
         self.anchor.value = value
         self.anchor.always_dump = always_dump

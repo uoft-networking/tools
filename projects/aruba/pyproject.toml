@@ -1,6 +1,6 @@
 [project]
 name = "uoft_aruba"
-version = "1.0.1"
+version = "1.0.1.dev3"
 description = "Collection of utilities for interacting with Aruba infrastructure"
 authors = [
     { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
@@ -21,3 +21,4 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cpsec_whitelist:run"
+uoft_aruba = "uoft_aruba.cli:app"

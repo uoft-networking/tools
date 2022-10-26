@@ -20,6 +20,14 @@ from typing import (
 )
 
 from .yaml import dumps
+from prompt_toolkit import prompt, PromptSession
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.completion import WordCompleter, PathCompleter
+from prompt_toolkit.validation import Validator, ValidationError
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.output.defaults import create_output 
 
 if TYPE_CHECKING:
     from . import Util
@@ -99,17 +107,9 @@ def add_comments_to_yaml_doc(doc: str, model: "BaseModel", indent=0):
             doc = add_comments_to_yaml_doc(doc, submodel, indent + 2)
     return doc
 
-
+# deprecated, use `uoft_core.prompt.Prompt` instead
 class Prompt:
     def __init__(self, util: "Util"):
-        from prompt_toolkit import prompt, PromptSession  # noqa
-        from prompt_toolkit.history import FileHistory  # noqa
-        from prompt_toolkit.auto_suggest import AutoSuggestFromHistory  # noqa
-        from prompt_toolkit.formatted_text import HTML  # noqa
-        from prompt_toolkit.completion import WordCompleter, PathCompleter  # noqa
-        from prompt_toolkit.validation import Validator, ValidationError  # noqa
-        from prompt_toolkit.key_binding import KeyBindings  # noqa
-        from prompt_toolkit.output.defaults import create_output  # noqa
 
         self.util = util
         self.prompt = prompt

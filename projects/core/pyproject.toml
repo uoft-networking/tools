@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "uoft_core"
-version = "1.0.1"
+version = "1.0.1.dev2"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = [
@@ -21,6 +21,8 @@ dependencies = [
   "typer>=0.4.0",
   "rich",
   "requests >= 2.20.0",
+  "pydantic",
+  "prompt_toolkit"
 ]
 
 [project.optional-dependencies]

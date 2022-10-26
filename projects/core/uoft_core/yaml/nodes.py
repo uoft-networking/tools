@@ -1,22 +1,27 @@
 # coding: utf-8
+from __future__ import annotations
 
 import sys
 
 from .compat import _F
 
-from typing import TYPE_CHECKING
+from typing import List, Optional, Union, TYPE_CHECKING
+from uoft_core.yaml.anchor import Anchor
+from uoft_core.yaml.scalarstring import DoubleQuotedScalarString, LiteralScalarString, PlainScalarString, SingleQuotedScalarString
+from uoft_core.yaml.tokens import CommentToken
 
 if TYPE_CHECKING:
     from typing import Dict, Any, Text  # NOQA
+    from uoft_core.yaml.error import StringMark
 
 
 class Node:
     __slots__ = "id", "tag", "value", "start_mark", "end_mark", "comment", "anchor"
 
-    def __init__(self, tag, value, start_mark, end_mark, comment=None, anchor=None):
-        # type: (Any, Any, Any, Any, Any, Any) -> None
+    def __init__(self, tag: str, value: Union[str, DoubleQuotedScalarString, PlainScalarString, SingleQuotedScalarString, LiteralScalarString], start_mark: Optional[StringMark], end_mark: Optional[StringMark], comment: Optional[Any]=None, anchor: Optional[Union[str, Anchor]]=None) -> None:
+
         try:
-            self.id: str = "base" 
+            self.id: str = "base"
         except AttributeError:
             # we are initializing a suclass with a read-only id attribute
             pass
@@ -28,7 +33,7 @@ class Node:
         self.anchor = anchor
 
     def __repr__(self):
-        # type: () -> Any
+
         value = self.value
         # if isinstance(value, list):
         #     if len(value) == 0:
@@ -51,7 +56,7 @@ class Node:
         )
 
     def dump(self, indent=0):
-        # type: (int) -> None
+
         if isinstance(self.value, str):
             sys.stdout.write(
                 "{}{}(tag={!r}, value={!r})\n".format(
@@ -93,15 +98,15 @@ class ScalarNode(Node):
 
     def __init__(
         self,
-        tag,
-        value,
-        start_mark=None,
-        end_mark=None,
-        style=None,
-        comment=None,
-        anchor=None,
-    ):
-        # type: (Any, Any, Any, Any, Any, Any, Any) -> None
+        tag: str,
+        value: Union[str, DoubleQuotedScalarString, PlainScalarString, SingleQuotedScalarString, LiteralScalarString],
+        start_mark: Optional[StringMark]=None,
+        end_mark: Optional[StringMark]=None,
+        style: Optional[str]=None,
+        comment: Optional[Any]=None,
+        anchor: Optional[Union[str, Anchor]]=None,
+    ) -> None:
+
         Node.__init__(
             self, tag, value, start_mark, end_mark, comment=comment, anchor=anchor
         )
@@ -113,15 +118,15 @@ class CollectionNode(Node):
 
     def __init__(
         self,
-        tag,
-        value,
-        start_mark=None,
-        end_mark=None,
-        flow_style=None,
-        comment=None,
-        anchor=None,
-    ):
-        # type: (Any, Any, Any, Any, Any, Any, Any) -> None
+        tag: str,
+        value: List[Any],
+        start_mark: Optional[StringMark]=None,
+        end_mark: None=None,
+        flow_style: Optional[bool]=None,
+        comment: Optional[Union[List[Optional[List[CommentToken]]], List[CommentToken], List[Optional[CommentToken]]]]=None,
+        anchor: Optional[Union[str, Anchor]]=None,
+    ) -> None:
+
         Node.__init__(self, tag, value, start_mark, end_mark, comment=comment)
         self.flow_style = flow_style
         self.anchor = anchor
@@ -138,15 +143,15 @@ class MappingNode(CollectionNode):
 
     def __init__(
         self,
-        tag,
-        value,
-        start_mark=None,
-        end_mark=None,
-        flow_style=None,
-        comment=None,
-        anchor=None,
-    ):
-        # type: (Any, Any, Any, Any, Any, Any, Any) -> None
+        tag: str,
+        value: List[Any],
+        start_mark: Optional[StringMark]=None,
+        end_mark: None=None,
+        flow_style: Optional[bool]=None,
+        comment: Optional[Union[List[Optional[List[CommentToken]]], List[Optional[CommentToken]]]]=None,
+        anchor: Optional[Union[str, Anchor]]=None,
+    ) -> None:
+
         CollectionNode.__init__(
             self, tag, value, start_mark, end_mark, flow_style, comment, anchor
         )

@@ -4,5 +4,5 @@ testpaths = ["tests"]
 
 [tool.monas]
 packages = ["projects/"]
-version = "1.0.1.dev0"
+version = "1.0.1.dev3"
 python-version = "3.10"

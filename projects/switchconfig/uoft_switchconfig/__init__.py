@@ -3,7 +3,7 @@ from typing import Optional
 from importlib.metadata import version
 from pathlib import Path
 
-from uoft_core import Util, UofTCoreError, chomptxt
+from uoft_core import Util, UofTCoreError, chomptxt, BaseSettings
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -73,3 +73,18 @@ class Config:
 
 
 config = Config()
+
+
+class Settings(BaseSettings):
+    _app_name = "switchconfig"
+    generate: Generate = Field(
+        None,
+        description="whether to include any overriding configuration related to the generate command",
+    )
+    deploy: Deploy = Field(
+        None,
+        description="whether to include any overriding configuration related to the deploy command",
+    )
+    debug: bool = Field(False, description="whether to permanently enable debug mode")
+
+settings = Settings.from_cache()

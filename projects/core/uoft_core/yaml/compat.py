@@ -1,33 +1,43 @@
 # coding: utf-8
+from __future__ import annotations
 
 # partially from package six by Benjamin Peterson
 
 import sys
 import os
-import io
+from io import StringIO, BytesIO
 import traceback
 from abc import abstractmethod
 import collections.abc
 
 
-
-from typing import Any, Dict, Optional, List, Union, BinaryIO, TextIO, Text, Tuple  # NOQA
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    List,
+    Union,
+    BinaryIO,
+    TextIO,
+    Text,
+    Tuple,
+)  # NOQA
 
 _DEFAULT_YAML_VERSION = (1, 2)
 
 try:
     from collections import OrderedDict
 except ImportError:
-    from ordereddict import OrderedDict  # type: ignore
+    from ordereddict import OrderedDict
 
     # to get the right name import ... as ordereddict doesn't do that
 
 
-class ordereddict(OrderedDict):  # type: ignore
+class ordereddict(OrderedDict):
     if not hasattr(OrderedDict, "insert"):
 
-        def insert(self, pos, key, value):
-            # type: (int, Any, Any) -> None
+        def insert(self, pos: int, key: str, value: str) -> None:
+
             if pos >= len(self):
                 self[key] = value
                 return
@@ -49,15 +59,11 @@ PY3 = sys.version_info[0] == 3
 # ft = '42'
 # assert _F('abc {ft!r}', ft=ft) == 'abc %r' % ft
 # 'abc %r' % ft -> _F('abc {ft!r}' -> f'abc {ft!r}'
-def _F(s, *superfluous, **kw):
-    # type: (Any, Any, Any) -> Any
+def _F(s: str, *superfluous, **kw) -> str:
+
     if superfluous:
         raise TypeError
     return s.format(**kw)
-
-
-StringIO = io.StringIO
-BytesIO = io.BytesIO
 
 StreamType = BinaryIO | TextIO | BytesIO | StringIO
 
@@ -68,7 +74,7 @@ builtins_module = "builtins"
 
 
 def with_metaclass(meta, *bases):
-    # type: (Any, Any) -> Any
+
     """Create a base class with a metaclass."""
     return meta("NewBase", bases, {})
 
@@ -78,7 +84,7 @@ DBG_EVENT = 2
 DBG_NODE = 4
 
 
-_debug = None  # type: Optional[int]
+_debug = None
 if "RUAMELDEBUG" in os.environ:
     _debugx = os.environ.get("RUAMELDEBUG")
     if _debugx is None:
@@ -91,15 +97,15 @@ if bool(_debug):
 
     class ObjectCounter:
         def __init__(self):
-            # type: () -> None
-            self.map = {}  # type: Dict[Any, Any]
+
+            self.map = {}
 
         def __call__(self, k):
-            # type: (Any) -> None
+
             self.map[k] = self.map.get(k, 0) + 1
 
         def dump(self):
-            # type: () -> None
+
             for k in sorted(self.map):
                 sys.stdout.write("{} -> {}".format(k, self.map[k]))
 
@@ -107,8 +113,8 @@ if bool(_debug):
 
 
 # used from yaml util when testing
-def dbg(val=None):
-    # type: (Any) -> Any
+def dbg(val: Optional[int]=None) -> int:
+
     global _debug
     if _debug is None:
         # set to true or false
@@ -124,13 +130,13 @@ def dbg(val=None):
 
 class Nprint:
     def __init__(self, file_name=None):
-        # type: (Any) -> None
-        self._max_print = None  # type: Any
-        self._count = None  # type: Any
+
+        self._max_print = None
+        self._count = None
         self._file_name = file_name
 
-    def __call__(self, *args, **kw):
-        # type: (Any, Any) -> None
+    def __call__(self, *args, **kw) -> None:
+
         if not bool(_debug):
             return
         out = sys.stdout if self._file_name is None else open(self._file_name, "a")
@@ -152,12 +158,12 @@ class Nprint:
             out.close()
 
     def set_max_print(self, i):
-        # type: (int) -> None
+
         self._max_print = i
         self._count = None
 
     def fp(self, mode="a"):
-        # type: (str) -> Any
+
         out = sys.stdout if self._file_name is None else open(self._file_name, mode)
         return out
 
@@ -168,8 +174,8 @@ nprintf = Nprint("/var/tmp/ruamel.yaml.log")
 # char checkers following production rules
 
 
-def check_namespace_char(ch):
-    # type: (Any) -> bool
+def check_namespace_char(ch: str) -> bool:
+
     if "\x21" <= ch <= "\x7E":  # ! to ~
         return True
     if "\xA0" <= ch <= "\uD7FF":
@@ -181,38 +187,24 @@ def check_namespace_char(ch):
     return False
 
 
-def check_anchorname_char(ch):
-    # type: (Any) -> bool
+def check_anchorname_char(ch: str) -> bool:
+
     if ch in ",[]{}":
         return False
     return check_namespace_char(ch)
 
 
-def version_tnf(t1, t2=None):
-    # type: (Any, Any) -> Any
-    """
-    return True if ruamel.yaml version_info < t1, None if t2 is specified and bigger else False
-    """
-    from . import version_info  # NOQA
-
-    if version_info < t1:
-        return True
-    if t2 is not None and version_info < t2:
-        return None
-    return False
-
-
-class MutableSliceableSequence(collections.abc.MutableSequence):  # type: ignore
+class MutableSliceableSequence(collections.abc.MutableSequence):
     __slots__ = ()
 
-    def __getitem__(self, index):
-        # type: (Any) -> Any
+    def __getitem__(self, index: int) -> Any:
+
         if not isinstance(index, slice):
             return self.__getsingleitem__(index)
-        return type(self)([self[i] for i in range(*index.indices(len(self)))])  # type: ignore
+        return type(self)([self[i] for i in range(*index.indices(len(self)))])
 
-    def __setitem__(self, index, value):
-        # type: (Any, Any) -> None
+    def __setitem__(self, index: int, value: Any) -> None:
+
         if not isinstance(index, slice):
             return self.__setsingleitem__(index, value)
         assert iter(value)
@@ -242,8 +234,8 @@ class MutableSliceableSequence(collections.abc.MutableSequence):  # type: ignore
             for idx, i in enumerate(range(*range_parms)):
                 self[i] = value[idx]
 
-    def __delitem__(self, index):
-        # type: (Any) -> None
+    def __delitem__(self, index: int) -> None:
+
         if not isinstance(index, slice):
             return self.__delsingleitem__(index)
         # nprint(index.start, index.stop, index.step, index.indices(len(self)))
@@ -252,15 +244,15 @@ class MutableSliceableSequence(collections.abc.MutableSequence):  # type: ignore
 
     @abstractmethod
     def __getsingleitem__(self, index):
-        # type: (Any) -> Any
+
         raise IndexError
 
     @abstractmethod
     def __setsingleitem__(self, index, value):
-        # type: (Any, Any) -> None
+
         raise IndexError
 
     @abstractmethod
     def __delsingleitem__(self, index):
-        # type: (Any) -> None
+
         raise IndexError

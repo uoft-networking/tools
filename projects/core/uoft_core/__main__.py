@@ -1,10 +1,7 @@
 import sys
-import traceback
 from typing import Optional
 from sys import version_info, platform, executable
 from importlib.metadata import version
-from subprocess import run
-from pathlib import Path
 
 from . import Util
 
@@ -20,19 +17,8 @@ def version_callback(value: bool):
     if value:
         v = version_info
         print(
-            f"uoft wrapper command v{version(__package__)}\nPython {v.major}.{v.minor} ({executable}) on {platform}"
+            f"uoft wrapper command v{version(__package__)}\nPython {v.major}.{v.minor} ({executable}) on {platform})"
         )
-        raise typer.Exit()
-
-
-def install_callback(value: str):
-    if value:
-        installation = Path(executable).parent
-        pip = installation.joinpath("pip3")
-        fix_shebangs = installation.joinpath('fix-shebangs.py')
-        run([pip, "install", f"uoft.{value}"], check=True)
-        if fix_shebangs.exists():
-            run([fix_shebangs], check=True)
         raise typer.Exit()
 
 
@@ -48,12 +34,6 @@ def callback(
         callback=version_callback,
         help="Show version information and exit",
     ),
-    install: Optional[str] = typer.Option(  # pylint: disable=unused-argument
-        None,
-        "--install",
-        callback=install_callback,
-        help="install a uoft tool into this python installation and exit",
-    ),
 ):
     """
     Command-line namespace for all uoft command-line utilities. makes each uoft_* command available as a subcommand.
@@ -68,24 +48,42 @@ def callback(
     util.logging.add_stderr_rich_sink(log_level)
     util.logging.add_syslog_sink()
 
-
+@logger.catch
 def cli():
     try:
         app()
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
-    except Exception as e:
-        # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
-        logger.error(e)
-        logger.debug(traceback.format_exc())
 
 
 if __name__ == "__main__":
-    import os, sys  # noqa
+    import os
 
     if os.environ.get("PYDEBUG"):
-        # Debug code goes here
+        # let's interactively prompt for a module to debug and execute that
 
+        from importlib import import_module
+        from importlib.util import find_spec
+        from .prompt import Prompt, Validator
+
+        p = Prompt(util)
+        v = Validator.from_callable(
+            lambda n: bool(find_spec(n)),
+            "no such module exists in the current python installation",
+        )
+        mod_name = p.get_string(
+            "module name",
+            'Enter the full dotted name of the module you\'d like to debug. Ex: "uoft_core.nested_data"',
+            validator=v,
+            default_from_history=True
+        )
+        args = p.get_string("args", "Enter any arguments you'd like to pass to the module", default_from_history=True)
+        sys.argv.extend(args.split())
+        mod = import_module(mod_name)
+        if hasattr(mod, "_debug"):
+            mod._debug() # pylint: disable=protected-access
+        else:
+            print(f"Module {mod_name} has no _debug() function")
         sys.exit()
     cli()

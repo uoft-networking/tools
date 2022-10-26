@@ -1,27 +1,24 @@
-from getpass import getpass
 import os, sys
 import traceback
 from typing import Optional
-import json
-from subprocess import CalledProcessError
 
 from uoft_core import shell
 
 from . import config
-from . import bluecat as bluecat_
-from uoft_core.aruba import ArubaRESTAPIClient
+from . import bluecat
+from . import ldap
 
 import typer
 from loguru import logger
-import ldap3
 
-app = typer.Typer(name="uoft_scripts")
-collect = typer.Typer()
-aruba = typer.Typer()
-ldap = typer.Typer()
-app.add_typer(collect, name="collect", no_args_is_help=True)
-app.add_typer(aruba, name="aruba")
-app.add_typer(ldap, name="ldap")
+app = typer.Typer(
+    name="uoft_scripts",
+    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
+    no_args_is_help=True,
+    help=__doc__,  # Use this module's docstring as the main program help text
+)
+app.add_typer(bluecat.app)
+app.add_typer(ldap.app)
 
 
 def version_callback(value: bool):
@@ -35,9 +32,7 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
-@app.callback(
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
-)
+@app.callback()
 def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
@@ -62,96 +57,6 @@ def callback(
     config.util.logging.add_syslog_sink()
 
 
-@aruba.callback()
-def aruba_callback(
-    ctx: typer.Context,
-    controller1: str = typer.Option("aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343"),
-    controller2: str = typer.Option("aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343"),
-    username: str = typer.Option("apiadmin"),
-    password: str = typer.Option(None),
-):
-
-    if not password:
-        try:
-            password = shell("pass aruba-api").splitlines()[0]
-        except (
-            CalledProcessError,
-            IndexError,
-        ):
-            logger.warning(
-                "Executed command `pass aruba-api` failed, prompting for password manually"
-            )
-            password = getpass("Aruba API Password: ")
-    ctx.obj = (controller1, controller2, username, password)
-
-
-@aruba.command()
-def stm_blacklist_get(ctx: typer.Context):
-    controller1, controller2, username, password = ctx.obj
-
-    with ArubaRESTAPIClient(controller1, username, password) as c:
-        d1 = c.stm_blacklist_get()
-
-    with ArubaRESTAPIClient(controller2, username, password) as c:
-        d2 = c.stm_blacklist_get()
-
-    res = d1 + d2
-    print(json.dumps(res, indent=4))
-
-
-@aruba.command()
-def stm_blacklist_remove(ctx: typer.Context, mac_address: str):
-
-    controller1, controller2, username, password = ctx.obj
-
-    with ArubaRESTAPIClient(controller1, username, password) as c:
-        c.stm_blacklist_remove(mac_address)
-
-    with ArubaRESTAPIClient(controller2, username, password) as c:
-        c.stm_blacklist_remove(mac_address)
-        c.controller.write_memory()
-
-    print("Done!")
-
-
-@collect.command()
-def bluecat():
-    """
-    Collect bluecat data
-    """
-
-    bluecat_.collect()
-
-
-@ldap.command()
-def user(
-    name: str,
-):
-    pw, bind_dn, host, users_base_dn, groups_base_dn = shell(
-        "pass utsc/nautobot-ldap"
-    ).splitlines()
-    server = ldap3.Server(host, get_info=ldap3.ALL)
-    conn = ldap3.Connection(server, bind_dn, pw, auto_bind=True)  # type: ignore
-    conn.search(users_base_dn, f"(name={name})", attributes=ldap3.ALL_ATTRIBUTES)
-    print(conn.entries)
-
-
-@ldap.command()
-def group(name: Optional[str] = "", attributes: str = "cn,name,member,objectClass"):
-    if attributes == "ALL":
-        attrs = ldap3.ALL_ATTRIBUTES
-    else:
-        attrs = attributes.split(",")
-    pw, bind_dn, host, users_base_dn, groups_base_dn = shell(
-        "pass utsc/nautobot-ldap"
-    ).splitlines()
-    server = ldap3.Server(host, get_info=ldap3.ALL)
-    conn = ldap3.Connection(server, bind_dn, pw, auto_bind=True)  # type: ignore
-    conn.search(groups_base_dn, f"(name={name}*)", attributes=attrs)
-    for entry in conn.entries:
-        print(entry)
-
-
 def cli():
     try:
         # CLI code goes here
@@ -165,26 +70,11 @@ def cli():
         logger.debug(traceback.format_exc())
 
 
+
+def _debug():
+    "Debugging function, only used in active debugging sessions."
+    # pylint: disable=all
+    print()
+
 if __name__ == "__main__":
-
-    if os.environ.get("PYDEBUG"):
-        # Debug code goes here
-        def dothething():
-            class Context:
-                obj: tuple
-
-            controller1 = "aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343"
-            controller2 = "aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343"
-            username = "apiadmin"
-            password = shell("pass aruba-api").splitlines()[0]
-            ctx = Context()
-            ctx.obj = (controller1, controller2, username, password)
-
-            with ArubaRESTAPIClient(controller1, username, password) as c:
-                d1 = c.showcommand_raw("show log user all").text
-
-            print(d1)
-
-        dothething()
-        sys.exit()
     cli()
