@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     def _catch_deprecated_configs(cls, values):  # pylint: disable=no-self-argument
         if "md_vrrp_hostname" in values:
             raise DeprecationWarning(
-                "mm_vrrp_hostname is deprecated. "
+                "md_vrrp_hostname is deprecated. "
                 "Please update your config files to use a list called 'mm_hostnames' instead. "
                 "Please check one of the following config files for the deprecated config and update it: {}".format(
                     cls.__config__.util().config.readable_files
