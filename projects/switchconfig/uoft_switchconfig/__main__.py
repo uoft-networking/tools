@@ -6,7 +6,7 @@ from typing import Optional
 from pathlib import Path
 import json
 
-from . import config, _default_templates_dir
+from . import settings, _default_templates_dir
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
 
@@ -37,7 +37,8 @@ generate = typer.Typer(
 )
 app.add_typer(generate)
 
-prompt = Prompt(config.util)
+util = settings.__config__.util()
+prompt = Prompt(util)
 
 
 def version_callback(value: bool):
@@ -56,9 +57,9 @@ def initialize_config(value: bool):
         return
     from . import ConfigModel
 
-    config_files = [str(x) for x in config.util.config.writable_or_creatable_files]
+    config_files = [str(x) for x in util.config.writable_or_creatable_files]
     try:
-        existing_config = config.util.config.merged_data
+        existing_config = util.config.merged_data
     except UofTCoreError:
         existing_config = {}
     target_config_file = prompt.select(
@@ -94,7 +95,7 @@ def initialize_templates(value: bool):
     logger.debug(f"copying content from {example_templates.resolve()}")
     for file in example_templates.iterdir():
         templates.joinpath(file.name).write_text(file.read_text())
-    config.util.console.print(
+    util.console.print(
         chomptxt(
             """
             [green]Done![/green] you may now start adding templates to the 
@@ -108,21 +109,21 @@ def initialize_templates(value: bool):
 def show_paths(value: bool):
     if not value:
         return
-    con = config.util.console
+    con = util.console
     states = {
         File.readable: "[green]readable[/]",
         File.writable: "[bright_green]writable[/]",
         File.creatable: "[white]creatable[/]",
         File.unusable: "[bright_black]unusable[/]",
     }
-    conf_files = config.util.config.files
+    conf_files = util.config.files
 
     con.print("\n[bold]Config files:[/bold]")
     for file, state in conf_files:
         con.print(f" - {states[state]}: {file}")
 
     con.print("\n\n[bold]Cache files:[/bold]")
-    file = config.util.cache_dir
+    file = util.cache_dir
     state = states[File.state(file)]
     con.print(f" - Data cache({state}): {file}")
     file = get_cache_dir()
@@ -169,21 +170,17 @@ def callback(
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
-        if config.data:
-            config.data.debug = True
+        settings.debug = True
     if trace:
         log_level = "TRACE"
-    config.util.logging.enable()
-    config.util.logging.add_stderr_rich_sink(log_level)
-    config.util.logging.add_syslog_sink()
+    util.logging.enable()
+    util.logging.add_stderr_rich_sink(log_level)
+    util.logging.add_syslog_sink()
 
 
 def get_cache_dir(cache_dir: Optional[Path] = None):
     if not cache_dir:
-        if config.data and config.data.generate:
-            cache_dir = config.data.generate.templates_dir
-        else:
-            cache_dir = _default_templates_dir()
+            cache_dir = settings.generate.templates_dir
     return cache_dir
 
 
@@ -271,9 +268,9 @@ def generate_from_file(
 
 
 def console_name_completion(partial: str):
-    if not (config.data and config.data.deploy and config.data.deploy.targets):
+    if not (settings.deploy and settings.deploy.targets):
         return []
-    targets = list(config.data.deploy.targets.keys()) if config.data.deploy else []
+    targets = list(settings.deploy.targets.keys()) if settings.deploy else []
     res = []
     if partial:
         for target in targets:
@@ -291,12 +288,8 @@ def to_console(
     )
 ):
     "Connect to a serial console server, authenticate, and pass in configuration from STDIN"
-    if (
-        config.data
-        and config.data.deploy
-        and console_name in config.data.deploy.targets
-    ):
-        target = config.data.deploy.targets[console_name]
+    if console_name in settings.deploy.targets:
+        target = settings.deploy.targets[console_name]
     else:
         target = console_name
     deploy_to_console(target)
@@ -310,7 +303,7 @@ def cli():
         print("Aborted!")
         sys.exit()
     except Exception as e:  # pylint: disable=broad-except
-        if config.data and config.data.debug:
+        if settings.debug:
             import ipdb
 
             ipdb.set_trace()

@@ -77,11 +77,11 @@ config = Config()
 
 class Settings(BaseSettings):
     _app_name = "switchconfig"
-    generate: Optional[Generate] = Field(
+    generate: Generate = Field(
         None,
         description="whether to include any overriding configuration related to the generate command",
     )
-    deploy: Optional[Deploy] = Field(
+    deploy: Deploy = Field(
         None,
         description="whether to include any overriding configuration related to the deploy command",
     )
