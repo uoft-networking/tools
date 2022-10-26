@@ -262,18 +262,4 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(
 def _debug():
     "Debugging function, only used in active debugging sessions."
     # pylint: disable=all
-    class Base:
-        _name = "Base"
-        @classmethod
-        def update(cls, name):
-            cls._name = name
-
-    class A(Base):
-        pass
-
-    class B(Base):
-        pass
-
-    A.update("A")
-    B.update("B")
     print()

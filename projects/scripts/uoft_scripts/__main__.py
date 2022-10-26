@@ -7,8 +7,6 @@ from uoft_core import shell
 from . import config
 from . import bluecat
 from . import ldap
-from . import aruba
-from uoft_core.aruba import ArubaRESTAPIClient
 
 import typer
 from loguru import logger
@@ -20,7 +18,6 @@ app = typer.Typer(
     help=__doc__,  # Use this module's docstring as the main program help text
 )
 app.add_typer(bluecat.app)
-app.add_typer(aruba.app)
 app.add_typer(ldap.app)
 
 
@@ -73,26 +70,11 @@ def cli():
         logger.debug(traceback.format_exc())
 
 
+
+def _debug():
+    "Debugging function, only used in active debugging sessions."
+    # pylint: disable=all
+    print()
+
 if __name__ == "__main__":
-
-    if os.environ.get("PYDEBUG"):
-        # Debug code goes here
-        def dothething():
-            class Context:
-                obj: tuple
-
-            controller1 = "aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343"
-            controller2 = "aruba-7240xm-01.netmgmt.utsc.utoronto.ca:4343"
-            username = "apiadmin"
-            password = shell("pass aruba-api").splitlines()[0]
-            ctx = Context()
-            ctx.obj = (controller1, controller2, username, password)
-
-            with ArubaRESTAPIClient(controller1, username, password) as c:
-                d1 = c.show_raw("show log user all").text
-
-            print(d1)
-
-        dothething()
-        sys.exit()
     cli()
