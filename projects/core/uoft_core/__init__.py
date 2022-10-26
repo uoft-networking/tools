@@ -16,8 +16,9 @@ from importlib.metadata import version
 from pathlib import Path
 from subprocess import CalledProcessError, run
 from textwrap import dedent
+from types import GenericAlias
 from typing import (TYPE_CHECKING, Any, Callable, ClassVar, Dict, List,
-                    Optional, Type, TypeVar)
+                    Optional, Type, TypeVar, get_args, get_origin)
 
 from loguru import logger
 from pydantic import BaseSettings as PydanticBaseSettings
@@ -950,7 +951,7 @@ class BaseSettings(PydanticBaseSettings):
         settings_parameters = []
         for field_name, field in cls.__fields__.items():
             help_ = field.field_info.title or field.field_info.description
-            option = typer.Option(default=field.default, help=help_)
+            option = typer.Option(default=None, help=help_)
             if field.outer_type_ == SecretStr:
                 type_ = str
             else:
@@ -976,8 +977,17 @@ class BaseSettings(PydanticBaseSettings):
             # and pass them to the settings function
             settings_kwargs = {}
             for param, value in zip(func.settings_parameters, args):
-                if value is not None:
-                    settings_kwargs[param.name] = value
+                if value is None:
+                    continue
+                # some dirty hacks to get around quirks in typer behaviour
+                inner_type = get_args(param.annotation)[0]
+                if type(inner_type) is GenericAlias:
+                    inner_type = get_origin(inner_type)
+                if inner_type is list and value == []:
+                    continue
+                if inner_type is bool and value == False:
+                    continue
+                settings_kwargs[param.name] = value
 
             if settings_kwargs:
                 cls._update_cache_instance(
