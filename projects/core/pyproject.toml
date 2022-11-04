@@ -11,7 +11,7 @@ description = "an opinionated set of utilities designed to be easily included in
 readme = "README.md"
 authors = [
   { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
-  { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" }
+  { name = "University of Toronto", email = "" }
 ]
 license = "MIT"
 requires-python = ">=3.10"
@@ -27,10 +27,8 @@ dependencies = [
 
 [project.optional-dependencies]
 all = [
-  "pydantic >= 1.9",
   "jinja2 >= 3.0",
   "sentry-sdk >= 1.4",
   "semver",
   "pytest >= 6.0",
-  "prompt-toolkit >= 3.0.0"
 ]

@@ -4,7 +4,7 @@ import re
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 if TYPE_CHECKING:
-    from tomli._parser import ParseFloat
+    from ._parser import ParseFloat
 
 # E.g.
 # - 00:32:00.999999

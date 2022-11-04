@@ -136,18 +136,12 @@ except ImportError:
     timezone.max = timezone._create(timezone._maxoffset)
 
 
-PY2 = sys.version_info[0] == 2
 PY36 = sys.version_info >= (3, 6)
 PY38 = sys.version_info >= (3, 8)
 
-if PY2:
-    unicode = unicode
-    chr = unichr
-    long = long
-else:
-    unicode = str
-    chr = chr
-    long = int
+unicode = str
+chr = chr
+long = int
 
 
 if PY36:
@@ -162,10 +156,7 @@ except ImportError:
 
 
 def decode(string, encodings=None):
-    if not PY2 and not isinstance(string, bytes):
-        return string
-
-    if PY2 and isinstance(string, unicode):
+    if not isinstance(string, bytes):
         return string
 
     encodings = encodings or ["utf-8", "latin1", "ascii"]

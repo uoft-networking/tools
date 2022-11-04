@@ -14,19 +14,14 @@ from typing import List
 from typing import Optional
 from typing import Union
 
-from ._compat import PY2
 from ._compat import PY38
 from ._compat import MutableMapping
 from ._compat import decode
 from ._compat import long
-from ._compat import unicode
 from ._utils import escape_string
 
 
-if PY2:
-    from functools32 import lru_cache
-else:
-    from functools import lru_cache
+from functools import lru_cache
 
 
 def item(value, _parent=None, _sort_keys=False):
@@ -75,7 +70,7 @@ def item(value, _parent=None, _sort_keys=False):
             a.append(v)
 
         return a
-    elif isinstance(value, (str, unicode)):
+    elif isinstance(value, str):
         escaped = escape_string(value)
 
         return String(StringType.SLB, decode(value), escaped, Trivia())
@@ -156,9 +151,6 @@ class BoolType(Enum):
     @lru_cache(maxsize=None)
     def __bool__(self):
         return {BoolType.TRUE: True, BoolType.FALSE: False}[self]
-
-    if PY2:
-        __nonzero__ = __bool__  # for PY2
 
     def __iter__(self):
         return iter(self.value)
@@ -815,12 +807,10 @@ class Array(Item, list):
 
         self._value.append(it)
 
-    if not PY2:
+    def clear(self):
+        super(Array, self).clear()
 
-        def clear(self):
-            super(Array, self).clear()
-
-            self._value.clear()
+        self._value.clear()
 
     def __iadd__(self, other):  # type: (list) -> Array
         if not isinstance(other, list):
@@ -880,7 +870,7 @@ class Table(Item, MutableMapping, dict):
         is_super_table=False,
         name=None,
         display_name=None,
-    ):  # type: (tomlkit.container.Container, Trivia, bool, bool, Optional[str], Optional[str]) -> None
+    ):  # type: (uoft_core._vendor.tomlkit.container.Container, Trivia, bool, bool, Optional[str], Optional[str]) -> None
         super(Table, self).__init__(trivia)
 
         self.name = name
@@ -1201,7 +1191,7 @@ class InlineTable(Item, MutableMapping, dict):
         return (self._value, self._trivia)
 
 
-class String(unicode, Item):
+class String(str, Item):
     """
     A string literal.
     """
@@ -1242,7 +1232,7 @@ class String(unicode, Item):
         return String(self._t, result, result, self._trivia)
 
     def _getstate(self, protocol=3):
-        return self._t, unicode(self), self._original, self._trivia
+        return self._t, tr(self), self._original, self._trivia
 
 
 class AoT(Item, list):
