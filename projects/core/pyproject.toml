@@ -1,12 +1,10 @@
 [build-system]
-requires = ["hatchling >= 1.6.0"]
+requires = ["hatchling >= 1.6.0", "hatch-vcs"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build]
 
 [project]
 name = "uoft_core"
-version = "1.0.1.dev2"
+version = "1.0.2.dev48+gc7fd887.d20221104"
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = [
@@ -17,12 +15,12 @@ license = "MIT"
 requires-python = ">=3.10"
 
 dependencies = [
-  "loguru",
-  "typer>=0.4.0",
-  "rich",
-  "requests >= 2.20.0",
-  "pydantic",
-  "prompt_toolkit"
+  "loguru >= 0.6",
+  "typer>=0.4",
+  "rich >= 12.2",
+  "requests >= 2.20",
+  "pydantic >= 1.9",
+  "prompt_toolkit >= 3.0.",
 ]
 
 [project.optional-dependencies]
@@ -32,3 +30,9 @@ all = [
   "semver",
   "pytest >= 6.0",
 ]
+
+[tool.hatch.build]
+[tool.hatch.metadata.hooks.custom]
+
+[tool.hatch.build.hooks.vcs]
+version-file = "_version.py"

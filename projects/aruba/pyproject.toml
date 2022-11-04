@@ -1,6 +1,6 @@
 [project]
 name = "uoft_aruba"
-version = "1.0.1.dev3"
+version = "1.0.2.dev48+gc7fd887.d20221104"
 description = "Collection of utilities for interacting with Aruba infrastructure"
 authors = [
     { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
