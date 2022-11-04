@@ -61,7 +61,6 @@ def install_all_editable(c: Context):
 @task()
 def version(c: Context):
     """get current version of repository from git tag"""
-    from setuptools_scm import get_version
     print(get_version(root=str(ROOT)))
 
 @task()

@@ -4,6 +4,11 @@ from os import system, environ, chdir
 from subprocess import check_output, call, CalledProcessError
 import platform
 
+try:
+    from __builtin__ import raw_input as input
+except ImportError:
+    pass
+
 print("Step 1: Ensure python3.10 is installed...")
 
 local_bin = environ["HOME"]+"/.local/bin"
@@ -57,13 +62,15 @@ def install_python():
             print("Aborting.")
             exit(1)
     system("mkdir -p "+target_dir)
+
     ret = system("tar -C "+target_dir+" -xzf "+tmp+"/python3.10.tar.gz")
     if ret != 0:
         print("Failed to extract python3.10.")
         print("Aborting.")
         exit(1)
     system("rm "+tmp+"/python3.10.tar.gz")
-    system("ln -s "+target_dir+"/bin/python3.10 ")
+    system("mkdir -p "+local_bin)
+    system("ln -s "+target_dir+"/python/bin/python3.10 "+local_bin+"/python3.10")
 
 try:
     py310 = check_output("which python3.10".split()).strip()
@@ -74,9 +81,9 @@ except CalledProcessError:
 print("Step 2: Create .venv...")
 
 system("python3.10 -m venv .venv")
-system(".venv/bin/pip install --upgrade pip")
-system(".venv/bin/pip install --upgrade setuptools wheel")
-system(".venv/bin/pip install --upgrade -r dev.requirements.txt")
-system(". uoft-tools/.venv/bin/activate; invoke ")
+system(". .venv/bin/activate; pip install --upgrade pip")
+system(". .venv/bin/activate; pip install --upgrade setuptools wheel")
+system(". .venv/bin/activate; pip install --upgrade -r dev.requirements.txt")
+system(". .venv/bin/activate; invoke install-all-editable")
 
     
