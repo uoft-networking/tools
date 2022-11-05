@@ -84,6 +84,5 @@ system("python3.10 -m venv .venv")
 system(". .venv/bin/activate; pip install --upgrade pip")
 system(". .venv/bin/activate; pip install --upgrade setuptools wheel")
 system(". .venv/bin/activate; pip install --upgrade -r dev.requirements.txt")
-system(". .venv/bin/activate; invoke install-all-editable")
 
     

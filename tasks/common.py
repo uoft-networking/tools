@@ -1,11 +1,14 @@
 """common tasks for all projects in the repo"""
-from invoke import task, Context, UnexpectedExit
+from invoke import task, Context
 
 from . import ROOT
 
 from setuptools_scm import get_version
 
-@task
+def all_projects():
+    return sorted(ROOT.glob('projects/*'))
+
+
 def needs_sudo(c: Context):
     "called from functions which need to run sudo. pulls sudo password from `pass sudo` if sudo password not already set"
     if not c.config.sudo.password:
@@ -17,32 +20,42 @@ def needs_sudo(c: Context):
 
 
 @task()
-def build(c: Context, project: str, verbose: bool = False):
+def build(c: Context, project: str):
     """build sdist and wheel packages for a given project"""
-    from . import ROOT
-    print(f"building projects/{project}")
+    print(f"building {project} from projects/{project}")
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
-    r = c.run(f"python -m build -o dist/ projects/{project}")
-    if verbose:
-        r = r.stdout
-        _, _, r = r.partition('Successfully built ')
-        sdist, _, wheel = r.partition(' and ')
-        c.run(f"tar -tvf dist/{sdist}")
-        c.run(f"unzip -l dist/{wheel}")
+    r = c.run(f"python -m build projects/{project}")
+
+@task()
+def build_all(c: Context):
+    """build sdist and wheel packages for all projects"""
+    for project in all_projects():
+        build(c, project.name)
+
+@task()
+def test(c: Context, project: str):
+    """run tests for a given project"""
+    from . import ROOT
+    print(f"testing {project} from projects/{project}")
+    assert (ROOT / f"tests/{project}").exists(), f"No tests found for project {project}"
+    c.run(f"python -m pytest tests/{project}")
+
+@task()
+def test_all(c: Context):
+    """run tests for all projects"""
+    for p in all_projects():
+        test(c, p.name)
 
 @task()
 def coverage(c: Context):
     """run coverage on all projects"""
     c.run("pytest --cov-report xml:cov.xml --cov-report term-missing --cov")
 
-def all_projects():
-    return sorted(ROOT.glob('projects/*'))
-
-@task(name='list')
-def list_(c: Context):
+@task()
+def list_projects(c: Context):
     """list all projects"""
     for p in all_projects():
-        print(p.relative_to(ROOT))
+        print(p.name)
 
 @task()
 def install_editable(c: Context, project: str):
@@ -53,7 +66,7 @@ def install_editable(c: Context, project: str):
     c.run(f"python -m pip install -e projects/{project}")
 
 @task()
-def install_all_editable(c: Context):
+def install_editable_all(c: Context):
     """install all projects in editable mode"""
     for p in all_projects():
         install_editable(c, p.name)
