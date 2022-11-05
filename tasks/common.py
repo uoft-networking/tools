@@ -57,6 +57,12 @@ def install_all_editable(c: Context):
     """install all projects in editable mode"""
     for p in all_projects():
         install_editable(c, p.name)
+        
+@task()
+def changes_since_last_tag(c: Context):
+    """print changes since last tag"""
+    print(f"changes since last tag")
+    c.run(f"git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
 
 @task()
 def version(c: Context):
@@ -64,7 +70,7 @@ def version(c: Context):
     print(get_version(root=str(ROOT)))
 
 @task()
-def write_version(c: Context):
+def version_write(c: Context):
     """write current version of repository to project metadata"""
     from tomlkit import parse, dumps, items
 
@@ -89,7 +95,7 @@ def write_version(c: Context):
         print(f"updated {p / 'pyproject.toml'}")
 
 @task()
-def next_version(c: Context, minor: bool = False ):
+def version_next(c: Context, minor: bool = False ):
     """suggest the next version to use as a git tag"""
     from packaging.version import Version
     v = get_version(root=str(ROOT))
