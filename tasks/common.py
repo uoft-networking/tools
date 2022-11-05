@@ -63,20 +63,28 @@ def version(c: Context):
     """get current version of repository from git tag"""
     print(get_version(root=str(ROOT)))
 
-def update_core_dep(deps: list, v: str):
-    for d in deps:
-        if 'uoft_core' in d:yield 'uoft_core == ' + v
-        else:yield d
-
 @task()
 def write_version(c: Context):
     """write current version of repository to project metadata"""
-    from tomlkit import parse, dumps
+    from tomlkit import parse, dumps, items
+
+    def update_core_dep(deps: list, v: str):
+        for d in deps:
+            if 'uoft_core' in d:yield 'uoft_core == ' + v
+            else:yield d
+
     version = get_version(root=str(ROOT))
     for p in all_projects():
         meta = parse((p / 'pyproject.toml').read_text())
-        meta['project']['version'] = version
-        meta['project']['dependencies'] = list(update_core_dep(meta['project']['dependencies'], version))
+        project_meta: items.Table = meta['project']  # type: ignore
+        project_meta['version'] = version
+        deps: items.Array = project_meta['dependencies']  # type: ignore
+
+        for i, dep in enumerate(deps):
+            if 'uoft_core' in dep:
+                deps[i] = 'uoft_core == ' + version
+                break
+
         (p / 'pyproject.toml').write_text(dumps(meta))
         print(f"updated {p / 'pyproject.toml'}")
 
