@@ -1,12 +1,6 @@
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-# requires = ["poetry-core @ git+https://github.com/atremblay/poetry-core.git@fix-issue-5621"]
-# build-backend = "poetry.core.masonry.api"
-
-[tool.hatch.build]
-packages = ["uoft_nautobot"]
-
 
 [project]
 name = "uoft_nautobot"
@@ -33,3 +27,7 @@ dependencies = [
   "librenms_handler",
   "python-box",
 ]
+
+
+[tool.hatch.build]
+packages = ["uoft_nautobot"]

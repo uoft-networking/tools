@@ -1,5 +1,5 @@
 """common tasks for all projects in the repo"""
-from invoke import task, Context
+from invoke import task, Context, UnexpectedExit
 
 from . import ROOT
 
@@ -63,31 +63,26 @@ def version(c: Context):
     """get current version of repository from git tag"""
     print(get_version(root=str(ROOT)))
 
+def update_core_dep(deps: list, v: str):
+    for d in deps:
+        if 'uoft_core' in d:yield 'uoft_core == ' + v
+        else:yield d
+
 @task()
 def write_version(c: Context):
     """write current version of repository to project metadata"""
+    from tomlkit import parse, dumps
     version = get_version(root=str(ROOT))
     for p in all_projects():
-        found_version = False
-        with (p / 'pyproject.toml').open('r') as f:
-            lines = f.readlines()
-        with (p / 'pyproject.toml').open('w') as f:
-            for line in lines:
-                if line.startswith('version ='):
-                    line = f'version = "{version}"\n'
-                    found_version = True
-                f.write(line)
-        if not found_version:
-            print(f"WARNING: no version found in {p}/pyproject.toml")
-        else:
-            print(f"updated {p / 'pyproject.toml'}")
+        meta = parse((p / 'pyproject.toml').read_text())
+        meta['project']['version'] = version
+        meta['project']['dependencies'] = list(update_core_dep(meta['project']['dependencies'], version))
+        (p / 'pyproject.toml').write_text(dumps(meta))
+        print(f"updated {p / 'pyproject.toml'}")
 
 @task()
 def next_version(c: Context, minor: bool = False ):
-    """suggest the next 
-    
-    version to use as a git tag
-    """
+    """suggest the next version to use as a git tag"""
     from packaging.version import Version
     v = get_version(root=str(ROOT))
     print(f"current version: {v}")

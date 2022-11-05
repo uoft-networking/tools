@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling >= 1.6.0", "hatch-vcs"]
+requires = ["hatchling >= 1.6.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -32,7 +32,3 @@ all = [
 ]
 
 [tool.hatch.build]
-[tool.hatch.metadata.hooks.custom]
-
-[tool.hatch.build.hooks.vcs]
-version-file = "_version.py"

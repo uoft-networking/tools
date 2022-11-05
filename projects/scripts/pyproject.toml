@@ -1,10 +1,6 @@
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-# requires = ["poetry-core @ git+https://github.com/atremblay/poetry-core.git@fix-issue-5621"]
-# build-backend = "poetry.core.masonry.api"
-
-[tool.hatch.build]
 
 [project]
 name = "uoft_scripts"
@@ -28,3 +24,6 @@ dependencies = [
 
 [project.scripts]
 "uoft_scripts" = "uoft_scripts.__main__:cli"
+
+
+[tool.hatch.build]
