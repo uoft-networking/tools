@@ -80,7 +80,7 @@ def changes_since_last_tag(c: Context):
 @task()
 def version(c: Context):
     """get current version of repository from git tag"""
-    print(get_version(root=str(ROOT)), version_scheme='post-release')
+    print(get_version(root=str(ROOT), version_scheme='post-release'))
 
 @task()
 def version_next(c: Context, minor: bool = False ):
