@@ -1,7 +1,14 @@
 """common tasks for all projects in the repo"""
 from invoke import task, Context
 
-@task
+from . import ROOT
+
+from setuptools_scm import get_version
+
+def all_projects():
+    return sorted(ROOT.glob('projects/*'))
+
+
 def needs_sudo(c: Context):
     "called from functions which need to run sudo. pulls sudo password from `pass sudo` if sudo password not already set"
     if not c.config.sudo.password:
@@ -13,19 +20,83 @@ def needs_sudo(c: Context):
 
 
 @task()
-def build(c: Context, project: str, verbose: bool = False):
+def build(c: Context, project: str):
     """build sdist and wheel packages for a given project"""
-    from . import ROOT
-    print(f"building projects/{project}")
+    print(f"building {project} from projects/{project}")
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
-    r = c.run(f"python -m build -o dist/ projects/{project}")
-    if verbose:
-        r = r.stdout
-        _, _, r = r.partition('Successfully built ')
-        sdist, _, wheel = r.partition(' and ')
-        c.run(f"tar -tvf dist/{sdist}")
-        c.run(f"unzip -l dist/{wheel}")
+    r = c.run(f"python -m build -o {ROOT}/dist/ projects/{project}")
+
+@task()
+def build_all(c: Context):
+    """build sdist and wheel packages for all projects"""
+    for project in all_projects():
+        build(c, project.name)
+
+@task()
+def test(c: Context, project: str):
+    """run tests for a given project"""
+    from . import ROOT
+    print(f"testing {project} from projects/{project}")
+    assert (ROOT / f"tests/{project}").exists(), f"No tests found for project {project}"
+    c.run(f"python -m pytest tests/{project}")
+
+@task()
+def test_all(c: Context):
+    """run tests for all projects"""
+    for p in all_projects():
+        test(c, p.name)
 
 @task()
 def coverage(c: Context):
+    """run coverage on all projects"""
     c.run("pytest --cov-report xml:cov.xml --cov-report term-missing --cov")
+
+@task()
+def list_projects(c: Context):
+    """list all projects"""
+    for p in all_projects():
+        print(p.name)
+
+@task()
+def install_editable(c: Context, project: str):
+    """install a project in editable mode"""
+    from . import ROOT
+    print(f"installing projects/{project} in editable mode")
+    assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
+    c.run(f"python -m pip install -e projects/{project}")
+
+@task()
+def install_editable_all(c: Context):
+    """install all projects in editable mode"""
+    for p in all_projects():
+        install_editable(c, p.name)
+        
+@task()
+def changes_since_last_tag(c: Context):
+    """print changes since last tag"""
+    print(f"changes since last tag")
+    c.run(f"git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
+
+@task()
+def version(c: Context):
+    """get current version of repository from git tag"""
+    print(get_version(root=str(ROOT), version_scheme='post-release'))
+
+@task()
+def version_next(c: Context, minor: bool = False ):
+    """suggest the next version to use as a git tag"""
+    from packaging.version import Version
+    v = get_version(root=str(ROOT), version_scheme='post-release')
+    print(f"current version: {v}")
+    current_version = v.split('+')[0]
+    segments = list(Version(v)._version.release)
+    if len(segments) == 2:
+        segments.append(0)
+    # at this point, segments should be [major, minor, patch]
+    if minor:
+        segments[1] += 1
+        segments[2] = 0
+    else:
+        segments[2] += 1
+    new_version = Version('.'.join(map(str, segments)))
+    print(f"suggested command: \n\ngit tag --sign --message 'Version {new_version}' {new_version}\ngit push --tags\n")

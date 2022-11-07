@@ -80,7 +80,7 @@ def _android_folder() -> str:
     """:return: base folder for the Android OS"""
     try:
         # First try to get path to android app via pyjnius
-        from jnius import autoclass  # noqa: SC200
+        from jnius import autoclass  # noqa: SC200 pants: no-infer-dep pylint: disable=import-outside-toplevel,import-error
 
         Context = autoclass("android.content.Context")  # noqa: SC200
         result: str = Context.getFilesDir().getParentFile().getAbsolutePath()

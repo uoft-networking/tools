@@ -1,6 +1,6 @@
 [project]
 name = "uoft_aruba"
-version = "1.0.1.dev3"
+version = "0.0" # This field will be auto-populated by pyproject.py
 description = "Collection of utilities for interacting with Aruba infrastructure"
 authors = [
     { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
@@ -15,10 +15,13 @@ license = { text = "MIT" }
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools"
 
-[build-system]
-requires = ["hatchling>=0.22.0"]
-build-backend = "hatchling.build"
-
 [project.scripts]
 Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cpsec_whitelist:run"
 uoft_aruba = "uoft_aruba.cli:app"
+
+[build-system]
+requires = ["hatchling >= 1.6.0", "setuptools_scm"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata.hooks.custom]
+path = "pyproject.py"

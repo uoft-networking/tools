@@ -1,10 +1,6 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "uoft_switchconfig"
-version = "1.0.1.dev3"
+version = "0.0" # This field will be auto-populated by pyproject.py
 description = "A tool to easily provision switches on the bench"
 readme = "README.md"
 authors = [
@@ -28,3 +24,10 @@ dependencies = [
 
 [project.scripts]
 "uoft_switchconfig" = "uoft_switchconfig.__main__:cli"
+
+[build-system]
+requires = ["hatchling >= 1.6.0", "setuptools_scm"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata.hooks.custom]
+path = "pyproject.py"

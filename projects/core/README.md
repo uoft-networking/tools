@@ -2,6 +2,9 @@
 
 This package contains a set of utilities useful for building python libraries, scripts, and command-line utilities
 
+This toolkit makes it really easy to write small, simple, well designed CLI utilities
+In fact, the aim of this project is to make well-engineered CLIs almost as easy to write and deploy as basic python scripts.
+It leverages a lot of really fantastic modern libraries and tools to do so, like *pydantic*, *typer*, and *loguru*
 It's designed to be easy to include in other projects. all of its mainline dependencies are vendored and all modules which have external un-vendorable dependencies are available as optional extras
 
 # Install
@@ -16,83 +19,138 @@ to include all optional dependencies, run
 pip install uoft_core[all]
 ```
 
-# Usage
+### `uoft_core.prompt.Prompt`
+In `uoft_core.other` there is a `Prompt` class which can be used to interactively prompt users for input for various types of data. This was a good idea with a poor implementation.
+It has been re-written almost entirely from scratch as the `uoft_core.prompt.Prompt` class. 
+This new class handles all the same features as the original (tab-completion of choices, automatic history, inline "as-you_type" validation, flexible handling of default values), but also includes a method called `from_model`, with the ability to take in a Pydantic model and interactively prompt for all of its fields.
+This new implementation also has the ability to handle password prompts where the previous one couldn't
 
-This toolkit makes it really easy to write small, simple, well designed CLI utilities
-In fact, the aim of this project is to make well-engineered CLIs almost as easy to write and deploy as basic python scripts
-it leverages a lot of really fantastic modern libraries and tools to do so, like *poetry*, *typer*, and *loguru*
+### CLI Framework / Configuration management
+One of the core components of `uoft_core` is the `BaseSettings` class. This class is built on top of Pydantic's [BaseSettings](https://pydantic-docs.helpmanual.io/usage/settings/) and forms the basic framework of all uoft commandline tools. Subclassing the `BaseSettings` class allows you to handle all the common components of writing CLI apps:
+ - finding, fetching, loading, and merging config files 
+   - user configs overriding site-wide configs 
+   - handling configuration in any combination of INI, JSON, YAML, and TOML formats
+   - identifying which paths configuration data could be written to
+   - loading configuration from default paths following industry standards
+   - loading configuration from alternat paths specified by envirnoment vars
+   - looking up data in the configuration by key, overridable by environment vars
+ - finding /creating CLI-specific cache directories for semi-permanent data
+ - argument & command parsing with typer, in a way that integrates with the other features
+ - ability to retrieve the final configuration object as a Pydantic Model instance
 
-let's assume you've created a new project with `poetry new`, and you want to add a CLI interface to it. here's one way to do that:
-create a `common.py` files with your super handy dandy useful function in it:
+Example usage:
+
 ```python
-from loguru import logger
+from pathlib import Path
+from typing import Optional
 
-def my_super_awesome_function():
-    logger.debug("I'm running my_package.common.my_super_awesome_function!")
+from pydantic import BaseModel, Field
+from uoft_core import BaseSettings, chomptxt
+
+
+
+class Settings(BaseSettings):
+    _app_name = "switchconfig"
+
+    class Generate(BaseModel):
+        templates_dir: Path = Field(
+            description="override the default template cache directory",
+        )
+
+    generate: Generate = Field(
+        description="whether to include any overriding configuration related to the generate command",
+    )
+
+    class Deploy(BaseModel):
+        ssh_pass_cmd: str = Field(
+            description="shell command to aquire the console server ssh password"
+        )
+        terminal_pass_cmd: str = Field(
+            description="shell command to aquire the switch's terminal access password"
+        )
+        enable_pass_cmd: str = Field(
+            description="shell command to aquire the switch's enable password"
+        )
+        targets: dict[str, str] = Field(
+            description=chomptxt(
+                """
+                a table / dictionary of console servers, mapping console server 
+                names to console server hostname/fqdn+port combinations
+                """
+            )
+        )
+        
+    deploy: Deploy = Field(
+        description="whether to include any overriding configuration related to the deploy command",
+    )
+    debug: bool = Field(False, description="whether to permanently enable debug mode")
+
+settings = Settings.from_cache()
+```
+
+This new framework also leverages the new `Prompt` class from `uoft_core.prompt.Prompt.` to interactively prompt for any values not specified in site-wide config files, user-local config files, or environment variables
+
+### YAML
+`uoft_core.yaml` is a heavily edited fork of [ruamel.yaml](https://pypi.org/project/ruamel.yaml/) The biggest difference is that I've dropped compatability with python2 and python <3.10, dropped support for non-comment-preserving loading and dumping, removed dead code, added meaningful, useful type hints, simplified the class hierarchy as much as possible, and made the whole thing easier to understand and easier to debug. The work is not yet done, but this first phase is complete, and all relevant tests are passing.
+I've also added `loads`and `dumps` functions to `uoft_core.yaml` whose signatures mostly match `json.loads`, `json.dumps`,  `uoft_core.toml.loads`, and `uoft_core.toml.dumps`
+This is used as part of the CLI framework to allow for easy loading and dumping of data from/to yaml files
+
+# Dev Workflow
+
+## VSCode debugger
+as the number of projects in this repository grows, the number of VSCode debugger configurations needed to test and debug various parts of it grows larger and larger. There is no way to hit a key and search/select from the list of debug configurations. What I've done instead is I've created a single launch configuration that looks like this:
+
+```json
+{
+    "name": "Python: Select module to debug",
+    "type": "python",
+    "request": "launch",
+    "module": "uoft_core",
+    "console": "integratedTerminal",
+    "env": {
+        "PYDEBUG": "1"
+    },
+    "justMyCode": false
+},
+```
+
+This launches the debug selector in `uoft_core.__main__`. The debug selector will prompt you for a module name to load (Ex. `uoft_aruba.cli`), and a list of commandline arguments to insert into sys.argv. It will then look for and run a function inside that module called `_debug` and run that function. You can put anything you want into that function. Here is an example debug function from the `uoft_aruba.cli` module:
+
+```python
+# projects/aruba/uoft_aruba/cli.py
+
+...
+app = typer.Typer(
+    ...
+)
+
+def _debug():
+    "Debugging function, only used in active debugging sessions."
+    # pylint: disable=all
+    app()
 
 ```
 
-create a `__main__.py` file in your package like so:
+In this example, I'm debugging the uoft_aruba cli tool. If I run the debug selector, enter "uoft_aruba.cli" in the module prompt, and enter "cpsec whitelist provision some_file.csv" in the args prompt, it would be equivalent to running "uoft_aruba cpsec whitelist provision some_file.csv", but inside of a debugger. This would allow me to debug the `uoft_aruba.cpsec_whitelist.provision` function in the same context as when it's run from the command line in production.
+
+## `uoft_core.debug_cache`
+I've added a handy little utility to uoft_core which is great for debugging and testing code which has a long startup (Ex code that loads a bunch of data from an API or SSH session and then processes that data. This `debug_cache`function is a decorator you can add to a function which will save the output of that function to disk the first time that function is run, and then reuse that saved output every subsequent time you run your code. 
+What makes this different from other caching decorators is that it only does this inside of debug sessions. When you run this same code in production, the debug cache is not generated or used.
+
+Here's an example:
+
 ```python
-import os
 
-from .common import my_super_awesome_function
+from uoft_core import debug_cache
 
-from at.utils import configure_logging
-import typer
-from loguru import logger
+@debug_cache
+def get_data_from_server():
+    # This is a function that you know works, but takes forever and you don't want to re-run it everytime you restart the debugger
+    data = {}
+    return data
 
-app = typer.Typer()
-
-
-@app.callback()
-def callback(verbose: bool = False):
-    """
-    Here is my app's main help string
-    Users will see this when they run `python -m my_package`
-    """
-    log_level = 'DEBUG' if verbose else 'INFO'
-    configure_logging(
-        'my_app_name', 
-        stderr_level=log_level, 
-        logfile_level='DEBUG', 
-        sentry_level=None)
-
-
-@app.command()
-def my_command(option: bool):
-    """
-    Here's the help text my users will see when they run `python -m my_package my-command -h`
-    """
-    logger.debug("running my-command")  # this will only get printed if the --verbose flag is set
-    my_super_awesome_function(option)
-
-
-if __name__ == "__main__":
-    if os.environ.get('PYDEBUG'):
-        # we're in a debugger session
-        # here we can put whatever debugging code we want
-        # we can configure logging so all messages up to DEBUG are logged to stderr, and nothing gets logged to file:
-        configure_logging('my_app_name', 'DEBUG', None, None)
-        # do debugging stuff here
-        logger.debug("I'm a debug message!")
-        exit()
-    try:
-        app()  # cli code goes here
-    except KeyboardInterrupt:
-        print("Aborted!")
-        exit()
+def process_data():
+    data = get_data_from_server()
+    # Here is the function you want to work on and tweak and debug and re-run again and again
 
 ```
-
-the main api (all the stuff directly importable from `at_utils`) consists of:
-- every function defined in the `main` module
-- the `configure_logging` function from the `log` module
-
-`configure_logging` has an option to enable logging to sentry. in order to use it, you need to install at_utils with the `sentry` extra (ie `pip install at-utils[sentry]` or `poetry add -D at-utils[sentry]`)
-
-apart from that, there are other modules which can be imported separately:
-
-`yaml` has a whole bunch of useful and sometimes esoteric utilities for working with yaml files, built on top of `ruamel.yaml`
-
-`dev_utils` has commmand-line utilities for working with python projects, specifically made for projects that use `poetry`

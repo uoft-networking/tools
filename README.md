@@ -1,43 +1,52 @@
-a python monorepo for all projects in the uoft-networking umbrella
-
 # Overview
 
-External project requirements: `monas`
+This repository is what's known as a monorepo. It contains multiple projects, each of which is a standalone library or command-line tool (or both). Individual projects are located in the `projects/` directory.
 
-*environment mgmt*: `monas` / `Pipfile`
-*task mgmt*: `poethepoet` / `pyproject.toml`
-*build frontend / backend*: `hatchling` / `pyproject.toml`
-*release mgmt*: `hatch`
+Everything else in this repository is shared infrastructure, such as build scripts, integration tests, developer tools, and documentation.
 
-# Dev Workflow
+Getting Started
 
-## Getting started
+# Getting started
 
-1. install python3.10
-2. `python3.10 -m pip install monas`
-3. `monas install --root`
-4. (optionally) `direnv allow .`
+1. `git clone https://github.com/uoft-networking/tools uoft-tools`
+2. `cd uoft-tools`
+3. `tasks/init_venv.py` (this will install a standalone copy of python3.10 if you don't already have it, and create a python3.10 virtual environment in `venv/`)
+4. `source .venv/bin/activate` to activate the virtual environment in your current shell
+4. (optionally) install [direnv](https://direnv.net/) and run `direnv allow .`, so that you don't have to manually activate the virtual environment every time you open a new shell
+5. `invoke list-projects` to see a list of all projects
+6. `invoke install-editable <project>` to start developing/debugging a particular project, or `invoke install-editable-all` to install all projects in editable mode
 5. config your editor to use `.venv/bin/python` as python interpreter (this should be automatically done in VSCode)
+
+## Running tests
+
+This repository is configured to support pytest autodiscovery. Any IDE which suppotrs pytest should be able to run tests without any additional configuration.
+
+You can also run tests from the command line using `invoke test-all` or `invoke test <project>`.
+
+## Building packages
+
+To build a package, run `invoke build <project>`. This will create a wheel file and an sdist file in `dist/`.
+You can then install the package using `pip install dist/<package>.whl` or `pip install dist/<package>.tar.gz`.
+
+You can also build all packages at once using `invoke build-all`.
 
 ## Adding a project to the repo
 
-1. create `src/uoft/<project>/__init__.py`
-2. create `projects/<project>/pyproject.toml` (copy one of the existing ones)
-5. `pipenv install -e projects/<project>`
-6. create `tests/<project>/__init__.py` and additional tests
-7. (optionally) create `.github/workflows/<project>.yaml`
+TODO... plan to implement this as a cookiecutter template
 
 ## Making a new release
 
-1. check to see if `uoft_core` needs a new release
-2. `cd projects/<project>`
-3. `pyproject.toml`: update `version` and `uoft_core` dependency version 
-4. `python -m build`
-5. `hatch publish`
+All projects in this repository are versioned together. There is a single version number which is shared by all projects. Version info is stored in git tags. To make a new release, follow these steps:
+1. `invoke changes-since-last-tag` to see if a new release is needed
+2. `invoke version-next` and follow the prompts to bump the version number
+3. `invoke version-write` to update the version number in all projects
+4. `invoke build-all` to build all packages
+5. TODO: `invoke publish-all` to publish all packages to PyPI
 
+# Notes
 
 Each project should implement its own typer cli in `__main__.py`. Each project's pyproject file (ie `projects/<project>/pyproject.toml`) should contain an entrypoint (or "script", as poetry calls them) that looks something like this:
 ```toml
 [tool.poetry.scripts]
-"uoft.<project>" = "uoft_<project>.__main__:cli"
+"uoft_<project>" = "uoft_<project>.__main__:cli"
 ```
