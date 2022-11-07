@@ -24,7 +24,7 @@ def build(c: Context, project: str):
     """build sdist and wheel packages for a given project"""
     print(f"building {project} from projects/{project}")
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
-    r = c.run(f"python -m build projects/{project}")
+    r = c.run(f"python -m build -o {ROOT}/dist/ projects/{project}")
 
 @task()
 def build_all(c: Context):
