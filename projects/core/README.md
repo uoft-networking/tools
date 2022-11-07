@@ -134,7 +134,7 @@ def _debug():
 In this example, I'm debugging the uoft_aruba cli tool. If I run the debug selector, enter "uoft_aruba.cli" in the module prompt, and enter "cpsec whitelist provision some_file.csv" in the args prompt, it would be equivalent to running "uoft_aruba cpsec whitelist provision some_file.csv", but inside of a debugger. This would allow me to debug the `uoft_aruba.cpsec_whitelist.provision` function in the same context as when it's run from the command line in production.
 
 ## `uoft_core.debug_cache`
-I've added a handy little utilityu to uoft_core which is great for debugging and testing code which has a long startup (Ex code that loads a bunch of data from an API or SSH session and then processes that data. This `debug_cache`function is a decorator you can add to a function which will save the output of that function to disk the first time that function is run, and then reuse that saved output every subsequent time you run your code. 
+I've added a handy little utility to uoft_core which is great for debugging and testing code which has a long startup (Ex code that loads a bunch of data from an API or SSH session and then processes that data. This `debug_cache`function is a decorator you can add to a function which will save the output of that function to disk the first time that function is run, and then reuse that saved output every subsequent time you run your code. 
 What makes this different from other caching decorators is that it only does this inside of debug sessions. When you run this same code in production, the debug cache is not generated or used.
 
 Here's an example:
