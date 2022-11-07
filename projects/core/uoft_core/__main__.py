@@ -67,7 +67,8 @@ if __name__ == "__main__":
         from importlib.util import find_spec
         from .prompt import Prompt, Validator
 
-        p = Prompt(util)
+        history_cache = util.history_cache
+        p = Prompt(history_cache)
         v = Validator.from_callable(
             lambda n: bool(find_spec(n)),
             "no such module exists in the current python installation",

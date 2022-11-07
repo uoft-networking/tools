@@ -5,7 +5,7 @@ description = "an opinionated set of utilities designed to be easily included in
 readme = "README.md"
 authors = [
   { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
-  { name = "University of Toronto", email = "" }
+  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" }
 ]
 license = "MIT"
 requires-python = ">=3.10"
@@ -33,3 +33,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"
+
+[tool.hatch.build]
+only-packages = true

@@ -4,13 +4,11 @@ from pathlib import Path
 import sys
 from base64 import b64encode
 
-from . import Util
-
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.completion import WordCompleter, PathCompleter
+from prompt_toolkit.completion import WordCompleter, PathCompleter, FuzzyCompleter
 from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.document import Document
@@ -39,9 +37,9 @@ def _hash(s: str) -> str:
 
 
 class Prompt:
-    def __init__(self, util: Util):
+    def __init__(self, history_cache: Path):
 
-        self.history_cache = util.history_cache
+        self.history_cache = history_cache
         if not self.history_cache.exists():
             self.history_cache.mkdir(parents=True)
 
@@ -87,6 +85,8 @@ class Prompt:
         choices: Sequence[str],
         description: str | None,
         default_value: str | None = None,
+        completer_opts: dict | None = None,
+        fuzzy_search: bool = False,
         **kwargs,
     ) -> str:
 
@@ -95,8 +95,12 @@ class Prompt:
             error_message=f"Choice must be one of {', '.join(choices)}",
         )
 
+        completer_opts = completer_opts or {}
+        completer = WordCompleter(list(choices), **completer_opts)
+        if fuzzy_search:
+            completer = FuzzyCompleter(completer)
         opts = dict(
-            completer=WordCompleter(list(choices)),
+            completer=completer,
             complete_while_typing=True,
             rprompt=HTML(f"Valid options are: <b>{', '.join(choices)}</b>"),
             validator=validator,
@@ -111,13 +115,17 @@ class Prompt:
         default_value: str | None = None,
         only_directories=False,
         completer_opts: dict | None = None,
+        fuzzy_search: bool = False,
         **kwargs,
     ) -> Path:
         completer_opts = completer_opts or {}
+        completer = PathCompleter(
+            only_directories=only_directories, **completer_opts
+        )
+        if fuzzy_search:
+            completer = FuzzyCompleter(completer)
         opts = dict(
-            completer=PathCompleter(
-                only_directories=only_directories, **completer_opts
-            ),
+            completer=completer,
             complete_while_typing=True,
         )
         opts.update(kwargs)

@@ -1011,7 +1011,7 @@ class BaseSettings(PydanticBaseSettings):
             # Return values as is and let pydantic report validation errors on missing fields
             return values
 
-        p = Prompt(cls.__config__.util())
+        p = Prompt(cls.__config__.util().history_cache)
         for key in missing_keys:
             field = cls.__fields__[key]
             values[key] = p.from_model_field(key, field)

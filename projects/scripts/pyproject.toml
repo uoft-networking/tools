@@ -5,7 +5,7 @@ description = "a collection of scripts and one-off tools"
 readme = "README.md"
 authors = [
   { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
-  { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" },
+  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
 license = "MIT"
 requires-python = ">=3.10"
@@ -27,3 +27,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"
+
+[tool.hatch.build]
+only-packages = true

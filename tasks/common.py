@@ -1,4 +1,6 @@
 """common tasks for all projects in the repo"""
+import os
+
 from invoke import task, Context
 
 from . import ROOT
@@ -24,11 +26,13 @@ def build(c: Context, project: str):
     """build sdist and wheel packages for a given project"""
     print(f"building {project} from projects/{project}")
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
-    r = c.run(f"python -m build -o {ROOT}/dist/ projects/{project}")
+    c.run(f"python -m build --sdist --outdir {ROOT}/dist/ projects/{project}")
+    c.run(f"python -m build --wheel --outdir {ROOT}/dist/ projects/{project}")
 
 @task()
 def build_all(c: Context):
     """build sdist and wheel packages for all projects"""
+    c.run("rm dist/*")
     for project in all_projects():
         build(c, project.name)
 
@@ -100,3 +104,48 @@ def version_next(c: Context, minor: bool = False ):
         segments[2] += 1
     new_version = Version('.'.join(map(str, segments)))
     print(f"suggested command: \n\ngit tag --sign --message 'Version {new_version}' {new_version}\ngit push --tags\n")
+
+@task()
+def package_inspect(c: Context):
+    """list the contents of an sdist or wheel file in the dist/ directory"""
+    from . import ROOT
+    from uoft_core import Util
+    from uoft_core.prompt import Prompt
+    prompt = Prompt(Util('uoft-tools').history_cache)
+    os.chdir(ROOT / 'dist')
+    package = prompt.get_path("package", "Enter a filename for a package to inspect", fuzzy_search=True)
+    if package.name.endswith('.tar.gz'):
+        c.run(f"tar -tvf {package}")
+    elif package.name.endswith('.whl'):
+        c.run(f"unzip -l {package}")
+    else:
+        raise Exception(f"Unknown package type: {package}")
+
+@task()
+def package_peek(c: Context):
+    """print out the contents of a file in an sdist or wheel file in the dist/ directory"""
+    from . import ROOT
+    from uoft_core import Util
+    from uoft_core.prompt import Prompt
+    prompt = Prompt(Util('uoft-tools').history_cache)
+    os.chdir(ROOT / 'dist')
+    package = prompt.get_path("package", "Enter a filename for a package to inspect", fuzzy_search=True)
+    names = []
+    if package.name.endswith('.tar.gz'):
+        import tarfile
+        with tarfile.open(package) as tar:
+            names = tar.getnames()
+            filename = prompt.get_from_choices("filename", choices=names, description="Which file to peek at?", fuzzy_search=True)
+            embedded_file = tar.extractfile(filename)
+            assert embedded_file, f"Could not find file {filename} in {package}"
+            with embedded_file as f:
+                print(f.read().decode('utf-8'))
+    elif package.name.endswith(('.whl', '.zip', '.pex')):
+        import zipfile
+        with zipfile.ZipFile(package) as zip:
+            names = zip.namelist()
+            filename = prompt.get_from_choices("filename", choices=names, description="Which file to peek at?", fuzzy_search=True)
+            with zip.open(filename) as f:
+                print(f.read().decode('utf-8'))
+    else:
+        raise Exception(f"Unknown package type: {package}")

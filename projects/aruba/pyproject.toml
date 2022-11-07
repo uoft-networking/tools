@@ -4,7 +4,7 @@ version = "0.0" # This field will be auto-populated by pyproject.py
 description = "Collection of utilities for interacting with Aruba infrastructure"
 authors = [
     { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
-    { name = "University of Toronto Governing Council", email = "governing.council@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
 requires-python = ">=3.10"
 readme = "README.md"
@@ -25,3 +25,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"
+
+[tool.hatch.build]
+only-packages = true
