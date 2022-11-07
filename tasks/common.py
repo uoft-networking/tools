@@ -83,31 +83,6 @@ def version(c: Context):
     print(get_version(root=str(ROOT)))
 
 @task()
-def version_write(c: Context):
-    """write current version of repository to project metadata"""
-    from tomlkit import parse, dumps, items
-
-    def update_core_dep(deps: list, v: str):
-        for d in deps:
-            if 'uoft_core' in d:yield 'uoft_core == ' + v
-            else:yield d
-
-    version = get_version(root=str(ROOT))
-    for p in all_projects():
-        meta = parse((p / 'pyproject.toml').read_text())
-        project_meta: items.Table = meta['project']  # type: ignore
-        project_meta['version'] = version
-        deps: items.Array = project_meta['dependencies']  # type: ignore
-
-        for i, dep in enumerate(deps):
-            if 'uoft_core' in dep:
-                deps[i] = 'uoft_core == ' + version
-                break
-
-        (p / 'pyproject.toml').write_text(dumps(meta))
-        print(f"updated {p / 'pyproject.toml'}")
-
-@task()
 def version_next(c: Context, minor: bool = False ):
     """suggest the next version to use as a git tag"""
     from packaging.version import Version

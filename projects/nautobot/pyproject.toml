@@ -1,10 +1,6 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "uoft_nautobot"
-version = "1.0.2.dev48+gc7fd887.d20221104"
+version = "0.0" # This field will be auto-populated by pyproject.py
 description = "A collection of UofT-specific modifications and extensions to Nautobot."
 readme = "README.md"
 authors = [
@@ -28,6 +24,14 @@ dependencies = [
   "python-box",
 ]
 
+
+
+[build-system]
+requires = ["hatchling >= 1.6.0", "setuptools_scm"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata.hooks.custom]
+path = "pyproject.py"
 
 [tool.hatch.build]
 packages = ["uoft_nautobot"]
