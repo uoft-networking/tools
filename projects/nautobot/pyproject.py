@@ -8,7 +8,7 @@ class CustomMetadataHook(MetadataHookInterface):
         """
         This updates the metadata mapping of the `project` table in-place.
         """
-        v = get_version(root='../..', relative_to=__file__)
+        v = get_version(root='../..', relative_to=__file__, version_scheme='post-release')
         metadata['version'] = v
         for dep in metadata['dependencies'].copy():
             if 'uoft_core' in dep:

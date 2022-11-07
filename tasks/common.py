@@ -80,13 +80,13 @@ def changes_since_last_tag(c: Context):
 @task()
 def version(c: Context):
     """get current version of repository from git tag"""
-    print(get_version(root=str(ROOT)))
+    print(get_version(root=str(ROOT)), version_scheme='post-release')
 
 @task()
 def version_next(c: Context, minor: bool = False ):
     """suggest the next version to use as a git tag"""
     from packaging.version import Version
-    v = get_version(root=str(ROOT))
+    v = get_version(root=str(ROOT), version_scheme='post-release')
     print(f"current version: {v}")
     current_version = v.split('+')[0]
     segments = list(Version(v)._version.release)
