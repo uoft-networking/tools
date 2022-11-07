@@ -80,6 +80,8 @@ if __name__ == "__main__":
         )
         args = p.get_string("args", "Enter any arguments you'd like to pass to the module", default_from_history=True)
         sys.argv.extend(args.split())
+        cd = p.get_path("cwd", "Enter the working directory you'd like to use", default_from_history=True, only_directories=True)
+        os.chdir(cd)
         mod = import_module(mod_name)
         if hasattr(mod, "_debug"):
             mod._debug() # pylint: disable=protected-access
