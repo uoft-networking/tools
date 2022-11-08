@@ -108,7 +108,7 @@ class AP_Provisioning:
             json={
                 "name": mac_address,
                 "certtype": "factory-cert",
-                "act": "approved-ready-for-cert",
+                "act": "certified-factory-cert",
             },
         )
         assert (
