@@ -17,8 +17,19 @@ from pathlib import Path
 from subprocess import CalledProcessError, run
 from textwrap import dedent
 from types import GenericAlias
-from typing import (TYPE_CHECKING, Any, Callable, ClassVar, Dict, List,
-                    Optional, Type, TypeVar, get_args, get_origin)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    get_args,
+    get_origin,
+)
 
 from loguru import logger
 from pydantic import BaseSettings as PydanticBaseSettings
@@ -26,6 +37,7 @@ from pydantic import Field, root_validator
 from pydantic.types import SecretStr
 from rich.console import Console
 
+from .types import StrEnum
 from . import toml
 from ._vendor.decorator import decorate
 from ._vendor.platformdirs import PlatformDirs
@@ -394,16 +406,6 @@ class InterceptHandler(logging.Handler):
 # endregion !SECTION util functions & classes
 
 # region types
-class StrEnum(str, Enum):
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}.{self.name}"
-
-    def __str__(self) -> str:
-        return self.name
-
-    @classmethod
-    def from_str(cls, name: str):
-        return cls.__members__[name]
 
 
 class File(StrEnum):
@@ -920,11 +922,11 @@ S = TypeVar("S", bound="BaseSettings")
 
 
 class BaseSettings(PydanticBaseSettings):
-    _instance = None # type: ignore
+    _instance = None  # type: ignore
 
     @classmethod
     def _update_cache_instance(cls, *args, **kwargs):
-        cls._instance = cls(*args, **kwargs) # type: ignore
+        cls._instance = cls(*args, **kwargs)  # type: ignore
 
     @classmethod
     def from_cache(cls: Type[S]) -> S:
@@ -935,11 +937,22 @@ class BaseSettings(PydanticBaseSettings):
         return cls._instance
 
     def __init_subclass__(cls, **kwargs):
-        app_name = getattr(cls, "_app_name", None)
+        app_name = getattr(cls.__config__, "app_name", None)
         if app_name is None:
-            raise TypeError("Subclasses of BaseSettings must define _app_name")
+            raise TypeError(
+                "Subclasses of BaseSettings must include a Config class with an app_name attribute"
+            )
         super().__init_subclass__(**kwargs)
-        cls.__config__.app_name = app_name
+
+    @classmethod
+    def get_util(cls) -> "Util":
+        return Util(cls.__config__.app_name)
+
+    @property
+    def util(self):
+        if not hasattr(self, "_util"):
+            setattr(self, "_util", self.get_util())
+        return getattr(self, "_util")
 
     @classmethod
     def wrap_typer_command(cls, func):
@@ -1011,23 +1024,15 @@ class BaseSettings(PydanticBaseSettings):
             # Return values as is and let pydantic report validation errors on missing fields
             return values
 
-        p = Prompt(cls.__config__.util().history_cache)
+        p = Prompt(cls.get_util().history_cache)
         for key in missing_keys:
             field = cls.__fields__[key]
             values[key] = p.from_model_field(key, field)
         return values
 
-    class Config:
+    class Config(PydanticBaseSettings.Config):
         env_file = ".env"
-        app_name = None
-
-        @classmethod
-        def util(cls):
-            if getattr(cls, "app_name", None) is None:
-                raise ValueError("app_name must be set in the config class")
-            if not hasattr(cls, "_util"):
-                cls._util = Util(cls.app_name)  # type: ignore
-            return cls._util
+        app_name: str = None  # type: ignore
 
         @classmethod
         def customise_sources(cls, init_settings, env_settings, file_secret_settings):
@@ -1042,7 +1047,7 @@ class BaseSettings(PydanticBaseSettings):
         @staticmethod
         def config_file_settings(settings: "BaseSettings"):
             try:
-                cfg = settings.__config__.util().config
+                cfg = settings.util.config
                 return cfg.merged_data
             except UofTCoreError:
                 # If no config files exist, that may not necessarily be an error.
@@ -1051,12 +1056,21 @@ class BaseSettings(PydanticBaseSettings):
 
         @staticmethod
         def settings_from_pass(settings: "BaseSettings"):
+            name = settings.__config__.app_name  # pylint: disable=protected-access
+            cmd = f"pass show uoft-{name}"
             try:
-                name = settings.__config__.app_name  # pylint: disable=protected-access
-                text = shell(f"pass show uoft-{name}")
+                text = shell(cmd)
                 return toml.loads(text)
-            except (CalledProcessError, ):
+            except CalledProcessError:
+                # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
+
                 return {}
+            except toml.TOMLDecodeError as e:
+                # at this point, we can be sure that pass is installed, and the user did create a pass entry,
+                # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
+                raise UofTCoreError(
+                    f"Error parsing data returned from `{cmd}`. expected a TOML document, but failed parsing as TOML: {e}"
+                ) from e
 
     __config__: ClassVar[Type[Config]]
 

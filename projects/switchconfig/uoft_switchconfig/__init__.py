@@ -76,7 +76,6 @@ config = Config()
 
 
 class Settings(BaseSettings):
-    _app_name = "switchconfig"
     generate: Generate = Field(
         None,
         description="whether to include any overriding configuration related to the generate command",
@@ -86,5 +85,8 @@ class Settings(BaseSettings):
         description="whether to include any overriding configuration related to the deploy command",
     )
     debug: bool = Field(False, description="whether to permanently enable debug mode")
+
+    class Config(BaseSettings.Config):
+        app_name = 'switchconfig'
 
 settings = Settings.from_cache()

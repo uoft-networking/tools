@@ -4,7 +4,6 @@ from pydantic.types import SecretStr
 
 
 class Settings(BaseSettings):
-    _app_name = "aruba"
     svc_account: str = Field(title="Aruba API Authentication Account")
     mm_vrrp_hostname: str = Field(
         title="Aruba Mobility Master Primary IP Adress / Hostname"
@@ -25,7 +24,7 @@ class Settings(BaseSettings):
                 "md_vrrp_hostname is deprecated. "
                 "Please update your config files to use a list called 'mm_hostnames' instead. "
                 "Please check one of the following config files for the deprecated config and update it: {}".format(
-                    cls.__config__.util().config.readable_files
+                    cls.get_util().config.readable_files
                 )
             )
         return values
@@ -33,15 +32,22 @@ class Settings(BaseSettings):
     @property
     def md_api_connections(self):
         return [
-            ArubaRESTAPIClient(f"{host}:4343", self.svc_account, self.password.get_secret_value())
+            ArubaRESTAPIClient(
+                f"{host}:4343", self.svc_account, self.password.get_secret_value()
+            )
             for host in self.md_hostnames
         ]
 
     @property
     def mm_api_connection(self):
         return ArubaRESTAPIClient(
-            f"{self.mm_vrrp_hostname}:4343", self.svc_account, self.password.get_secret_value()
+            f"{self.mm_vrrp_hostname}:4343",
+            self.svc_account,
+            self.password.get_secret_value(),
         )
+
+    class Config(BaseSettings.Config):
+        app_name = "aruba"
 
 
 def settings() -> Settings:
