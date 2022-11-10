@@ -59,34 +59,67 @@ def cli():
 
 if __name__ == "__main__":
     import os
+    if not os.environ.get("PYDEBUG"):
+        cli()
+        sys.exit(0)
 
-    if os.environ.get("PYDEBUG"):
-        # let's interactively prompt for a module to debug and execute that
+    from typing import Iterable
 
-        from importlib import import_module
-        from importlib.util import find_spec
-        from .prompt import Prompt, Validator
+    from prompt_toolkit.completion import Completer, Completion
+    import jedi
 
-        history_cache = util.history_cache
-        p = Prompt(history_cache)
-        v = Validator.from_callable(
-            lambda n: bool(find_spec(n)),
-            "no such module exists in the current python installation",
-        )
-        mod_name = p.get_string(
-            "module name",
-            'Enter the full dotted name of the module you\'d like to debug. Ex: "uoft_core.nested_data"',
-            validator=v,
-            default_from_history=True
-        )
-        args = p.get_string("args", "Enter any arguments you'd like to pass to the module", default_from_history=True)
-        sys.argv.extend(args.split())
-        cd = p.get_path("cwd", "Enter the working directory you'd like to use", default_from_history=True, only_directories=True)
-        os.chdir(cd)
-        mod = import_module(mod_name)
-        if hasattr(mod, "_debug"):
-            mod._debug() # pylint: disable=protected-access
-        else:
-            print(f"Module {mod_name} has no _debug() function")
-        sys.exit()
-    cli()
+
+    class JediCompleter(Completer):
+        """
+        Autocompleter that uses the Jedi library.
+        """
+
+        def get_completions(
+            self, document, _
+        ) -> Iterable[Completion]:
+            try:
+                script = jedi.Script(f"import {document.text}")
+                jedi_completions = script.complete(
+                    column=document.cursor_position_col+7,
+                    line=document.cursor_position_row + 1,
+                )
+                for jc in jedi_completions:
+
+                    yield Completion(
+                        jc.name_with_symbols,
+                        len(jc.complete) - len(jc.name_with_symbols), # type: ignore
+                        display=jc.name_with_symbols,
+                        display_meta=jc.type,
+                    )
+
+            except Exception:  # pylint: disable=broad-except
+                # There are many ways in which jedi completions can fail.
+                # We don't want to crash the application because of this.
+                # See: ptpython.completer.JediCompleter.get_completions 
+                # or ptpython.utils.get_jedi_script_from_document for examples
+                pass
+
+    # let's interactively prompt for a module to debug and execute that
+
+    from importlib import import_module
+    from .prompt import Prompt
+
+    history_cache = util.history_cache
+    p = Prompt(history_cache)
+    mod_name = p.get_string(
+        "module name",
+        'Enter the full dotted name of the module you\'d like to debug. Ex: "uoft_core.nested_data"',
+        #validator=v,
+        completer=JediCompleter(),
+        default_from_history=True
+    )
+    args = p.get_string("args", "Enter any arguments you'd like to pass to the module", default_from_history=True)
+    sys.argv.extend(args.split())
+    cd = p.get_path("cwd", "Enter the working directory you'd like to use", default_from_history=True, only_directories=True)
+    os.chdir(cd)
+    mod = import_module(mod_name)
+    if hasattr(mod, "_debug"):
+        mod._debug() # pylint: disable=protected-access
+    else:
+        print(f"Module {mod_name} has no _debug() function")
+    sys.exit()
