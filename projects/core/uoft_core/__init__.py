@@ -923,6 +923,7 @@ S = TypeVar("S", bound="BaseSettings")
 
 class BaseSettings(PydanticBaseSettings):
     _instance = None  # type: ignore
+    _util: Util = None  # type: ignore
 
     @classmethod
     def _update_cache_instance(cls, *args, **kwargs):
@@ -950,9 +951,9 @@ class BaseSettings(PydanticBaseSettings):
 
     @property
     def util(self):
-        if not hasattr(self, "_util"):
-            setattr(self, "_util", self.get_util())
-        return getattr(self, "_util")
+        if not self._util:
+            self._util = self.get_util()
+        return self._util
 
     @classmethod
     def wrap_typer_command(cls, func):
