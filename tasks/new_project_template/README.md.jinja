@@ -93,9 +93,9 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
-{% for opt in config_opts %}
-| {{opt.name}} | {{opt.type}} | {{opt.title}} | {{opt.description}} | {{opt.default}} |
-{% endfor %}
+{%- for name, opt in config_opts.items() %}
+| {{name}} | {{opt.type}} | {{opt.title}} | {{opt.description}} | {{opt.default}} |
+{%- endfor %}
 
 ## License
 

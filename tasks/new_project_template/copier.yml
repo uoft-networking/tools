@@ -30,17 +30,19 @@ config_opts:
         description: # Optional, can be left blank
 
     For a list of supported types, see `uoft_core.prompt.SUPPORTED_TYPES`
-  placeholder: |
-    username:
-      type: str
-      default: admin
-      description: The username with which to lig into the server
 
-    password:
-      type: SecretStr
-      description: Password needed to log into the server
+    Example:
+      username:
+        type: str
+        default: admin
+        description: The username with which to lig into the server
 
-    hosts:
-      type: list[str]
-      title: Server address
-      description: URL or IPAddress of the server to connect to
+      password:
+        type: SecretStr
+        description: Password needed to log into the server
+
+      hosts:
+        type: list[str]
+        title: Server addresses
+        description: URL or IPAddress of the server to connect to
+    
