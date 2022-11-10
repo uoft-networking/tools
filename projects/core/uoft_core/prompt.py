@@ -1,6 +1,5 @@
 from enum import Enum
-from typing import Literal, Any, Sequence, get_args, get_origin
-from pathlib import Path
+from typing import Any, Sequence, get_args, get_origin
 import sys
 from base64 import b64encode
 
@@ -13,10 +12,34 @@ from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.document import Document
 from prompt_toolkit.output.defaults import create_output
-from pydantic import BaseModel
-from pydantic.types import SecretStr, FilePath, DirectoryPath
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import ModelField
+
+from .types import Enum, Literal, BaseModel, Path, FilePath, DirectoryPath, SecretStr
+
+SUPPORTED_TYPES = (
+    str,
+    int,
+    float,
+    bool,
+    SecretStr,
+    Path,
+    FilePath,
+    DirectoryPath,
+    Enum,
+    Literal,
+    BaseModel,
+    list[str],
+    list[int],
+    list[float],
+    list[bool],
+    list[SecretStr],
+    dict[str, str],
+    dict[str, int],
+    dict[str, float],
+    dict[str, bool],
+    dict[str, SecretStr],
+)
 
 output = create_output(stdout=sys.stderr)
 
@@ -265,7 +288,11 @@ class Prompt:
                         msg = errors
                     raise ValidationError(message=str(msg))
 
-        # reminder: add title handling
+        # TODO: add title handling
+        # TODO: add default handling
+        # TODO: add handling for UrlStr, EmailStr, etc
+        # TODO: add handling for constr(regex=...)
+        # TODO: add handling for IPAddress, IPNetwork from netaddr module
 
         if type_name is str:
             return self.get_string(name, desc)
@@ -302,6 +329,6 @@ class Prompt:
             # reminder: move list & dict handling down to this else block, and validate subtypes contained in them
 
             raise RuntimeError(
-                f"{self.__class__} does not yet support prompting for values of type {field.type_}"
+                f"{self.__class__} does not yet support prompting for values of type {field.type_}. Supported types are: {SUPPORTED_TYPES}"
             )
 
