@@ -33,7 +33,8 @@ You can also build all packages at once using `invoke build-all`.
 
 ## Adding a project to the repo
 
-TODO... plan to implement this as a copier template
+1. `invoke new-project <project>`
+2. Follow all prompts to create a new project
 
 ## Making a new release
 
