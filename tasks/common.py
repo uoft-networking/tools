@@ -62,6 +62,12 @@ def list_projects(c: Context):
         print(p.name)
 
 @task()
+def update_venv(c: Context):
+    """update the virtual environment with the latest dependencies"""
+    c.run("python -m pip install -r dev.requirements.txt")
+    install_editable_all(c)
+
+@task()
 def install_editable(c: Context, project: str):
     """install a project in editable mode"""
     from . import ROOT
@@ -72,14 +78,15 @@ def install_editable(c: Context, project: str):
 @task()
 def install_editable_all(c: Context):
     """install all projects in editable mode"""
-    for p in all_projects():
+    core_first = lambda p: 0 if p.name == 'core' else 1
+    for p in sorted(all_projects(), key=core_first):
         install_editable(c, p.name)
         
 @task()
 def changes_since_last_tag(c: Context):
     """print changes since last tag"""
-    print(f"changes since last tag")
-    c.run(f"git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
+    print("changes since last tag")
+    c.run("git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
 
 @task()
 def version(c: Context):
@@ -92,8 +99,7 @@ def version_next(c: Context, minor: bool = False ):
     from packaging.version import Version
     v = get_version(root=str(ROOT), version_scheme='post-release')
     print(f"current version: {v}")
-    current_version = v.split('+')[0]
-    segments = list(Version(v)._version.release)
+    segments = list(Version(v)._version.release) # pylint: disable=protected-access
     if len(segments) == 2:
         segments.append(0)
     # at this point, segments should be [major, minor, patch]
@@ -142,10 +148,10 @@ def package_peek(c: Context):
                 print(f.read().decode('utf-8'))
     elif package.name.endswith(('.whl', '.zip', '.pex')):
         import zipfile
-        with zipfile.ZipFile(package) as zip:
-            names = zip.namelist()
+        with zipfile.ZipFile(package) as z:
+            names = z.namelist()
             filename = prompt.get_from_choices("filename", choices=names, description="Which file to peek at?", fuzzy_search=True)
-            with zip.open(filename) as f:
+            with z.open(filename) as f:
                 print(f.read().decode('utf-8'))
     else:
         raise Exception(f"Unknown package type: {package}")
