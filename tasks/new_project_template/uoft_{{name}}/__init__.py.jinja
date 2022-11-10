@@ -1,0 +1,16 @@
+from uoft_core import BaseSettings, Field
+from pydantic.types import SecretStr
+
+
+class Settings(BaseSettings):
+    """Settings for the {{name}} application."""
+{% for opt in config_opts %}
+    {{opt.name}}: {{opt.type}} = Field(
+        {{opt.default}},
+        description="{{opt.description}}",
+        required={{opt.required}},
+    )
+{% endfor %}
+
+    class Config(BaseSettings.Config):
+        app_name = "{{name}}"

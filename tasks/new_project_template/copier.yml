@@ -1,0 +1,46 @@
+name:
+  type: str
+  help: What is the name of your project?
+
+description:
+  type: str
+  help: Give me a one-sentence description of your project
+
+author_name:
+  type: str
+  help: What is your full name?
+
+author_email:
+  type: str
+  help: what is your email address?
+
+config_opts:
+  type: yaml
+  multiline: true
+  help: |
+    Set up configuration options for this project
+    Users of your tool will be able to store these options in config files, environment variable, 
+    command-line arguments or the `pass` password store if they have it.
+
+    The format is a map (aka a dictionary, or an object), like so:
+      config_option_a:  # this will be the name you use to reference the config option in code. must be lower-case letters and underscores
+        type: str  # Can be any supported type, Ex. [str, bool, int, float, StrEnum, Path, SecretStr, etc]
+        default:  # Optional, can be left blank
+        title:    # Optional, can be left blank
+        description: # Optional, can be left blank
+
+    For a list of supported types, see `uoft_core.prompt.SUPPORTED_TYPES`
+  placeholder: |
+    username:
+      type: str
+      default: admin
+      description: The username with which to lig into the server
+
+    password:
+      type: SecretStr
+      description: Password needed to log into the server
+
+    hosts:
+      type: list[str]
+      title: Server address
+      description: URL or IPAddress of the server to connect to
