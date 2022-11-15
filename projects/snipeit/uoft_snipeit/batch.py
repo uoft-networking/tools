@@ -1,5 +1,6 @@
 import requests
 from . import settings
+from .api import SnipeITAPI
 from .generate import mklabel_generate_label
 from .print import system_print_label
 import sys
@@ -14,24 +15,7 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
     if location_id is None:
         location_id = s.default_assigned_location_id
 
-    def batch_create_asset(mac_addr: str, name: str, serial: str):
-        create_url = batch_config().create_url()
-        payload = batch_config().create_payload(model_id, mac_addr, name, serial)
-        headers = s.headers()
-        response = requests.post(create_url, json=payload, headers=headers)
-        asset_search = re.findall('"asset_tag":"([^"]+)"', str(response.text))
-        asset = asset_search[0]
-        print(f"{response}\nNew asset ID is {asset}.")
-        return asset
-
-    def batch_checkout_asset(asset: int):
-        checkout_url = batch_config().checkout_url(asset)
-        status_url = batch_config().status_url(asset)
-        payload = batch_config().checkout_payload(location_id, asset)
-        headers = s.headers()
-        print(f"Asset {asset} checkout:")
-        print(requests.post(checkout_url, json=payload, headers=headers))
-        print(requests.put(status_url, json=payload, headers=headers))
+    api = SnipeITAPI.from_settings(s)
 
     try:
         user_will_input = True
@@ -52,8 +36,8 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
                     user_will_input = False
                     break
                 else:
-                    asset = batch_create_asset(mac_addr, name, serial)
-                    batch_checkout_asset(asset)
+                    asset = api.create_asset(model_id, mac_addr, name, serial)
+                    api.checkout_asset(asset, location_id)
                     mklabel_generate_label(asset)
                     system_print_label()
             else:
@@ -63,31 +47,3 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
             sys.exit()
     except Exception as error:
         print(f"Error!: {error}")
-
-
-class batch_config:
-    def create_payload(self, model_id, mac_addr, name, serial):
-        return {
-            "status_id": 2,
-            "model_id": int(f"{model_id}"),
-            "_snipeit_mac_address_1": f"{mac_addr}",
-            "name": f"{name}",
-            "serial": f"{serial}",
-        }
-
-    def create_url(self):
-        return f"https://{settings().snipeit_hostname}/api/v1/hardware"
-
-    def checkout_url(self, asset):
-        return f"https://{settings().snipeit_hostname}/api/v1/hardware/{asset}/checkout"
-
-    def status_url(self, asset):
-        return f"https://{settings().snipeit_hostname}/api/v1/hardware/{asset}"
-
-    def checkout_payload(self, assigned_location, asset):
-        return {
-            "checkout_to_type": "location",
-            "status_id": 7,
-            "assigned_location": int(f"{assigned_location}"),
-            "asset_tag": int(f"{asset}"),
-        }
