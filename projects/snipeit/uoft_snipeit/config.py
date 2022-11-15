@@ -11,8 +11,10 @@ import os
 from easysettings import EasySettings
 
 
-SETTINGS_FILE_ROOT = os.environ.get("XDG_CONFIG_HOME") if os.environ.get("XDG_CONFIG_HOME") else "~/.config/"
+SETTINGS_FILE_ROOT = os.environ.get("XDG_CONFIG_HOME", "") if os.environ.get("XDG_CONFIG_HOME") else "~/.config/"
 
+def get_settings_file(app_name: str):
+    return os.path.expanduser(SETTINGS_FILE_ROOT + app_name + "/config")
 
 def get(name, values):
     """The showrunner, where all the magic happens
@@ -130,7 +132,7 @@ def get(name, values):
          'url': 'https://my.domain.com/phpipam/api/my_app_id/'}
 
     """
-    settings_file = os.path.expanduser(SETTINGS_FILE_ROOT + name + "/config")
+    settings_file = get_settings_file()
     if not os.path.exists(settings_file):
         os.makedirs(os.path.dirname(settings_file), mode=0o700)
     settings = EasySettings(settings_file)

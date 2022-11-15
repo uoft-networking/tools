@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     snipeit_hostname: str = Field(
         description="Hostname of SnipeIT instance.",
     )
+    default_model_id: int = Field(
+        default=138,
+        description="Default model ID to use when creating assets.",
+    )
+    default_assigned_location_id: int = Field(
+        default=150,
+        description="Default assigned location to use when checking out assets.",
+    )
 
     def headers(self):
         return {
@@ -25,7 +33,3 @@ class Settings(BaseSettings):
 
 def settings() -> Settings:
     return Settings.from_cache()  # pylint: disable=protected-access
-
-
-def headers() -> Settings:
-    return headers()

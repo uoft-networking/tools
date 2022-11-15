@@ -1,7 +1,5 @@
 import requests
 from . import settings
-from uoft_snipeit import Settings
-from uoft_core.prompt import Prompt
 
 
 class checkout_config:
@@ -20,22 +18,15 @@ class checkout_config:
         }
 
 
-class checkout_settings:
-    def assigned_location(self):
-        s = Settings.from_cache()
-        history_path = s.util.history_cache
-        prompt = Prompt(history_path)
-        location = ["150"]  # TODO make this dynamic by looking up the locations.
-        print("Select a location to deploy to:\n150 = MN")
-        users_location_choice = prompt.get_from_choices("option", location, description="Which location to use?")
-        return users_location_choice
-
-
-def snipe_checkout_asset(asset: int):
+def snipe_checkout_asset(asset: int, location_id: int = None): # type: ignore
+    s = settings()
+    if location_id is None:
+        location_id = s.default_assigned_location_id
+    
     checkout_url = checkout_config().checkout_url(asset)
     status_url = checkout_config().status_url(asset)
-    payload = checkout_config().payload(checkout_settings().assigned_location(), asset)
-    headers = settings().headers()
+    payload = checkout_config().payload(location_id, asset)
+    headers = s.headers()
     print(f"Asset {asset} checkout:")
     print(requests.post(checkout_url, json=payload, headers=headers))
     print(requests.put(status_url, json=payload, headers=headers))
