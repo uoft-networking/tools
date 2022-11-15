@@ -20,4 +20,3 @@ utsc_templates
 .uoft.core.debug.cache.*
 projects/aruba/.env
 /utm-tools*
-projects/snipeit

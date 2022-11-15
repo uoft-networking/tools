@@ -1,0 +1,29 @@
+[project]
+name = "uoft_snipeit"
+version = "0.0" # This field will be auto-populated by pyproject.py
+description = "Collection of tools to interact with SnipeIT."
+authors = [
+    { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
+]
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = ["uoft_core"]
+
+license = { text = "MIT" }
+
+[project.urls]
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/snipeit"
+
+[project.scripts]
+uoft-snipeit = "uoft_snipeit.cli:app"
+
+[build-system]
+requires = ["hatchling >= 1.6.0", "setuptools_scm"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata.hooks.custom]
+path = "pyproject.py"
+
+[tool.hatch.build]
+packages = ["uoft_snipeit"]
