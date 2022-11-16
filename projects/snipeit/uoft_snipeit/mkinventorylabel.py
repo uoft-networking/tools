@@ -57,14 +57,13 @@
 
 """
 # Local imports
-from . import config
+from . import settings
 
 # Std Lib imports
 import sys
 import argparse
 import tempfile
 from zipfile import ZipFile, ZIP_DEFLATED
-from shutil import rmtree
 from pathlib import Path
 from subprocess import run
 from dataclasses import dataclass
@@ -171,12 +170,6 @@ Asset Number> """
             self.output_file = name
 
 
-@dataclass
-class AppData:
-    url: str
-    api_key: str
-
-
 def notify(*args):
     """prints message to console if console is interactive.
     otherwise logs message"""
@@ -187,34 +180,6 @@ def notify(*args):
 
 
 def main():
-    appdata = AppData(
-        **config.get(
-            "SnipeITLabelGenerator",
-            [
-                {
-                    "value": "url",
-                    "prompt": "Please enter the full URL of your "
-                    "Snipe-IT installation \n"
-                    "ex. https://snipe.mycompanyserver.com/ \n"
-                    "URL> ",
-                    "optional": False,
-                    "sensitive": False,
-                },
-                {
-                    "value": "api_key",
-                    "prompt": "Please enter your API key. if you don't have one, a new "
-                    "API key can be generated for your account. Log in to "
-                    "Snipe-IT, click on your account on the top-right of the "
-                    "screen, go to 'Manage API Keys', and click "
-                    "'Create New Token' \n"
-                    "Token> ",
-                    "optional": False,
-                    "sensitive": False,
-                },
-            ],
-        )
-    )
-
     def get_program_arguments():
         """
 
@@ -230,9 +195,6 @@ def main():
         # Print help if no arguments given, otherwise run the script
         if "-h" in sys.argv or "--help" in sys.argv:
             print(__doc__)
-            sys.exit()
-        elif "-r" in sys.argv or "--reset" in sys.argv:
-            config.reset()
             sys.exit()
         else:
             parser = argparse.ArgumentParser()
@@ -253,12 +215,27 @@ def main():
 
     args.process_inputs()
 
+    type_ = args.type
+    item_num = args.item_num
+
     input_file = Path(args.input_file).expanduser()
     output_file = Path(args.output_file).expanduser()
 
+    if args.show_available_fields:
+        show_available_fields(type_, item_num)
+        sys.exit()
+
+    pdf_file = make_label(type_, item_num, input_file, output_file)
+
+    if sys.stdout.isatty():
+        print("Successfully generated PDF at {}".format(pdf_file))
+    else:
+        sys.stdout.buffer.write(pdf_file.read_bytes())
+
+
+def make_label(type_, item_num, input_file, output_file):
     # unpack template into temporary folder
-    tempdir = Path(tempfile.mkdtemp())
-    try:
+    with tempfile.TemporaryDirectory() as tempdir:
         compression_info = unpack_template(input_file, tempdir)
 
         # pull template tags from content.xml file to
@@ -271,59 +248,65 @@ def main():
             notify("{{" + item + "}}")
 
         # get the info we need from the server
-        data = get_info_from_server(args.type, args.item_num, appdata)
-
-        if args.show_available_fields:
-            print("Here are the available fields for this particular " "inventory item:")
-            for key, value in data.items():
-                key_name = "{{{{{}}}}}".format(key)
-                print("{:15} = {}".format(key_name, value))
-            sys.exit(0)
+        data = get_info_from_server(
+            type_,
+            item_num,
+        )
 
         asset_data = {}
         for tag in template_info["template_tags"]:
             if tag in data:
                 asset_data[tag] = data[tag]
             else:
-                notify("WARNING: template field {{ {0} }} not found in data " "returned from server.".format(tag))
+                notify(
+                    f"WARNING: template field {{ {tag} }} not found in data returned from server."
+                )
 
         # modify template
-        generate_qr_code(args.type, args.item_num, template_info, tempdir, appdata)
+        generate_qr_code(type_, item_num, template_info, tempdir)
         render_template_info(tempdir, asset_data)
 
         # save template
         pack_template(tempdir, output_file, compression_info)
 
-        notify("Done! The newly-generated asset label can be found at " + str(output_file))
-        out_file_pdf = output_file.with_suffix(".pdf")
-        out_dir = str(output_file.parent)
-        if sys.platform == "darwin":
-            run(
-                [
-                    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
-                    "--convert-to",
-                    "pdf",
-                    "--outdir",
-                    out_dir,
-                    str(output_file),
-                ]
-            )
-        elif sys.platform == "linux":
-            run(["soffice", "--convert-to", "pdf", "--outdir", out_dir, str(output_file)])
+        pdf_file = render_to_pdf(output_file)
 
-        if sys.stdout.isatty():
-            pass  # We do not want to open the file in this use case, just silently print it.
-            # if sys.platform == "darwin":
-            #     run(["open", str(out_file_pdf)])
-            # elif sys.platform == "linux":
-            #     run(["xdg-open", str(out_file_pdf)])
-        else:
-            sys.stdout.buffer.write(out_file_pdf.read_bytes())
+        return pdf_file
 
-    finally:
-        # if anything goes wrong while the tempdir exists, we want to make sure
-        # the tempdir is properly removed.
-        rmtree(str(tempdir))
+
+def render_to_pdf(output_file):
+    out_file_pdf = output_file.with_suffix(".pdf")
+    notify("Done! The newly-generated asset label can be found at " + str(out_file_pdf))
+    out_dir = str(output_file.parent)
+    if sys.platform == "darwin":
+        run(
+            [
+                "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                out_dir,
+                str(output_file),
+            ]
+        )
+    elif sys.platform == "linux":
+        run(["soffice", "--convert-to", "pdf", "--outdir", out_dir, str(output_file)])
+
+    else:
+        notify("Sorry, I don't know how to convert to PDF on your platform")
+        notify("Please convert the file {} to PDF manually".format(str(output_file)))
+        sys.exit(1)
+
+    return out_file_pdf
+
+
+def show_available_fields(type_, item_num):
+    """Prints a list of all available fields for the given asset number"""
+    data = get_info_from_server(type_, item_num)
+    print("Here are the available fields for this particular " "inventory item:")
+    for key, value in data.items():
+        key_name = "{{{{{}}}}}".format(key)
+        print("{:15} = {}".format(key_name, value))
 
 
 def unpack_template(input_path, tempdir) -> dict:
@@ -401,13 +384,15 @@ def get_info_from_template(tempdir) -> dict:
     with open(str(content_xml_path)) as f:
         parsed_template = pystache.parse(f.read())
         info["template_tags"] = [
-            item.key for item in parsed_template._parse_tree if type(item) is pystache.parser._EscapeNode
+            item.key
+            for item in parsed_template._parse_tree
+            if type(item) is pystache.parser._EscapeNode
         ]
 
     return info
 
 
-def get_info_from_server(item_type, item_id, appdata: AppData) -> dict:
+def get_info_from_server(item_type, item_id) -> dict:
     """
 
     Args:
@@ -459,12 +444,21 @@ def get_info_from_server(item_type, item_id, appdata: AppData) -> dict:
                 clean_dict[key] = value
         return clean_dict
 
-    url = "{base_url}/{type}/{id}".format(base_url=appdata.url + "api/v1", type=item_type, id=item_id)
-    headers = {"authorization": "Bearer " + appdata.api_key.strip(), "accept": "application/json"}
+    s = settings()
+    url = "{base_url}/{type}/{id}".format(
+        base_url=s.snipeit_hostname + "api/v1", type=item_type, id=item_id
+    )
+    headers = {
+        "authorization": "Bearer " + s.api_bearer_key.get_secret_value(),
+        "accept": "application/json",
+    }
     data = get(url, headers=headers).json()
 
     if "status" in data and data["status"] == "error":
-        sys.stderr.write("Received the following error from the Snipe-IT server: ", data["messages"] + "\n")  # type: ignore
+        msg = data["messages"]
+        sys.stderr.write(
+            f"Received the following error from the Snipe-IT server: {msg}\n"
+        )
         sys.exit(1)
     else:
         data = flatten(data)
@@ -472,7 +466,7 @@ def get_info_from_server(item_type, item_id, appdata: AppData) -> dict:
         return data
 
 
-def generate_qr_code(item_type, item_number, template_info, tempdir, appdata: AppData):
+def generate_qr_code(item_type, item_number, template_info, tempdir):
     """
 
     Args:
@@ -501,8 +495,11 @@ def generate_qr_code(item_type, item_number, template_info, tempdir, appdata: Ap
         asset specified by asset_number
 
     """
+    s = settings()
     qr_code_url = "{base_url}/{type}/{id}"
-    qr_code_url = qr_code_url.format(base_url=appdata.url + "api/v1", type=item_type, id=item_number)
+    qr_code_url = qr_code_url.format(
+        base_url=s.snipeit_hostname + "api/v1", type=item_type, id=item_number
+    )
     qr_code_file = sorted(tempdir.glob("Pictures/*"))[0]
     imgdata = qrcode.make(qr_code_url)
     dimensions = template_info["qr_code_dimensions"]
@@ -555,7 +552,9 @@ def pack_template(tempdir, output_file, compression_info):
         for file in tempdir.glob("**/*"):
             arcname = file.relative_to(tempdir)
             compress_type = compression_info.get(arcname)
-            label_file.write(str(file), arcname=str(arcname), compress_type=compress_type)
+            label_file.write(
+                str(file), arcname=str(arcname), compress_type=compress_type
+            )
 
 
 if __name__ == "__main__":

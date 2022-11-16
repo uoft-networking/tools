@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = ["uoft_core"]
+dependencies = ["uoft_core", "pystache", "qrcode"]
 
 license = { text = "MIT" }
 
