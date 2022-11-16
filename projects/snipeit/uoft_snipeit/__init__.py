@@ -21,10 +21,6 @@ class Settings(BaseSettings):
         default=138,
         description="Default model ID to use when creating assets.",
     )
-    default_assigned_location_id: int = Field(
-        default=150,
-        description="Default assigned location to use when checking out assets.",
-    )
 
     class Config(BaseSettings.Config):
         app_name = "snipeit"
