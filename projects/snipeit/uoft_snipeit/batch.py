@@ -12,9 +12,6 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
     if model_id is None:
         model_id = s.default_model_id
 
-    if location_id is None:
-        location_id = s.default_assigned_location_id
-
     api = SnipeITAPI.from_settings(s)
 
     try:
