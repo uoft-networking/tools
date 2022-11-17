@@ -1,7 +1,7 @@
 import requests
 from . import settings
 from .api import SnipeITAPI
-from .generate import mklabel_generate_label
+from .generate import generate_label
 from .print import system_print_label
 import sys
 import re
@@ -35,7 +35,7 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
                 else:
                     asset = api.create_asset(model_id, mac_addr, name, serial)
                     api.checkout_asset(asset, location_id)
-                    mklabel_generate_label(asset)
+                    generate_label(asset)
                     system_print_label()
             else:
                 print("The following MACs have been provisioned:\n")
