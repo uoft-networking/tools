@@ -18,7 +18,7 @@ class Settings(BaseSettings):
         description="Hostname of SnipeIT instance.",
     )
     default_model_id: int = Field(
-        default=138,
+        default=138, #TODO Determine why this is not being applied.
         description="Default model ID to use when creating assets.",
     )
 

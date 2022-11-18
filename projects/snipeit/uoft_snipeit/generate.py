@@ -10,14 +10,15 @@ from PIL import Image, ImageDraw, ImageFont
 from qrcode import QRCode
 from qrcode.image.pil import PilImage
 
+from os.path import expanduser
 
 def generate_label(asset: int):
     s = settings()
-    qrcode_url = f'{s.snipeit_hostname}api/v1/asset/{asset}'
+    qrcode_url = f'{s.snipeit_hostname}/api/v1/asset/{asset}'
     fields = get_info_from_server(item_type='asset', item_id=asset)
     field = {key:fields[key] for key in {'name', 'asset_tag', 'serial', 'model_number'}}
-    im = make_label_from_fields(90, 29, 2, "mm", fields, qrcode_url)
-    im.save(f'{asset}.jpg')
+    im = make_label_from_fields(90, 29, 2, "mm", field, qrcode_url)
+    im.save(expanduser(f'~/Asset-Label.jpg'))
 
 def to_pixels(
     width: float,

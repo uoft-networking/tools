@@ -445,8 +445,8 @@ def get_info_from_server(item_type, item_id) -> dict:
         return clean_dict
 
     s = settings()
-    url = "{base_url}/{type}/{id}".format(
-        base_url=s.snipeit_hostname + "api/v1", type=item_type, id=item_id
+    url = "https://{base_url}/{type}/{id}".format(
+        base_url=s.snipeit_hostname + "/api/v1", type="hardware", id=item_id
     )
     headers = {
         "authorization": "Bearer " + s.api_bearer_key.get_secret_value(),

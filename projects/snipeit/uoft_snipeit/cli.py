@@ -9,7 +9,7 @@ import typer
 from . import Settings
 from .create import snipe_create_asset
 from .checkout import snipe_checkout_asset
-from .generate import mklabel_generate_label
+from .generate import generate_label as snipe_generate_label
 from .print import system_print_label
 from .batch import snipe_batch_provision
 from .create_checkout import snipe_create_checkout
@@ -40,7 +40,7 @@ def checkout_asset(asset: int):
 
 @app.command(help="Generage an asset label.")
 def generate_label(asset: int):
-    mklabel_generate_label(asset)
+    snipe_generate_label(asset)  # TODO MMMM
 
 
 @app.command(help="Print the last generated label.")
@@ -53,7 +53,7 @@ def print_label():
 )
 def single_provision(mac_addr: str, name: str, serial: str):
     asset = snipe_create_checkout(mac_addr, name, serial)
-    mklabel_generate_label(asset)
+    snipe_generate_label(asset)  # TODO MMMM
     system_print_label()
 
 
