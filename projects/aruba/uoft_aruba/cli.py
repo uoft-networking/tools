@@ -16,8 +16,32 @@ app.add_typer(stm_blacklist.app, name="stm-blacklist")
 @app.callback()
 @Settings.wrap_typer_command
 def callback(debug: bool = typer.Option(False, help="Enable debug mode.")):
-    #TODO: Add debug mode
+    # TODO: Add debug mode
     pass
+
+
+def deprecated():
+    import sys
+    from warnings import warn
+
+    from_ = sys.argv[0]
+    match from_:
+        case "uoft_aruba":
+            to = "uoft-aruba"
+            cmd = app
+        case "Aruba_Provision_CPSEC_Whitelist":
+            to = "uoft-aruba cpsec-whitelist"
+            cmd = cpsec_whitelist.run
+        case _:
+            raise Exception("Unknown script name")
+
+    warn(
+        FutureWarning(
+            f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."
+        )
+    )
+    cmd()
+
 
 def _debug():
     "Debugging function, only used in active debugging sessions."

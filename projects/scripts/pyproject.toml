@@ -19,7 +19,9 @@ dependencies = [
 ]
 
 [project.scripts]
-"uoft-scripts" = "uoft_scripts.__main__:cli"
+uoft-scripts = "uoft_scripts.__main__:cli"
+uoft_scripts = "uoft_scripts.__main__:deprecated"
+"utsc.scripts" = "uoft_scripts.__main__:deprecated"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

@@ -70,6 +70,34 @@ def cli():
         logger.debug(traceback.format_exc())
 
 
+def deprecated():
+    import sys
+    from warnings import warn
+
+    from_ = sys.argv[0]
+    match from_:
+        case "uoft_scripts":
+            to = "uoft-scripts"
+            cmd = app
+        case "utsc.scripts" if len(sys.argv) > 1 and sys.argv[1] == "aruba":
+            from_ = "utsc.scripts aruba"
+            to = "uoft-aruba"
+            from uoft_aruba.cli import app as aruba_app
+            cmd = aruba_app
+        case "utsc.scripts":
+            to = "uoft-scripts"
+            cmd = app
+        case _:
+            raise Exception("Unknown script name")
+
+    warn(
+        FutureWarning(
+            f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."
+        )
+    )
+    cmd()
+
+
 
 def _debug():
     "Debugging function, only used in active debugging sessions."
