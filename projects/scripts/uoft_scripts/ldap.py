@@ -10,12 +10,14 @@ app = typer.Typer(name="ldap")
 
 
 class Settings(BaseSettings):
-    _app_name = "ldap"
     bind_username: str
     bind_password: SecretStr
     server: str
     users_base_dn: str
     groups_base_dn: str
+
+    class Config(BaseSettings.Config):
+        app_name = "ldap"
 
 
 @app.callback()

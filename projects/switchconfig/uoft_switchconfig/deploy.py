@@ -19,10 +19,11 @@ def login(p: pexpect.spawn, ssh_pass: str, status: Progress, task_id: TaskID):
 
 
 def deploy_to_console(target: str):
+    s = settings()
     host, _, port = target.partition(":")
-    ssh_pass = shell(settings.deploy.ssh_pass_cmd)
-    terminal_pass = shell(settings.deploy.terminal_pass_cmd)
-    enable_pass = shell(settings.deploy.enable_pass_cmd)
+    ssh_pass = shell(s.deploy.ssh_pass_cmd)
+    terminal_pass = shell(s.deploy.terminal_pass_cmd)
+    enable_pass = shell(s.deploy.enable_pass_cmd)
 
     username = "admin"
     status = Progress(SpinnerColumn("dots5"), "{task.description}", transient=True)

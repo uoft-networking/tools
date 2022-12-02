@@ -10,10 +10,12 @@ import typer
 app = typer.Typer(name="bluecat", help="Bluecat API")
 
 class Settings(BaseSettings):
-    _app_name = "bluecat"
     url: str
     username: str
     password: SecretStr
+
+    class Config(BaseSettings.Config):
+        app_name = "bluecat"
 
 
 @app.command()

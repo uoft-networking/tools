@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [project.scripts]
-"uoft_switchconfig" = "uoft_switchconfig.__main__:cli"
+"uoft-switchconfig" = "uoft_switchconfig.cli:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

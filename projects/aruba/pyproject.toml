@@ -16,8 +16,7 @@ license = { text = "MIT" }
 Repository = "https://github.com/uoft-networking/tools"
 
 [project.scripts]
-Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cpsec_whitelist:run"
-uoft_aruba = "uoft_aruba.cli:app"
+uoft-aruba = "uoft_aruba.cli:app"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
