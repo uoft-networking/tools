@@ -18,6 +18,7 @@ config_opts:
   type: yaml
   multiline: true
   help: |
+    Note: Press `alt-enter` to finalize and save config opts
     Set up configuration options for this project
     Users of your tool will be able to store these options in config files, environment variable, 
     command-line arguments or the `pass` password store if they have it.

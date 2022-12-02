@@ -5,8 +5,8 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 120
 
-# Enable Flake's "E" and "F" codes by default.
-select = ["E", "F"]
+# Enable Flake's "E", "W", and "F" codes by default.
+select = ["E", "W", "F", "RUF"]
 ignore = []
 
 # Exclude a variety of commonly ignored directories.
