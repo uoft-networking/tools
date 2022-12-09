@@ -34,7 +34,6 @@ def deprecated():
     else:
         raise ValueError(f"command {cmdline} is not deprecated")
 
-    #TODO: convert this into a log.warn msg once we've sorted out logging
     warn(
         FutureWarning(
             f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."

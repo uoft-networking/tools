@@ -2,8 +2,6 @@ import os, sys
 import traceback
 from typing import Optional
 
-from uoft_core import shell
-
 from . import config
 from . import bluecat
 from . import ldap
