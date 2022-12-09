@@ -16,7 +16,7 @@ dependencies = [
   "rich >= 12.2",
   "requests >= 2.20",
   "pydantic >= 1.9",
-  "prompt_toolkit >= 3.0.",
+  "prompt_toolkit >= 3.0",
 ]
 
 [project.optional-dependencies]
