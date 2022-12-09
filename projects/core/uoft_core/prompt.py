@@ -276,6 +276,7 @@ class Prompt:
     def from_model_field(self, name: str, field: ModelField):
         type_name, type_args = _unpack_type(field.outer_type_)
         desc = field.field_info.description
+        default = field.default
 
         class PydanticValidator(Validator):
             def validate(self, document: Document):
@@ -289,44 +290,45 @@ class Prompt:
                     raise ValidationError(message=str(msg))
 
         # TODO: add title handling
-        # TODO: add default handling
         # TODO: add handling for UrlStr, EmailStr, etc
         # TODO: add handling for constr(regex=...)
         # TODO: add handling for IPAddress, IPNetwork from netaddr module
 
         if type_name is str:
-            return self.get_string(name, desc)
+            return self.get_string(name, desc, default_value=default)
         elif type_name is SecretStr:
-            return self.get_string(name, desc, is_password=True)
+            return self.get_string(name, desc, default_value=default, is_password=True)
         elif type_name is bool:
-            return self.get_bool(name, desc)
+            return self.get_bool(name, desc, default_value=default)
         elif type_name is int:
-            return self.get_int(name, desc)
+            return self.get_int(name, desc, default_value=default)
         elif type_name is Literal:
-            return self.get_from_choices(name, type_args, desc)
+            return self.get_from_choices(name, type_args, desc, default_value=default)
         elif type_name is Path:
-            return self.get_path(name, desc)
+            return self.get_path(name, desc, default_value=default)
         elif type_name is FilePath:
-            return self.get_path(name, desc, validator=PydanticValidator())
+            return self.get_path(name, desc, default_value=default, validator=PydanticValidator())
         elif type_name is DirectoryPath:
             return self.get_path(
-                name, desc, only_directories=True, validator=PydanticValidator()
+                name, desc, default_value=default, only_directories=True, validator=PydanticValidator()
             )
         elif type_name is list:
-            return self.get_list(name, desc)
+            return self.get_list(name, desc, default_value=default)
         elif type_name is dict:
-            return self.get_dict(name, desc)
+            return self.get_dict(name, desc, default_value=default)
         else:
             if issubclass(type_name, Enum):
                 choices = list(type_name.__members__.keys())
-                val = self.get_from_choices(name, choices, desc)
+                val = self.get_from_choices(name, choices, desc, default_value=default)
                 return type_name.__members__[val]
             elif issubclass(type_name, BaseModel):
+                # Does it make sense to support default values for nested models?
+                # How would that work?
                 return self.from_model(field.type_, prefix=name)
 
             # this implementation only supports list[str], dict[str, str], and similar types like list[int],
             # which pydantic can coerce directly from list[str] or dict[str, str].
-            # reminder: move list & dict handling down to this else block, and validate subtypes contained in them
+            # TODO: move list & dict handling down to this else block, and validate subtypes contained in them
 
             raise RuntimeError(
                 f"{self.__class__} does not yet support prompting for values of type {field.type_}. Supported types are: {SUPPORTED_TYPES}"

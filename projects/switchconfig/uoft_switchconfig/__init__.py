@@ -89,4 +89,4 @@ class Settings(BaseSettings):
     class Config(BaseSettings.Config):
         app_name = 'switchconfig'
 
-settings = Settings.from_cache()
+settings = Settings.from_cache

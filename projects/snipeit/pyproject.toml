@@ -1,24 +1,22 @@
 [project]
-name = "uoft_aruba"
+name = "uoft_snipeit"
 version = "0.0" # This field will be auto-populated by pyproject.py
-description = "Collection of utilities for interacting with Aruba infrastructure"
+description = "Collection of tools to interact with SnipeIT."
 authors = [
     { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
     { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = ["pydantic[dotenv]", "uoft_core", "typer"]
+dependencies = ["uoft_core", "pystache", "qrcode", "pillow"]
 
 license = { text = "MIT" }
 
 [project.urls]
-Repository = "https://github.com/uoft-networking/tools"
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/snipeit"
 
 [project.scripts]
-uoft-aruba = "uoft_aruba.cli:app"
-uoft_aruba = "uoft_aruba.cli:deprecated"
-Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cli:deprecated"
+uoft-snipeit = "uoft_snipeit.cli:app"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
@@ -28,4 +26,4 @@ build-backend = "hatchling.build"
 path = "pyproject.py"
 
 [tool.hatch.build]
-only-packages = true
+packages = ["uoft_snipeit"]

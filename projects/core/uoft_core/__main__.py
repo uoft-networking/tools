@@ -48,6 +48,30 @@ def callback(
     util.logging.add_stderr_rich_sink(log_level)
     util.logging.add_syslog_sink()
 
+try:
+    from uoft_aruba import cli as aruba
+    app.add_typer(aruba.app, name="aruba")
+except ImportError:
+    pass
+
+try:
+    from uoft_scripts import __main__ as scripts
+    app.add_typer(scripts.app, name="scripts")
+except ImportError:
+    pass
+
+try:
+    from uoft_switchconfig import cli as switchconfig
+    app.add_typer(switchconfig.app, name="switchconfig")
+except ImportError:
+    pass
+
+try:
+    from uoft_snipeit import cli as snipeit
+    app.add_typer(snipeit.app, name="snipeit")
+except ImportError:
+    pass
+
 @logger.catch
 def cli():
     try:

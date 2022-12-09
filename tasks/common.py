@@ -74,7 +74,11 @@ def list_projects(c: Context):
 
 @task()
 def new_project(c: Context, name: str):
-    c.run(f"copier -d name={name} copy tasks/new_project_template {ROOT}/projects/{name}")
+    # copier does not like being run inside of an invoke task runner,
+    # so we shell out to the system to call it instead
+    os.system(
+        f"copier -d name={name} copy tasks/new_project_template {ROOT}/projects/{name}"
+    )
 
 
 @task()
@@ -89,6 +93,10 @@ def install_editable(c: Context, project: str):
     """install a project in editable mode"""
     from . import ROOT
 
+    if project != "core":
+        print(f"bumping uoft_core editable install version number...")
+        install_editable(c, "core")
+
     print(f"installing projects/{project} in editable mode")
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
     c.run(f"python -m pip install -e projects/{project}")
@@ -100,6 +108,36 @@ def install_editable_all(c: Context):
     core_first = lambda p: 0 if p.name == "core" else 1
     for p in sorted(all_projects(), key=core_first):
         install_editable(c, p.name)
+
+
+@task()
+def repl(c: Context, project: str):
+    """start a python repl with a given project imported"""
+    from . import ROOT
+    from textwrap import dedent
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
+
+    print(f"starting repl with projects/{project} imported")
+    with TemporaryDirectory() as tmpdir:
+        prelude = Path(tmpdir) / "prelude.py"
+        prelude.write_text(
+            dedent(
+                f"""\
+                    import sys
+                    import os
+                    from pathlib import Path
+                    from uoft_core import shell, txt, lst, chomptxt
+                    from uoft_core.prompt import Prompt
+                    import uoft_{project}
+                    if hasattr(uoft_{project}, "Settings"):
+                        Settings = uoft_{project}.Settings
+                """
+            )
+        )
+        os.system(f"ptpython -i {prelude}")
 
 
 @task()

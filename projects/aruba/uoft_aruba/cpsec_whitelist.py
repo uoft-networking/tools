@@ -1,10 +1,3 @@
-#!/usr/bin/env python3.10
-# Author: Kyle Fozo, June 2022.  Big shoutout and Kudos to Alex Tremblay for all his help and mentorship along this journey!
-#
-# ***External to the required imports below, this script also requires the system to have PASS (https://www.passwordstore.org/),
-# ***The service account password must be encrypted in it without an access password.
-# ***Ensure that you set your own CONFIG PARAMETERS in the supplied .env file.
-#
 """
 Welcome to the Aruba CPSEC Whitelist Provisioning Tool.
 
@@ -17,22 +10,11 @@ as well as modifying their certs to 'factory-approved' so the registrations do n
 
 """
 
-# Used for help and argument control
 import typer
-
-# used for sys.exit() and to obfuscate tracebacks.  use --debug if required.
 import sys
-
-# Used for mac address pattern patching
 import re
-
-# Used to simplify dealing with the Aruba API.
 from uoft_core.aruba import ArubaRESTAPIClient
-
-# useful data types
 from pathlib import Path
-
-# Used to easily retrieve config
 from . import settings
 
 InputTable = list[tuple[str, str, str]]
@@ -52,19 +34,18 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
     debug: bool = typer.Option(False, help="Turn on debug logging"),
 ):
     "Returns a list of valid AP_GROUPs and exits."
+    s = settings()
     with (
         ArubaRESTAPIClient(
-            f"{settings().md_hostnames[0]}:4343",
-            settings().svc_account,
-            settings().password,
+            f"{s.md_hostnames[0]}:4343",
+            s.svc_account,
+            s.password.get_secret_value(),
         ) as host1
     ):
         raw_controller_ap_groups = host1.wlan.get_ap_groups()["_data"]["ap_group"]
         controller_ap_groups = []
         for raw_controller_ap_group in raw_controller_ap_groups:
-            controller_ap_groups.append(
-                raw_controller_ap_group["profile-name"].rpartition("'")[2]
-            )
+            controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
         print("Below you will find a list of valid AP_GROUPs to use in your input:")
         print(*controller_ap_groups, sep="\n")
         sys.exit()
@@ -84,25 +65,20 @@ def Provision(
         resolve_path=True,
         allow_dash=True,
     ),
-    debug: bool = typer.Option(False, help="Turn on debug logging"),
 ):
     """
     Provision a list of APs using information from a provided CSV file.
     Each row in the CSV file represents an AP to be provisioned.
     The CSV file must consist of 3 columns: MAC_ADDRESS, AP_GROUP, and AP_NAME.
-    The CSV file must not contain a header row.
+    The CSV file must not contain a header row.\n
 
-    If FILENAME is a single dash (ex. "-"), data will be read from stdin
+    If FILENAME is a single dash (ex. "-"), data will be read from stdin.\n\n
 
     Note that my example AP_GROUP is "-CC Lab" with a space.  This does -not- need to be escaped when you are importing from CSV.
     Example:
-    Given a file names `my_aps.csv` with the following contents
-    ```csv
-    00:01:10:12:02:21,-CC Lab,test_ap_name_18
+    Given a file names `my_aps.csv` with the following contents:\n
+    00:01:10:12:02:21,-CC Lab,test_ap_name_18\n
     00:01:02:12:02:21,-CC Lab,test_ap_name_19
-    ```
-
-    running the command `
     """
     if filename.name == "-":
         file = sys.stdin.readlines()
@@ -139,22 +115,13 @@ def Verify_And_Create(input_table: InputTable):
     outer_lambda = lambda row: tuple(map(lambda item: item[:75], row))
     input_table = list(map(outer_lambda, input_table))
     # Lambda prevent input overflow.
-    passwd = settings().password
+    passwd = settings().password.get_secret_value()
+    s = settings()
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
-    with (
-        ArubaRESTAPIClient(
-            f"{settings().md_hostnames[0]}:4343", f"{settings().svc_account}", passwd
-        ) as host1
-    ):
+    with (ArubaRESTAPIClient(f"{s.md_hostnames[0]}:4343", f"{s.svc_account}", passwd) as host1):
         Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MM
-    with (
-        ArubaRESTAPIClient(
-            f"{settings().mm_vrrp_hostname}:4343", f"{settings().svc_account}", passwd
-        ) as host2
-    ):
-        Check_Input_Names_Macs(
-            host2, input_table
-        )  # Confirm mac format / names or macs not already in use on MM.
+    with (ArubaRESTAPIClient(f"{s.mm_vrrp_hostname}:4343", f"{s.svc_account}", passwd) as host2):
+        Check_Input_Names_Macs(host2, input_table)  # Confirm mac format / names or macs not already in use on MM.
         Create_Whitelist_Entry_CPSEC_And_Approve(host2, input_table)
 
 
@@ -164,9 +131,7 @@ def Check_Input_Groups(host: ArubaRESTAPIClient, input_table: InputTable):
     controller_ap_groups = []
     group_assertion_list = []
     for raw_controller_ap_group in raw_controller_ap_groups:
-        controller_ap_groups.append(
-            raw_controller_ap_group["profile-name"].rpartition("'")[2]
-        )
+        controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
     input_ap_groups = [line[1] for line in input_table]
     for input_ap_group in input_ap_groups:
         if input_ap_group not in controller_ap_groups:
@@ -215,15 +180,11 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
     ), f"The following MAC_ADDRESS(es) are already in use on the controller!\n '{mac_assertion_list}'\nConfirm input!  Run --help for help."
 
 
-def Create_Whitelist_Entry_CPSEC_And_Approve(
-    host: ArubaRESTAPIClient, input_table: InputTable
-):
+def Create_Whitelist_Entry_CPSEC_And_Approve(host: ArubaRESTAPIClient, input_table: InputTable):
     "Creates the CPSEC Whitelist entries, and then modifies this certificate types to 'factory-approved'."
     for line in input_table:
         input_mac_address, input_ap_group, input_ap_name = line
-        host.ap_provisioning.wdb_cpsec_add_mac(
-            input_mac_address, input_ap_group, input_ap_name
-        )
+        host.ap_provisioning.wdb_cpsec_add_mac(input_mac_address, input_ap_group, input_ap_name)
         print(
             f"Added new CPSEC whitelist entry for {input_ap_name} / {input_mac_address}"
         )  # Create a CPSEC whitelist entry, for each WAP in the supplied file.
@@ -236,4 +197,4 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(
 def _debug():
     "Debugging function, only used in active debugging sessions."
     # pylint: disable=all
-    print()
+    run()

@@ -2,8 +2,6 @@ import os, sys
 import traceback
 from typing import Optional
 
-from uoft_core import shell
-
 from . import config
 from . import bluecat
 from . import ldap
@@ -68,6 +66,33 @@ def cli():
         # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
         logger.error(e)
         logger.debug(traceback.format_exc())
+
+
+def deprecated():
+    import sys
+    from warnings import warn
+
+    cmdline = " ".join(sys.argv)
+    if (from_ := "uoft_scripts") in cmdline:
+        to = "uoft-scripts"
+        cmd = app
+    elif (from_ := "utsc.scripts") in cmdline:
+        to = "uoft-scripts"
+        cmd = app
+    elif (from_ := "utsc.scripts aruba") in cmdline:
+        to = "uoft-aruba"
+        from uoft_aruba.cli import app as aruba_app
+        cmd = aruba_app
+    else:
+        raise ValueError(f"command {cmdline} is not deprecated")
+
+    #TODO: convert this into a log.warn msg once we've sorted out logging
+    warn(
+        FutureWarning(
+            f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."
+        )
+    )
+    cmd()
 
 
 

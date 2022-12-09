@@ -19,3 +19,4 @@ utsc_templates
 !.venv/make_pipenv_install_here
 .uoft.core.debug.cache.*
 projects/aruba/.env
+/utm-tools*

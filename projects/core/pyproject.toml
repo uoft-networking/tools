@@ -16,7 +16,7 @@ dependencies = [
   "rich >= 12.2",
   "requests >= 2.20",
   "pydantic >= 1.9",
-  "prompt_toolkit >= 3.0.",
+  "prompt_toolkit >= 3.0",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +26,9 @@ all = [
   "semver",
   "pytest >= 6.0",
 ]
+
+[project.scripts]
+uoft = "uoft_core.__main__:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
