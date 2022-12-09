@@ -47,19 +47,12 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from uoft_core import BaseSettings, chomptxt
 
-
-
 class Settings(BaseSettings):
-    _app_name = "switchconfig"
 
-    class Generate(BaseModel):
-        templates_dir: Path = Field(
-            description="override the default template cache directory",
-        )
+    class Config(BaseSettings.Config):
+        app_name = 'switchconfig'
 
-    generate: Generate = Field(
-        description="whether to include any overriding configuration related to the generate command",
-    )
+    generate: bool
 
     class Deploy(BaseModel):
         ssh_pass_cmd: str = Field(
@@ -88,7 +81,7 @@ class Settings(BaseSettings):
 settings = Settings.from_cache()
 ```
 
-This new framework also leverages the new `Prompt` class from `uoft_core.prompt.Prompt.` to interactively prompt for any values not specified in site-wide config files, user-local config files, or environment variables
+This new framework also leverages the new `Prompt` class from `uoft_core.prompt.Prompt` to interactively prompt for any values not specified in site-wide config files, user-local config files, or environment variables
 
 ### YAML
 `uoft_core.yaml` is a heavily edited fork of [ruamel.yaml](https://pypi.org/project/ruamel.yaml/) The biggest difference is that I've dropped compatability with python2 and python <3.10, dropped support for non-comment-preserving loading and dumping, removed dead code, added meaningful, useful type hints, simplified the class hierarchy as much as possible, and made the whole thing easier to understand and easier to debug. The work is not yet done, but this first phase is complete, and all relevant tests are passing.
