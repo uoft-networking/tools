@@ -24,17 +24,17 @@ def deprecated():
     import sys
     from warnings import warn
 
-    from_ = sys.argv[0]
-    match from_:
-        case "uoft_aruba":
-            to = "uoft-aruba"
-            cmd = app
-        case "Aruba_Provision_CPSEC_Whitelist":
-            to = "uoft-aruba cpsec-whitelist"
-            cmd = cpsec_whitelist.run
-        case _:
-            raise Exception("Unknown script name")
+    cmdline = " ".join(sys.argv)
+    if (from_ := "uoft_aruba") in cmdline:
+        to = "uoft-aruba"
+        cmd = app
+    elif (from_ := "Aruba_Provision_CPSEC_Whitelist") in cmdline:
+        to = "uoft-aruba cpsec-whitelist"
+        cmd = cpsec_whitelist.run
+    else:
+        raise ValueError(f"command {cmdline} is not deprecated")
 
+    #TODO: convert this into a log.warn msg once we've sorted out logging
     warn(
         FutureWarning(
             f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."

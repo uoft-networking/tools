@@ -74,22 +74,21 @@ def deprecated():
     import sys
     from warnings import warn
 
-    from_ = sys.argv[0]
-    match from_:
-        case "uoft_scripts":
-            to = "uoft-scripts"
-            cmd = app
-        case "utsc.scripts" if len(sys.argv) > 1 and sys.argv[1] == "aruba":
-            from_ = "utsc.scripts aruba"
-            to = "uoft-aruba"
-            from uoft_aruba.cli import app as aruba_app
-            cmd = aruba_app
-        case "utsc.scripts":
-            to = "uoft-scripts"
-            cmd = app
-        case _:
-            raise Exception("Unknown script name")
+    cmdline = " ".join(sys.argv)
+    if (from_ := "uoft_scripts") in cmdline:
+        to = "uoft-scripts"
+        cmd = app
+    elif (from_ := "utsc.scripts") in cmdline:
+        to = "uoft-scripts"
+        cmd = app
+    elif (from_ := "utsc.scripts aruba") in cmdline:
+        to = "uoft-aruba"
+        from uoft_aruba.cli import app as aruba_app
+        cmd = aruba_app
+    else:
+        raise ValueError(f"command {cmdline} is not deprecated")
 
+    #TODO: convert this into a log.warn msg once we've sorted out logging
     warn(
         FutureWarning(
             f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."

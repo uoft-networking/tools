@@ -179,7 +179,7 @@ def callback(
 
 def get_cache_dir(cache_dir: Optional[Path] = None):
     if not cache_dir:
-            cache_dir = settings().generate.templates_dir
+        cache_dir = settings().generate.templates_dir
     return cache_dir
 
 
@@ -316,23 +316,21 @@ def deprecated():
     import sys
     from warnings import warn
 
-    from_ = sys.argv[0]
-    match from_:
-        case "uoft_switchconfig":
-            to = "uoft-switchconfig"
-            cmd = app
-        case "utsc.switchconfig":
-            to = "uoft-switchconfig"
-            cmd = app
-        case _:
-            raise Exception("Unknown script name")
+    cmdline = " ".join(sys.argv)
+    if (from_ := "uoft_switchconfig") in cmdline:
+        to = "uoft-switchconfig"
+    elif (from_ := "utsc.switchconfig") in cmdline:
+        to = "uoft-switchconfig"
+    else:
+        raise ValueError(f"command {cmdline} is not deprecated")
 
+    #TODO: convert this into a log.warn msg once we've sorted out logging
     warn(
         FutureWarning(
             f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."
         )
     )
-    cmd()
+    app()
 
 
 if __name__ == "__main__":
