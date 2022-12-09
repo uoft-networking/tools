@@ -1,10 +1,19 @@
 from . import settings
 from .api import SnipeITAPI
+from uoft_core.prompt import Prompt
 
 
-def snipe_checkout_asset(asset: int, location_id: int = None): # type: ignore
+def snipe_checkout_asset(asset: int, location_id: int | None):  # type: ignore
     s = settings()
-    
     api = SnipeITAPI.from_settings(s)
-    print(f"Asset {asset} checkout:")
+    locations = {location["name"]: location["id"] for location in api.lookup_locations_raw().json()["rows"]}
+    if location_id is None:
+        prompt = Prompt(s.util.history_cache)
+        location_names = list(locations.keys())
+        name = prompt.get_from_choices(
+            "Location name to be checked out to", location_names, description=""
+        )  # description can be removed once made optional.
+        location_id: int = locations[name]
+    alpha_id = {value: key for key, value in locations.items()}[location_id]
     api.checkout_asset(asset, location_id)
+    print(f"Asset {asset:0>5} checked out to {alpha_id}")

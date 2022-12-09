@@ -1,17 +1,13 @@
-import requests
 from . import settings
 from .api import SnipeITAPI
 from .generate import generate_label
 from .print import system_print_label
 import sys
-import re
+from uoft_core import Prompt
 
 
-def snipe_batch_provision(names: list[str], model_id: int = None, location_id: int = None): # type: ignore 
+def snipe_batch_provision(names: list[str], model_id: int = None, location_id: int = None):  # type: ignore
     s = settings()
-    if model_id is None:
-        model_id = s.default_model_id
-
     api = SnipeITAPI.from_settings(s)
 
     try:
@@ -34,7 +30,17 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
                     break
                 else:
                     asset = api.create_asset(model_id, mac_addr, name, serial)
+                    locations = {location["name"]: location["id"] for location in api.lookup_locations_raw().json()["rows"]}
+                    if location_id is None:
+                        prompt = Prompt(s.util.history_cache)
+                        location_names = list(locations.keys())
+                        name = prompt.get_from_choices(
+                            "Location name to be checked out to", location_names, description=""
+                        )  # description can be removed once made optional.
+                        location_id: int = locations[name]
+                    alpha_id = {value: key for key, value in locations.items()}[location_id]
                     api.checkout_asset(asset, location_id)
+                    print(f"Asset {asset:0>5} checked out to {alpha_id}")
                     generate_label(asset)
                     system_print_label()
             else:

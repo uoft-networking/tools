@@ -258,9 +258,7 @@ def make_label(type_, item_num, input_file, output_file):
             if tag in data:
                 asset_data[tag] = data[tag]
             else:
-                notify(
-                    f"WARNING: template field {{ {tag} }} not found in data returned from server."
-                )
+                notify(f"WARNING: template field {{ {tag} }} not found in data returned from server.")
 
         # modify template
         generate_qr_code(type_, item_num, template_info, tempdir)
@@ -384,9 +382,7 @@ def get_info_from_template(tempdir) -> dict:
     with open(str(content_xml_path)) as f:
         parsed_template = pystache.parse(f.read())
         info["template_tags"] = [
-            item.key
-            for item in parsed_template._parse_tree
-            if type(item) is pystache.parser._EscapeNode
+            item.key for item in parsed_template._parse_tree if type(item) is pystache.parser._EscapeNode
         ]
 
     return info
@@ -445,9 +441,7 @@ def get_info_from_server(item_type, item_id) -> dict:
         return clean_dict
 
     s = settings()
-    url = "https://{base_url}/{type}/{id}".format(
-        base_url=s.snipeit_hostname + "/api/v1", type="hardware", id=item_id
-    )
+    url = "https://{base_url}/{type}/{id}".format(base_url=s.snipeit_hostname + "/api/v1", type="hardware", id=item_id)
     headers = {
         "authorization": "Bearer " + s.api_bearer_key.get_secret_value(),
         "accept": "application/json",
@@ -456,9 +450,7 @@ def get_info_from_server(item_type, item_id) -> dict:
 
     if "status" in data and data["status"] == "error":
         msg = data["messages"]
-        sys.stderr.write(
-            f"Received the following error from the Snipe-IT server: {msg}\n"
-        )
+        sys.stderr.write(f"Received the following error from the Snipe-IT server: {msg}\n")
         sys.exit(1)
     else:
         data = flatten(data)
@@ -497,9 +489,7 @@ def generate_qr_code(item_type, item_number, template_info, tempdir):
     """
     s = settings()
     qr_code_url = "{base_url}/{type}/{id}"
-    qr_code_url = qr_code_url.format(
-        base_url=s.snipeit_hostname + "api/v1", type=item_type, id=item_number
-    )
+    qr_code_url = qr_code_url.format(base_url=s.snipeit_hostname + "api/v1", type=item_type, id=item_number)
     qr_code_file = sorted(tempdir.glob("Pictures/*"))[0]
     imgdata = qrcode.make(qr_code_url)
     dimensions = template_info["qr_code_dimensions"]
@@ -552,9 +542,7 @@ def pack_template(tempdir, output_file, compression_info):
         for file in tempdir.glob("**/*"):
             arcname = file.relative_to(tempdir)
             compress_type = compression_info.get(arcname)
-            label_file.write(
-                str(file), arcname=str(arcname), compress_type=compress_type
-            )
+            label_file.write(str(file), arcname=str(arcname), compress_type=compress_type)
 
 
 if __name__ == "__main__":
