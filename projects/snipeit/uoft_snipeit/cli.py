@@ -26,17 +26,17 @@ def callback():
     pass
 
 
-@app.command(help="Create an asset.")
+@app.command(help="Create an asset.", no_args_is_help=True)
 def create_asset(mac_addr: str, name: str, serial: str, model_id: int = 138):
     snipe_create_asset(mac_addr, name, serial, model_id)
 
 
-@app.command(help="Checkout an asset.")
+@app.command(help="Checkout an asset.", no_args_is_help=True)
 def checkout_asset(asset: int, location_id: int = typer.Option(None)):
     snipe_checkout_asset(asset, location_id)
 
 
-@app.command(help="Generage an asset label.")
+@app.command(help="Generage an asset label.", no_args_is_help=True)
 def generate_label(asset: int):
     snipe_generate_label(asset)
 
@@ -47,7 +47,8 @@ def print_label():
 
 
 @app.command(
-    help="Single provision from INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for the given asset provided."
+    help="Single provision from INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for the given asset provided.",
+    no_args_is_help=True,
 )
 def single_provision(
     mac_addr: str, name: str, serial: str, model_id: int = 138, location_id: int = typer.Option(None)
@@ -59,7 +60,8 @@ def single_provision(
 
 
 @app.command(
-    help="Batch provisioning from FILE and INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for each given asset name. Names are taken from file/interactive input, and Mac's/Serials are taken from interactive input, in pairs of two, typically scanned via barcode scanner.\n\nIf FILE is a single dash (ex. '-'), data will be read from stdin.\n\n-Note the current default model-id is for an Aruba AP 535, supply the --model-id option as an argument along with a different model-id if required."
+    help="Batch provisioning from FILE and INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for each given asset name. Names are taken from file/interactive input, and Mac's/Serials are taken from interactive input, in pairs of two, typically scanned via barcode scanner.\n\nIf FILE is a single dash (ex. '-'), data will be read from stdin.\n\n-Note the current default model-id is for an Aruba AP 535, supply the --model-id option as an argument along with a different model-id if required.",
+    no_args_is_help=True,
 )
 def batch_provision(
     names_list: Path = typer.Argument(
