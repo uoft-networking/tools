@@ -11,6 +11,18 @@ from setuptools_scm import get_version
 def all_projects():
     return sorted(ROOT.glob("projects/*"))
 
+def all_projects_by_name():
+    return set([p.name for p in all_projects()])
+
+def all_prrojects_by_name_except_core():
+    return all_projects_by_name().symmetric_difference({"core"})
+
+@task
+def cog_files(c: Context):
+    "Run cog against all cog files in the repo"
+    c.run("cog -r -I . projects/*/README.md")
+
+
 
 def needs_sudo(c: Context):
     "called from functions which need to run sudo. pulls sudo password from `pass sudo` if sudo password not already set"
@@ -62,14 +74,13 @@ def test_all(c: Context):
 @task()
 def coverage(c: Context):
     """run coverage on all projects"""
-    c.run("pytest --cov-report xml:cov.xml --cov-report term-missing --cov")
+    c.run("pytest --cov-config=.coveragerc --cov-report xml:cov.xml --cov")
 
 
 @task()
 def list_projects(c: Context):
     """list all projects"""
-    for p in all_projects():
-        print(p.name)
+    print(all_projects_by_name())
 
 
 @task()
@@ -89,7 +100,7 @@ def update_venv(c: Context):
 
 
 @task()
-def install_editable(c: Context, project: str):
+def install_editable(c: Context, project: str, include_core: bool = True):
     """install a project in editable mode"""
     from . import ROOT
 
@@ -105,9 +116,9 @@ def install_editable(c: Context, project: str):
 @task()
 def install_editable_all(c: Context):
     """install all projects in editable mode"""
-    core_first = lambda p: 0 if p.name == "core" else 1
-    for p in sorted(all_projects(), key=core_first):
-        install_editable(c, p.name)
+    install_editable(c, "core")
+    for p in all_prrojects_by_name_except_core():
+        install_editable(c, p, include_core=False)
 
 
 @task()

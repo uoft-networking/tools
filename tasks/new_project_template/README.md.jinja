@@ -91,11 +91,11 @@ Configuration is loaded from the following sources in order:
 3. Environment variables. Environment variables are loaded from the `{{name|upper}}_` namespace. For example, the `foo` configuration option can be set by setting the `{{name|upper}}_FOO` environment variable.
 
 Configuration Options:
-| Option | Type | Title | Description | Default |
-| ------ | ---- | ----- | ----------- | ------- |
-{%- for name, opt in config_opts.items() %}
-| {{name}} | {{opt.type}} | {{opt.title}} | {{opt.description}} | {{opt.default}} |
-{%- endfor %}
+<!--
+[[[cog 
+import tasks.codegen as c; c.gen_conf_table('uoft_snipeit')
+]]] -->
+<!--[[[end]]] -->
 
 ## License
 
