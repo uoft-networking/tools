@@ -1,14 +1,19 @@
+import os, sys
 from enum import Enum, auto
 from pathlib import Path
 from typing import Literal
+import select
+
 
 from pydantic import BaseModel
 from pydantic.types import SecretStr, DirectoryPath, FilePath
 from uoft_core import StrEnum, Util
+import pyte
 
 from uoft_core.prompt import Prompt
 
 from _pytest.monkeypatch import MonkeyPatch
+
 
 class File(StrEnum):
     write = object()
@@ -39,9 +44,60 @@ class Ex(BaseModel):
     a_list_of_str: list[str]
     a_dict_of_str: dict[str, str]
     a_model: Sub
+    
+def _wait_for_screen_update(child_pty_file_descriptor, vty_input_stream):
+    """Wait for the child process to finish writing to "screen", pipe contents to the vty for analysis"""
+    while True:
+        try:
+            [child_pty_file_descriptor], _, _ = select.select(
+                [child_pty_file_descriptor], [], [], 1)
+        except (KeyboardInterrupt, ValueError):
+            # either test was interrupted or the
+            # file descriptor of the child process
+            # provides nothing to be read
+            break
+        else:
+            try:
+                # scrape screen of child process
+                data = os.read(child_pty_file_descriptor, 1024)
+                vty_input_stream.feed(data)
+            except OSError:
+                # reading empty
+                break
 
+def test_unmocked_prompt():
+    # create pseudo-terminal
+    pid, fd = os.forkpty()
+    if pid == 0:
+        # We are now in the child side of the fork
+        # Here we will run the program we want to test
+        p = Prompt(Util('prompt_test').history_cache)
+        res = p.from_model(Ex)
+        assert res
+        sys.exit(0)
+    else:
+        # We are now in the parent side of the fork
 
-def test_prompt_with_valid_inputs(monkeypatch: MonkeyPatch, tmp_path: Path):
+        # create VTY
+        screen = pyte.Screen(80, 24)
+        stream = pyte.ByteStream(screen)
+        # Here we will wait for the child to finish
+        # writing to its stdout, and then we will
+        # read the contents of the child's stdout
+        # and feed it to the VTY for analysis
+        _wait_for_screen_update(fd, stream)
+
+        # First, we'll print out the contents of the VTY, so we can see what it looks like
+        # in the event of a pytest failure
+        for line in screen.display:
+            print(line)
+
+        # now, do some assertions and interact with the child process
+        assert 'a_bool: ' in screen.display[0]
+        
+        
+def test_mocked_prompt(monkeypatch: MonkeyPatch, tmp_path: Path):
+    """Mock out prompt_toolkit's PromptSession as best we can, and test Prompt against our mock."""
     class mockdoc:
         def __init__(self, v) -> None:
             self.text = v
@@ -91,10 +147,12 @@ def test_prompt_with_valid_inputs(monkeypatch: MonkeyPatch, tmp_path: Path):
 
     monkeypatch.setattr('uoft_core.prompt.PromptSession', mocksession)
 
-    p = Prompt(Util('prompt_test'))
+    p = Prompt(Util('prompt_test').history_cache)
     res = p.from_model(Ex)
     assert res
 
+
+
 def _debug():
-    p = Prompt(Util('prompt_test'))
+    p = Prompt(Util('prompt_test').history_cache)
     print(p.from_model(Ex))

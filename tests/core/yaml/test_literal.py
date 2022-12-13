@@ -189,6 +189,10 @@ class TestNoIndent:
         yaml.round_trip(inp)
 
 
+@pytest.mark.skip(
+    reason="All these tests assert that root scalars can be round-tripped with indentation intact. "
+    "This is not the case, and we do not want to suuport this."
+)
 class Test_RoundTripLiteral:
     def test_rt_root_literal_scalar_no_indent(self):
         yaml = YAML()
