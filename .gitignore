@@ -7,7 +7,7 @@ __pycache__
 *.dist-info.coverage
 .*_cache/
 cov.xml
-.coverage
+.coverage*
 *.pkl
 *.uoft_core.debug*
 # Project-specific entries

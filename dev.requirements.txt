@@ -17,3 +17,4 @@ ipython >= 8
 copier >= 7
 ruff >= 0.0.149
 git+https://github.com/alextremblay/pypi-command-line
+cogapp >= 3.3

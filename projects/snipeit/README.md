@@ -35,6 +35,7 @@ uoft snipeit print-label
 ```
 This will print 'Asset-Label.jpg' in your $HOME directory.  NOTE: This program assumes you are using a brother QL-800 printer with 29x90mm die-cut labels.
 
+Collection of tools to interact with SnipeIT, currently focused around Access Point provisioning, but will probably be expanded to support all asset types in general.
 single-provision  -  Single provision from INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for the given asset provided.
 ```console
 uoft snipeit single-provision 12:12:12:12:12:12 Testname 1234567890
@@ -156,10 +157,15 @@ Configuration is loaded from the following sources in order:
 3. Environment variables. Environment variables are loaded from the `SNIPEIT_` namespace. For example, the `foo` configuration option can be set by setting the `SNIPEIT_FOO` environment variable.
 
 Configuration Options:
+<!--
+[[[cog 
+import tasks.codegen as c; c.gen_conf_table('uoft_snipeit')
+]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
-| api_bearer_key | SecretStr |  | API bearer key used to authenticate to the SnipeIT API. |  |
+| api_bearer_key | SecretStr |  | Please enter your API key. if you don't have one, a new API key can be generated for your account.  Log in to Snipe-IT, click on your account on the top-right of the screen, go to 'Manage API Keys',  and click 'Create New Token' to generate a new API key. |  |
 | snipeit_hostname | str |  | Hostname of SnipeIT instance. |  |
+<!--[[[end]]] -->
 
 ## License
 
