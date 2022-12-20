@@ -36,7 +36,7 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
     "Returns a list of valid AP_GROUPs and exits."
     s = settings()
     with s.md_api_connections[0] as md1:
-        raw_controller_ap_groups = md1.wlan.get_ap_groups()["_data"]["ap_group"]
+        raw_controller_ap_groups = md1.get.ap_groups()["_data"]["ap_group"]
         controller_ap_groups = []
         for raw_controller_ap_group in raw_controller_ap_groups:
             controller_ap_groups.append(
@@ -111,20 +111,10 @@ def Verify_And_Create(input_table: InputTable):
     outer_lambda = lambda row: tuple(map(lambda item: item[:75], row))
     input_table = list(map(outer_lambda, input_table))
     # Lambda prevent input overflow.
-    passwd = settings().password.get_secret_value()
     s = settings()
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
-    with (
-        ArubaRESTAPIClient(
-            f"{s.md_hostnames[0]}:4343", f"{s.svc_account}", passwd
-        ) as host1
-    ):
+    with s.md_api_connections[0] as host1, s.md_api_connections[1] as host2:
         Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MM
-    with (
-        ArubaRESTAPIClient(
-            f"{s.mm_vrrp_hostname}:4343", f"{s.svc_account}", passwd
-        ) as host2
-    ):
         Check_Input_Names_Macs(
             host2, input_table
         )  # Confirm mac format / names or macs not already in use on MM.
@@ -133,7 +123,7 @@ def Verify_And_Create(input_table: InputTable):
 
 def Check_Input_Groups(host: ArubaRESTAPIClient, input_table: InputTable):
     "Verifies input AP_GROUPs data for script, returns an error if an input AP_GROUP does not exist on Managed Device."
-    raw_controller_ap_groups = host.wlan.get_ap_groups()["_data"]["ap_group"]
+    raw_controller_ap_groups = host.get.ap_groups()["_data"]["ap_group"]
     controller_ap_groups = []
     group_assertion_list = []
     for raw_controller_ap_group in raw_controller_ap_groups:

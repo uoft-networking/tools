@@ -7,7 +7,7 @@ class ArubaRESTAPIError(Exception):
 
 
 class ArubaRESTAPIClient:
-    def __init__(self, host, username, password, ssl_verify = False) -> None:
+    def __init__(self, host, username, password, default_config_path = "/mm", ssl_verify = False) -> None:
         self.host = host
         self.auth = dict(username=username, password=password)
         self.session = Session()
@@ -15,7 +15,7 @@ class ArubaRESTAPIClient:
             {"Content-Type": "application/json", "Accept": "application/json"}
         )
 
-        self.default_config_path = "/mm"
+        self.default_config_path = default_config_path
 
         # pylint: disable=no-member
         # Aruba controller's cert is self-signed, and cannot be verified
@@ -32,7 +32,7 @@ class ArubaRESTAPIClient:
         res = r.json()["_global_result"]
         token = res["UIDARUBA"]
         csrf_token = res["X-CSRF-Token"]
-        
+
         self.session.cookies["SESSION"] = token
         self.session.headers.update(
             {"SESSION": token, "uidaruba": token, "X-CSRF-Token": csrf_token}
@@ -145,9 +145,9 @@ class ArubaRESTAPIClient:
                 return self.post(
                     "wdb_cpsec_add_mac",
                     data={
-                        "mac_address": mac_address,
+                        "name": mac_address,
                         "ap_group": ap_group,
-                        "ap_name": ap_name,
+                        "ap_name": ap_name
                     },
                 )
 
@@ -176,6 +176,10 @@ class ArubaRESTAPIClient:
                     {"name": mac_address, "revoke-text": revoke_text},
                 )
 
+            @staticmethod
+            def get_cpsec_whitelist():
+                return self.showcommand("show whitelist-db cpsec")['Control-Plane Security Whitelist-entry Details']
+
         return AP_Provisioning
 
     @property
@@ -200,9 +204,10 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def get_ap_groups():
-                return self.session.get(
-                    self.endpoint.object + "/ap_group",
+                res = self.session.get(
+                    self.endpoint.object + "/ap_group", params={"config_path": "/md/UTSC"}
                 ).json()
+                return res["_data"]["ap_group"]
 
             @staticmethod
             def get_ap_client_blacklist():

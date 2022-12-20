@@ -17,6 +17,12 @@ class Settings(BaseSettings):
         description="Password used to authenticate to the Aruba API.",
     )
 
+    default_config_path: str = Field(
+        "/md",
+        title="Aruba API Default Config Path",
+        description="Default config path used for API requests. Ex /md or /md/UTSC"
+    )
+
     @root_validator(pre=True)
     def _catch_deprecated_configs(cls, values):  # pylint: disable=no-self-argument
         if "md_vrrp_hostname" in values:
@@ -44,6 +50,7 @@ class Settings(BaseSettings):
             f"{self.mm_vrrp_hostname}:4343",
             self.svc_account,
             self.password.get_secret_value(),
+            self.default_config_path
         )
 
     class Config(BaseSettings.Config):
