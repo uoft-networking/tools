@@ -13,9 +13,9 @@ as well as modifying their certs to 'factory-approved' so the registrations do n
 import typer
 import sys
 import re
-from uoft_core.aruba import ArubaRESTAPIClient
+from uoft_aruba.api import ArubaRESTAPIClient
 from pathlib import Path
-from . import settings
+from .. import settings
 
 InputTable = list[tuple[str, str, str]]
 
@@ -35,20 +35,15 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
 ):
     "Returns a list of valid AP_GROUPs and exits."
     s = settings()
-    with (
-        ArubaRESTAPIClient(
-            f"{s.md_hostnames[0]}:4343",
-            s.svc_account,
-            s.password.get_secret_value(),
-        ) as host1
-    ):
-        raw_controller_ap_groups = host1.wlan.get_ap_groups()["_data"]["ap_group"]
+    with s.md_api_connections[0] as md1:
+        raw_controller_ap_groups = md1.wlan.get_ap_groups()["_data"]["ap_group"]
         controller_ap_groups = []
         for raw_controller_ap_group in raw_controller_ap_groups:
-            controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
+            controller_ap_groups.append(
+                raw_controller_ap_group["profile-name"].rpartition("'")[2]
+            )
         print("Below you will find a list of valid AP_GROUPs to use in your input:")
         print(*controller_ap_groups, sep="\n")
-        sys.exit()
 
 
 @run.command(  # Create the 'from-file' subcommand within 'provision'.
@@ -74,7 +69,8 @@ def Provision(
 
     If FILENAME is a single dash (ex. "-"), data will be read from stdin.\n\n
 
-    Note that my example AP_GROUP is "-CC Lab" with a space.  This does -not- need to be escaped when you are importing from CSV.
+    Note that my example AP_GROUP is "-CC Lab" with a space.
+    This does -not- need to be escaped when you are importing from CSV.
     Example:
     Given a file names `my_aps.csv` with the following contents:\n
     00:01:10:12:02:21,-CC Lab,test_ap_name_18\n
@@ -118,10 +114,20 @@ def Verify_And_Create(input_table: InputTable):
     passwd = settings().password.get_secret_value()
     s = settings()
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
-    with (ArubaRESTAPIClient(f"{s.md_hostnames[0]}:4343", f"{s.svc_account}", passwd) as host1):
+    with (
+        ArubaRESTAPIClient(
+            f"{s.md_hostnames[0]}:4343", f"{s.svc_account}", passwd
+        ) as host1
+    ):
         Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MM
-    with (ArubaRESTAPIClient(f"{s.mm_vrrp_hostname}:4343", f"{s.svc_account}", passwd) as host2):
-        Check_Input_Names_Macs(host2, input_table)  # Confirm mac format / names or macs not already in use on MM.
+    with (
+        ArubaRESTAPIClient(
+            f"{s.mm_vrrp_hostname}:4343", f"{s.svc_account}", passwd
+        ) as host2
+    ):
+        Check_Input_Names_Macs(
+            host2, input_table
+        )  # Confirm mac format / names or macs not already in use on MM.
         Create_Whitelist_Entry_CPSEC_And_Approve(host2, input_table)
 
 
@@ -131,20 +137,27 @@ def Check_Input_Groups(host: ArubaRESTAPIClient, input_table: InputTable):
     controller_ap_groups = []
     group_assertion_list = []
     for raw_controller_ap_group in raw_controller_ap_groups:
-        controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
+        controller_ap_groups.append(
+            raw_controller_ap_group["profile-name"].rpartition("'")[2]
+        )
     input_ap_groups = [line[1] for line in input_table]
     for input_ap_group in input_ap_groups:
         if input_ap_group not in controller_ap_groups:
             group_assertion_list.append(input_ap_group)
         else:
             print(f"Verifying Input AP_GROUP '{input_ap_group}' is valid...GOOD")
-    assert (
-        len(group_assertion_list) == 0
-    ), f"The following AP_GROUP(s) are -not- configured on the controller!\n '{group_assertion_list}'\nConfirm input!  Run --help for help."
+    if len(group_assertion_list) != 0:
+        raise Exception(
+            f"The following AP_GROUP(s) are -not- configured on the controller!\n \
+            '{group_assertion_list}'\nConfirm input!  Run --help for help."
+        )
 
 
 def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
-    "Verifies input AP_NAMEs and MAC_ADDRESSes data for script, returns an error if an input AP_NAME or MAC_ADDRESS already exists in CPSEC Whitelist."
+    """
+    Verifies input AP_NAMEs and MAC_ADDRESSes data for script,
+    returns an error if an input AP_NAME or MAC_ADDRESS already exists in CPSEC Whitelist.
+    """
     raw_controller_ap_names_macs = host.showcommand("show whitelist-db cpsec")[
         "Control-Plane Security Whitelist-entry Details"
     ]
@@ -160,9 +173,12 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
             name_assertion_list.append(input_ap_name)
         else:
             print(f"Verifying Input AP_NAME {input_ap_name} is not in use...GOOD")
-    assert (
-        len(name_assertion_list) == 0
-    ), f"The following AP_NAME(s) are already in use on the controller!\n '{name_assertion_list}'\nConfirm input!  Run --help for help."
+
+    if len(name_assertion_list) != 0:
+        raise Exception(
+            f"The following AP_NAME(s) are already in use on the controller!\n \
+            '{name_assertion_list}'\nConfirm input!  Run --help for help."
+        )
     for raw_ap_mac in raw_controller_ap_names_macs:
         controller_ap_macs.append(raw_ap_mac["MAC-Address"])
     input_mac_addresses = [line[0] for line in input_table]
@@ -175,23 +191,30 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
             raise Exception(f"Mac address format incorrect for {input_ap_mac}")
         if input_ap_mac in controller_ap_macs:
             mac_assertion_list.append(input_ap_mac)
-    assert (
-        len(mac_assertion_list) == 0
-    ), f"The following MAC_ADDRESS(es) are already in use on the controller!\n '{mac_assertion_list}'\nConfirm input!  Run --help for help."
+    if len(mac_assertion_list) != 0:
+        raise Exception(
+            f"The following MAC_ADDRESS(es) are already in use on the controller!\n \
+            '{mac_assertion_list}'\nConfirm input!  Run --help for help."
+        )
 
 
-def Create_Whitelist_Entry_CPSEC_And_Approve(host: ArubaRESTAPIClient, input_table: InputTable):
+def Create_Whitelist_Entry_CPSEC_And_Approve(
+    host: ArubaRESTAPIClient, input_table: InputTable
+):
     "Creates the CPSEC Whitelist entries, and then modifies this certificate types to 'factory-approved'."
     for line in input_table:
         input_mac_address, input_ap_group, input_ap_name = line
-        host.ap_provisioning.wdb_cpsec_add_mac(input_mac_address, input_ap_group, input_ap_name)
+        host.ap_provisioning.wdb_cpsec_add_mac(
+            input_mac_address, input_ap_group, input_ap_name
+        )
         print(
             f"Added new CPSEC whitelist entry for {input_ap_name} / {input_mac_address}"
         )  # Create a CPSEC whitelist entry, for each WAP in the supplied file.
         host.ap_provisioning.wdb_cpsec_modify_mac_factory_approved(input_mac_address)
+        # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
         print(
             f"Modified CPSEC entry for {input_ap_name} / {input_mac_address} to factory_approved"
-        )  # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
+        )
 
 
 def _debug():

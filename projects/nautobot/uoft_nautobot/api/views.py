@@ -9,7 +9,7 @@ from rest_framework.exceptions import APIException
 from rest_framework import status, fields as f
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
 
-from uoft_core.aruba import ArubaRESTAPIClient
+from uoft_aruba.api import ArubaRESTAPIClient
 from uoft_core import txt
 
 

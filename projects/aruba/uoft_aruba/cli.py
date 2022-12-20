@@ -1,6 +1,7 @@
+from .cli_commands import cpsec_whitelist, station_blacklist
 import typer
 
-from . import Settings, cpsec_whitelist, stm_blacklist
+from . import Settings
 
 
 app = typer.Typer(
@@ -10,7 +11,7 @@ app = typer.Typer(
     help=__doc__,  # Use this module's docstring as the main program help text
 )
 app.add_typer(cpsec_whitelist.run, name="cpsec-whitelist")
-app.add_typer(stm_blacklist.app, name="stm-blacklist")
+app.add_typer(station_blacklist.app, name="station-blacklist")
 
 
 @app.callback()
@@ -35,9 +36,8 @@ def deprecated():
         raise ValueError(f"command {cmdline} is not deprecated")
 
     warn(
-        FutureWarning(
-            f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."
-        )
+        f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version.",
+        DeprecationWarning,
     )
     cmd()
 

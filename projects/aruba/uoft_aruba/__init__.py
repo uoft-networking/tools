@@ -1,5 +1,5 @@
 from uoft_core import BaseSettings, Field, root_validator
-from uoft_core.aruba import ArubaRESTAPIClient
+from uoft_aruba.api import ArubaRESTAPIClient
 from pydantic.types import SecretStr
 
 
