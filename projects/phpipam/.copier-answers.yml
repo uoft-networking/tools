@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: tasks/new_project_template
+author_email: kyle.fozo@utoronto.ca
+author_name: Kyle Fozo
+config_opts:
+    password:
+        default: None
+        type: SecretStr
+    username:
+        default: admin
+        type: str
+description: A collection of tool to interact with a phpIPAM instance.
+name: phpipam

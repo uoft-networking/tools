@@ -23,7 +23,7 @@ class SnipeITAPI:
         asset = asset_search[0]
         return asset
 
-    def checkout_asset(self, asset: int, location_id: int):
+    def checkout_asset(self, asset: int, location_id: int, name: str | None):
         checkout_url = f"https://{self.hostname}/api/v1/hardware/{asset}/checkout"
         status_url = f"https://{self.hostname}/api/v1/hardware/{asset}"
         asset_tag = f"{asset:0>5}"
@@ -32,6 +32,7 @@ class SnipeITAPI:
             "status_id": 7,
             "assigned_location": location_id,
             "asset_tag": asset_tag,
+            "name": name,
         }
         headers = self.headers()
         r = requests.post(checkout_url, json=payload, headers=headers)
@@ -48,6 +49,12 @@ class SnipeITAPI:
         headers = self.headers()
         locations = requests.get(query_url, headers=headers)
         return locations
+
+    def lookup_serial_raw(self, serial):
+        query_url = f"https://{self.hostname}/api/v1/hardware/byserial/{serial}"
+        headers = self.headers()
+        device = requests.get(query_url, headers=headers)
+        return device
 
     def headers(self) -> dict:
         return {

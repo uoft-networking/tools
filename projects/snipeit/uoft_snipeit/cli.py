@@ -11,6 +11,8 @@ from .checkout import snipe_checkout_asset
 from .generate import generate_label as snipe_generate_label
 from .print import system_print_label
 from .batch import snipe_batch_provision
+from .serial_lookup import snipe_serial_lookup
+from .location_lookup import snipe_location_lookup
 
 app = typer.Typer(
     name="snipeit",
@@ -32,8 +34,8 @@ def create_asset(mac_addr: str, name: str, serial: str, model_id: int = 138):
 
 
 @app.command(help="Checkout an asset.", no_args_is_help=True)
-def checkout_asset(asset: int, location_id: int = typer.Option(None)):
-    snipe_checkout_asset(asset, location_id)
+def checkout_asset(asset: int, location_id: int = typer.Option(None), name: str = typer.Option(None)):
+    snipe_checkout_asset(asset, location_id, name)
 
 
 @app.command(help="Generage an asset label.", no_args_is_help=True)
@@ -54,7 +56,7 @@ def single_provision(
     mac_addr: str, name: str, serial: str, model_id: int = 138, location_id: int = typer.Option(None)
 ):
     asset = snipe_create_asset(mac_addr, name, serial, model_id)
-    snipe_checkout_asset(asset, location_id)
+    snipe_checkout_asset(asset, location_id, name)
     snipe_generate_label(asset)
     system_print_label()
 
@@ -81,6 +83,22 @@ def batch_provision(
     else:
         names = names_list.open().readlines()
     snipe_batch_provision(names, model_id)
+
+
+@app.command(
+    help="Returns the asset_id of a given serial.",
+    no_args_is_help=True,
+)
+def asset_id_lookup(serial):
+    snipe_serial_lookup(serial)
+
+
+@app.command(
+    help="Returns the location_id of a given building code.",
+    no_args_is_help=True,
+)
+def location_id_lookup(building_code):
+    snipe_location_lookup(building_code)
 
 
 def _debug():
