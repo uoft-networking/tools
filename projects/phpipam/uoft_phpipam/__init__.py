@@ -5,7 +5,7 @@ from pydantic.types import SecretStr
 class Settings(BaseSettings):
     """Settings for the phpipam application."""
 
-    phpipam_hostname: str = Field(
+    hostname: str = Field(
         description="Hostname of phpIPAM instance.",
     )
     username: str = Field(

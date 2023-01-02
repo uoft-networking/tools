@@ -50,4 +50,4 @@ class phpIPAMRESTAPIClient:
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "phpIPAMRESTAPIClient":
-        return cls(settings.phpipam_hostname, settings.username, settings.password.get_secret_value(), settings.app_id)
+        return cls(settings.hostname, settings.username, settings.password.get_secret_value(), settings.app_id)

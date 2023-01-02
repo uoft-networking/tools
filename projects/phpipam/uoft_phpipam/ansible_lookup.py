@@ -7,7 +7,7 @@ import sys
 
 def phpipam_ansible_lookup(serial):
     s = settings()
-    with (phpIPAMRESTAPIClient(s.phpipam_hostname, s.username, s.password.get_secret_value(), s.app_id) as host):
+    with (phpIPAMRESTAPIClient(s.hostname, s.username, s.password.get_secret_value(), s.app_id) as host):
         configuration_dict = defaultdict(str)
         devices = host.get_all_addresses_raw().json()["data"]
         device_info = next((device for device in devices if device["custom_Serial"] == f"{serial}"), None)
