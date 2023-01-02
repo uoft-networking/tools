@@ -114,11 +114,17 @@ Do not supply a password for this password store if you intend to use these tool
 
 3. Environment variables. Environment variables are loaded from the `PHPIPAM_` namespace. For example, the `foo` configuration option can be set by setting the `PHPIPAM_FOO` environment variable.
 
-Configuration Options:
+<!--
+[[[cog 
+import tasks.codegen as c; c.gen_conf_table('uoft_phpipam')
+]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
-| username | str |  |  | admin |
-| password | SecretStr |  |  | None |
+| phpipam_hostname | str |  | Hostname of phpIPAM instance. |  |
+| username | str |  | Username for phpIPAM instance. |  |
+| password | SecretStr |  | Password for phpIPAM instance. |  |
+| app_id | str |  | App id for API access. |  |
+<!--[[[end]]] -->
 
 ## License
 
