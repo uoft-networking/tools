@@ -9,3 +9,8 @@ Option #1: Homebrew
 brew tap uoft-networking/tools https://github.com/uoft-networking/tools
 brew install uoft-networking/tools/uoft_switchconfig
 ```
+
+[[[cog
+import cog
+]]]
+[[[end]]]

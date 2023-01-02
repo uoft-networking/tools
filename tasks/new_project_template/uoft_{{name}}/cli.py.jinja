@@ -18,12 +18,13 @@ app = typer.Typer(
 def callback():
     pass
 
+# Be sure to replace the below example commands with your own
 @app.command()
-def subcommand1(arg1: str, arg2: str, option1: bool = typer.Option(False, help="An example option")):
+def example_subcommand1(arg1: str, arg2: str, option1: bool = typer.Option(False, help="An example option")):
     print(arg1, arg2, option1)
 
 @app.command()
-def subcommand2(arg1: str, arg2: str, option1: bool = typer.Option(False, help="An example option")):
+def another_exampple_subcommand(arg1: str, arg2: str, option1: bool = typer.Option(False, help="An example option")):
     print(arg1, arg2, option1)
 
 def _debug():

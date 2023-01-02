@@ -46,8 +46,8 @@ All projects in this repository are versioned together. There is a single versio
 
 # Notes
 
-Each project should implement its own typer cli in `cli.py`. Each project's pyproject file (ie `projects/<project>/pyproject.toml`) should contain an entrypoint (or "script", as poetry calls them) that looks something like this:
+Each project should implement its own typer cli in `cli.py`. Each project's pyproject file (ie `projects/<project>/pyproject.toml`) should contain an entrypoint that looks something like this:
 ```toml
-[tool.poetry.scripts]
-"uoft_<project>" = "uoft_<project>.cli:app"
+[project.scripts]
+"uoft-<project>" = "uoft_<project>.cli:cli"
 ```

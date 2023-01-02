@@ -3,7 +3,7 @@ include = projects/*/uoft_*
 omit = projects/core/uoft_core/_vendor/*
 
 [report]
-show_missing = True
 exclude_lines =
     if __name__ == .__main__.:
     if os.environ.get('PYDEBUG'):
+    def _debug():

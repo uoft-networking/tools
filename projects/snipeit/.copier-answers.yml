@@ -2,12 +2,5 @@
 _src_path: tasks/new_project_template
 author_email: kyle.fozo@utoronto.ca
 author_name: Kyle Fozo
-config_opts:
-    api_bearer_key:
-        description: API bearer key used to authenticate to the SnipeIT API.
-        type: SecretStr
-    snipeit_hostname:
-        description: Hostname of SnipeIT instance.
-        type: str
 description: Collection of tools to interact with SnipeIT.
 name: snipeit

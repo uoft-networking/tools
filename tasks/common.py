@@ -11,9 +11,18 @@ from setuptools_scm import get_version
 def all_projects():
     return sorted(ROOT.glob("projects/*"))
 
+def all_projects_by_name():
+    return set([p.name for p in all_projects()])
+
+def all_projects_by_name_except_core():
+    return all_projects_by_name().symmetric_difference({"core"})
+
 
 def needs_sudo(c: Context):
-    "called from functions which need to run sudo. pulls sudo password from `pass sudo` if sudo password not already set"
+    """
+    Called from functions which need to run sudo. 
+    Pulls sudo password from `pass sudo` if sudo password not already set
+    """
     if not c.config.sudo.password:
         from uoft_core import shell
 
@@ -23,6 +32,11 @@ def needs_sudo(c: Context):
             raise Exception(
                 "sudo.password config not set, and shell command `pass sudo` failed"
             ) from e
+
+@task
+def cog_files(c: Context):
+    "Run cog against all cog files in the repo"
+    c.run("cog -r -I . projects/*/README.md")
 
 
 @task()
@@ -62,14 +76,13 @@ def test_all(c: Context):
 @task()
 def coverage(c: Context):
     """run coverage on all projects"""
-    c.run("pytest --cov-report xml:cov.xml --cov-report term-missing --cov")
+    c.run("pytest --cov-config=.coveragerc --cov-report xml:cov.xml --cov")
 
 
 @task()
 def list_projects(c: Context):
     """list all projects"""
-    for p in all_projects():
-        print(p.name)
+    print(all_projects_by_name())
 
 
 @task()
@@ -89,12 +102,12 @@ def update_venv(c: Context):
 
 
 @task()
-def install_editable(c: Context, project: str):
+def install_editable(c: Context, project: str, include_core: bool = True):
     """install a project in editable mode"""
     from . import ROOT
 
     if project != "core":
-        print(f"bumping uoft_core editable install version number...")
+        print("bumping uoft_core editable install version number...")
         install_editable(c, "core")
 
     print(f"installing projects/{project} in editable mode")
@@ -105,9 +118,9 @@ def install_editable(c: Context, project: str):
 @task()
 def install_editable_all(c: Context):
     """install all projects in editable mode"""
-    core_first = lambda p: 0 if p.name == "core" else 1
-    for p in sorted(all_projects(), key=core_first):
-        install_editable(c, p.name)
+    install_editable(c, "core")
+    for p in all_projects_by_name_except_core():
+        install_editable(c, p, include_core=False)
 
 
 @task()
@@ -120,7 +133,7 @@ def repl(c: Context, project: str):
 
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
 
-    print(f"starting repl with projects/{project} imported")
+    print(f"starting repl with uoft_{project} imported")
     with TemporaryDirectory() as tmpdir:
         prelude = Path(tmpdir) / "prelude.py"
         prelude.write_text(
@@ -134,10 +147,12 @@ def repl(c: Context, project: str):
                     import uoft_{project}
                     if hasattr(uoft_{project}, "Settings"):
                         Settings = uoft_{project}.Settings
+                    print("The following modules/functions are imported and available:")
+                    print("os, sys, Path, shell, txt, lst, chomptxt, Prompt, uoft_{project}, Settings")
                 """
             )
         )
-        os.system(f"ptpython -i {prelude}")
+        os.system(f"ptipython -i {prelude}")
 
 
 @task()
@@ -145,6 +160,16 @@ def changes_since_last_tag(c: Context):
     """print changes since last tag"""
     print("changes since last tag")
     c.run("git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
+
+
+@task()
+def global_deploy_pipx(c: Context):
+    """deploy all projects to /usr/local/bin via pipx"""
+    needs_sudo(c)
+    c.sudo("PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install --force projects/core")
+    spec = " ".join([f"projects/{p}" for p in all_projects_by_name_except_core()])
+    c.sudo(f"PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx inject --force uoft_core {spec}")
+
 
 
 @task()

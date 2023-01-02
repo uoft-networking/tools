@@ -1,4 +1,6 @@
 # Monorepo-wide entries
+/utm-tools*
+/prototyping
 __pycache__
 .venv
 /.pants.*
@@ -7,9 +9,10 @@ __pycache__
 *.dist-info.coverage
 .*_cache/
 cov.xml
-.coverage
+.coverage*
 *.pkl
 *.uoft_core.debug*
+
 # Project-specific entries
 nautobot_ssot_infoblox
 utsc_templates
@@ -19,4 +22,3 @@ utsc_templates
 !.venv/make_pipenv_install_here
 .uoft.core.debug.cache.*
 projects/aruba/.env
-/utm-tools*

@@ -1,4 +1,4 @@
-# uoft_aruba
+# uoft-aruba
 
 Collection of utilities for interacting with Aruba infrastructure
 

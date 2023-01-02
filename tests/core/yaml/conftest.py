@@ -1,6 +1,6 @@
-import pytest
-import monkeytype
-from monkeytype.config import DefaultConfig
+# import pytest
+# import monkeytype
+# from monkeytype.config import DefaultConfig
 
 # @pytest.fixture(scope='session', autouse=True)
 # def mt():

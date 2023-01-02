@@ -36,6 +36,7 @@ def test_golden_config(nautobot_initialized):
     golden_config_test()
 
 
+@pytest.mark.skip(reason="need to containerizer nautobot dev env")
 def test_runjob(nautobot_initialized):
     from nautobot.extras.management.commands.runjob import Command
 
