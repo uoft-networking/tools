@@ -120,7 +120,7 @@ import tasks.codegen as c; c.gen_conf_table('uoft_phpipam')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
-| phpipam_hostname | str |  | Hostname of phpIPAM instance. |  |
+| hostname | str |  | Hostname of phpIPAM instance. |  |
 | username | str |  | Username for phpIPAM instance. |  |
 | password | SecretStr |  | Password for phpIPAM instance. |  |
 | app_id | str |  | App id for API access. |  |
