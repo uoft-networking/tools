@@ -6,13 +6,7 @@ class Settings(BaseSettings):
     """Settings for the snipeit application."""
 
     api_bearer_key: SecretStr = Field(
-        description=chomptxt(
-            """
-            Please enter your API key. if you don't have one, a new API key can be generated for your account. 
-            Log in to Snipe-IT, click on your account on the top-right of the screen, go to 'Manage API Keys', 
-            and click 'Create New Token' to generate a new API key.
-            """,
-        )
+        description="User API bearer key used with SnipeIT instance.",
     )
     snipeit_hostname: str = Field(
         description="Hostname of SnipeIT instance.",

@@ -3,7 +3,7 @@ from .api import SnipeITAPI
 from uoft_core.prompt import Prompt
 
 
-def snipe_checkout_asset(asset: int, location_id: int | None):  # type: ignore
+def snipe_checkout_asset(asset: int, location_id: int | None, name: str | None):  # type: ignore
     s = settings()
     api = SnipeITAPI.from_settings(s)
     locations = {location["name"]: location["id"] for location in api.lookup_locations_raw().json()["rows"]}
@@ -15,5 +15,5 @@ def snipe_checkout_asset(asset: int, location_id: int | None):  # type: ignore
         )  # description can be removed once made optional.
         location_id: int = locations[name]
     alpha_id = {value: key for key, value in locations.items()}[location_id]
-    api.checkout_asset(asset, location_id)
+    api.checkout_asset(asset, location_id, name)
     print(f"Asset {asset:0>5} checked out to {alpha_id}")

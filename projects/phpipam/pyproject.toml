@@ -1,0 +1,31 @@
+[project]
+name = "uoft_phpipam"
+version = "0.0" # This field will be auto-populated by pyproject.py
+description = "A collection of tool to interact with a phpIPAM instance."
+authors = [
+    { name = "Kyle Fozo", email = "kyle.fozo@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
+]
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "uoft_core"
+]
+
+license = { text = "MIT" }
+
+[project.urls]
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/phpipam"
+
+[project.scripts]
+uoft-phpipam = "uoft_phpipam.cli:app"
+
+[build-system]
+requires = ["hatchling >= 1.6.0", "setuptools_scm"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata.hooks.custom]
+path = "pyproject.py"
+
+[tool.hatch.build]
+packages = ["uoft_phpipam"]

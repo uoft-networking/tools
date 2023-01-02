@@ -163,7 +163,7 @@ import tasks.codegen as c; c.gen_conf_table('uoft_snipeit')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
-| api_bearer_key | SecretStr |  | Please enter your API key. if you don't have one, a new API key can be generated for your account.  Log in to Snipe-IT, click on your account on the top-right of the screen, go to 'Manage API Keys',  and click 'Create New Token' to generate a new API key. |  |
+| api_bearer_key | SecretStr |  | User API bearer key used with SnipeIT instance. |  |
 | snipeit_hostname | str |  | Hostname of SnipeIT instance. |  |
 <!--[[[end]]] -->
 
