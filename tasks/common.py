@@ -87,6 +87,10 @@ def list_projects(c: Context):
 
 @task()
 def new_project(c: Context, name: str):
+    """create a new project from the copier template at tasks/new_project_template"""
+    # copier does not include the current directory in python path, so we need to add it
+    # this is needed so that copier can import jinja extensions from the tasks directory
+    os.environ["PYTHONPATH"] = str(ROOT)
     # copier does not like being run inside of an invoke task runner,
     # so we shell out to the system to call it instead
     os.system(
