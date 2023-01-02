@@ -1,14 +1,13 @@
 [project]
 name = "uoft_nautobot"
 version = "0.0" # This field will be auto-populated by pyproject.py
-description = "A collection of UofT-specific modifications and extensions to Nautobot."
-readme = "README.md"
+description = "A collection of UofT-specific modifications and extensions to Nautobot"
 authors = [
-  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
-  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
+    { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
-license = "MIT"
 requires-python = ">=3.10"
+readme = "README.md"
 dependencies = [
   "nautobot_ssot >= 1.1.0",
   "nautobot_golden_config",
@@ -24,6 +23,10 @@ dependencies = [
   "python-box",
 ]
 
+license = { text = "MIT" }
+
+[project.urls]
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/nautobot"
 
 
 [build-system]
@@ -34,4 +37,4 @@ build-backend = "hatchling.build"
 path = "pyproject.py"
 
 [tool.hatch.build]
-only-packages = true
+packages = ["uoft_nautobot"]

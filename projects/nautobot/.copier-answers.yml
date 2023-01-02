@@ -1,0 +1,6 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: tasks/new_project_template
+author_email: alex.tremblay@utoronto.ca
+author_name: Alex Tremblay
+description: A collection of UofT-specific modifications and extensions to Nautobot
+name: nautobot
