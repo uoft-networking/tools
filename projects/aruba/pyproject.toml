@@ -13,12 +13,10 @@ dependencies = ["pydantic[dotenv]", "uoft_core", "typer"]
 license = { text = "MIT" }
 
 [project.urls]
-Repository = "https://github.com/uoft-networking/tools"
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/aruba"
 
 [project.scripts]
 uoft-aruba = "uoft_aruba.cli:app"
-uoft_aruba = "uoft_aruba.cli:deprecated"
-Aruba_Provision_CPSEC_Whitelist = "uoft_aruba.cli:deprecated"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
@@ -28,4 +26,4 @@ build-backend = "hatchling.build"
 path = "pyproject.py"
 
 [tool.hatch.build]
-only-packages = true
+packages = ["uoft_aruba"]
