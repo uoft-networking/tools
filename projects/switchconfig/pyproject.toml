@@ -2,13 +2,12 @@
 name = "uoft_switchconfig"
 version = "0.0" # This field will be auto-populated by pyproject.py
 description = "A tool to easily provision switches on the bench"
-readme = "README.md"
 authors = [
-  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
-  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
+    { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
-license = "MIT"
 requires-python = ">=3.10"
+readme = "README.md"
 dependencies = [
   "uoft_core",
   "Jinja2 >= 3.0.1",
@@ -21,6 +20,11 @@ dependencies = [
   "ipdb >= 0.13.9",
   "netaddr >= 0.8.0",
 ]
+
+license = { text = "MIT" }
+
+[project.urls]
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/switchconfig"
 
 [project.scripts]
 uoft-switchconfig = "uoft_switchconfig.cli:cli"
@@ -35,4 +39,4 @@ build-backend = "hatchling.build"
 path = "pyproject.py"
 
 [tool.hatch.build]
-only-packages = true
+packages = ["uoft_switchconfig"]
