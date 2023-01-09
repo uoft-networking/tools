@@ -55,7 +55,7 @@ except ImportError:
     pass
 
 try:
-    from uoft_scripts import __main__ as scripts
+    from uoft_scripts import cli as scripts
     app.add_typer(scripts.app, name="scripts")
 except ImportError:
     pass
@@ -69,6 +69,12 @@ except ImportError:
 try:
     from uoft_snipeit import cli as snipeit
     app.add_typer(snipeit.app, name="snipeit")
+except ImportError:
+    pass
+
+try:
+    from uoft_phpipam import cli as phpipam
+    app.add_typer(phpipam.app, name="phpipam")
 except ImportError:
     pass
 

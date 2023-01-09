@@ -56,6 +56,12 @@ class SnipeITAPI:
         device = requests.get(query_url, headers=headers)
         return device
 
+    def lookup_asset_raw(self, id):
+        query_url = f"https://{self.hostname}/api/v1/hardware/{id}"
+        headers = self.headers()
+        device = requests.get(query_url, headers=headers)
+        return device
+
     def headers(self) -> dict:
         return {
             "accept": "application/json",
