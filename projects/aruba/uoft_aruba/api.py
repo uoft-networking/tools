@@ -205,7 +205,7 @@ class ArubaRESTAPIClient:
             @staticmethod
             def get_ap_groups():
                 res = self.session.get(
-                    self.endpoint.object + "/ap_group", params={"config_path": "/md/UTSC"}
+                    self.endpoint.object + "/ap_group"
                 ).json()
                 return res["_data"]["ap_group"]
 

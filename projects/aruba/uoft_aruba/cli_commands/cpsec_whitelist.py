@@ -35,13 +35,11 @@ def Get_AP_Groups(  # Create the 'get-ap-groups' command within typer.
 ):
     "Returns a list of valid AP_GROUPs and exits."
     s = settings()
-    with s.md_api_connections[0] as md1:
-        raw_controller_ap_groups = md1.get.ap_groups()["_data"]["ap_group"]
+    with s.mm_api_connection as host:
+        raw_controller_ap_groups = host.wlan.get_ap_groups()
         controller_ap_groups = []
         for raw_controller_ap_group in raw_controller_ap_groups:
-            controller_ap_groups.append(
-                raw_controller_ap_group["profile-name"].rpartition("'")[2]
-            )
+            controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
         print("Below you will find a list of valid AP_GROUPs to use in your input:")
         print(*controller_ap_groups, sep="\n")
 
@@ -113,23 +111,19 @@ def Verify_And_Create(input_table: InputTable):
     # Lambda prevent input overflow.
     s = settings()
     # All passwords are stored in a gpg encrypted file and accessed through pass.  No passwords are EVER in scripts.
-    with s.md_api_connections[0] as host1, s.md_api_connections[1] as host2:
-        Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MM
-        Check_Input_Names_Macs(
-            host2, input_table
-        )  # Confirm mac format / names or macs not already in use on MM.
+    with s.md_api_connections[0] as host1, s.mm_api_connection as host2:
+        Check_Input_Groups(host1, input_table)  # Confirm input AP_GROUPs exist on MD
+        Check_Input_Names_Macs(host2, input_table)  # Confirm mac format / names or macs not already in use on MM.
         Create_Whitelist_Entry_CPSEC_And_Approve(host2, input_table)
 
 
 def Check_Input_Groups(host: ArubaRESTAPIClient, input_table: InputTable):
     "Verifies input AP_GROUPs data for script, returns an error if an input AP_GROUP does not exist on Managed Device."
-    raw_controller_ap_groups = host.get.ap_groups()["_data"]["ap_group"]
+    raw_controller_ap_groups = host.wlan.get_ap_groups()
     controller_ap_groups = []
     group_assertion_list = []
     for raw_controller_ap_group in raw_controller_ap_groups:
-        controller_ap_groups.append(
-            raw_controller_ap_group["profile-name"].rpartition("'")[2]
-        )
+        controller_ap_groups.append(raw_controller_ap_group["profile-name"].rpartition("'")[2])
     input_ap_groups = [line[1] for line in input_table]
     for input_ap_group in input_ap_groups:
         if input_ap_group not in controller_ap_groups:
@@ -188,23 +182,18 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
         )
 
 
-def Create_Whitelist_Entry_CPSEC_And_Approve(
-    host: ArubaRESTAPIClient, input_table: InputTable
-):
+def Create_Whitelist_Entry_CPSEC_And_Approve(host: ArubaRESTAPIClient, input_table: InputTable):
     "Creates the CPSEC Whitelist entries, and then modifies this certificate types to 'factory-approved'."
     for line in input_table:
         input_mac_address, input_ap_group, input_ap_name = line
-        host.ap_provisioning.wdb_cpsec_add_mac(
-            input_mac_address, input_ap_group, input_ap_name
-        )
+        input_ap_name = input_ap_name.rstrip("\n")
+        host.ap_provisioning.wdb_cpsec_add_mac(input_mac_address, input_ap_group, input_ap_name)
         print(
             f"Added new CPSEC whitelist entry for {input_ap_name} / {input_mac_address}"
         )  # Create a CPSEC whitelist entry, for each WAP in the supplied file.
         host.ap_provisioning.wdb_cpsec_modify_mac_factory_approved(input_mac_address)
         # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
-        print(
-            f"Modified CPSEC entry for {input_ap_name} / {input_mac_address} to factory_approved"
-        )
+        print(f"Modified CPSEC entry for {input_ap_name} / {input_mac_address} to factory_approved")
 
 
 def _debug():
