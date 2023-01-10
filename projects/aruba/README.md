@@ -95,6 +95,13 @@ Configuration Options:
 [[[cog 
 import tasks.codegen as c; c.gen_conf_table('uoft_aruba')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| svc_account | str | Aruba API Authentication Account |  |  |
+| mm_vrrp_hostname | str | Aruba Mobility Master Primary IP Adress / Hostname |  |  |
+| md_hostnames | str | Aruba Controller (Managed Device) IP Adresses / Hostnames |  |  |
+| password | SecretStr | Aruba API Authentication Password | Password used to authenticate to the Aruba API. |  |
+| default_config_path | str | Aruba API Default Config Path | Default config path used for API requests. Ex /md or /md/UTSC | /md |
 <!--[[[end]]] -->
 
 ## License
