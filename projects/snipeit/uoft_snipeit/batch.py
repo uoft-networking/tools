@@ -39,8 +39,8 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
                         )  # description can be removed once made optional.
                         location_id: int = locations[name]
                     alpha_id = {value: key for key, value in locations.items()}[location_id]
-                    api.checkout_asset(asset, location_id)
-                    print(f"Asset {asset:0>5} checked out to {alpha_id}")
+                    api.checkout_asset(asset, location_id, name)
+                    print(f"Asset {name} id:{asset:0>5} checked out to {alpha_id}")
                     generate_label(asset)
                     system_print_label()
             else:
