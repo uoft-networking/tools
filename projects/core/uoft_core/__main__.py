@@ -51,31 +51,31 @@ def callback(
 try:
     from uoft_aruba import cli as aruba
     app.add_typer(aruba.app, name="aruba")
-except ImportError:
+except Exception:
     pass
 
 try:
     from uoft_scripts import cli as scripts
     app.add_typer(scripts.app, name="scripts")
-except ImportError:
+except Exception:
     pass
 
 try:
     from uoft_switchconfig import cli as switchconfig
     app.add_typer(switchconfig.app, name="switchconfig")
-except ImportError:
+except Exception:
     pass
 
 try:
     from uoft_snipeit import cli as snipeit
     app.add_typer(snipeit.app, name="snipeit")
-except ImportError:
+except Exception:
     pass
 
 try:
     from uoft_phpipam import cli as phpipam
     app.add_typer(phpipam.app, name="phpipam")
-except ImportError:
+except Exception:
     pass
 
 @logger.catch
