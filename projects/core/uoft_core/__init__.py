@@ -35,6 +35,8 @@ from loguru import logger
 from pydantic import BaseSettings as PydanticBaseSettings
 from pydantic import Field, root_validator
 from pydantic.types import SecretStr
+from pydantic.main import ModelMetaclass
+from pydantic.env_settings import EnvSettingsSource
 from rich.console import Console
 
 from .types import StrEnum
@@ -920,8 +922,14 @@ class Util:
 
 S = TypeVar("S", bound="BaseSettings")
 
+class BaseSettingsMeta(ModelMetaclass):
+    def __new__(cls, name, bases, namespace, **kwargs):
+        if (app_name := namespace['Config'].app_name) is not None:
+            # if app_name is not None, then this is a subclass of BaseSettings
+            namespace['Config'].env_prefix = f"UOFT_{app_name.upper()}_"
+        return super().__new__(cls, name, bases, namespace, **kwargs)
 
-class BaseSettings(PydanticBaseSettings):
+class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     _instance = None  # type: ignore
 
     @classmethod
@@ -937,10 +945,14 @@ class BaseSettings(PydanticBaseSettings):
         return cls._instance
 
     def __init_subclass__(cls, **kwargs):
-        app_name = getattr(cls.__config__, "app_name", None)
+        app_name = getattr(cls.Config, "app_name", None)
         if app_name is None:
             raise TypeError(
                 "Subclasses of BaseSettings must include a Config class with an app_name attribute"
+            )
+        if not issubclass(cls.Config, BaseSettings.Config):
+            raise TypeError(
+                "Subclasses of BaseSettings must include a Config class that is a subclass of BaseSettings.Config"
             )
         super().__init_subclass__(**kwargs)
 
@@ -1013,15 +1025,22 @@ class BaseSettings(PydanticBaseSettings):
     @root_validator(pre=True)
     @classmethod
     def prompt_for_missing_values(cls, values):
-        missing_keys = [key for key in cls.__fields__ if key not in values]
-        if not missing_keys:
-            # Everything's present and accounted for. nothing to do here
+
+        if not cls.Config.prompt_on_missing_values:
+            # interactively prompting for values is disabled on this subclass
             return values
+
         if not sys.stdout.isatty():
             # We're not in a terminal.  We can't prompt for input.
             # Return values as is and let pydantic report validation errors on missing fields
             return values
 
+        missing_keys = [key for key in cls.__fields__ if key not in values]
+        if not missing_keys:
+            # Everything's present and accounted for. nothing to do here
+            return values
+
+        # We're in a terminal and we're missing some values.
         p = Prompt(cls.get_util().history_cache)
         for key in missing_keys:
             field = cls.__fields__[key]
@@ -1031,6 +1050,7 @@ class BaseSettings(PydanticBaseSettings):
     class Config(PydanticBaseSettings.Config):
         env_file = ".env"
         app_name: str = None  # type: ignore
+        prompt_on_missing_values = True
 
         @classmethod
         def customise_sources(cls, init_settings, env_settings, file_secret_settings):
@@ -1038,9 +1058,29 @@ class BaseSettings(PydanticBaseSettings):
                 init_settings,
                 env_settings,
                 file_secret_settings,
-                cls.settings_from_pass,
+                cls.pass_settings_source(),
                 cls.config_file_settings,
             )
+
+        @classmethod
+        def pass_settings_source(cls):
+            app_name = cls.app_name
+            def settings_from_pass(settings: "BaseSettings"):
+                cmd = f"pass show uoft-{app_name}"
+                try:
+                    text = shell(cmd)
+                    return toml.loads(text)
+                except CalledProcessError:
+                    # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
+
+                    return {}
+                except toml.TOMLDecodeError as e:
+                    # at this point, we can be sure that pass is installed, and the user did create a pass entry,
+                    # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
+                    raise UofTCoreError(
+                        f"Error parsing data returned from `{cmd}`. expected a TOML document, but failed parsing as TOML: {e}"
+                    ) from e
+            return settings_from_pass
 
         @staticmethod
         def config_file_settings(settings: "BaseSettings"):
@@ -1052,26 +1092,7 @@ class BaseSettings(PydanticBaseSettings):
                 # We'll let pydantic check all settings sources and determine if a given setting is missing
                 return {}
 
-        @staticmethod
-        def settings_from_pass(settings: "BaseSettings"):
-            name = settings.__config__.app_name  # pylint: disable=protected-access
-            cmd = f"pass show uoft-{name}"
-            try:
-                text = shell(cmd)
-                return toml.loads(text)
-            except CalledProcessError:
-                # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
-
-                return {}
-            except toml.TOMLDecodeError as e:
-                # at this point, we can be sure that pass is installed, and the user did create a pass entry,
-                # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
-                raise UofTCoreError(
-                    f"Error parsing data returned from `{cmd}`. expected a TOML document, but failed parsing as TOML: {e}"
-                ) from e
-
     __config__: ClassVar[Type[Config]]
-
 
 # These imports are placed down here to avoid circular imports
 from .nested_data import *  # noqa
