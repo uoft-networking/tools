@@ -1,5 +1,6 @@
 """common tasks for all projects in the repo"""
 import os
+from pathlib import Path
 
 from invoke import task, Context
 
@@ -267,3 +268,17 @@ def package_peek(c: Context):
                 print(f.read().decode("utf-8"))
     else:
         raise Exception(f"Unknown package type: {package}")
+
+@task()
+def debug_pydantic(c: Context, undo: bool = False):
+    """disable pydantic compiled modules in virtualenv so we can step through the python code"""
+    if undo:
+        for ext in Path('.venv').glob('lib/python*/site-packages/pydantic/*.cpython-*.so.disabled'):
+            print(f"renaming {ext.name} to {ext.with_suffix('').name}")
+            ext.rename(ext.with_suffix(''))
+    else:
+        for ext in Path('.venv').glob('lib/python*/site-packages/pydantic/*.so'):
+            print(f"renaming {ext.name} to {ext.with_suffix('.so.disabled').name}")
+            ext.rename(ext.with_suffix('.so.disabled'))
+
+    
