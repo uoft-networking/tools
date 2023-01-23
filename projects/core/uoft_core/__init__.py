@@ -9,11 +9,12 @@ import platform
 import re
 import sys
 import time
+from shutil import which
 from enum import Enum
 from functools import cached_property
 from getpass import getuser
 from importlib.metadata import version
-from pathlib import Path
+from pathlib import Path, PosixPath
 from subprocess import CalledProcessError, run
 from textwrap import dedent
 from types import GenericAlias
@@ -324,6 +325,61 @@ def write_config_file(
                 Only .ini, .json, .toml, and .yaml files are supported"""
             )
         )
+
+
+class PassPath(PosixPath):
+    """An abstract path representing an entry in the pass password store"""
+
+    _pass_installed: bool
+    _contents: str | None
+
+    def __new__(cls, *args):
+        self = super().__new__(cls, *args)
+        self._pass_installed = bool(which("pass"))
+        self._contents = None
+        return self
+
+    @property
+    def command_name(self) -> str:
+        return f"pass show {self}"
+
+    @property
+    def contents(self) -> str:
+        if self._pass_installed:
+            if self._contents is None:
+                try:
+                    self._contents = shell(self.command_name)
+                except CalledProcessError:
+                    self._contents = ""
+            return self._contents
+        return ""
+
+    def exists(self) -> bool:
+        if not self._pass_installed:
+            return False
+        return bool(self.contents)
+
+    def mkdir(self, mode: int = ..., parents: bool = ..., exist_ok: bool = ...) -> None:
+        # mkdir doesn't make sense in the context of pass,
+        # so we'll stub it out and pretend it succeeded
+        return None
+
+    def read_text(self, encoding: str | None = ..., errors: str | None = ...) -> str:
+        return self.contents
+
+    def write_text(
+        self, data: str, encoding: str | None = ..., errors: str | None = ...
+    ) -> None:
+        if self._pass_installed:
+            shell(f"pass insert -m {self}", input=data)
+            self._contents = data
+        else:
+            raise UofTCoreError(
+                chomptxt(
+                    f"""Failed to write to {self}. 
+                    pass is not installed"""
+                )
+            )
 
 
 class Timeit:
