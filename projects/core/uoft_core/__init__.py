@@ -223,8 +223,23 @@ def lst(s: str) -> List[str]:
     return list_
 
 
-def shell(cmd: str) -> str:
-    return run(cmd, shell=True, capture_output=True, check=True).stdout.decode().strip()
+def shell(cmd: str, input: str | bytes | None = None) -> str:
+    """
+    run a shell command, and return its output
+
+    Optionally provide the shell command with input via the `input` argument.
+
+    Example:
+        >>> shell("grep -i 'hello'", "Hello world")
+        'Hello world'
+    """
+    if input is not None and isinstance(input, str):
+            input = input.encode()
+    return (
+        run(cmd, shell=True, capture_output=True, check=True, input=input)
+        .stdout.decode()
+        .strip()
+    )
 
 
 class DataFileFormats(str, Enum):
