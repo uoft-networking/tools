@@ -37,7 +37,7 @@ generate = typer.Typer(
 )
 app.add_typer(generate)
 
-util = Settings.get_util()
+util = Settings._util()
 prompt = Prompt(util)
 
 

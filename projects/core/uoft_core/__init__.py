@@ -1028,12 +1028,12 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         super().__init_subclass__(**kwargs)
 
     @classmethod
-    def get_util(cls) -> "Util":
+    def _util(cls) -> "Util":
         return Util(cls.__config__.app_name)
 
     @property
     def util(self):
-        return self.get_util()
+        return self._util()
 
     @classmethod
     def wrap_typer_command(cls, func):
@@ -1093,6 +1093,13 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
         return decorate(func, _wrapper)  # type: ignore
 
+    @classmethod
+    def _prompt(cls):
+        return Prompt(cls._util().history_cache)
+    
+    @property
+    def prompt(self):
+        return self._prompt()
     @root_validator(pre=True)
     @classmethod
     def prompt_for_missing_values(cls, values):
@@ -1112,7 +1119,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             return values
 
         # We're in a terminal and we're missing some values.
-        p = Prompt(cls.get_util().history_cache)
+        p = cls._prompt()
         for key in missing_keys:
             field = cls.__fields__[key]
             values[key] = p.from_model_field(key, field)

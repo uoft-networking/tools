@@ -30,7 +30,7 @@ class Settings(BaseSettings):
                 "md_vrrp_hostname is deprecated. "
                 "Please update your config files to use a list called 'mm_hostnames' instead. "
                 "Please check one of the following config files for the deprecated config and update it: {}".format(
-                    cls.get_util().config.readable_files
+                    cls._util().config.readable_files
                 )
             )
         return values
