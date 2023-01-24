@@ -327,6 +327,16 @@ def write_config_file(
         )
 
 
+def create_or_update_config_file(
+    file: Path, obj: dict[str, Any], write_as: Optional[DataFileFormats] = None
+):
+    if file.exists():
+        existing = parse_config_file(file, parse_as=write_as)
+        existing.update(obj)
+        obj = existing
+    write_config_file(file, obj, write_as=write_as)
+
+
 class PassPath(PosixPath):
     """An abstract path representing an entry in the pass password store"""
 
@@ -1123,7 +1133,44 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         for key in missing_keys:
             field = cls.__fields__[key]
             values[key] = p.from_model_field(key, field)
+
+        cls._interactive_save_config(values)
+
         return values
+
+    @classmethod
+    def _interactive_save_config(cls, values):
+        # get list of valid save targets
+        # including from pass
+        save_targets = [
+            f"[password-store] uoft-{cls.__config__.app_name}",
+            f"[password-store] shared/uoft-{cls.__config__.app_name}",
+        ]
+        for file_path, file in cls._util().config.files:
+            if file in {File.writable, File.creatable}:
+                save_targets.append(str(file_path))
+
+        # prompt user to select a save target
+        p = cls._prompt()
+        try:
+            save_target = p.get_from_choices(
+                "Save settings to",
+                save_targets,
+                "Select a target to save configuration settings to. Press ctrl-c or ctrl-d to skip saving.",
+            )
+
+            # save to selected target
+            if "[password-store]" in save_target:
+                secret_name = save_target.split("] ")[1]
+                path = PassPath(secret_name)
+                write_as = DataFileFormats.toml
+            else:
+                path = Path(save_target)
+                write_as = None
+
+            create_or_update_config_file(path, values, write_as=write_as)
+        except (KeyboardInterrupt, EOFError):
+            pass
 
     class Config(PydanticBaseSettings.Config):
         env_file = ".env"
