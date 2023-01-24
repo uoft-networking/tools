@@ -1136,21 +1136,25 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         @classmethod
         def pass_settings_source(cls):
             app_name = cls.app_name
-            def settings_from_pass(settings: "BaseSettings"):
-                cmd = f"pass show uoft-{app_name}"
-                try:
-                    text = shell(cmd)
-                    return toml.loads(text)
-                except CalledProcessError:
-                    # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
 
-                    return {}
+            def settings_from_pass(settings: "BaseSettings"):
+                res = {}
+                for name in [f"uoft-{app_name}", f"shared/uoft-{app_name}"]:
+                    path = PassPath(name)
+                try:
+                        text = path.read_text()
+                        if not text:
+                    # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
+                            continue
+                        res.update(toml.loads(text))
                 except toml.TOMLDecodeError as e:
                     # at this point, we can be sure that pass is installed, and the user did create a pass entry,
                     # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
                     raise UofTCoreError(
-                        f"Error parsing data returned from `{cmd}`. expected a TOML document, but failed parsing as TOML: {e}"
+                            f"Error parsing data returned from `{path.command_name}`. expected a TOML document, but failed parsing as TOML: {e.args}"
                     ) from e
+                return res
+
             return settings_from_pass
 
         @staticmethod
