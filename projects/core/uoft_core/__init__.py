@@ -33,11 +33,10 @@ from typing import (
 )
 
 from loguru import logger
-from pydantic import BaseSettings as PydanticBaseSettings
-from pydantic import Field, root_validator
+from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
+from pydantic.fields import Field
 from pydantic.types import SecretStr
 from pydantic.main import ModelMetaclass
-from pydantic.env_settings import EnvSettingsSource
 from rich.console import Console
 
 from .types import StrEnum
@@ -235,7 +234,7 @@ def shell(cmd: str, input: str | bytes | None = None) -> str:
         'Hello world'
     """
     if input is not None and isinstance(input, str):
-            input = input.encode()
+        input = input.encode()
     return (
         run(cmd, shell=True, capture_output=True, check=True, input=input)
         .stdout.decode()
@@ -1003,12 +1002,14 @@ class Util:
 
 S = TypeVar("S", bound="BaseSettings")
 
+
 class BaseSettingsMeta(ModelMetaclass):
     def __new__(cls, name, bases, namespace, **kwargs):
-        if (app_name := namespace['Config'].app_name) is not None:
+        if (app_name := namespace["Config"].app_name) is not None:
             # if app_name is not None, then this is a subclass of BaseSettings
-            namespace['Config'].env_prefix = f"UOFT_{app_name.upper()}_"
+            namespace["Config"].env_prefix = f"UOFT_{app_name.upper()}_"
         return super().__new__(cls, name, bases, namespace, **kwargs)
+
 
 class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     _instance = None  # type: ignore
@@ -1110,6 +1111,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @property
     def prompt(self):
         return self._prompt()
+
     @root_validator(pre=True)
     @classmethod
     def prompt_for_missing_values(cls, values):
@@ -1176,6 +1178,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         env_file = ".env"
         app_name: str = None  # type: ignore
         prompt_on_missing_values = True
+        extra = Extra.allow
 
         @classmethod
         def customise_sources(cls, init_settings, env_settings, file_secret_settings):
@@ -1195,18 +1198,18 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 res = {}
                 for name in [f"uoft-{app_name}", f"shared/uoft-{app_name}"]:
                     path = PassPath(name)
-                try:
+                    try:
                         text = path.read_text()
                         if not text:
-                    # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
+                            # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
                             continue
                         res.update(toml.loads(text))
-                except toml.TOMLDecodeError as e:
-                    # at this point, we can be sure that pass is installed, and the user did create a pass entry,
-                    # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
-                    raise UofTCoreError(
+                    except toml.TOMLDecodeError as e:
+                        # at this point, we can be sure that pass is installed, and the user did create a pass entry,
+                        # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
+                        raise UofTCoreError(
                             f"Error parsing data returned from `{path.command_name}`. expected a TOML document, but failed parsing as TOML: {e.args}"
-                    ) from e
+                        ) from e
                 return res
 
             return settings_from_pass
@@ -1222,6 +1225,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 return {}
 
     __config__: ClassVar[Type[Config]]
+
 
 # These imports are placed down here to avoid circular imports
 from .nested_data import *  # noqa

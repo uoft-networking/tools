@@ -12,7 +12,7 @@ def get_data():
     token = shell("pass librenms-api")
 
     ld = Devices(url, token)
-    # ldg = DeviceGroups(url, token)
+    #ldg = DeviceGroups(url, token)
     ls = Switching(url, token)
 
     devices = ld.list_devices(order_type="up").json()["devices"]

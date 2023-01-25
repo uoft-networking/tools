@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     default_config_path: str = Field(
         "/md",
         title="Aruba API Default Config Path",
-        description="Default config path used for API requests. Ex /md or /md/UTSC"
+        description="Default config path used for API requests. Ex /md or /md/UTSC",
     )
 
     @root_validator(pre=True)
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
             f"{self.mm_vrrp_hostname}:4343",
             self.svc_account,
             self.password.get_secret_value(),
-            self.default_config_path
+            self.default_config_path,
         )
 
     class Config(BaseSettings.Config):
