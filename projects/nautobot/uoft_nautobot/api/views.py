@@ -9,7 +9,7 @@ from rest_framework.exceptions import APIException
 from rest_framework import status, fields as f
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
 
-from uoft_aruba.api import ArubaRESTAPIClient
+from uoft_aruba import Settings as ArubaSettings
 from uoft_core import txt
 
 
@@ -25,20 +25,16 @@ class InputError(APIException):
     default_code = "invalid_input"
 
 
-class ArubaBlacklistView(APIView):
+class ArubaBlocklistView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        conf = settings.PLUGINS_CONFIG["uoft_nautobot"]["aruba"]
-        controller1, controller2 = conf["controllers"]
-        username = conf["username"]
-        password = conf["password"]
-        self.c1 = ArubaRESTAPIClient(controller1, username, password)
-        self.c2 = ArubaRESTAPIClient(controller2, username, password)
+        conf: ArubaSettings = settings.PLUGINS_CONFIG["uoft_nautobot"]["aruba"]
+        self.controllers = conf.md_api_connections
 
     @extend_schema(
-        operation_id="aruba_stm_blacklist_get",
+        operation_id="aruba_stm_blocklist_get",
         responses={
             200: inline_serializer(
                 name="aruba_stm_blacklist_get",
@@ -94,7 +90,7 @@ class ArubaBlacklistView(APIView):
 
         Example:
         ```console
-        $ curl -H "Authorization: Token $token" -H "Accept: application/json; indent=4" -s https://engine.netmgmt.utsc.utoronto.ca/api/plugins/utsc/aruba-blacklist/
+        $ curl -H "Authorization: Token $token" -H "Accept: application/json; indent=4" -s https://engine.netmgmt.utsc.utoronto.ca/api/plugins/uoft/aruba-blocklist/
         [
             {
                 "STA": "1a:0c:05:39:87:80",
@@ -118,17 +114,14 @@ class ArubaBlacklistView(APIView):
         ]
         ```
         """
-        with self.c1 as c:
-            d1 = c.stm_blacklist_get()
-
-        with self.c2 as c:
-            d2 = c.stm_blacklist_get()
-
-        res = d1["Blacklisted Clients"] + d2["Blacklisted Clients"]
+        res = []
+        for c in self.controllers:
+            with c as conn:
+                res.extend(conn.wlan.get_ap_client_blacklist())
         return Response(res)
 
     @extend_schema(
-        operation_id="aruba_stm_blacklist_remove",
+        operation_id="aruba_stm_blocklist_remove",
         responses={
             202: inline_serializer(
                 name="aruba_stm_blacklist_remove",
@@ -157,7 +150,7 @@ class ArubaBlacklistView(APIView):
 
         Example:
         ```console
-        $ curl -H "Authorization: Token $token" -H "Accept: application/json;" -H 'Content-Type: application/json' -X DELETE -d '{"mac-address":"10:02:b5:27:bb:0e"}' -s https://engine.netmgmt.utsc.utoronto.ca/api/plugins/utsc/aruba-blacklist/
+        $ curl -H "Authorization: Token $token" -H "Accept: application/json;" -H 'Content-Type: application/json' -X DELETE -d '{"mac-address":"10:02:b5:27:bb:0e"}' -s https://engine.netmgmt.utsc.utoronto.ca/api/plugins/uoft/aruba-blocklist/
         {"detail": "mac address '10:02:b5:27:bb:0e' has been removed from the aruba stm blocklist"}
         ```
         """
@@ -170,14 +163,11 @@ class ArubaBlacklistView(APIView):
             raise InputError() from e
 
         # Now we can go ahead and delete the mac-address
-        with self.c1 as c:
-            c.stm_blacklist_remove(mac)
-
-        with self.c2 as c:
-            c.stm_blacklist_remove(mac)
+        for c in self.controllers:
+            with c as conn:
+                conn.wlan.stm_blacklist_remove(mac)
 
         res = {
             "detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"
         }
         return Response(res, status=status.HTTP_202_ACCEPTED)
-        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
