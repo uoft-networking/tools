@@ -34,13 +34,13 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
                     if location_id is None:
                         prompt = Prompt(s.util.history_cache)
                         location_names = list(locations.keys())
-                        name = prompt.get_from_choices(
+                        location_name = prompt.get_from_choices(
                             "Location name to be checked out to", location_names, description=""
                         )  # description can be removed once made optional.
-                        location_id: int = locations[name]
+                        location_id: int = locations[location_name]
                     alpha_id = {value: key for key, value in locations.items()}[location_id]
-                    api.checkout_asset(asset, location_id)
-                    print(f"Asset {asset:0>5} checked out to {alpha_id}")
+                    api.checkout_asset(asset, location_id, name)
+                    print(f"Asset {name} id:{asset:0>5} checked out to {alpha_id}")
                     generate_label(asset)
                     system_print_label()
             else:
