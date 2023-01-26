@@ -17,7 +17,11 @@ def get_data():
 
     devices = ld.list_devices(order_type="up").json()["devices"]
     for d in devices:
-        d["groups"] = ld.get_device_groups(d["device_id"]).json()["groups"]
+        res = ld.get_device_groups(d["device_id"]).json()
+        if "groups" in res:
+            d["groups"] = res["groups"]
+        else:
+            d["groups"] = []
         try:
             d["ip_addresses"] = ld.get_device_ip_addresses(d["device_id"]).json()[
                 "addresses"
@@ -34,3 +38,32 @@ def get_data():
             pass
 
     return devices
+
+def _debug():
+    from collections import defaultdict
+
+    hosts = defaultdict(None)
+    groups = defaultdict(lambda: defaultdict(lambda: defaultdict(None)))
+
+    def normalize(name):
+        return name.replace(" ", "_").replace("-", "_").replace("&", "and").lower()
+
+    d = get_data()
+    for device in d:
+        hostname = device["hostname"]
+        hosts[hostname] = None
+        for group in device["groups"]:
+            group_name = normalize(group["name"])
+            groups[group_name]["hosts"][hostname] = None
+
+    inv = dict(all=dict(hosts=dict(hosts), children=groups))
+    def tr(d):
+        if isinstance(d, dict):
+            return dict((k, tr(v)) for k, v in d.items())
+        elif isinstance(d, list):
+            return [tr(v) for v in d]
+        else:
+            return d
+    from uoft_core.yaml import dumps
+    from pathlib import Path
+    Path("/home/atremblay/.ansible/hosts.yml").write_text(dumps(tr(inv)))
