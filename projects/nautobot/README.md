@@ -95,6 +95,44 @@ Configuration Options:
 [[[cog 
 import tasks.codegen as c; c.gen_conf_table('uoft_nautobot')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| debug | bool |  |  |  |
+| allowed_hosts | str |  |  |  |
+| secret_key | SecretStr |  |  |  |
+| db_host | str |  |  | localhost |
+| db_port | int |  |  | 5432 |
+| db_name | str |  |  | nautobot |
+| db_user | str |  |  | nautobot |
+| db_password | SecretStr |  |  |  |
+| db_timeout | int |  |  | 300 |
+| redis_host | str |  |  | localhost |
+| redis_port | int |  |  | 6379 |
+| redis_username | str |  |  |  |
+| redis_password | SecretStr |  |  |  |
+| redis_ssl | bool |  |  |  |
+| bluecat_url | str |  |  | https://localhost |
+| bluecat_username | str |  |  | admin |
+| bluecat_password | SecretStr |  |  |  |
+| nornir_username | str |  |  |  |
+| nornir_password | SecretStr |  |  |  |
+| nornir_secret | SecretStr |  |  |  |
+| nornir_timeout | int |  |  | 30 |
+| gitlab_username | str |  |  |  |
+| gitlab_password | SecretStr |  |  |  |
+| ldap_server | str |  |  |  |
+| ldap_is_active_directory | bool |  |  |  |
+| ldap_cert_is_self_signed | bool |  |  |  |
+| ldap_bind_dn | str |  |  |  |
+| ldap_bind_password | SecretStr |  |  |  |
+| ldap_user_search_base | str |  |  | OU=UTORIDStaff,OU=Staff Users,DC=utscad,DC=utsc,DC=utoronto,DC=ca |
+| ldap_user_attribute_map | str |  |  |  |
+| ldap_group_search_base | str |  |  | OU=Security Groups,DC=utscad,DC=utsc,DC=utoronto,DC=ca |
+| ldap_groups_active | str |  |  | GL_IITS_Users |
+| ldap_groups_staff | str |  |  | GL_SysNetAdmins |
+| ldap_groups_superuser | str |  |  | GL_SysNet_SuperUsers |
+| ldap_additional_groups | str |  |  |  |
+| aruba | Settings |  |  | svc_account='apiadmin' mm_vrrp_hostname='sdc-aruba-mobility-conductor-5k-01.netmgmt.utsc.utoronto.ca' md_hostnames=['aruba-7240xm-01.netmgmt.utsc.utoronto.ca', 'aruba-7240xm-02.netmgmt.utsc.utoronto.ca'] password=SecretStr('**********') default_config_path='/md/UTSC' |
 <!--[[[end]]] -->
 
 ## License

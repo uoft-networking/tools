@@ -13,7 +13,7 @@ def librenms_stuff():
     devices = get_data()
     devices = list(
         filter(
-            lambda d: "netmgmt.utsc" in d["hostname"] and "d1-" in d["hostname"],
+            lambda d: "netmgmt.utsc" in d["hostname"],
             devices,
         )
     )
