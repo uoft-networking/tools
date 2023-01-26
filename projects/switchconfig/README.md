@@ -95,6 +95,11 @@ Configuration Options:
 [[[cog 
 import tasks.codegen as c; c.gen_conf_table('uoft_switchconfig')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| generate | Generate |  | whether to include any overriding configuration related to the generate command |  |
+| deploy | Deploy |  | whether to include any overriding configuration related to the deploy command |  |
+| debug | bool |  | whether to permanently enable debug mode |  |
 <!--[[[end]]] -->
 
 ## License
