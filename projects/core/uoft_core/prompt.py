@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Any, Sequence, get_args, get_origin
 import sys
 from base64 import b64encode
@@ -95,7 +94,7 @@ class Prompt:
             opts["auto_suggest"] = AutoSuggestFromHistory()
             if default_from_history:
                 try:
-                    opts["default"] = next(history.load_history_strings()) # type: ignore
+                    opts["default"] = next(history.load_history_strings())  # type: ignore
                 except StopIteration:
                     pass
 
@@ -142,9 +141,7 @@ class Prompt:
         **kwargs,
     ) -> Path:
         completer_opts = completer_opts or {}
-        completer = PathCompleter(
-            only_directories=only_directories, **completer_opts
-        )
+        completer = PathCompleter(only_directories=only_directories, **completer_opts)
         if fuzzy_search:
             completer = FuzzyCompleter(completer)
         opts = dict(
@@ -214,7 +211,13 @@ class Prompt:
         )
         return int(val.strip())
 
-    def get_list(self, var: str, description: str | None, **kwargs) -> list[str]:
+    def get_list(
+        self,
+        var: str,
+        description: str | None,
+        default_value: list[str] | None = None,
+        **kwargs,
+    ) -> list[str]:
 
         kb = KeyBindings()
 
@@ -230,10 +233,15 @@ class Prompt:
             key_bindings=kb,
         )
         opts.update(kwargs)
-        val = self.get_string(var, description, **opts)
+        val = self.get_string(
+            var,
+            description,
+            default_value="\n".join(default_value) if default_value else None,
+            **opts,
+        )
         return val.strip().split("\n")
 
-    def get_dict(self, var: str, description: str | None, **kwargs) -> dict[str, str]:
+    def get_dict(self, var: str, description: str | None, default_value: dict[str, str] | None = None, **kwargs) -> dict[str, str]:
 
         kb = KeyBindings()
 
@@ -258,12 +266,14 @@ class Prompt:
             validator=DictValidator(),
         )
         opts.update(kwargs)
+        if default_value:
+            default_value: str = "\n".join(f"{k}: {v}" for k, v in default_value.items())
         val = self.get_string(var, description, **opts)
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
 
-    def from_model(self, model: type[BaseModel], prefix: str|None = None):
+    def from_model(self, model: type[BaseModel], prefix: str | None = None):
         res = {}
         for name, field in model.__fields__.items():
             if prefix:
@@ -307,10 +317,16 @@ class Prompt:
         elif type_name is Path:
             return self.get_path(name, desc, default_value=default)
         elif type_name is FilePath:
-            return self.get_path(name, desc, default_value=default, validator=PydanticValidator())
+            return self.get_path(
+                name, desc, default_value=default, validator=PydanticValidator()
+            )
         elif type_name is DirectoryPath:
             return self.get_path(
-                name, desc, default_value=default, only_directories=True, validator=PydanticValidator()
+                name,
+                desc,
+                default_value=default,
+                only_directories=True,
+                validator=PydanticValidator(),
             )
         elif type_name is list:
             return self.get_list(name, desc, default_value=default)
@@ -333,4 +349,3 @@ class Prompt:
             raise RuntimeError(
                 f"{self.__class__} does not yet support prompting for values of type {field.type_}. Supported types are: {SUPPORTED_TYPES}"
             )
-

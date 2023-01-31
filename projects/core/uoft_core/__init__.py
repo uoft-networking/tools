@@ -9,11 +9,12 @@ import platform
 import re
 import sys
 import time
+from shutil import which
 from enum import Enum
 from functools import cached_property
 from getpass import getuser
 from importlib.metadata import version
-from pathlib import Path
+from pathlib import Path, PosixPath
 from subprocess import CalledProcessError, run
 from textwrap import dedent
 from types import GenericAlias
@@ -32,9 +33,10 @@ from typing import (
 )
 
 from loguru import logger
-from pydantic import BaseSettings as PydanticBaseSettings
-from pydantic import Field, root_validator
+from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
+from pydantic.fields import Field
 from pydantic.types import SecretStr
+from pydantic.main import ModelMetaclass
 from rich.console import Console
 
 from .types import StrEnum
@@ -221,8 +223,23 @@ def lst(s: str) -> List[str]:
     return list_
 
 
-def shell(cmd: str) -> str:
-    return run(cmd, shell=True, capture_output=True, check=True).stdout.decode().strip()
+def shell(cmd: str, input: str | bytes | None = None) -> str:
+    """
+    run a shell command, and return its output
+
+    Optionally provide the shell command with input via the `input` argument.
+
+    Example:
+        >>> shell("grep -i 'hello'", "Hello world")
+        'Hello world'
+    """
+    if input is not None and isinstance(input, str):
+        input = input.encode()
+    return (
+        run(cmd, shell=True, capture_output=True, check=True, input=input)
+        .stdout.decode()
+        .strip()
+    )
 
 
 class DataFileFormats(str, Enum):
@@ -307,6 +324,71 @@ def write_config_file(
                 Only .ini, .json, .toml, and .yaml files are supported"""
             )
         )
+
+
+def create_or_update_config_file(
+    file: Path, obj: dict[str, Any], write_as: Optional[DataFileFormats] = None
+):
+    if file.exists():
+        existing = parse_config_file(file, parse_as=write_as)
+        existing.update(obj)
+        obj = existing
+    write_config_file(file, obj, write_as=write_as)
+
+
+class PassPath(PosixPath):
+    """An abstract path representing an entry in the pass password store"""
+
+    _pass_installed: bool
+    _contents: str | None
+
+    def __new__(cls, *args):
+        self = super().__new__(cls, *args)
+        self._pass_installed = bool(which("pass"))
+        self._contents = None
+        return self
+
+    @property
+    def command_name(self) -> str:
+        return f"pass show {self}"
+
+    @property
+    def contents(self) -> str:
+        if self._pass_installed:
+            if self._contents is None:
+                try:
+                    self._contents = shell(self.command_name)
+                except CalledProcessError:
+                    self._contents = ""
+            return self._contents
+        return ""
+
+    def exists(self) -> bool:
+        if not self._pass_installed:
+            return False
+        return bool(self.contents)
+
+    def mkdir(self, mode: int = ..., parents: bool = ..., exist_ok: bool = ...) -> None:
+        # mkdir doesn't make sense in the context of pass,
+        # so we'll stub it out and pretend it succeeded
+        return None
+
+    def read_text(self, encoding: str | None = ..., errors: str | None = ...) -> str:
+        return self.contents
+
+    def write_text(
+        self, data: str, encoding: str | None = ..., errors: str | None = ...
+    ) -> None:
+        if self._pass_installed:
+            shell(f"pass insert -m {self}", input=data)
+            self._contents = data
+        else:
+            raise UofTCoreError(
+                chomptxt(
+                    f"""Failed to write to {self}. 
+                    pass is not installed"""
+                )
+            )
 
 
 class Timeit:
@@ -921,7 +1003,15 @@ class Util:
 S = TypeVar("S", bound="BaseSettings")
 
 
-class BaseSettings(PydanticBaseSettings):
+class BaseSettingsMeta(ModelMetaclass):
+    def __new__(cls, name, bases, namespace, **kwargs):
+        if (app_name := namespace["Config"].app_name) is not None:
+            # if app_name is not None, then this is a subclass of BaseSettings
+            namespace["Config"].env_prefix = f"UOFT_{app_name.upper()}_"
+        return super().__new__(cls, name, bases, namespace, **kwargs)
+
+
+class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     _instance = None  # type: ignore
 
     @classmethod
@@ -937,20 +1027,24 @@ class BaseSettings(PydanticBaseSettings):
         return cls._instance
 
     def __init_subclass__(cls, **kwargs):
-        app_name = getattr(cls.__config__, "app_name", None)
+        app_name = getattr(cls.Config, "app_name", None)
         if app_name is None:
             raise TypeError(
                 "Subclasses of BaseSettings must include a Config class with an app_name attribute"
             )
+        if not issubclass(cls.Config, BaseSettings.Config):
+            raise TypeError(
+                "Subclasses of BaseSettings must include a Config class that is a subclass of BaseSettings.Config"
+            )
         super().__init_subclass__(**kwargs)
 
     @classmethod
-    def get_util(cls) -> "Util":
+    def _util(cls) -> "Util":
         return Util(cls.__config__.app_name)
 
     @property
     def util(self):
-        return self.get_util()
+        return self._util()
 
     @classmethod
     def wrap_typer_command(cls, func):
@@ -1010,27 +1104,81 @@ class BaseSettings(PydanticBaseSettings):
 
         return decorate(func, _wrapper)  # type: ignore
 
+    @classmethod
+    def _prompt(cls):
+        return Prompt(cls._util().history_cache)
+    
+    @property
+    def prompt(self):
+        return self._prompt()
+
     @root_validator(pre=True)
     @classmethod
     def prompt_for_missing_values(cls, values):
-        missing_keys = [key for key in cls.__fields__ if key not in values]
-        if not missing_keys:
-            # Everything's present and accounted for. nothing to do here
+
+        if not cls.Config.prompt_on_missing_values:
+            # interactively prompting for values is disabled on this subclass
             return values
+
         if not sys.stdout.isatty():
             # We're not in a terminal.  We can't prompt for input.
             # Return values as is and let pydantic report validation errors on missing fields
             return values
 
-        p = Prompt(cls.get_util().history_cache)
+        missing_keys = [key for key in cls.__fields__ if key not in values]
+        if not missing_keys:
+            # Everything's present and accounted for. nothing to do here
+            return values
+
+        # We're in a terminal and we're missing some values.
+        p = cls._prompt()
         for key in missing_keys:
             field = cls.__fields__[key]
             values[key] = p.from_model_field(key, field)
+
+        cls._interactive_save_config(values)
+
         return values
+
+    @classmethod
+    def _interactive_save_config(cls, values):
+        # get list of valid save targets
+        # including from pass
+        save_targets = [
+            f"[password-store] uoft-{cls.__config__.app_name}",
+            f"[password-store] shared/uoft-{cls.__config__.app_name}",
+        ]
+        for file_path, file in cls._util().config.files:
+            if file in {File.writable, File.creatable}:
+                save_targets.append(str(file_path))
+
+        # prompt user to select a save target
+        p = cls._prompt()
+        try:
+            save_target = p.get_from_choices(
+                "Save settings to",
+                save_targets,
+                "Select a target to save configuration settings to. Press ctrl-c or ctrl-d to skip saving.",
+            )
+
+            # save to selected target
+            if "[password-store]" in save_target:
+                secret_name = save_target.split("] ")[1]
+                path = PassPath(secret_name)
+                write_as = DataFileFormats.toml
+            else:
+                path = Path(save_target)
+                write_as = None
+
+            create_or_update_config_file(path, values, write_as=write_as)
+        except (KeyboardInterrupt, EOFError):
+            pass
 
     class Config(PydanticBaseSettings.Config):
         env_file = ".env"
         app_name: str = None  # type: ignore
+        prompt_on_missing_values = True
+        extra = Extra.allow
 
         @classmethod
         def customise_sources(cls, init_settings, env_settings, file_secret_settings):
@@ -1038,9 +1186,33 @@ class BaseSettings(PydanticBaseSettings):
                 init_settings,
                 env_settings,
                 file_secret_settings,
-                cls.settings_from_pass,
+                cls.pass_settings_source(),
                 cls.config_file_settings,
             )
+
+        @classmethod
+        def pass_settings_source(cls):
+            app_name = cls.app_name
+
+            def settings_from_pass(settings: "BaseSettings"):
+                res = {}
+                for name in [f"uoft-{app_name}", f"shared/uoft-{app_name}"]:
+                    path = PassPath(name)
+                    try:
+                        text = path.read_text()
+                        if not text:
+                            # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
+                            continue
+                        res.update(toml.loads(text))
+                    except toml.TOMLDecodeError as e:
+                        # at this point, we can be sure that pass is installed, and the user did create a pass entry,
+                        # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
+                        raise UofTCoreError(
+                            f"Error parsing data returned from `{path.command_name}`. expected a TOML document, but failed parsing as TOML: {e.args}"
+                        ) from e
+                return res
+
+            return settings_from_pass
 
         @staticmethod
         def config_file_settings(settings: "BaseSettings"):
@@ -1051,24 +1223,6 @@ class BaseSettings(PydanticBaseSettings):
                 # If no config files exist, that may not necessarily be an error.
                 # We'll let pydantic check all settings sources and determine if a given setting is missing
                 return {}
-
-        @staticmethod
-        def settings_from_pass(settings: "BaseSettings"):
-            name = settings.__config__.app_name  # pylint: disable=protected-access
-            cmd = f"pass show uoft-{name}"
-            try:
-                text = shell(cmd)
-                return toml.loads(text)
-            except CalledProcessError:
-                # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
-
-                return {}
-            except toml.TOMLDecodeError as e:
-                # at this point, we can be sure that pass is installed, and the user did create a pass entry,
-                # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
-                raise UofTCoreError(
-                    f"Error parsing data returned from `{cmd}`. expected a TOML document, but failed parsing as TOML: {e}"
-                ) from e
 
     __config__: ClassVar[Type[Config]]
 

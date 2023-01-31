@@ -15,7 +15,7 @@ dependencies = [
   "typer>=0.4",
   "rich >= 12.2",
   "requests >= 2.20",
-  "pydantic >= 1.9",
+  "pydantic[dotenv] >= 1.9",
   "prompt_toolkit >= 3.0",
 ]
 

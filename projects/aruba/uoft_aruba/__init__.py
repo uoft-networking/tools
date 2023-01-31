@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     default_config_path: str = Field(
         "/md",
         title="Aruba API Default Config Path",
-        description="Default config path used for API requests. Ex /md or /md/UTSC"
+        description="Default config path used for API requests. Ex /md or /md/UTSC",
     )
 
     @root_validator(pre=True)
@@ -30,7 +30,7 @@ class Settings(BaseSettings):
                 "md_vrrp_hostname is deprecated. "
                 "Please update your config files to use a list called 'mm_hostnames' instead. "
                 "Please check one of the following config files for the deprecated config and update it: {}".format(
-                    cls.get_util().config.readable_files
+                    cls._util().config.readable_files
                 )
             )
         return values
@@ -50,7 +50,7 @@ class Settings(BaseSettings):
             f"{self.mm_vrrp_hostname}:4343",
             self.svc_account,
             self.password.get_secret_value(),
-            self.default_config_path
+            self.default_config_path,
         )
 
     class Config(BaseSettings.Config):

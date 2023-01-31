@@ -1,0 +1,6 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: tasks/new_project_template
+author_email: kyle.fozo@utoronto.ca
+author_name: Kyle Fozo
+description: Collection of utilities for interacting with Aruba infrastructure
+name: aruba
