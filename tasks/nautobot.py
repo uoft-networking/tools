@@ -60,19 +60,10 @@ def _parse_built_files(output: str) -> str:
 
 @task()
 def deploy_to_prod(c: Context):
-    r = c.run("inv build core")
-    core_wheel = _parse_built_files(r.stdout)
-    r = c.run("inv build nautobot")
-    nautobot_wheel = _parse_built_files(r.stdout)
-    r = c.run("inv build aruba")
-    aruba_wheel = _parse_built_files(r.stdout)
-    systemd(c, "stop", prod=True)
-    wheels = f"dist/{core_wheel} dist/{nautobot_wheel} dist/{aruba_wheel}"
+    """build and deploy the current code to prod"""
     needs_sudo(c)
-    c.sudo(f"gpipx runpip nautobot install --upgrade {wheels}")
-    c.sudo(
-        f"gpipx runpip nautobot install --upgrade --force-reinstall --no-deps {wheels}"
-    )
+    systemd(c, "stop", prod=True)
+    c.sudo(f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh")
     c.sudo(
         "cp projects/nautobot/dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
     )
@@ -86,10 +77,9 @@ def deploy_to_prod(c: Context):
 @task()
 def db_refresh(c: Context):
     """refresh the dev db from the prod db"""
-    systemd(c, "stop")
     c.run("/opt/backups/db/actions sync_prod_to_dev")
-    c.run("inv nautobot.server migrate")
-    systemd(c, "start")
+    server(c, "dbshell \"--command=UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';\"")
+    server(c, "migrate")
 
 
 @task()
