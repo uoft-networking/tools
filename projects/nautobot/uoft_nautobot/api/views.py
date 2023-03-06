@@ -32,6 +32,7 @@ class ArubaBlocklistView(APIView):
         super().__init__(**kwargs)
         conf: ArubaSettings = settings.PLUGINS_CONFIG["uoft_nautobot"]["aruba"]
         self.controllers = conf.md_api_connections
+        self.mobility_master = conf.mm_api_connection
 
     @extend_schema(
         operation_id="aruba_stm_blocklist_get",
@@ -163,9 +164,8 @@ class ArubaBlocklistView(APIView):
             raise InputError() from e
 
         # Now we can go ahead and delete the mac-address
-        for c in self.controllers:
-            with c as conn:
-                conn.wlan.stm_blacklist_remove(mac)
+        with self.mobility_master as conn:
+            conn.wlan.blmgr_blacklist_remove(mac)
 
         res = {
             "detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"
