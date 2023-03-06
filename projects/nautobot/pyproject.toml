@@ -11,8 +11,10 @@ readme = "README.md"
 dependencies = [
   "nautobot_ssot >= 1.1.0",
   "nautobot_golden_config",
+  "nautobot-device-onboarding",
   "uoft_core",
   "uoft_aruba",
+  "uoft_ssh",
   "nautobot >= 1.5",
   "django-auth-ldap",
   "debugpy",
