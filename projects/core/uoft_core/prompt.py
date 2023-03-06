@@ -284,9 +284,14 @@ class Prompt:
         return res
 
     def from_model_field(self, name: str, field: ModelField):
-        type_name, type_args = _unpack_type(field.outer_type_)
+        type_, type_args = _unpack_type(field.outer_type_)
         desc = field.field_info.description
-        default = field.default
+        default = field.get_default()
+
+        if field.field_info.extra.get("prompt", True) is False:
+            # Do not prompt for value, only return default
+            return default
+
 
         class PydanticValidator(Validator):
             def validate(self, document: Document):
@@ -304,23 +309,23 @@ class Prompt:
         # TODO: add handling for constr(regex=...)
         # TODO: add handling for IPAddress, IPNetwork from netaddr module
 
-        if type_name is str:
+        if type_ is str:
             return self.get_string(name, desc, default_value=default)
-        elif type_name is SecretStr:
+        elif type_ is SecretStr:
             return self.get_string(name, desc, default_value=default, is_password=True)
-        elif type_name is bool:
+        elif type_ is bool:
             return self.get_bool(name, desc, default_value=default)
-        elif type_name is int:
+        elif type_ is int:
             return self.get_int(name, desc, default_value=default)
-        elif type_name is Literal:
+        elif type_ is Literal:
             return self.get_from_choices(name, type_args, desc, default_value=default)
-        elif type_name is Path:
+        elif type_ is Path:
             return self.get_path(name, desc, default_value=default)
-        elif type_name is FilePath:
+        elif type_ is FilePath:
             return self.get_path(
                 name, desc, default_value=default, validator=PydanticValidator()
             )
-        elif type_name is DirectoryPath:
+        elif type_ is DirectoryPath:
             return self.get_path(
                 name,
                 desc,
@@ -328,16 +333,16 @@ class Prompt:
                 only_directories=True,
                 validator=PydanticValidator(),
             )
-        elif type_name is list:
+        elif type_ is list:
             return self.get_list(name, desc, default_value=default)
-        elif type_name is dict:
+        elif type_ is dict:
             return self.get_dict(name, desc, default_value=default)
         else:
-            if issubclass(type_name, Enum):
-                choices = list(type_name.__members__.keys())
+            if issubclass(type_, Enum):
+                choices = list(type_.__members__.keys())
                 val = self.get_from_choices(name, choices, desc, default_value=default)
-                return type_name.__members__[val]
-            elif issubclass(type_name, BaseModel):
+                return type_.__members__[val]
+            elif issubclass(type_, BaseModel):
                 # Does it make sense to support default values for nested models?
                 # How would that work?
                 return self.from_model(field.type_, prefix=name)
