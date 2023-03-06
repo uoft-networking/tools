@@ -66,7 +66,7 @@ class ArubaRESTAPIClient:
         resp_data = resp.json()
 
         if "Error" in resp_data:
-            raise ArubaRESTAPIError(f"POST {url} failed: {resp_data['Error']}")
+            raise ArubaRESTAPIError(f"POST {url} failed: {resp_data}")
 
         if resp_data["_global_result"]["status_str"] != "Success":
             raise ArubaRESTAPIError(f"POST {url} failed: {resp_data}")
@@ -218,7 +218,7 @@ class ArubaRESTAPIClient:
             @staticmethod
             def stm_blacklist_remove(mac_address: str):
                 return self.post(
-                    "stm_blacklist_client_remove", {"mac_address": mac_address}
+                    "stm_blacklist_client_remove", {"client-mac": mac_address}
                 )
 
             @staticmethod
