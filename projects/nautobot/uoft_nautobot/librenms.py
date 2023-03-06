@@ -22,20 +22,11 @@ def get_data():
             d["groups"] = res["groups"]
         else:
             d["groups"] = []
-        try:
-            d["ip_addresses"] = ld.get_device_ip_addresses(d["device_id"]).json()[
-                "addresses"
-            ]
-        except KeyError:
-            pass
-        try:
-            d["links"] = ls.get_links(d["device_id"]).json()["links"]
-        except KeyError:
-            pass
-        try:
-            d["vlans"] = ls.get_vlans(d["device_id"]).json()["vlans"]
-        except KeyError:
-            pass
+        if d['hostname'].startswith("d1-"):
+            try:
+                d["vlans"] = ls.get_vlans(d["device_id"]).json()["vlans"]
+            except KeyError:
+                pass
 
     return devices
 
