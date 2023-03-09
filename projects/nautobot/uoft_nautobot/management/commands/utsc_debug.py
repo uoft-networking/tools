@@ -5,22 +5,13 @@ from uoft_core import debug_cache
 from django.core.management.base import BaseCommand
 from jinja2 import StrictUndefined
 from nautobot.dcim.models import Device
+from .update_device_types import update_device_types
+from .import_devices_from_librenms import create_devices
 
 
 def librenms_stuff():
-    from ...librenms import get_data
-    import regex
 
-    devices = get_data()
-    re = regex.compile(r"^(av|[ad]\d)-.*")
-    devices = list(
-        filter(
-            lambda d: re.match(d["hostname"]),
-            devices,
-        )
-    )
-    from nautobot.dcim.models import Device, DeviceRole, DeviceType, Manufacturer, Site
-    from nautobot.ipam.models import IPAddress, VLAN, VLANGroup
+    
     from nautobot_device_onboarding.models import OnboardingTask
     from nautobot_device_onboarding.utils.credentials import Credentials
     from nautobot_device_onboarding.worker import enqueue_onboarding_task
@@ -32,29 +23,6 @@ def librenms_stuff():
         except IPAddress.DoesNotExist:
             return IPAddress.objects.create(address=ip)
     
-    all_sites = {s.name: s for s in Site.objects.all()}
-    all_sites['Student Life'] = all_sites['Student Centre']
-    all_sites['Environment Sciences & Chemistry Building'] = all_sites['Environmental Science & Chemistry Building']
-    for device in devices:
-        hostname = device["hostname"].partition(".")[0]
-        ip = device["ip"]
-        #device_type = DeviceType.objects.get(name=device["hardware"])
-        site = None
-        role = None
-        for group in device["groups"]:
-            group_name = group["name"]
-            if group_name == "Distribution Switches":
-                role = DeviceRole.objects.get(name="Distribution Switches")
-            elif group_name == "Access Switches":
-                role = DeviceRole.objects.get(name="Access Switches")
-            elif group_name == "Classroom Switches":
-                role = DeviceRole.objects.get(name="Classroom Switches")
-            elif group_name == "Campus Core Switches":
-                role = DeviceRole.objects.get(name="Core Switches")
-            elif group_name in all_sites:
-                site = all_sites[group_name]
-        assert site is not None
-        assert role is not None
 
         ot = OnboardingTask.objects.create(
             ip_address=ip,
@@ -136,16 +104,6 @@ def golden_config_test():
     Path('test.cisco').unlink()
 
 
-def refresh_device_types():
-    from ...datasources import refresh_single_device_type
-
-    model_file = Path(
-        "dev_data/git/netbox-community-devicetype-library/device-types/Cisco/WS-C3850-24XS-E.yaml"
-    )
-
-    refresh_single_device_type(model_file)
-
-
 def prod_workbench():
     import pynautobot
 
@@ -160,5 +118,7 @@ class Command(BaseCommand):
     help = "Run debug code from the uoft_nautobot plugin"
 
     def handle(self, *args, **options):
-        librenms_stuff()
+        create_devices()
+        #update_device_types()
+        #librenms_stuff()
         #golden_config_test()
