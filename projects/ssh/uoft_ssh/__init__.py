@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     enable_secret: SecretStr = Field(description="Password used to enter the enable mode of a device.")
     admin: Credentials = Field(description="Credentials for the admin user.")
     personal: Credentials = Field(description="Your personal credentials.")
-    nautobot: Credentials = Field(description="Credentials for the Nautobot user, typically has read-only access.")
     other: dict[str, SecretStr] = Field(description="Other, optional credentials.")
 
 

@@ -1,12 +1,16 @@
 from importlib import metadata
 from uoft_core import BaseSettings, Field, SecretStr
 from uoft_aruba import Settings as ArubaSettings
-from uoft_ssh import Settings as SSHSettings
+from uoft_ssh import Settings as SSHSettingsBase, Credentials
 
 __version__ = metadata.version(__name__)
 
 
 from nautobot.extras.plugins import PluginConfig
+
+
+class SSHSettings(SSHSettingsBase):
+    nautobot: Credentials = Field(description="Credentials for the Nautobot user, typically has read-only access.")
 
 
 class Settings(BaseSettings):
