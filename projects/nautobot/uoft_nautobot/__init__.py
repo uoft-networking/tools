@@ -1,6 +1,7 @@
 from importlib import metadata
 from uoft_core import BaseSettings, Field, SecretStr
 from uoft_aruba import Settings as ArubaSettings
+from uoft_ssh import Settings as SSHSettings
 
 __version__ = metadata.version(__name__)
 
@@ -26,13 +27,13 @@ class Settings(BaseSettings):
     bluecat_url: str = "https://localhost"
     bluecat_username: str = "admin"
     bluecat_password: SecretStr = SecretStr("")
-    aruba = ArubaSettings.from_cache()
-    nornir_username: str
-    nornir_password: SecretStr
-    nornir_secret: SecretStr
+    aruba: ArubaSettings = Field(prompt=False)
+    ssh: SSHSettings = Field(prompt=False)
     nornir_timeout: int = 30
-    gitlab_username: str
-    gitlab_password: SecretStr
+    gitlab_templates_username: str
+    gitlab_templates_password: SecretStr
+    gitlab_data_username: str
+    gitlab_data_password: SecretStr
     ldap_server: str
     ldap_is_active_directory: bool = False
     ldap_cert_is_self_signed: bool = False

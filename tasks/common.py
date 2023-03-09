@@ -97,6 +97,7 @@ def new_project(c: Context, name: str):
     os.system(
         f"copier -d name={name} copy tasks/new_project_template {ROOT}/projects/{name}"
     )
+    install_editable(c, name)
 
 
 @task()

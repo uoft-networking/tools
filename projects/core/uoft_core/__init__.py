@@ -1116,6 +1116,21 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @classmethod
     def prompt_for_missing_values(cls, values):
 
+        missing_keys = [key for key in cls.__fields__ if key not in values]
+
+        # If a BaseSettings subclass appears in the missing_keys list, and that field is marked prompt=False,
+        # Then we should source the value from the subclass's from_cache method, and remove the subclass from the missing_keys list
+        for key in missing_keys[:]:
+            field = cls.__fields__[key]
+            type_ = field.outer_type_
+            if issubclass(type_, BaseSettings) and field.field_info.extra.get("prompt", True) is False:
+                values[key] = type_.from_cache()
+                missing_keys.remove(key)
+
+        if not missing_keys:
+            # Everything's present and accounted for. nothing to do here
+            return values
+
         if not cls.Config.prompt_on_missing_values:
             # interactively prompting for values is disabled on this subclass
             return values
@@ -1123,11 +1138,6 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         if not sys.stdout.isatty():
             # We're not in a terminal.  We can't prompt for input.
             # Return values as is and let pydantic report validation errors on missing fields
-            return values
-
-        missing_keys = [key for key in cls.__fields__ if key not in values]
-        if not missing_keys:
-            # Everything's present and accounted for. nothing to do here
             return values
 
         # We're in a terminal and we're missing some values.
