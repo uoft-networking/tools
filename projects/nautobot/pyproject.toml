@@ -41,3 +41,4 @@ path = "pyproject.py"
 
 [tool.hatch.build]
 packages = ["uoft_nautobot"]
+exclude = ["**/tests"]
