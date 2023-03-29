@@ -3,7 +3,7 @@
 import sys
 import pytest  # NOQA
 
-from .roundtrip import round_trip_load, round_trip_dump, dedent
+from ._roundtrip import round_trip_load, round_trip_dump, dedent
 
 
 class TestLeftOverDebug:

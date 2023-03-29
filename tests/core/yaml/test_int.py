@@ -2,7 +2,7 @@
 
 import pytest  # NOQA
 
-from .roundtrip import dedent, round_trip_load, round_trip_dump
+from ._roundtrip import dedent, round_trip_load, round_trip_dump
 
 # http://yaml.org/type/int.html is where underscores in integers are defined
 

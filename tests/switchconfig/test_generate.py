@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
     from . import MockedConfig, MockPTApp
 
-template_dir = Path(__file__).parent.joinpath("templates")
+template_dir = Path(__file__).parent.joinpath("fixtures/templates")
 
 
 def test_model_questionnaire(mock_config: "MockedConfig", mock_pt_app: "MockPTApp"):

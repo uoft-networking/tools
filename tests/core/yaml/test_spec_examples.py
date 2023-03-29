@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from .roundtrip import YAML
+from ._roundtrip import YAML
 import pytest  # NOQA
 
 

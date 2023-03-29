@@ -2,7 +2,7 @@
 
 import pytest  # NOQA
 
-from .roundtrip import YAML  # does an automatic dedent on load
+from ._roundtrip import YAML  # does an automatic dedent on load
 
 
 """

@@ -3,7 +3,7 @@
 import pytest  # NOQA
 
 # import uoft_core.yaml
-from .roundtrip import round_trip
+from ._roundtrip import round_trip
 
 
 class TestProgramConfig:

@@ -2,7 +2,7 @@
 
 import pytest  # NOQA
 
-from .roundtrip import round_trip, round_trip_load, round_trip_dump, dedent, YAML
+from ._roundtrip import round_trip, round_trip_load, round_trip_dump, dedent, YAML
 
 
 def rt(s):

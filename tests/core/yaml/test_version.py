@@ -2,7 +2,7 @@
 
 import pytest  # NOQA
 
-from .roundtrip import dedent, round_trip, round_trip_load
+from ._roundtrip import dedent, round_trip, round_trip_load
 
 
 def load(s, version=None):

@@ -17,7 +17,7 @@ import pytest
 import platform
 
 # from uoft_core.yaml.compat import ordereddict
-from .roundtrip import round_trip, dedent, round_trip_load, round_trip_dump  # NOQA
+from ._roundtrip import round_trip, dedent, round_trip_load, round_trip_dump  # NOQA
 from uoft_core.yaml.scalarstring import LiteralScalarString, DoubleQuotedScalarString
 
 class TestLiteralScalarString:

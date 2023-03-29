@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 def test_template_name_completion():
     class MockContext:
-        params = {"cache_dir": Path(__file__).parent / "templates"}
+        params = {"cache_dir": Path(__file__).parent / "fixtures/templates"}
 
     res = template_name_completion(MockContext(), "")  # type: ignore
     assert set(res) == set(

@@ -155,7 +155,7 @@ class TestYAMLData(object):
                 exec(line)
 
     def run_python(self, python, data, tmpdir, input=None):
-        from roundtrip import save_and_run
+        from tests.core.yaml._roundtrip import save_and_run
 
         if input is not None:
             (tmpdir / "input.yaml").write_text(input.value, encoding="utf-8")

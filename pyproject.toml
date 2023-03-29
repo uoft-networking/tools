@@ -1,6 +1,21 @@
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = ["tests"]
+testpaths = ["tests", "projects/**/tests"]
+norecursedirs = [
+    "**/fixtures",
+    "dist",
+    "build",
+    "docs",
+    "hazmat",
+    ".venv",
+    ".tox",
+    ".nox",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pants.d",
+]
 
 [tool.ruff]
 line-length = 120

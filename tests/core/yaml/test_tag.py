@@ -2,7 +2,7 @@
 
 import pytest  # NOQA
 
-from .roundtrip import round_trip, round_trip_load, YAML
+from ._roundtrip import round_trip, round_trip_load, YAML
 
 class TestIndentFailures:
     def test_tag(self):

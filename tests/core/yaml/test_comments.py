@@ -13,7 +13,7 @@ roundtrip changes
 import pytest
 import sys
 
-from .roundtrip import round_trip, dedent, round_trip_load, round_trip_dump
+from ._roundtrip import round_trip, dedent, round_trip_load, round_trip_dump
 
 
 class TestComments:

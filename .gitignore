@@ -11,6 +11,8 @@ cov.xml
 .coverage*
 *.pkl
 *.uoft_core.debug*
+**/tests/fixtures/end_to_end
+
 
 # garbage / prototyping code not ready for prime time
 /hazmat
@@ -19,9 +21,6 @@ cov.xml
 nautobot_ssot_infoblox
 utsc_templates
 /projects/*/dist
-/projects/nautobot/dev_data
-projects/nautobot/nautobot_data/
-/projects/nautobot/gitlab_repo
+/projects/nautobot/.dev_data
 !.venv/make_pipenv_install_here
-.uoft_core.debug.cache.*
 projects/aruba/.env
