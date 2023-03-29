@@ -35,6 +35,55 @@ def fetch_devices_from_librenms():
 
     return devices
 
+ALL_SITES = {}
+DEVICE_TYPES = {}
+PLATFORMS = {}
+STATUS = None
+
+def create_device(device: dict):
+    hostname = device["hostname"].partition(".")[0]
+    ip = device["ip"]
+    device_type = DEVICE_TYPES[device["hardware"]]
+    site = None
+    role = None
+    interface_name = "Vlan900"
+    for group in device["groups"]:
+        group_name = group["name"]
+        if group_name == "Distribution Switches":
+            role = DeviceRole.objects.get(name="Distribution Switches")
+            interface_name = "Loopback0"
+        elif group_name == "Access Switches":
+            role = DeviceRole.objects.get(name="Access Switches")
+        elif group_name == "Classroom Switches":
+            role = DeviceRole.objects.get(name="Classroom Switches")
+        elif group_name == "Campus Core Switches":
+            role = DeviceRole.objects.get(name="Core Switches")
+        elif group_name == "Data Centre":
+            role = DeviceRole.objects.get(name="Data Centre Switches")
+        elif group_name in ALL_SITES:
+            site = ALL_SITES[group_name]
+    assert site is not None
+    assert role is not None
+    platform = PLATFORMS.get(device_type.manufacturer.name, None)
+    ip, _ = IPAddress.objects.get_or_create(address=f"{ip}/24")
+    nautobot_device, _ = Device.objects.get_or_create(
+        name=hostname,
+        defaults=dict(
+            device_type=device_type,
+            device_role=role,
+            site=site,
+            platform=platform,
+            status=STATUS,
+        ),
+    )
+    intf, _ = nautobot_device.interfaces.get_or_create(
+        name=interface_name, defaults=dict(type="virtual", label="Management", mgmt_only=True)
+    )
+    intf.ip_addresses.add(ip)
+    nautobot_device.primary_ip4 = ip
+    
+    nautobot_device.validated_save()
+
 
 def create_devices():
     devices = fetch_devices_from_librenms()
@@ -46,74 +95,33 @@ def create_devices():
         )
     )
 
-    all_sites = {s.name: s for s in Site.objects.all()}
-    all_sites["Student Life"] = all_sites["Student Centre"]
-    all_sites["Environment Sciences & Chemistry Building"] = all_sites[
+    ALL_SITES = {s.name: s for s in Site.objects.all()}
+    ALL_SITES["Student Life"] = ALL_SITES["Student Centre"]
+    ALL_SITES["Environment Sciences & Chemistry Building"] = ALL_SITES[
         "Environmental Science & Chemistry Building"
     ]
 
-    device_types = {s.part_number: s for s in DeviceType.objects.all()}
-    device_types["A5120-24G-PoE+ EI Switch with 2 Interface Slots"] = device_types[
+    DEVICE_TYPES = {s.part_number: s for s in DeviceType.objects.all()}
+    DEVICE_TYPES["A5120-24G-PoE+ EI Switch with 2 Interface Slots"] = DEVICE_TYPES[
         "JG236A"
     ]
-    device_types["A5120-48G-PoE+ EI Switch with 2 Interface Slots"] = device_types[
+    DEVICE_TYPES["A5120-48G-PoE+ EI Switch with 2 Interface Slots"] = DEVICE_TYPES[
         "JG237A"
     ]
-    device_types["WS-C4500X-16"] = device_types["WS-C4500X-16SFP+"]
+    DEVICE_TYPES["WS-C4500X-16"] = DEVICE_TYPES["WS-C4500X-16SFP+"]
 
-    platforms = dict(
+    PLATFORMS = dict(
         Cisco=Platform.objects.get(name="Cisco IOS"),
         Arista=Platform.objects.get(name="Arista EOS"),
     )
 
-    status = Status.objects.get(slug="active")
+    STATUS = Status.objects.get(slug="active")
 
     progress = Progress(*Progress.get_default_columns(), MofNCompleteColumn())
     
     with progress:
         for device in progress.track(devices):
-            hostname = device["hostname"].partition(".")[0]
-            ip = device["ip"]
-            device_type = device_types[device["hardware"]]
-            site = None
-            role = None
-            interface_name = "Vlan900"
-            for group in device["groups"]:
-                group_name = group["name"]
-                if group_name == "Distribution Switches":
-                    role = DeviceRole.objects.get(name="Distribution Switches")
-                    interface_name = "Loopback0"
-                elif group_name == "Access Switches":
-                    role = DeviceRole.objects.get(name="Access Switches")
-                elif group_name == "Classroom Switches":
-                    role = DeviceRole.objects.get(name="Classroom Switches")
-                elif group_name == "Campus Core Switches":
-                    role = DeviceRole.objects.get(name="Core Switches")
-                elif group_name == "Data Centre":
-                    role = DeviceRole.objects.get(name="Data Centre Switches")
-                elif group_name in all_sites:
-                    site = all_sites[group_name]
-            assert site is not None
-            assert role is not None
-            platform = platforms.get(device_type.manufacturer.name, None)
-            ip, _ = IPAddress.objects.get_or_create(address=f"{ip}/24")
-            nautobot_device, _ = Device.objects.get_or_create(
-                name=hostname,
-                defaults=dict(
-                    device_type=device_type,
-                    device_role=role,
-                    site=site,
-                    platform=platform,
-                    status=status,
-                ),
-            )
-            intf, _ = nautobot_device.interfaces.get_or_create(
-                name=interface_name, defaults=dict(type="virtual", label="Management", mgmt_only=True)
-            )
-            intf.ip_addresses.add(ip)
-            nautobot_device.primary_ip4 = ip
-            
-            nautobot_device.validated_save()
+            create_device(device)
 
 
 class Command(BaseCommand):

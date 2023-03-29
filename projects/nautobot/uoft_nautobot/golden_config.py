@@ -214,7 +214,7 @@ def transposer(data):
 
 
 def transposer_debug(data):
-    data = dict(DistributionSwitch.from_nautobot(data))
+    data = dict(DistributionSwitch.from_nautobot(Box(data)))
     return data
 
 
