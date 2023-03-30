@@ -52,43 +52,43 @@ def _golden_config_data():
     data.update(device_data)
     return data
 
-def test_golden_config(nautobot_initialized):
-    from django_jinja.backend import Jinja2
-    from jinja2.loaders import FileSystemLoader
-    from jinja2 import Environment, StrictUndefined
+@pytest.mark.integration
+class Nautobot:
+    def test_golden_config(self, nautobot_initialized):
+        from django_jinja.backend import Jinja2
+        from jinja2.loaders import FileSystemLoader
+        from jinja2 import Environment, StrictUndefined
 
-    data = _golden_config_data()
-    #data = debug_transposer(data)
-    git_repo = Path("projects/nautobot/.gitlab_repo")
-    assert git_repo.exists()
-    template = "templates/Distribution Switches/WS-C3850-24XS-E.cisco.j2"
+        data = _golden_config_data()
+        #data = debug_transposer(data)
+        git_repo = Path("projects/nautobot/.gitlab_repo")
+        assert git_repo.exists()
+        template = "templates/Distribution Switches/WS-C3850-24XS-E.cisco.j2"
 
-    jinja_settings = Jinja2.get_default()
-    jinja_env: Environment = jinja_settings.env
-    jinja_env.trim_blocks = True
-    jinja_env.undefined = StrictUndefined
-    jinja_env.loader = FileSystemLoader(git_repo)
+        jinja_settings = Jinja2.get_default()
+        jinja_env: Environment = jinja_settings.env
+        jinja_env.trim_blocks = True
+        jinja_env.undefined = StrictUndefined
+        jinja_env.loader = FileSystemLoader(git_repo)
 
-    t = jinja_env.get_template(template)
-    text = t.render(**data)
-    Path("test.cisco").write_text(text)
-    Path('test.cisco').unlink()
+        t = jinja_env.get_template(template)
+        text = t.render(**data)
+        Path("test.cisco").write_text(text)
+        Path('test.cisco').unlink()
 
+    def test_runjob(self, nautobot_initialized):
+        from nautobot.extras.management.commands.runjob import Command
 
-
-def test_runjob(nautobot_initialized):
-    from nautobot.extras.management.commands.runjob import Command
-
-    Command().run_from_argv(
-        [
-            "nautobot-server",
-            "runjob",
-            "--local",
-            "--commit",
-            "--username",
-            "trembl94",
-            "--data",
-            '{"device":["d1726e48-e4f0-4c76-9af9-da3cfa676161"]}',
-            "plugins/nautobot_golden_config.jobs/IntendedJob",
-        ]
-    )
+        Command().run_from_argv(
+            [
+                "nautobot-server",
+                "runjob",
+                "--local",
+                "--commit",
+                "--username",
+                "trembl94",
+                "--data",
+                '{"device":["d1726e48-e4f0-4c76-9af9-da3cfa676161"]}',
+                "plugins/nautobot_golden_config.jobs/IntendedJob",
+            ]
+        )

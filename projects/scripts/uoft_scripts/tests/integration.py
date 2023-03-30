@@ -8,7 +8,12 @@ import pytest
 
 if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
-    from . import MockedConfig
+
+    from uoft_scripts import Config
+    from uoft_core.tests import MockedUtil
+
+    class MockedConfig(Config):
+        util: MockedUtil
 
 
 @pytest.mark.skip("need to figure out how to run bluecat test instance")
