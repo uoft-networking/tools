@@ -11,7 +11,7 @@ cov.xml
 .coverage*
 *.pkl
 *.uoft_core.debug*
-**/tests/fixtures/end_to_end
+**/tests/fixtures/_private/*
 
 
 # garbage / prototyping code not ready for prime time
