@@ -11,4 +11,4 @@ class Settings(BaseSettings):
 
     def api_connection(self):
         from .api import LibreNMSRESTAPIClient
-        return LibreNMSRESTAPIClient(self.url, self.token)
+        return LibreNMSRESTAPIClient(self.url, self.token.get_secret_value())

@@ -138,8 +138,8 @@ class VLAN(BaseModel):
 
 class DistributionSwitch(BaseModel):
     hostname: str
-    mgmt_ip_v4: IPAddress
-    mgmt_ip_v6: IPAddress
+    mgmt_ip_v4: IPAddress | None
+    mgmt_ip_v6: IPAddress | None
     interfaces: list[Interface]
     vlans: list[VLAN]
     tags: set[str] = Field(default_factory=set)
@@ -174,10 +174,13 @@ class DistributionSwitch(BaseModel):
         if not isinstance(switch, Box):
             switch = Box(switch)
 
+        mgmt_ip_v4 = IPAddress(switch.primary_ip4.address) if switch.primary_ip4 else None
+        mgmt_ip_v6 = IPAddress(switch.primary_ip6.address) if switch.primary_ip6 else None
+
         return cls(
             hostname=switch.hostname,
-            mgmt_ip_v4=IPAddress(switch.primary_ip4.address),
-            mgmt_ip_v6=IPAddress(switch.primary_ip6.address),
+            mgmt_ip_v4=mgmt_ip_v4,
+            mgmt_ip_v6=mgmt_ip_v6,
             interfaces=interfaces(),
             vlans=vlans(),
             tags=set(switch.tags),

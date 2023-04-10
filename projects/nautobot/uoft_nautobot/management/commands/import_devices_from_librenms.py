@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 from uoft_core import debug_cache, shell
+from uoft_librenms import Settings
 
 from librenms_handler.devices import Devices
 from librenms_handler.device_groups import DeviceGroups
@@ -20,20 +21,55 @@ from rich.progress import Progress, MofNCompleteColumn
 
 @debug_cache
 def fetch_devices_from_librenms():
-    url = "https://librenms.server.utsc.utoronto.ca"
-    token = shell("pass librenms-api")
+    s = Settings.from_cache()
+    api = s.api_connection()
+    devices = api.devices.list_devices()['devices']
+    ports = api.ports.get_all_ports(columns=[
+                "port_id",
+                "device_id",
+                "ifIndex",
+                "ifName",
+                "ifAlias",
+                "ifDescr",
+                "ifOperStatus",
+                "ifAdminStatus",
+                "ifType",
+                "ifVlan",
+                "ifTrunk",
+                "disabled",
+            ])['ports']
+    device_groups = api.device_groups.get_devicegroups()['groups']
+    vlans = api.switching.list_vlans()['vlans']
+    links = api.switching.list_links()["links"]
+    res = {d['device_id']: d for d in devices}
+    for d in res.values():
+        d["ports"] = []
+        d['groups'] = []
+        d['vlans'] = []
+        d['links'] = []
+    for p in ports:
+        device_id = p['device_id']
+        if device_id in res:
+            res[device_id]['ports'].append(p)
+        del device_id
+    for g in device_groups:
+        for d in api.device_groups.get_devices_by_group(g['id'])['devices']:
+            device_id = d['device_id']
+            if device_id in res:
+                res[device_id]['groups'].append(g)
+            del device_id
+    for v in vlans:
+        device_id = v['device_id']
+        if device_id in res:
+            res[device_id]['vlans'].append(v)
+        del device_id
+    for l in links:
+        device_id = l['local_device_id']
+        if device_id in res:
+            res[device_id]['links'].append(l)
+        del device_id
 
-    ld = Devices(url, token)
-
-    devices = ld.list_devices(order_type="up").json()["devices"]
-    for d in devices:
-        res = ld.get_device_groups(d["device_id"]).json()
-        if "groups" in res:
-            d["groups"] = res["groups"]
-        else:
-            d["groups"] = []
-
-    return devices
+    return res
 
 ALL_SITES = {}
 DEVICE_TYPES = {}
@@ -87,13 +123,6 @@ def create_device(device: dict):
 
 def create_devices():
     devices = fetch_devices_from_librenms()
-    pat = re.compile(r"^((av|[ad]\d)-|[sn]dc(vg0\d|-(core|wan|wifi-aggregation-\d)\d)).*")
-    devices = list(
-        filter(
-            lambda d: pat.match(d["hostname"]),
-            devices,
-        )
-    )
 
     ALL_SITES = {s.name: s for s in Site.objects.all()}
     ALL_SITES["Student Life"] = ALL_SITES["Student Centre"]

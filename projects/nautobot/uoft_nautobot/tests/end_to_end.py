@@ -12,7 +12,7 @@ fixtures_dir = Path(__file__).parent / "fixtures"
 @pytest.fixture(scope="session")
 def nautobot_initialized():
     for line in Path("projects/nautobot/.dev_data/.env").read_text().splitlines():
-        if line is not "" and not line.startswith(("#", " ")):
+        if line != "" and not line.startswith(("#", " ")):
             key, val = line.split("=", 1)
             os.environ[key] = val
     for line in shell("pass show nautobot-secrets").splitlines():

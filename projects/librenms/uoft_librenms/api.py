@@ -1,17 +1,18 @@
 from typing import Literal, List
-from requests import Session
+import json
+from requests import Session, Response
 import urllib3
+from . import typing as t
 
 
 class LibreNMSRESTAPIError(Exception):
     pass
 
 
-class LibreNMSRESTAPIClient:
-    def __init__(self, host, token, ssl_verify=False) -> None:
-        self.host = host
-        self.session = Session()
-        self.session.headers.update(
+class MySession(Session):
+    def __init__(self, token, *args, ssl_verify=False, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.headers.update(
             {
                 "Content-Type": "application/json",
                 "Accept": "application/json",
@@ -22,8 +23,45 @@ class LibreNMSRESTAPIClient:
         # pylint: disable=no-member
         # LibreNMS installation may have a self-signed cert, and cannot be verified
         if not ssl_verify:
-            self.session.verify = False
+            self.verify = False
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # type: ignore
+
+    def request(self, method, url, **kwargs):
+        response = super().request(method, url, **kwargs)
+        if response.status_code != 200:
+            raise LibreNMSRESTAPIError(
+                f"Request to {url} failed with status code {response.status_code} and message {response.text}"
+            )
+        return response
+
+    def _to_json(self, response: Response) -> dict:
+        try:
+            return response.json()
+        except json.JSONDecodeError as e:
+            raise LibreNMSRESTAPIError(
+                f"Request to {response.url} returned invalid JSON: {response.text}"
+            ) from e
+
+    def get(self, url, **kwargs) -> dict:
+        return self._to_json(super().get(url, **kwargs))
+
+    def put(self, url, **kwargs) -> dict:
+        return self._to_json(super().put(url, **kwargs))
+
+    def post(self, url, **kwargs) -> dict:
+        return self._to_json(super().post(url, **kwargs))
+
+    def delete(self, url, **kwargs) -> dict:
+        return self._to_json(super().delete(url, **kwargs))
+
+    def patch(self, url, **kwargs) -> dict:
+        return self._to_json(super().patch(url, **kwargs))
+
+
+class LibreNMSRESTAPIClient:
+    def __init__(self, host, token, ssl_verify=False) -> None:
+        self.host = host
+        self.session = MySession(token, ssl_verify=ssl_verify)
 
     @property
     def alerts(self):
@@ -34,37 +72,65 @@ class LibreNMSRESTAPIClient:
             url = url_
 
             @staticmethod
-            def list():
-                """
-                List all alerts.
-                """
-                return self.session.get(url_)
-
-            @staticmethod
-            def get(alert: int):
+            def get_alert(alert: int):
                 """
                 Get details of a given alert.
 
-                :param alert: Alert ID
+                :param alert: Alert id, you can obtain a list of alert ids from `list_alerts`
                 """
                 return self.session.get(f"{url_}/{alert}")
 
             @staticmethod
-            def ack(alert: int):
+            def ack_alert(alert: int, note: str, until_clear: bool = True):
                 """
-                Get details of a given alert.
+                Acknowledge an alert
 
-                :param alert: Alert ID
+                :param alert: Alert id, you can obtain a list of alert ids from `list_alerts`
+                :param note: Note to add to the alert
+                :param until_clear: Whether to acknowledge until the alert is cleared.
+                    If set to false, the alert will re-alert if it worsens/improves.
                 """
-                return self.session.put(f"{url_}/{alert}")
+                return self.session.put(
+                    f"{url_}/{alert}", params=dict(note=note, until_clear=until_clear)
+                )
 
             @staticmethod
-            def unmute(alert: int):
+            def unmute_alert(alert: int):
                 """
-                Get a list of alert rules.
+                Unmute an alert
+
+                :param alert: Alert id, you can obtain a list of alert ids from `list_alerts`
                 """
                 return self.session.put(f"{url_}/unmute/{alert}")
 
+            @staticmethod
+            def list_alerts(
+                state: Literal["ok", "alert", "ack"] | None = None,
+                severity: Literal["ok", "warning", "critical"] | None = None,
+                alert_rule: int | None = None,
+                order: str
+                | None = None,  # TODO: change this to a literal enum of the alert fields
+                sort: Literal["asc", "desc"] = "desc",
+            ):
+                """
+                List all alerts.
+
+                :param state: Filter by alert state, ok, alert, ack
+                :param severity: Filter by alert severity, ok, warning, critical
+                :param alert_rule: Filter by alert rule id
+                :param order: Order by field, defaults to timestamp
+                :param sort: Sort order, defaults to desc
+                """
+                params = dict()
+                if state:
+                    params["state"] = state
+                if severity:
+                    params["severity"] = severity
+                if alert_rule:
+                    params["alert_rule"] = alert_rule
+                if order:
+                    params["order"] = f"{order} {sort}"
+                return self.session.get(url_, params=params)
 
         return Alerts
 
@@ -77,14 +143,7 @@ class LibreNMSRESTAPIClient:
             url = url_
 
             @staticmethod
-            def list():
-                """
-                Get a list of alert rules.
-                """
-                return self.session.get(url_)
-
-            @staticmethod
-            def get(rule: int):
+            def get_alert_rule(rule: int):
                 """
                 Get details of a given alert rule.
 
@@ -93,7 +152,34 @@ class LibreNMSRESTAPIClient:
                 return self.session.get(f"{url_}/{rule}")
 
             @staticmethod
-            def add(name: str, devices: List, builder: str, severity: Literal["ok", "warning", "critical"], disabled: int, count: int, delay: str, interval: str, mute: bool, invert: bool):
+            def delete_rule(rule: int):
+                """
+                Delete an existing alert rule
+
+                :param rule_id: You must specify the rule_id to delete an existing rule.
+                """
+                return self.session.delete(f"{url_}/{rule}")
+
+            @staticmethod
+            def list_alert_rules():
+                """
+                Get a list of alert rules.
+                """
+                return self.session.get(url_)
+
+            @staticmethod
+            def add_rule(
+                name: str,
+                devices: List,
+                builder: str,  # TODO: make this into a validating class that spits out librenms's json rule format
+                severity: Literal["ok", "warning", "critical"],
+                disabled: int,
+                count: int,
+                delay: str,
+                interval: str,
+                mute: bool,
+                invert: bool,
+            ):
                 """
                 Add a new alert rule.
 
@@ -123,7 +209,18 @@ class LibreNMSRESTAPIClient:
                 return self.session.post(url_, json=data)
 
             @staticmethod
-            def edit(rule_id: int, devices: List, builder: str, severity: Literal["ok", "warning", "critical"], disabled: int, count: int, delay: str, interval: str, mute: bool, invert: bool):
+            def edit_rule(
+                rule_id: int,
+                devices: List,
+                builder: str,
+                severity: Literal["ok", "warning", "critical"],
+                disabled: int,
+                count: int,
+                delay: str,
+                interval: str,
+                mute: bool,
+                invert: bool,
+            ):
                 """
                 Edit an existing alert rule
 
@@ -151,21 +248,17 @@ class LibreNMSRESTAPIClient:
                     "invert": invert,
                 }
                 return self.session.post(url_, json=data)
-            
-            @staticmethod
-            def delete(rule_id: int):
-                """
-                Delete an existing alert rule
 
-                :param rule_id: You must specify the rule_id to delete an existing rule.
-                """
-                return self.session.delete(f"{url_}/{rule_id}")
+        return AlertRules
 
     @property
     def devices(self):
         url = f"{self.host}/api/v0/devices"
 
         class Devices:
+
+            url_ = url
+
             @staticmethod
             def del_device(device: str):
                 """
@@ -459,7 +552,7 @@ class LibreNMSRESTAPIClient:
                         }
                     }
                 )
-                return self.session.put(f"{url}/{device}/components", data)
+                return self.session.put(f"{url}/{device}/components", json=data)
 
             @staticmethod
             def delete_components(device: str, component: int):
@@ -548,7 +641,7 @@ class LibreNMSRESTAPIClient:
                 order: str | None = None,
                 order_type: str | None = None,
                 query: str | None = None,
-            ):
+            ) -> t.Devices:
                 """
                 Return a list of devices.
 
@@ -572,7 +665,7 @@ class LibreNMSRESTAPIClient:
                 :param query: If searching by, then this will be used as the input
                 """
                 parameters = dict({"order": order, "type": order_type, "query": query})
-                return self.session.get(url, params=parameters)
+                return self.session.get(url, params=parameters)  # type: ignore
 
             @staticmethod
             def add_device(  # pylint: disable=C0103, R0913, R0914
@@ -760,8 +853,11 @@ class LibreNMSRESTAPIClient:
         url = f"{self.host}/api/v0/devicegroups"
 
         class DeviceGroups:
+
+            url_ = url
+
             @staticmethod
-            def get_devicegroups():
+            def get_devicegroups() -> t.DeviceGroups:
                 """List all device groups."""
                 return self.session.get(url)
 
@@ -810,6 +906,24 @@ class LibreNMSRESTAPIClient:
                 """
                 return self.session.get(f"{url}/{name}")
 
+            @staticmethod
+            def maintenance_devicegroup(
+                title: str | None = None,
+                notes: str | None = None,
+                start: str | None = None,
+                duration: str | None = None,
+            ):
+                """
+                Set a device group into maintenance mode.
+
+                :param title: Name of the group
+                :param notes: Some description for the Maintenance
+                :param start: Start time of Maintenance in format Y-m-d H:m
+                :param duration: Duration of Maintenance in format H:m
+                """
+                data = dict(title=title, notes=notes, start=start, duration=duration)
+                return self.session.post(f"{url}/maintenance", json=data)
+
         return DeviceGroups
 
     @property
@@ -817,6 +931,9 @@ class LibreNMSRESTAPIClient:
         url = f"{self.host}/api/v0/inventory"
 
         class Inventory:
+
+            url_ = url
+
             @staticmethod
             def get_inventory(
                 device: str,
@@ -880,6 +997,9 @@ class LibreNMSRESTAPIClient:
         url = f"{self.host}/api/v0/locations"
 
         class Locations:
+
+            url_ = url
+
             @staticmethod
             def add_location(location: str, lat=None, lng=None):
                 """
@@ -931,8 +1051,11 @@ class LibreNMSRESTAPIClient:
         url = f"{self.host}/api/v0/ports"
 
         class Ports:
+
+            url_ = url
+
             @staticmethod
-            def get_all_ports(columns: list[str] | None = None):
+            def get_all_ports(columns: list[str] | None = None) -> t.Ports:
                 """
                 Get info for all ports on all devices.
                 Strongly recommend that you use the columns parameter to avoid pulling too much data.
@@ -941,11 +1064,11 @@ class LibreNMSRESTAPIClient:
                 """
                 if columns is None:
                     columns = ["ifName", "port_id"]
-                parameters = dict({"columns": columns})
-                return self.session.get(url, params=parameters)
+                parameters = dict({"columns": ','.join(columns)})
+                return self.session.get(url, params=parameters)  # type: ignore
 
             @staticmethod
-            def search_ports(search_for: str, columns: list[str] | None = None):
+            def search_ports(search_for: str, columns: list[str] | None = None) -> t.Ports:
                 """
                 Search for ports by name, alias, or description.
 
@@ -954,15 +1077,15 @@ class LibreNMSRESTAPIClient:
                 """
                 if columns is None:
                     columns = ["ifName", "port_id"]
-                parameters = dict({"columns": columns})
-                return self.session.get(f"{url}/search/{search_for}", params=parameters)
+                parameters = dict({"columns": ','.join(columns)})
+                return self.session.get(f"{url}/search/{search_for}", params=parameters)  # type: ignore
 
             @staticmethod
             def search_ports_by(
                 search_for: str,
                 search_in: list[str] | None = None,
                 columns: list[str] | None = None,
-            ):
+            ) -> t.Ports:
                 """
                 Search for ports matching query.
                 Search for ports which contain the `search_for` string in any of the fields in the `search_in` list.
@@ -975,7 +1098,85 @@ class LibreNMSRESTAPIClient:
                     columns = ["ifName", "port_id"]
                 if search_in is None:
                     search_in = ["ifName"]
-                parameters = dict({"columns": columns})
-                return self.session.get(f"{url}/search/{search_in}/{search_for}", params=parameters)
+                search = ','.join(search_in)
+                parameters = dict({"columns": ','.join(columns)})
+                return self.session.get(
+                    f"{url}/search/{search}/{search_for}", params=parameters
+                )  # type: ignore
+
+            @staticmethod
+            def ports_with_associated_mac(mac: str) -> t.Ports:
+                """
+                Get ports with associated MAC address
+
+                :param mac: MAC address to search for
+                """
+                return self.session.get(f"{url}/mac/{mac}")  # type: ignore
+
+            @staticmethod
+            def get_port_info(port_id: int) -> t.Ports:
+                """
+                Get all info for a particular port.
+
+                :param port_id: ID of the port to retrieve
+                """
+                return self.session.get(f"{url}/{port_id}")  # type: ignore
+
+            @staticmethod
+            def get_port_ip_info(port_id: int):
+                """
+                Get all IP info (v4 and v6) for a given port id.
+
+                :param port_id: ID of the port to retrieve
+                """
+                return self.session.get(f"{url}/{port_id}/ip")
 
         return Ports
+
+    @property
+    def switching(self):
+        # the switching category has no url, because every method within it has a different url
+
+        class Switching:
+            @staticmethod
+            def list_vlans() -> t.Vlans:
+                """
+                List all VLANs
+                """
+                return self.session.get(f"{self.host}/api/v0/resources/vlans") # type: ignore
+
+            @staticmethod
+            def get_vlans(device: str) -> t.Vlans:
+                """
+                Get all VLANs for a device
+
+                :param device: Can be either the device hostname or ID
+                """
+                return self.session.get(f"{self.host}/api/v0/devices/{device}/vlans") # type: ignore
+
+            @staticmethod
+            def list_links() -> t.Links:
+                """
+                List all links
+                """
+                return self.session.get(f"{self.host}/api/v0/resources/links")  # type: ignore
+
+            @staticmethod
+            def get_links(device: str) -> t.Links:
+                """
+                Get all links for a device
+
+                :param device: Can be either the device hostname or ID
+                """
+                return self.session.get(f"{self.host}/api/v0/devices/{device}/links") # type: ignore
+
+            @staticmethod
+            def get_link(link_id: int) -> t.Links:
+                """
+                Get info for a link
+
+                :param link_id: ID of the link to retrieve
+                """
+                return self.session.get(f"{self.host}/api/v0/resources/links/{link_id}")
+
+        return Switching
