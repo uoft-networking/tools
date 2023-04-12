@@ -10,18 +10,8 @@ from uoft_core import shell
 fixtures_dir = Path(__file__).parent / "fixtures"
 
 @pytest.fixture(scope="session")
-def nautobot_initialized():
-    for line in Path("projects/nautobot/.dev_data/.env").read_text().splitlines():
-        if line != "" and not line.startswith(("#", " ")):
-            key, val = line.split("=", 1)
-            os.environ[key] = val
-    for line in shell("pass show nautobot-secrets").splitlines():
-        if line.startswith("export"):
-            line = line.split(" ", 1)[1]
-            key, val = line.split("=", 1)
-            if val.startswith("'") and val.endswith("'"):
-                val = val[1:-1]
-            os.environ[key] = val
+def _nautobot_initialized():
+
     configure_app(
         default_config_path="projects/nautobot/.dev_data/nautobot_config.py",
         project="nautobot",
@@ -54,7 +44,7 @@ def _golden_config_data():
 
 @pytest.mark.end_to_end
 class Nautobot:
-    def test_golden_config(self, nautobot_initialized):
+    def golden_config(self, _nautobot_initialized):
         from django_jinja.backend import Jinja2
         from jinja2.loaders import FileSystemLoader
         from jinja2 import Environment, StrictUndefined
@@ -76,7 +66,7 @@ class Nautobot:
         Path("test.cisco").write_text(text)
         Path('test.cisco').unlink()
 
-    def test_runjob(self, nautobot_initialized):
+    def runjob(self, nautobot_initialized):
         from nautobot.extras.management.commands.runjob import Command
 
         Command().run_from_argv(
