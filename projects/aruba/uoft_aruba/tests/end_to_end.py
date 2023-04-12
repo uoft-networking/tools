@@ -11,7 +11,7 @@ def _get_blacklist(*controllers):
 
 @pytest.mark.end_to_end
 class API:
-    def test_blmgr_blacklist():
+    def blmgr_blacklist(self):
         s = Settings.from_cache()
 
         mm = s.mm_api_connection
@@ -33,7 +33,7 @@ class API:
             md1.logout()
             md2.logout()
 
-    def test_cpsec_whitelist():
+    def cpsec_whitelist(self):
         s = Settings.from_cache()
 
         mm = s.mm_api_connection
