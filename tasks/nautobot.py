@@ -63,9 +63,9 @@ def deploy_to_prod(c: Context):
     """build and deploy the current code to prod"""
     needs_sudo(c)
     systemd(c, "stop", prod=True)
-    c.sudo(f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh")
+    c.sudo(f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh projects/librenms")
     c.sudo(
-        "cp projects/nautobot/dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
+        "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
     )
     c.sudo("chown nautobot:nautobot /opt/nautobot/nautobot_config.py")
     c.sudo("chmod 644 /opt/nautobot/nautobot_config.py")

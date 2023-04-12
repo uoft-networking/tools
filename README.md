@@ -17,6 +17,7 @@ Getting Started
 6. `invoke list-projects` to see a list of all projects
 7. `invoke install-editable <project>` to start developing/debugging a particular project, or `invoke install-editable-all` to install all projects in editable mode
 8. config your editor to use `.venv/bin/python` as python interpreter (this should be automatically done in VSCode)
+9. Add `export MY_BRANCH=dev-<your branch name>` to your `.bashrc` or `.zshrc` file, so that you can use `invoke git.*` commands without having to specify a branch name every time
 
 ## Running tests
 

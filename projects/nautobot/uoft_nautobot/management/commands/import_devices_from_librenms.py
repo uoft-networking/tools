@@ -15,7 +15,7 @@ from nautobot.dcim.models import (
     Interface,
 )
 from nautobot.extras.models import Status
-from nautobot.ipam.models import IPAddress, VLAN, VLANGroup
+from nautobot.ipam.models import IPAddress, Prefix, VLAN, VLANGroup
 from rich.progress import Progress, MofNCompleteColumn
 
 
@@ -23,58 +23,67 @@ from rich.progress import Progress, MofNCompleteColumn
 def fetch_devices_from_librenms():
     s = Settings.from_cache()
     api = s.api_connection()
-    devices = api.devices.list_devices()['devices']
-    ports = api.ports.get_all_ports(columns=[
-                "port_id",
-                "device_id",
-                "ifIndex",
-                "ifName",
-                "ifAlias",
-                "ifDescr",
-                "ifOperStatus",
-                "ifAdminStatus",
-                "ifType",
-                "ifVlan",
-                "ifTrunk",
-                "disabled",
-            ])['ports']
-    device_groups = api.device_groups.get_devicegroups()['groups']
-    vlans = api.switching.list_vlans()['vlans']
+    devices = api.devices.list_devices()["devices"]
+    ports = api.ports.get_all_ports(
+        columns=[
+            "port_id",
+            "device_id",
+            "ifIndex",
+            "ifName",
+            "ifAlias",
+            "ifDescr",
+            "ifOperStatus",
+            "ifAdminStatus",
+            "ifType",
+            "ifVlan",
+            "ifTrunk",
+            "disabled",
+        ]
+    )["ports"]
+    device_groups = api.device_groups.get_devicegroups()["groups"]
+    vlans = api.switching.list_vlans()["vlans"]
     links = api.switching.list_links()["links"]
-    res = {d['device_id']: d for d in devices}
+    res = {d["device_id"]: d for d in devices}
     for d in res.values():
         d["ports"] = []
-        d['groups'] = []
-        d['vlans'] = []
-        d['links'] = []
+        d["groups"] = []
+        d["vlans"] = []
+        d["links"] = []
     for p in ports:
-        device_id = p['device_id']
+        device_id = p["device_id"]
+        if p['ifDescr'].startswith('Vlan'):
+            try:
+                p['ip_info'] = api.ports.get_port_ip_info(p['port_id'])['addresses']
+            except:
+                p['ip_info'] = []
         if device_id in res:
-            res[device_id]['ports'].append(p)
+            res[device_id]["ports"].append(p)
         del device_id
     for g in device_groups:
-        for d in api.device_groups.get_devices_by_group(g['id'])['devices']:
-            device_id = d['device_id']
+        for d in api.device_groups.get_devices_by_group(g["id"])["devices"]:
+            device_id = d["device_id"]
             if device_id in res:
-                res[device_id]['groups'].append(g)
+                res[device_id]["groups"].append(g)
             del device_id
     for v in vlans:
-        device_id = v['device_id']
+        device_id = v["device_id"]
         if device_id in res:
-            res[device_id]['vlans'].append(v)
+            res[device_id]["vlans"].append(v)
         del device_id
     for l in links:
-        device_id = l['local_device_id']
+        device_id = l["local_device_id"]
         if device_id in res:
-            res[device_id]['links'].append(l)
+            res[device_id]["links"].append(l)
         del device_id
 
     return res
+
 
 ALL_SITES = {}
 DEVICE_TYPES = {}
 PLATFORMS = {}
 STATUS = None
+
 
 def create_device(device: dict):
     hostname = device["hostname"].partition(".")[0]
@@ -100,8 +109,40 @@ def create_device(device: dict):
             site = ALL_SITES[group_name]
     assert site is not None
     assert role is not None
+    vlan_group, _ = VLANGroup.objects.get_or_create(name=site.slug, site=site)
+    vlans = {}
+    for vlan in device["vlans"]:
+        if vlan["vlan_name"].endswith("-default"):
+            continue
+        vlan_id = int(vlan["vlan_vlan"])
+        vlan_name = vlan["vlan_name"]
+        vlan, _ = VLAN.objects.get_or_create(
+            vid=vlan_id,
+            group=vlan_group,
+            defaults=dict(
+                status=STATUS,
+                name=vlan_name,
+                site=site,
+            ),
+        )
+        vlans[vlan_id] = vlan
+    for port in device["ports"]:
+        if port["ifDescr"].startswith("Vlan"):
+            vid = int(port["ifDescr"].partition("Vlan")[2])
+            ip_info = port["ip_info"]
+            if ip_info:
+                address = ip_info[0]["ipv4_address"]
+                prefix_length = ip_info[0]["ipv4_prefixlen"]
+                prefix, _ = Prefix.objects.update_or_create(
+                    network=address,
+                    prefix_length=prefix_length,
+                    defaults=dict(
+                        site=site,
+                        vlan=vlans[vid],
+                    ),
+                )
     platform = PLATFORMS.get(device_type.manufacturer.name, None)
-    ip, _ = IPAddress.objects.get_or_create(address=f"{ip}/24")
+    ip, _ = IPAddress.objects.get_or_create(host=ip, prefix_length=24)
     nautobot_device, _ = Device.objects.get_or_create(
         name=hostname,
         defaults=dict(
@@ -113,16 +154,19 @@ def create_device(device: dict):
         ),
     )
     intf, _ = nautobot_device.interfaces.get_or_create(
-        name=interface_name, defaults=dict(type="virtual", label="Management", mgmt_only=True)
+        name=interface_name,
+        defaults=dict(type="virtual", label="Management", mgmt_only=True),
     )
     intf.ip_addresses.add(ip)
     nautobot_device.primary_ip4 = ip
-    
+
     nautobot_device.validated_save()
 
 
 def create_devices():
+    global ALL_SITES, DEVICE_TYPES, PLATFORMS, STATUS
     devices = fetch_devices_from_librenms()
+    devices = [d for d in devices.values() if d["hostname"].startswith("d1-")]
 
     ALL_SITES = {s.name: s for s in Site.objects.all()}
     ALL_SITES["Student Life"] = ALL_SITES["Student Centre"]
@@ -147,7 +191,7 @@ def create_devices():
     STATUS = Status.objects.get(slug="active")
 
     progress = Progress(*Progress.get_default_columns(), MofNCompleteColumn())
-    
+
     with progress:
         for device in progress.track(devices):
             create_device(device)
