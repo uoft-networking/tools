@@ -3,12 +3,11 @@ build
 pytest >= 7.0
 pytest-cov
 pytest-mock >= 3.6
+pytest-relaxed
+pytest-recording
 pylint
 mypy >= 0.971
 typer-cli
-mkdocs >= 1.4
-mkdocstrings >= 0.19
-mkdocs-material
 black >= 22.3.0
 tomlkit >= 0.11
 setuptools_scm >= 7
@@ -16,5 +15,4 @@ ptpython >= 3.0
 ipython >= 8
 copier >= 7
 ruff >= 0.0.149
-git+https://github.com/alextremblay/pypi-command-line
 cogapp >= 3.3

@@ -30,3 +30,4 @@ path = "pyproject.py"
 
 [tool.hatch.build]
 packages = ["uoft_ssh"]
+exclude = ["**/tests"]
