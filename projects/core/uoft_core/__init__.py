@@ -1005,9 +1005,17 @@ S = TypeVar("S", bound="BaseSettings")
 
 class BaseSettingsMeta(ModelMetaclass):
     def __new__(cls, name, bases, namespace, **kwargs):
-        if (app_name := namespace["Config"].app_name) is not None:
-            # if app_name is not None, then this is a subclass of BaseSettings
-            namespace["Config"].env_prefix = f"UOFT_{app_name.upper()}_"
+        config_class = namespace.get("Config")
+        if config_class is None:
+            # This may be a subclass of a class that defines Config
+            for base in bases:
+                if hasattr(base, "Config"):
+                    config_class = base.Config
+                    break
+        if (app_name := config_class.app_name) is not None:
+            # BaseSettings.__init_subclasses__ ensures that app_name is set
+            # So the only class that this will be None for is BaseSettings itself
+            config_class.env_prefix = f"UOFT_{app_name.upper()}_"
         return super().__new__(cls, name, bases, namespace, **kwargs)
 
 

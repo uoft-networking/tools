@@ -85,7 +85,9 @@ class ArubaRESTAPIClient:
         "container for all API endpoint URLs"
 
         class Endpoint:
-            # This class is a pure namespace, no need to instantiate it
+            # This class is a pure namespace, as opposed to a standard instantiable python class with an init function
+            # Since the namespace class acts as a container for methods, the `self` variable is nonlocal, and refers to
+            # the namespace's parent class, which is the ArubaRESTAPIClient class
             nonlocal self
             login = f"https://{self.host}/v1/api/login"
             logout = f"https://{self.host}/rest/v1/login-sessions"
@@ -101,7 +103,9 @@ class ArubaRESTAPIClient:
         "container for all uncategorized get requests"
 
         class Get:
-            # This class is a pure namespace, no need to instantiate it
+            # This class is a pure namespace, as opposed to a standard instantiable python class with an init function
+            # Since the namespace class acts as a container for methods, the `self` variable is nonlocal, and refers to
+            # the namespace's parent class, which is the ArubaRESTAPIClient class
             nonlocal self
 
             @staticmethod
@@ -137,7 +141,9 @@ class ArubaRESTAPIClient:
         "method container for all AP provisioning operations"
 
         class AP_Provisioning:
-            # This class is a pure namespace, no need to instantiate it
+            # This class is a pure namespace, as opposed to a standard instantiable python class with an init function
+            # Since the namespace class acts as a container for methods, the `self` variable is nonlocal, and refers to
+            # the namespace's parent class, which is the ArubaRESTAPIClient class
             nonlocal self
 
             @staticmethod
@@ -187,6 +193,9 @@ class ArubaRESTAPIClient:
         "method container for all controller operations"
 
         class Controller:
+            # This class is a pure namespace, as opposed to a standard instantiable python class with an init function
+            # Since the namespace class acts as a container for methods, the `self` variable is nonlocal, and refers to
+            # the namespace's parent class, which is the ArubaRESTAPIClient class
             nonlocal self
 
             @staticmethod
@@ -200,6 +209,9 @@ class ArubaRESTAPIClient:
         "method container for all WLAN operations"
 
         class WLAN:
+            # This class is a pure namespace, as opposed to a standard instantiable python class with an init function
+            # Since the namespace class acts as a container for methods, the `self` variable is nonlocal, and refers to
+            # the namespace's parent class, which is the ArubaRESTAPIClient class
             nonlocal self
 
             @staticmethod

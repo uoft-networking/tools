@@ -15,6 +15,7 @@ def librenms_stuff():
     from nautobot_device_onboarding.models import OnboardingTask
     from nautobot_device_onboarding.utils.credentials import Credentials
     from nautobot_device_onboarding.worker import enqueue_onboarding_task
+    from nautobot.ipam.models import IPAddress
 
     def get_or_create_ip(ip):
         ip += "/32"
@@ -24,19 +25,19 @@ def librenms_stuff():
             return IPAddress.objects.create(address=ip)
     
 
-        ot = OnboardingTask.objects.create(
-            ip_address=ip,
-            site=site,
-            role=role,
-        )
-        from ... import Settings
-        s = Settings.from_cache()
-        cr = Credentials(
-            username=s.ssh.personal.username,
-            password=s.ssh.personal.password.get_secret_value(),
-            secret=s.ssh.enable_secret.get_secret_value()
-        )
-        enqueue_onboarding_task(ot.id, cr)
+        # ot = OnboardingTask.objects.create(
+        #     ip_address=ip,
+        #     site=site,
+        #     role=role,
+        # )
+        # from ... import Settings
+        # s = Settings.from_cache()
+        # cr = Credentials(
+        #     username=s.ssh.personal.username,
+        #     password=s.ssh.personal.password.get_secret_value(),
+        #     secret=s.ssh.enable_secret.get_secret_value()
+        # )
+        # enqueue_onboarding_task(ot.id, cr)
         # ip = get_or_create_ip(ip)
         # d = Device(
         #     name=hostname,
@@ -47,30 +48,7 @@ def librenms_stuff():
         # d.validated_save()
 
 
-    print(devices)
-
-
-@debug_cache
-def golden_config_data():
-    from nautobot_golden_config.utilities.graphql import graph_ql_query
-    from nautobot_golden_config.models import GoldenConfigSetting
-    from nautobot.utilities.utils import NautobotFakeRequest
-    from nautobot.users.models import User
-
-    from uuid import UUID
-
-    device = Device.objects.get(name="d1-aa")
-    data = {"obj": device}
-    request = NautobotFakeRequest(
-        {
-            "user": User.objects.get(username='trembl94'),
-            "path": "/extras/jobs/plugins/nautobot_golden_config.jobs/AllGoldenConfig/",
-        }
-    )
-    settings = GoldenConfigSetting.objects.get(slug='default')
-    _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
-    data.update(device_data)
-    return data
+    #print(devices)
 
 def debug_transposer(data):
     # for this to work, you have to disable the transposer from running
@@ -82,26 +60,7 @@ def debug_transposer(data):
     return transposer_debug(data)
 
 def golden_config_test():
-    from django_jinja.backend import Jinja2
-    from jinja2.loaders import FileSystemLoader
-    from jinja2 import Environment
-
-    data = golden_config_data()
-    # data = debug_transposer(data)
-    git_repo = Path("gitlab_repo")
-    assert git_repo.exists()
-    template = "templates/Distribution Switches/WS-C3850-24XS-E.cisco.j2"
-
-    jinja_settings = Jinja2.get_default()
-    jinja_env: Environment = jinja_settings.env
-    jinja_env.trim_blocks = True
-    jinja_env.undefined = StrictUndefined
-    jinja_env.loader = FileSystemLoader(git_repo)
-
-    t = jinja_env.get_template(template)
-    text = t.render(**data)
-    Path("test.cisco").write_text(text)
-    Path('test.cisco').unlink()
+    pass
 
 
 def prod_workbench():

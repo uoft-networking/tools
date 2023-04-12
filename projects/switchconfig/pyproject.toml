@@ -40,3 +40,4 @@ path = "pyproject.py"
 
 [tool.hatch.build]
 packages = ["uoft_switchconfig"]
+exclude = ["**/tests"]
