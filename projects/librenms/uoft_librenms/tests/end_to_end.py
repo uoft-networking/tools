@@ -1,7 +1,7 @@
 from .. import Settings, typing as t
 import pytest
 from pathlib import Path
-from dict_typer import get_type_definitions
+from uoft_core._vendor.dict_typer import get_type_definitions
 
 fixtures_dir = Path(__file__).parent / "fixtures"
 
