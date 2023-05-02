@@ -1,10 +1,15 @@
 from textwrap import indent, dedent
 from django_jinja import library
-
-from netaddr import IPNetwork
+from nautobot.dcim.models import Device
 from box import Box
-from .golden_config import Interface, Room, Building, DistributionSwitch, VLAN
+from .golden_config import load_golden_config_module
 
+
+@library.filter
+def switch_model_from_record(record: Device):
+    "convert a Device record into a an appropriate switch model (DistributionSwitch, AccessSwitch, etc)"
+    models = load_golden_config_module()
+    return models.DistributionSwitch.from_nautobot(record)
 
 @library.filter
 def combine_with(list_one: list, *other_lists: list):
@@ -22,7 +27,7 @@ def reindent(text: str, spaces: int):
 
 
 @library.filter
-def except_vlan(vlans: list[VLAN], exc: int):
+def except_vlan(vlans: list, exc: int):
     "take a list of VLANs and return an equivalent list with a single VLAN filtered out"
     for vlan in vlans:
         if vlan.vid != exc:
@@ -30,7 +35,7 @@ def except_vlan(vlans: list[VLAN], exc: int):
 
 
 @library.filter
-def uplinks(interfaces: list[Interface]):
+def uplinks(interfaces: list):
     return [i for i in interfaces if i.type == "uplink"]
 
 
@@ -54,7 +59,11 @@ def allowed_vlans(native_vlan: int):
 
 @library.filter
 def analyze_obj(obj):
+    import inspect
+    stack = inspect.stack()
+    print(f"analyzing {obj} from {stack[1].function}")
     return obj
+
 
 
 @library.filter
@@ -65,7 +74,7 @@ def convert_to_IS_id(ipv4: str):
 
 
 @library.filter
-def sla_info(vlans: list[VLAN]):
+def sla_info(vlans: list):
     count = 1
     for vlan in vlans:
         if vlan.ip_v4:

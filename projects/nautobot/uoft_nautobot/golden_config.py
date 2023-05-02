@@ -1,223 +1,34 @@
-from box import Box
-from uoft_core.types import IPNetwork, IPAddress
-from pydantic import BaseModel, Field
-from typing import Literal
 from django.http import HttpRequest
 from nautobot_golden_config.models import GoldenConfig
 from django_jinja.backend import Jinja2
 from jinja2 import Environment, StrictUndefined
 from . import Settings
+from nautobot.extras.models import GitRepository
+from importlib. util import spec_from_file_location, module_from_spec
+from pathlib import Path
+import sys
 
 
-class Building(BaseModel):
-    name: str
-    code: str
-
-    @classmethod
-    def from_nautobot(cls, site: Box):
-        res = cls(
-            name=site.name,
-            code=site.slug.upper(),
-        )
-
-        return res
+def _get_golden_config_repo_path():
+    repo = GitRepository.objects.get(name="golden_config_templates")
+    return Path(repo.filesystem_path)
 
 
-class Room(BaseModel):
-    name: str
-    description: str
-    building: Building
-
-    @classmethod
-    def from_nautobot(cls, location: Box):
-        res = cls(
-            name=location.name,
-            description=location.description,
-            building=Building.from_nautobot(location.site),
-        )
-
-        return res
+def load_golden_config_module():
+    models_module_name = "golden_config_models"
+    repo_path = _get_golden_config_repo_path()
+    models_module = repo_path / "golden_config_models.py"
+    assert models_module.exists()
+    spec = spec_from_file_location(models_module_name, models_module)
+    module = module_from_spec(spec) # type: ignore
+    sys.modules[models_module_name] = module
+    spec.loader.exec_module(module) # type: ignore
+    return module
 
 
-class Interface(BaseModel):
-    name: str
-    type: Literal[
-        "management",
-        "disabled",
-        "port-channel",
-        "port-channel-member",
-        "uplink",
-        "other",
-    ]
-    label: str | None
-    ip_v4: IPNetwork | None
-    ip_v6: IPNetwork | None
-    is_trunk: bool = False
-    native_vlan: int = 666
-    port_channel: int | None  # only used for port-channel members
-
-    @classmethod
-    def from_nautobot(cls, intf: Box):
-        addresses = [IPNetwork(addr.address) for addr in intf.ip_addresses]
-
-        def infer_type():
-            if intf.mgmt_only:
-                return "management"
-            elif intf.enabled is False:
-                return "disabled"
-            elif intf.name.startswith("Port-channel"):
-                return "port-channel"
-            elif intf.lag:
-                return "port-channel-member"
-            elif intf.label and "uplink" in intf.label.lower():
-                return "uplink"
-            else:
-                return "other"
-
-        def ip_v4():
-            for addr in addresses:
-                if addr.version == 4:
-                    return addr  # return the first addr in the list
-            return None
-
-        def ip_v6():
-            for addr in addresses:
-                if addr.version == 6:
-                    return addr
-            return None
-
-        def is_trunk():
-            if intf.vlan_mode and "tagged" in intf.vlan_mode.lower():
-                return True
-            return False
-
-        def port_channel():
-            if intf.lag:
-                return int(intf.lag.name.replace("Port-channel", ""))
-            return None
-
-        res = cls(
-            name=intf.name,
-            type=infer_type(),
-            label=intf.label,
-            ip_v4=ip_v4(),
-            ip_v6=ip_v6(),
-            is_trunk=is_trunk(),
-            native_vlan=intf.untagged_vlan.vid if intf.untagged_vlan else 666,
-            port_channel=port_channel(),
-        )
-        return res
-
-
-class VLAN(BaseModel):
-    name: str
-    vid: int
-    ip_v4: IPNetwork | None
-    ip_v6: IPNetwork | None
-
-    @classmethod
-    def from_nautobot(cls, vlan: Box):
-        def ip_v4():
-            if vlan.ipv4:
-                return IPNetwork(vlan.ipv4[0].prefix)
-            return None
-
-        def ip_v6():
-            if vlan.ipv6:
-                return IPNetwork(vlan.ipv6[0].prefix)
-            return None
-
-        res = cls(
-            name=vlan.name,
-            vid=vlan.vid,
-            ip_v4=ip_v4(),
-            ip_v6=ip_v6(),
-        )
-        return res
-
-
-class DistributionSwitch(BaseModel):
-    hostname: str
-    mgmt_ip_v4: IPAddress | None
-    mgmt_ip_v6: IPAddress | None
-    interfaces: list[Interface]
-    vlans: list[VLAN]
-    tags: set[str] = Field(default_factory=set)
-    provisioning: bool = False
-    room: Room
-
-    @classmethod
-    def from_nautobot(cls, switch: Box):
-        def interfaces():
-            res = []
-            for intf in switch.interfaces:
-                res.append(Interface.from_nautobot(intf))
-            return sort_interfaces(res)
-
-        def vlans():
-            assert (
-                len(switch.site.vlan_groups) > 0
-            ), "No VLAN group found for site. All dist switches must be in a site with a VLAN group."
-            assert (
-                len(switch.site.vlan_groups) < 2
-            ), "Only one VLAN group per site is supported"
-            res = [
-                VLAN.from_nautobot(vlan) for vlan in switch.site.vlan_groups[0].vlans
-            ]
-            return sorted(res, key=lambda x: x.vid)
-
-        def provisioning():
-            if switch.status.name == "Planned":
-                return True
-            return False
-
-        if not isinstance(switch, Box):
-            switch = Box(switch)
-
-        mgmt_ip_v4 = IPAddress(switch.primary_ip4.address) if switch.primary_ip4 else None
-        mgmt_ip_v6 = IPAddress(switch.primary_ip6.address) if switch.primary_ip6 else None
-
-        return cls(
-            hostname=switch.hostname,
-            mgmt_ip_v4=mgmt_ip_v4,
-            mgmt_ip_v6=mgmt_ip_v6,
-            interfaces=interfaces(),
-            vlans=vlans(),
-            tags=set(switch.tags),
-            provisioning=provisioning(),
-            room=Room.from_nautobot(switch.location),
-        )
-
-
-def sort_interfaces(intfs):
-    d = {
-        "Loopback": [],
-        "Port-channel": [],
-        "GigabitEthernet": [],
-        "TenGigabitEthernet1": [],
-        "FortyGigabitEthernet1": [],
-        "other": [],
-    }
-    for i in intfs:
-        for k in d:
-            if i.name.startswith(k):
-                d[k].append(i)
-                break
-        else:
-            d["other"].append(i)
-    res = []
-    for l in d.values():
-        res.extend(l)
-    return res
-
-
-def transposer(data):
-    data = dict(DistributionSwitch.from_nautobot(data))
-    return data
-
-
-def transposer_debug(data):
-    data = dict(DistributionSwitch.from_nautobot(Box(data)))
+# def transposer(data):
+#     obj = data["obj"]
+#     data = dict(DistributionSwitch.from_nautobot(obj))
     return data
 
 
@@ -259,6 +70,7 @@ BASE64_ENCODING_CHARS = "".join(
     (string.ascii_uppercase, string.ascii_lowercase, string.digits, "+/")
 )
 
+
 def type9_encode(data: bytes) -> str:
     encoding_translation_table = str.maketrans(
         BASE64_ENCODING_CHARS,
@@ -270,6 +82,7 @@ def type9_encode(data: bytes) -> str:
     res = res[:-1]
     return res
 
+
 def type9_decode(data: str) -> bytes:
     encoding_translation_table = str.maketrans(
         ENCRYPT_TYPE9_ENCODING_CHARS,
@@ -280,6 +93,7 @@ def type9_decode(data: str) -> bytes:
     res = data.translate(encoding_translation_table)
     res = base64.b64decode(res)
     return res
+
 
 def encrypt_type9(unencrypted_password: str, salt: str | None = None) -> str:
     """Given an unencrypted password of Cisco Type 9 password, encypt it.
@@ -304,9 +118,7 @@ def encrypt_type9(unencrypted_password: str, salt: str | None = None) -> str:
             raise ValueError("Salt must be 14 characters long.")
     else:
         # salt must always be a 14-byte-long printable string, often includes symbols
-        salt = "".join(
-            secrets.choice(ENCRYPT_TYPE9_ENCODING_CHARS) for _ in range(14)
-        )
+        salt = "".join(secrets.choice(ENCRYPT_TYPE9_ENCODING_CHARS) for _ in range(14))
 
     key = scrypt(
         unencrypted_password.encode(), salt=salt.encode(), n=2**14, r=1, p=1, dklen=32
