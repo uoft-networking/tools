@@ -169,12 +169,11 @@ def changes_since_last_tag(c: Context):
 
 
 @task()
-def global_deploy_pipx(c: Context):
+def global_deploy_pipx(c: Context, path: str):
     """deploy all projects to /usr/local/bin via pipx"""
     needs_sudo(c)
     c.sudo("PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install --force projects/core")
-    spec = " ".join([f"projects/{p}" for p in all_projects_by_name_except_core()])
-    c.sudo(f"PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx inject --force uoft_core {spec}")
+    c.sudo(f"PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx inject --force uoft_core {path}")
 
 
 
