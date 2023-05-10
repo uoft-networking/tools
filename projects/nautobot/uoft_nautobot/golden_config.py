@@ -26,9 +26,19 @@ def load_golden_config_module():
     return module
 
 
-# def transposer(data):
-#     obj = data["obj"]
-#     data = dict(DistributionSwitch.from_nautobot(obj))
+def transposer(data):
+    role = data["device_role"]["name"]
+    models = load_golden_config_module()
+    model_map = {
+        "Access Switches": models.AccessSwitch,
+        "Distribution Switches": models.DistributionSwitch,
+    }
+    model = model_map[role]
+    data['sw'] = model.from_nautobot(data)
+    return data
+
+
+def noop_transposer(data):
     return data
 
 

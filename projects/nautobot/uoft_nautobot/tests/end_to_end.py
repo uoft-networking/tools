@@ -35,29 +35,30 @@ def _golden_config_data():
     data = {"obj": device}
     request = NautobotFakeRequest(
         {
-            "user": User.objects.get(username="trembl94"),
+            "user": User.objects.get(username="admin"),
             "path": "/extras/jobs/plugins/nautobot_golden_config.jobs/AllGoldenConfig/",
         }
     )
     settings = GoldenConfigSetting.objects.get(slug="default")
     _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
-    data.update(device_data)
-    return data
+    return device_data
 
 
 @pytest.mark.end_to_end
 class Nautobot:
     def golden_config(self, _nautobot_initialized, mocker):
-        from nautobot.dcim.models import Device
+        from ..golden_config import transposer
+        from nautobot_golden_config.utilities.constant import PLUGIN_CFG
         git_repo = fixtures_dir / "_private/.gitlab_repo"
         mocked_repo_path = mocker.patch('uoft_nautobot.golden_config._get_golden_config_repo_path')
         mocked_repo_path.return_value = git_repo
+        mocked_plugin_config = mocker.patch.dict(PLUGIN_CFG, {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"})
 
-        device = Device.objects.get(name="d1-ac")
-        data = {"obj": device}
+        # device = Device.objects.get(name="d1-ac")
+        # data = {"obj": device}
 
-        # data = _golden_config_data()
-        # data = debug_transposer(data)
+        data = _golden_config_data()
+        data = transposer(data)
         
         assert git_repo.exists()
         template = "templates/Distribution Switches/WS-C3850-24XS-E.cisco.j2"
