@@ -1,4 +1,4 @@
-from .cli_commands import cpsec_whitelist, station_blacklist
+from .cli_commands import cpsec_whitelist, station_blocklist
 import typer
 
 from . import Settings
@@ -11,7 +11,8 @@ app = typer.Typer(
     help=__doc__,  # Use this module's docstring as the main program help text
 )
 app.add_typer(cpsec_whitelist.run, name="cpsec-whitelist")
-app.add_typer(station_blacklist.app, name="station-blacklist")
+app.add_typer(station_blocklist.app, name="station-blocklist")
+app.add_typer(station_blocklist.app, name="station-blacklist", deprecated=True)
 
 
 @app.callback()

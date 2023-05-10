@@ -223,9 +223,9 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def get_ap_client_blacklist():
-                return self.showcommand("show ap blacklist-clients")[
-                    "Blacklisted Clients"
-                ]
+                res = self.showcommand("show ap blacklist-clients")
+                # In AOS 8.10, the output key was changed from "Blacklisted Clients" to "Client Denylist"
+                return res.get("Blacklisted Clients", res.get("Client Denylist"))
 
             @staticmethod
             def stm_blacklist_remove(mac_address: str):
