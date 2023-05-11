@@ -27,7 +27,7 @@ def derive_type9_password(sw, password_variant: Literal['enable', 'admin']):
         raise ValueError(f"Invalid password variant: {password_variant}")
     
     # convert variable-length switch name to 14 bytes of cisco-compatible salt
-    salt = type9_encode(shake_128(sw.name.encode()).digest(14))[:14]
+    salt = type9_encode(shake_128(sw.hostname.encode()).digest(14))[:14]
     return encrypt_type9(password, salt=salt)
 
 
