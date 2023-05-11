@@ -1,5 +1,9 @@
 from textwrap import indent, dedent
+from typing import Literal
+from hashlib import shake_128
 from django_jinja import library
+from . import Settings
+from .golden_config import encrypt_type9, type9_encode
 
 
 @library.filter
@@ -9,6 +13,22 @@ def reindent(text: str, spaces: int):
     and then indents that block of text by a given number of spaces
     """
     return indent(dedent(str(text)), " " * spaces)
+
+
+@library.filter
+def derive_type9_password(sw, password_variant: Literal['enable', 'admin']):
+    """Derives a type 9 password from a given switch object and a password variant"""
+    s = Settings.from_cache()
+    if password_variant == 'enable':
+        password = s.ssh.enable_secret.get_secret_value()
+    elif password_variant == 'admin':
+        password = s.ssh.admin.password.get_secret_value()
+    else:
+        raise ValueError(f"Invalid password variant: {password_variant}")
+    
+    # convert variable-length switch name to 14 bytes of cisco-compatible salt
+    salt = type9_encode(shake_128(sw.name.encode()).digest(14))[:14]
+    return encrypt_type9(password, salt=salt)
 
 
 @library.filter

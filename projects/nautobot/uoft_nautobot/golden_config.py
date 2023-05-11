@@ -26,15 +26,21 @@ def load_golden_config_module():
     return module
 
 
-def transposer(data):
-    role = data["device_role"]["name"]
+def get_model_for_role(role_name: str):
     models = load_golden_config_module()
     model_map = {
         "Access Switches": models.AccessSwitch,
         "Distribution Switches": models.DistributionSwitch,
     }
-    model = model_map[role]
-    data['sw'] = model.from_nautobot(data)
+    model = model_map[role_name]
+    return model
+
+
+def transposer(data):
+    role = data["device_role"]["name"]
+    model = get_model_for_role(role)
+    sw = model.from_nautobot(data)
+    data['sw'] = sw
     return data
 
 
@@ -117,9 +123,9 @@ def encrypt_type9(unencrypted_password: str, salt: str | None = None) -> str:
 
     Examples:
         >>> from netutils.password import encrypt_type9
-        >>> encrypt_type7("123456")
+        >>> encrypt_type9("123456")
         "$9$cvWdfQlRRDKq/U$VFTPha5VHTCbSgSUAo.nPoh50ZiXOw1zmljEjXkaq1g"
-        >>> encrypt_type7("123456", "cvWdfQlRRDKq/U")
+        >>> encrypt_type9("123456", "cvWdfQlRRDKq/U")
         "$9$cvWdfQlRRDKq/U$VFTPha5VHTCbSgSUAo.nPoh50ZiXOw1zmljEjXkaq1g"
     """
 
