@@ -3,6 +3,7 @@ from pathlib import Path
 from nautobot.extras.registry import DatasourceContent
 from nautobot.extras.datasources.git import GitRepository
 from nautobot.extras.models import GraphQLQuery
+from nautobot.extras.choices import LogLevelChoices
 
 
 
@@ -21,7 +22,7 @@ def refresh_device_types(repository_record: GitRepository, job_result, delete=Fa
 
 def refresh_graphql_queries(repository_record: GitRepository, job_result, delete=False):
     """Callback for GitRepository updates - refresh GraphQL queries managed by it."""
-    if "nautobot.graphql_queries" not in repository_record.provided_contents or delete:
+    if "nautobot.graphql" not in repository_record.provided_contents or delete:
         # This repository is defined not to provide GraphQL queries.
         # In a more complete worked example, we might want to iterate over any
         # GraphQL queries that might have been previously created by this GitRepository
@@ -33,6 +34,7 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
         job_result.log("No graphql directory found in repository, skipping.")
         return
     for file in gql_dir.iterdir():
+        
         name = file.stem
         with open(file, "r") as f:
             query = f.read()
@@ -42,6 +44,8 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
                 "query": query,
             },
         )
+        job_result.log(f"Updated GraphQL query: {name}", level_choice=LogLevelChoices.LOG_SUCCESS)
+
 
 
 # Register that DeviceType records can be loaded from a Git repository,

@@ -94,8 +94,7 @@ try:
             if isinstance(res, IPAddressBase):
                 return IPAddress(res)
             else:
-                for addr in res:  # type: ignore
-                    yield IPAddress(addr)
+                return [IPAddress(addr) for addr in res]
 
 except ImportError:
     pass

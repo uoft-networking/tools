@@ -31,7 +31,7 @@ def _golden_config_data():
     from nautobot.utilities.utils import NautobotFakeRequest
     from nautobot.users.models import User
     from nautobot.dcim.models import Device
-    device = Device.objects.get(name="d1-aa")
+    device = Device.objects.get(name="d1-p5")
     data = {"obj": device}
     request = NautobotFakeRequest(
         {
@@ -59,9 +59,9 @@ class Nautobot:
 
         data = _golden_config_data()
         data = transposer(data)
-        
+
         assert git_repo.exists()
-        template = "templates/Distribution Switches/WS-C3850-24XS-E.cisco.j2"
+        template = "templates/Distribution Switches/cisco.j2"
 
         jinja_settings = Jinja2.get_default()
         jinja_env: Environment = jinja_settings.env

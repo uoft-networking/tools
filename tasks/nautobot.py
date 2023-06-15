@@ -80,6 +80,10 @@ def db_refresh(c: Context):
     server(c, "dbshell \"--command=UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';\"")
     server(c, "migrate")
 
+@task()
+def refresh_graphql_schema(c: Context):
+    """rebuild local graphql schema file from running models. should be done after every nautobot update, and every time a custom field is created or modified"""
+    server(c, "graphql_schema --out uoft_nautobot/tests/fixtures/_private/.gitlab_repo/schema.graphql")
 
 @task()
 def curl_as(c: Context, endpoint: str, user: str = "me", prod: bool = False, method="GET"):
