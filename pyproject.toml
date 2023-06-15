@@ -21,6 +21,8 @@ python_files = ["*"] # enable support for assertion-rewriting in "pytest-relaxed
 [tool.ruff]
 line-length = 120
 
+typing-modules = ["uoft_core.types"]
+
 # Enable Flake's "E", "W", and "F" codes by default.
 select = ["E", "W", "F", "RUF"]
 ignore = []
