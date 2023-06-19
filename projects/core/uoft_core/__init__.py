@@ -35,11 +35,10 @@ from typing import (
 from loguru import logger
 from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
 from pydantic.fields import Field
-from pydantic.types import SecretStr
 from pydantic.main import ModelMetaclass
 from rich.console import Console
 
-from .types import StrEnum
+from .types import StrEnum, SecretStr
 from . import toml
 from ._vendor.decorator import decorate
 from ._vendor.platformdirs import PlatformDirs
