@@ -15,5 +15,5 @@
     "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "python.formatting.provider": "black",
-  "ansible.python.interpreterPath": "/home/atremblay/uoft-tools/.venv/bin/python"
+  "ansible.python.interpreterPath": ".venv/bin/python"
 }
