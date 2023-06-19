@@ -6,7 +6,7 @@ username = "myusername"
 password = "mypassword"
 
 response = requests.get(
-    f"https://{host}/api/v1/data", 
+    f"https://{host}/api/v1/data",
     auth=HTTPBasicAuth(username, password)
 )
 mydata = response.json()["the-data-i-want"]
