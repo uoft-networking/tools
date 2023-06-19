@@ -85,27 +85,34 @@ def debug_cache(func: F) -> F:
     """
     A function cache which persists to disk, but only when the `PYDEBUG` env var is set.
     All calls to functions decorated with this decorator will store the results of those functions in the cache,
-    and that cache will be written to a file in the current directory called `.uoft_core.debug.cache.{function name}`.
+    and that cache will be written to a file in the current directory called `.uoft_core.debug_cache.{function module + name}`.
     A utility function will be attached to the decorated function, and can be used to clear that function's cached results.
 
     Example:
+        ```python
+        # in a file called `my_script.py`
+        from uoft_core import debug_cache
         @debug_cache
         def my_function():
             ...
 
         result = my_function() # my_function will run as normal and store its result in the cache
         result2 = my_function() # my_function will not run this time, instead, its cached result will be returned
-        # at this point, there will be a file in your current directory called `.uoft_core.debug.cache.my_function`
-        my_function.clear_cache() # the cache is now empty, and `.uoft_core.debug.cache.my_function` has been deleted
+        # at this point, there will be a file in your current directory called `.uoft_core.debug_cache.my_script.my_function`
+        my_function.clear_cache() # the cache is now empty, and `.uoft_core.debug_cache.my_script.my_function` has been deleted
         result3 = my_function() # my_function will once again run as normal and store its result in the cache,
-        # at this point, `.uoft_core.debug.cache.my_function` has been recreated
+        # at this point, `.uoft_core.debug_cache.my_script.my_function` has been recreated
+        ```
 
     """
     if not os.getenv("PYDEBUG"):
         logger.debug("PYDEBUG env var not set, debug_cache is disabled")
         return func
     fname = func.__qualname__
-    file_name = f".uoft_core.debug.cache.{fname}"
+    fmodule = func.__module__
+    if fmodule == "__main__":
+        fmodule = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+    file_name = f".uoft_core.debug_cache.{fmodule}.{fname}"
     try:
         with open(file_name, "rb") as f:
             cache: dict = pickle.load(f)

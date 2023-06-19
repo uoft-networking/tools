@@ -16,7 +16,7 @@ app = typer.Typer(
 @app.callback()
 @Settings.wrap_typer_command
 def callback():
-    pass
+    s = Settings.from_cache()
 
 # Be sure to replace the below example commands with your own
 @app.command()

@@ -185,7 +185,7 @@ def pytest_runtest_setup(item: pytest.Item):
     Checks whether tests should be skipped based on markers and command-line flags,
     and environment variables
     """
-    if os.getenv("RUN_ALL_TESTS"):
+    if os.getenv("RUN_ALL_TESTS") or os.getenv("VSCODE_DEBUGGER"):
         return
 
     if item.get_closest_marker("integration"):

@@ -115,11 +115,11 @@ class ArubaBlocklistView(APIView):
         ]
         ```
         """
-        res = []
+        res = {}
         for c in self.controllers:
             with c as conn:
-                res.extend(conn.wlan.get_ap_client_blacklist())
-        return Response(res)
+                res.update({entry['STA']: entry for entry in conn.wlan.get_ap_client_blacklist()})
+        return Response(list(res.values()))
 
     @extend_schema(
         operation_id="aruba_stm_blocklist_remove",

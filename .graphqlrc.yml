@@ -1,0 +1,4 @@
+projects:
+  nautobot:
+    schema: projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo/schema.graphql
+    documents: projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo/graphql/*.graphql
