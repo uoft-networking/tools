@@ -184,7 +184,7 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def get_cpsec_whitelist():
-                return self.showcommand("show whitelist-db cpsec")['Control-Plane Security Whitelist-entry Details']
+                return self.showcommand("show whitelist-db cpsec")['Control-Plane Security Allowlist-entry Details']
 
         return AP_Provisioning
 

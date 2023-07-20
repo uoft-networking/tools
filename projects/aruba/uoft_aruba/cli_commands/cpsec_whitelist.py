@@ -143,7 +143,7 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
     returns an error if an input AP_NAME or MAC_ADDRESS already exists in CPSEC Whitelist.
     """
     raw_controller_ap_names_macs = host.showcommand("show whitelist-db cpsec")[
-        "Control-Plane Security Whitelist-entry Details"
+        "Control-Plane Security Allowlist-entry Details"
     ]
     controller_ap_names = []
     controller_ap_macs = []
