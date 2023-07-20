@@ -12,6 +12,8 @@ from .util import (
     normalize_extension_name
 )
 
+from uoft_core.prompt import Prompt
+
 from loguru import logger
 from pydantic import BaseModel
 from jinja2 import Environment, StrictUndefined, FileSystemLoader

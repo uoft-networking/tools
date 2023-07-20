@@ -2,6 +2,7 @@
 from typing import (
     Any,
     List,
+    Dict,
     Literal,
     Optional,
     Type,
@@ -24,7 +25,7 @@ from importlib.util import spec_from_file_location, spec_from_loader, module_fro
 from . import config, types
 
 from uoft_core import txt
-from uoft_core.other import Prompt
+from uoft_core.prompt import Prompt
 from uoft_core.nested_data import NestedData
 from pydantic.fields import ModelField
 from loguru import logger
@@ -36,7 +37,7 @@ if TYPE_CHECKING:
         str, "CommentBlockField" | "CommentBlockSchema"
     ]
 
-prompt = Prompt(config.util)
+prompt = Prompt(config.util.history_cache)
 
 
 class SwitchConfigException(Exception):
@@ -248,26 +249,6 @@ def discriminated_union_choices(
         choices[choice] = sub.type_
     return choices
 
-
-ValidatorBase = prompt.Validator
-
-
-class ValidatorWrapper(ValidatorBase):
-    def __init__(self, field: "ModelField", values: dict[str, Any]) -> None:
-        self.field = field
-        self.values = values
-
-    def validate(self, document) -> None:
-        _, errors = self.field.validate(document.text, self.values, loc=self.field.name)
-        if errors:
-            from pydantic.error_wrappers import ErrorWrapper  # noqa
-
-            if isinstance(errors, ErrorWrapper):
-                raise prompt.ValidationError(message=str(errors.exc))
-            # else:
-            raise prompt.ValidationError(message=str(errors))
-
-
 def model_questionnaire(
     model: Type[types.BaseModel], input_data: dict[str, Any] | None = None
 ) -> types.BaseModel:
@@ -293,41 +274,46 @@ def model_questionnaire(
         default = field.default
 
         if (field.required is False) and (
-            prompt.bool_(f"'{name}' is optional. Do you want to skip it?", desc) is True
+            prompt.get_bool(name, desc) is True
         ):
             continue
         if choices := discriminated_union_choices(field):
-            choice = prompt.select(name, list(choices.keys()), desc)
+            choice = prompt.get_from_choices(name, list(choices.keys()), desc)
             input_data[name] = model_questionnaire(choices[choice], {"kind": choice})
             continue
         elif _is_maybe_subclass(field.type_, types.StrEnum):
             choices = list(field.type_.__members__.keys())
-            input_data[name] = prompt.select(name, choices, desc)
+            input_data[name] = prompt.get_from_choices(name, choices, desc)
             continue
         elif get_origin(field.type_) is Literal:
             choices = list(get_args(field.type_))
-            input_data[name] = prompt.select(name, choices, desc)
+            input_data[name] = prompt.get_from_choices(name, choices, desc)
             continue
         elif _is_maybe_subclass(field.type_, types.BaseModel):
-            input_data[name] = model_questionnaire(field.type_)
+            input_data[name] = prompt.from_model(field.type_)
             continue
         elif _is_maybe_subclass(field.type_, types.Path):
             only_directories = issubclass(field.type_, types.DirectoryPath)
-            input_data[name] = prompt.path(
+            input_data[name] = prompt.get_path(
                 name, desc, only_directories=only_directories
             )
             continue
-        elif get_origin(field.type_) is List:
-            subtype = get_args(field.type_)[0]
-        if field.key_field:
+        elif field.type_ is int:
+            logger.trace(f"prompting for {name} of type {field.type_} using int handler")
+            input_data[name] = prompt.get_int(name, desc, default)
+        elif get_origin(field.type_) is List or field.type_ is list:
+            # TODO: add handlers for fields of type list[str] etc.
+            #subtype = get_args(field.type_)[0]
+            logger.trace(f"prompting for {name} of type {field.type_} using list handler")
+            input_data[name] = prompt.get_list(name, desc)
+            continue
+        elif get_origin(field.type_) is Dict or field.type_ is dict:
             # only dict[str,str] supported for now
-            input_data[name] = prompt.dict_(name, desc)
-        # TODO: add handlers for fields of type list[str] etc.
+            input_data[name] = prompt.get_dict(name, desc)
         else:
             # prompt for str, and let pydantic's validators sort it out
-            validator = ValidatorWrapper(field, input_data)
-
-            input_data[name] = prompt.string(name, desc, default, validator=validator)
+            logger.trace(f"prompting for {name} of type {field.type_} using str fallback")
+            input_data[name] = prompt.get_string(name, desc, default)
     return model(**input_data)
 
 
@@ -342,7 +328,7 @@ def handle_field(field_name: str, field: ModelField):
     desc = field.field_info.description
 
     if (field.required is False) and (
-        prompt.bool_(f"'{field_name}' is optional. Do you want to skip it?", desc)
+        prompt.get_bool(f"'{field_name}' is optional. Do you want to skip it?", desc)
         is True
     ):
         return None
@@ -354,7 +340,7 @@ def handle_field(field_name: str, field: ModelField):
 
     # handle Union types
     if outer is Union and (choices := discriminated_union_choices(field)):
-        choice = prompt.select(field_name, list(choices.keys()), desc)
+        choice = prompt.get_from_choices(field_name, list(choices.keys()), desc)
         return construct_model_instance_interactively(choices[choice], {"kind": choice})
     if outer is Union and field.discriminator_key:
         pass
