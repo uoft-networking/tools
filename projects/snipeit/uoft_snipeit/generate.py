@@ -15,6 +15,7 @@ def generate_label(asset: int):
     fields = get_info_from_server(item_type="asset", item_id=asset)
     field = {key: fields[key] for key in {"name", "asset_tag", "serial", "model_number"}}
     im = make_label_from_fields(90, 29, 2, "mm", field, qrcode_url)
+    im = im.transpose(Image.FLIP_TOP_BOTTOM)
     im.save(expanduser(f"~/Asset-Label.jpg"))
 
 
