@@ -4,7 +4,7 @@ from . import settings
 from .mkinventorylabel import get_info_from_server
 from typing import Literal
 from PIL import Image, ImageDraw, ImageFont
-from qrcode import QRCode
+from qrcode.main import QRCode
 from qrcode.image.pil import PilImage
 from os.path import expanduser
 
