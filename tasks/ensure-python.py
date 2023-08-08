@@ -75,8 +75,8 @@ except ImportError:
 
 
 REPO = "https://github.com/indygreg/python-build-standalone"
-RELEASE = 20221102
-DOWNLOAD_VERSION = "3.10.8"
+RELEASE = 20230726
+DOWNLOAD_VERSION = "3.10.12"
 TMP = environ.get("TMPDIR", "/tmp")
 ARCHIVE_FILE = TMP + "/python-build-standalone-" + DOWNLOAD_VERSION + ".tar.gz"
 LOCAL_BIN = environ["HOME"] + "/.local/bin"
@@ -84,9 +84,7 @@ GLOBAL_BIN = "/usr/local/bin"
 DATA_DIR = environ.get("XDG_DATA_HOME", environ["HOME"] + "/.local/share")
 LOCAL_INSTALL_DIR = DATA_DIR + "/python-build-standalone"
 GLOBAL_INSTALL_DIR = "/opt/python-build-standalone"
-LOCAL_PIPX_HOME = (
-    LOCAL_INSTALL_DIR + "/pipx"
-)  # PIPX_HOME is where the virtualenvs pipx creates will live
+LOCAL_PIPX_HOME = LOCAL_INSTALL_DIR + "/pipx"  # PIPX_HOME is where the virtualenvs pipx creates will live
 GLOBAL_PIPX_HOME = GLOBAL_INSTALL_DIR + "/pipx"
 
 
@@ -100,9 +98,7 @@ def main():
         print(ensure_python())
         sys.exit(0)
 
-    p = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument(
         "action",
         choices=["install"],
@@ -113,9 +109,7 @@ def main():
         choices=["python", "pipx", "venv"],
         help="target to install (currently only 'python', 'pipx', and 'venv' are supported)",
     )
-    p.add_argument(
-        "--global", action="store_true", help="[un]install [target] globally"
-    )
+    p.add_argument("--global", action="store_true", help="[un]install [target] globally")
     args = p.parse_args()
     global_ = vars(args)["global"]  # type: bool
     if args.action == "install":
@@ -140,18 +134,13 @@ def ensure_python(global_=False):
         if bin_dir not in environ["PATH"]:
             pr(bin_dir + " is not in your PATH...")
             pr("Please consider permanently adding this to your PATH.")
-            pr(
-                "You can do this by adding the following line to your shell config file (e.g. ~/.bashrc):"
-            )
+            pr("You can do this by adding the following line to your shell config file (e.g. ~/.bashrc):")
             pr("export PATH=$PATH:" + bin_dir)
 
     if (
         path.exists(install_dir + "/python3.10/bin/python3.10")
         and path.exists(bin_dir + "/python3.10")
-        and (
-            readlink(bin_dir + "/python3.10")
-            == install_dir + "/python3.10/bin/python3.10"
-        )
+        and (readlink(bin_dir + "/python3.10") == install_dir + "/python3.10/bin/python3.10")
     ):
         pr("SUCCESS! Python3.10 is installed.")
         return bin_dir + "/python3.10"
@@ -250,9 +239,7 @@ def install_pipx(global_=False):
 def create_venv(install_path=None):
     """Create a virtualenv at a given path, relative to the current directory"""
     if not install_path:
-        install_path = input(
-            "Enter the name/path of the virtual environment (default='.venv'): "
-        )
+        install_path = input("Enter the name/path of the virtual environment (default='.venv'): ")
         if not install_path:
             install_path = ".venv"
     install_path = path.abspath(install_path)
@@ -321,9 +308,7 @@ def _get_url():
         sys.exit(1)
 
     url_template = "/releases/download/{release}/cpython-{download_version}+{release}-{arch}{os}-install_only.tar.gz"
-    target = url_template.format(
-        arch=arch, os=os, release=RELEASE, download_version=DOWNLOAD_VERSION
-    )
+    target = url_template.format(arch=arch, os=os, release=RELEASE, download_version=DOWNLOAD_VERSION)
     url = REPO + target
     return url
 
