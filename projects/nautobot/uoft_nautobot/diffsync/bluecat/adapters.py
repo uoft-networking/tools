@@ -4,8 +4,7 @@ from diffsync import DiffSync
 from netaddr import IPRange
 from nautobot.ipam.models import Prefix
 from uoft_core import shell
-from uoft_core._vendor.bluecat_libraries.address_manager.api import Client
-from uoft_core._vendor.bluecat_libraries.address_manager.constants import ObjectType
+from uoft_bluecat import Settings as BluecatSettings, ObjectType
 
 from .models import BluecatNetwork, NautobotNetwork
 
@@ -19,13 +18,7 @@ class Bluecat(DiffSync):  # pylint: disable=missing-class-docstring
     def __init__(self, job: DataSource | None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job = job
-        conf = settings.PLUGINS_CONFIG["uoft_nautobot"]["bluecat"]
-        client = Client(url=conf["url"])
-        client.login(
-            username=conf["username"],
-            password=conf["password"],
-        )
-        self.client = client
+        self.client = BluecatSettings.from_cache().get_api_connection()
 
         self.container_types = [
             ObjectType.IP4_BLOCK,
@@ -35,7 +28,8 @@ class Bluecat(DiffSync):  # pylint: disable=missing-class-docstring
             ObjectType.IP4_NETWORK,
             ObjectType.IP6_NETWORK,
             ObjectType.IP4_IP_GROUP,
-        ] + self.container_types
+            *self.container_types,
+        ]
 
         self.load()
 

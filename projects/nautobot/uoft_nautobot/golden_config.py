@@ -3,44 +3,18 @@ from nautobot_golden_config.models import GoldenConfig
 from django_jinja.backend import Jinja2
 from jinja2 import Environment, StrictUndefined
 from . import Settings
-from nautobot.extras.models import GitRepository
-from importlib. util import spec_from_file_location, module_from_spec
-from pathlib import Path
-import sys
 
 
-def _get_golden_config_repo_path():
-    repo = GitRepository.objects.get(name="golden_config_templates")
-    return Path(repo.filesystem_path)
-
-
-def load_golden_config_module():
-    models_module_name = "golden_config_models"
-    repo_path = _get_golden_config_repo_path()
-    models_module = repo_path / "golden_config_models.py"
-    assert models_module.exists()
-    spec = spec_from_file_location(models_module_name, models_module)
-    module = module_from_spec(spec) # type: ignore
-    sys.modules[models_module_name] = module
-    spec.loader.exec_module(module) # type: ignore
-    return module
-
-
-def get_model_for_role(role_name: str):
-    models = load_golden_config_module()
-    model_map = {
-        "Access Switches": models.AccessSwitch,
-        "Distribution Switches": models.DistributionSwitch,
-    }
-    model = model_map[role_name]
-    return model
-
-
-def transposer(data):
-    role = data["device_role"]["name"]
-    model = get_model_for_role(role)
-    sw = model.from_nautobot(data)
-    data['sw'] = sw
+def transposer(data: dict):
+    """This function exists to pre-process graphql data before it's passed to the jinja template."""
+    # The data dict returned here will be expanded into the jinja template's context.
+    # Each key in the dict will be a variable in the template.
+    # This is fine for most use cases, but if you need to write a filter that references multiple variables,
+    # it can be pretty dang cumbersome.
+    # with this transposer, we simply copy the data dict into itself,
+    # so that filters can access the whole thing as a single variable
+    data["data"] = data.copy()  # important to copy, not just assign, otherwise we get infinite recursion
+    
     return data
 
 

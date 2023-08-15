@@ -62,7 +62,7 @@ def deploy_to_prod(c: Context):
     """build and deploy the current code to prod"""
     needs_sudo(c)
     systemd(c, "stop", prod=True)
-    c.sudo(f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh projects/librenms")
+    c.sudo(f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh projects/librenms projects/bluecat")
     c.sudo(
         "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
     )
@@ -83,7 +83,7 @@ def db_refresh(c: Context):
 @task()
 def refresh_graphql_schema(c: Context):
     """rebuild local graphql schema file from running models. should be done after every nautobot update, and every time a custom field is created or modified"""
-    server(c, "graphql_schema --out uoft_nautobot/tests/fixtures/_private/.gitlab_repo/schema.graphql")
+    server(c, "graphql_schema --out uoft_nautobot/tests/fixtures/_private/.gitlab_repo/graphql/_schema.graphql")
 
 @task()
 def curl_as(c: Context, endpoint: str, user: str = "me", prod: bool = False, method="GET"):

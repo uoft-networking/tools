@@ -2,11 +2,12 @@ from importlib import metadata
 from uoft_core import BaseSettings, Field, SecretStr
 from uoft_aruba import Settings as ArubaSettings
 from uoft_ssh import Settings as SSHSettingsBase, Credentials
+from uoft_bluecat import Settings as BluecatSettings
 
 __version__ = metadata.version(__name__)
 
 
-from nautobot.extras.plugins import PluginConfig
+from nautobot.apps import NautobotAppConfig
 
 
 class SSHSettings(SSHSettingsBase):
@@ -28,9 +29,7 @@ class Settings(BaseSettings):
     redis_username: str = ""
     redis_password: SecretStr = SecretStr("")
     redis_ssl: bool = False
-    bluecat_url: str = "https://localhost"
-    bluecat_username: str = "admin"
-    bluecat_password: SecretStr = SecretStr("")
+    bluecat: BluecatSettings = Field(prompt=False)
     aruba: ArubaSettings = Field(prompt=False)
     ssh: SSHSettings = Field(prompt=False)
     nornir_timeout: int = 30
@@ -91,7 +90,7 @@ class Settings(BaseSettings):
         )
 
 
-class UofTPluginConfig(PluginConfig):
+class UofTPluginConfig(NautobotAppConfig):
     name = "uoft_nautobot"
     verbose_name = "UofT Nautobot Plugin"
     author = "Alex Tremblay"
