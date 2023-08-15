@@ -1141,6 +1141,8 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         for key in missing_keys[:]:
             field = cls.__fields__[key]
             type_ = get_origin(field.outer_type_)
+            if type_ is None:
+                type_ = field.outer_type_
             try:
                 is_model = issubclass(type_, BaseSettings)
             except TypeError:
