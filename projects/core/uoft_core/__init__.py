@@ -35,11 +35,11 @@ from typing import (
 from loguru import logger
 from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
 from pydantic.fields import Field
-from pydantic.types import SecretStr
+import pydantic.types
 from pydantic.main import ModelMetaclass
 from rich.console import Console
 
-from .types import StrEnum
+from .types import StrEnum, SecretStr
 from . import toml
 from ._vendor.decorator import decorate
 from ._vendor.platformdirs import PlatformDirs
@@ -1072,7 +1072,10 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         for field_name, field in cls.__fields__.items():
             help_ = field.field_info.title or field.field_info.description
             option = typer.Option(default=None, help=help_)
-            if field.outer_type_ == SecretStr:
+            if field.outer_type_ in [SecretStr, pydantic.types.SecretStr]:
+                # typer doesn't support SecretStr, there's not any realistic way to add such support to typer,
+                # and it's not really necessary anyway, so we just use str instead and let pydantic handle the
+                # conversion to SecretStr
                 type_ = str
             else:
                 type_ = field.outer_type_
@@ -1137,8 +1140,14 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         # Then we should source the value from the subclass's from_cache method, and remove the subclass from the missing_keys list
         for key in missing_keys[:]:
             field = cls.__fields__[key]
-            type_ = field.outer_type_
-            if issubclass(type_, BaseSettings) and field.field_info.extra.get("prompt", True) is False:
+            type_ = get_origin(field.outer_type_)
+            if type_ is None:
+                type_ = field.outer_type_
+            try:
+                is_model = issubclass(type_, BaseSettings)
+            except TypeError:
+                is_model = False
+            if is_model and field.field_info.extra.get("prompt", True) is False:
                 values[key] = type_.from_cache()
                 missing_keys.remove(key)
 

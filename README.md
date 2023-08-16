@@ -8,16 +8,20 @@ Getting Started
 
 # Getting started
 
-1. `git clone https://github.com/uoft-networking/tools uoft-tools`
-2. `cd uoft-tools`
-3. `tasks/ensure-python.py install venv` (this will install a standalone copy of python3.10 if you don't already have it, and create a python3.10 virtual environment in `.venv/`)
-4. `source .venv/bin/activate` to activate the virtual environment in your current shell
-4. (optionally) install [direnv](https://direnv.net/) and run `direnv allow .`, so that you don't have to manually activate the virtual environment every time you open a new shell
-5. `pip install -r dev.requirements.txt` to install the dev tools needed to work on this repository
-6. `invoke list-projects` to see a list of all projects
-7. `invoke install-editable <project>` to start developing/debugging a particular project, or `invoke install-editable-all` to install all projects in editable mode
-8. config your editor to use `.venv/bin/python` as python interpreter (this should be automatically done in VSCode)
-9. Add `export MY_BRANCH=dev-<your branch name>` to your `.bashrc` or `.zshrc` file, so that you can use `invoke git.*` commands without having to specify a branch name every time
+1. Install [rye](https://rye-up.com/guide/installation/)
+2. `git clone https://github.com/uoft-networking/tools uoft-tools`
+3. `cd uoft-tools`
+4. `rye sync --no-lock` (this will install a standalone copy of python3.10 if you don't already have it, and create a python3.10 virtual environment in `.venv/` with all the projects installed in "editable mode")
+5. `source .venv/bin/activate` to activate the virtual environment in your current shell
+
+## Optional steps
+
+To get the most out of your dev experience in this monorepo, consider the following optional steps you can take:
+
+ - `invoke list-projects` to see a list of all projects
+ - Install [direnv](https://direnv.net/) and run `direnv allow .`, so that you don't have to manually activate the virtual environment every time you open a new shell
+ - Config your editor to use `.venv/bin/python` as python interpreter (this should be automatically done in VSCode)
+ - Add `export MY_BRANCH=dev-<your branch name>` to your `.bashrc` or `.zshrc` file, so that you can use `invoke git.*` commands without having to specify a branch name every time
 
 ## Running tests
 

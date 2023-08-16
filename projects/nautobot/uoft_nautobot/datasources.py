@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from nautobot.extras.registry import DatasourceContent
+from nautobot.apps.datasources import DatasourceContent
 from nautobot.extras.datasources.git import GitRepository
 from nautobot.extras.models import GraphQLQuery
 from nautobot.extras.choices import LogLevelChoices

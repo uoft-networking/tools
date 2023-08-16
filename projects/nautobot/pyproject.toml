@@ -9,19 +9,20 @@ authors = [
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
-  "nautobot_ssot >= 1.1.0",
-  "nautobot_golden_config",
-  "nautobot-device-onboarding",
   "uoft_core",
   "uoft_aruba",
   "uoft_ssh",
-  "nautobot >= 1.5",
+  "nautobot == 1.5.24",
+  "nautobot_ssot >= 1.1.0",
+  "nautobot_golden_config",
+  "nautobot-device-onboarding",
   "django-auth-ldap",
   "debugpy",
   "django-debug-toolbar",
   "html-table-parser-python3 >=0.2.0",
   "django-environ",
   "napalm",
+  "napalm-aruba-cx",
   "librenms_handler",
   "python-box",
 ]

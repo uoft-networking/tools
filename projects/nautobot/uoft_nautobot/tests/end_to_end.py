@@ -31,8 +31,7 @@ def _golden_config_data():
     from nautobot.utilities.utils import NautobotFakeRequest
     from nautobot.users.models import User
     from nautobot.dcim.models import Device
-    device = Device.objects.get(name="d1-p5")
-    data = {"obj": device}
+    device = Device.objects.get(name="a1-p50c")
     request = NautobotFakeRequest(
         {
             "user": User.objects.get(username="admin"),
@@ -41,7 +40,7 @@ def _golden_config_data():
     )
     settings = GoldenConfigSetting.objects.get(slug="default")
     _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
-    return device_data
+    return device, device_data
 
 
 @pytest.mark.end_to_end
@@ -49,19 +48,17 @@ class Nautobot:
     def golden_config(self, _nautobot_initialized, mocker):
         from ..golden_config import transposer
         from nautobot_golden_config.utilities.constant import PLUGIN_CFG
+        from ..jinja_filters import _import_repo_filters_module
         git_repo = fixtures_dir / "_private/.gitlab_repo"
-        mocked_repo_path = mocker.patch('uoft_nautobot.golden_config._get_golden_config_repo_path')
-        mocked_repo_path.return_value = git_repo
-        mocked_plugin_config = mocker.patch.dict(PLUGIN_CFG, {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"})
+        mocker.patch.dict(PLUGIN_CFG, {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"})
 
-        # device = Device.objects.get(name="d1-ac")
-        # data = {"obj": device}
-
-        data = _golden_config_data()
+        obj, data = _golden_config_data()
         data = transposer(data)
+        data['obj'] = obj
 
         assert git_repo.exists()
-        template = "templates/Distribution Switches/cisco.j2"
+        _import_repo_filters_module(git_repo)
+        template = "templates/entrypoint.j2"
 
         jinja_settings = Jinja2.get_default()
         jinja_env: Environment = jinja_settings.env
@@ -77,12 +74,18 @@ class Nautobot:
     def runjob(self, _nautobot_initialized, mocker):
         from nautobot.extras.management.commands.runjob import Command
         from nautobot.extras.models import GitRepository
+        from nautobot.dcim.models import Device
+
+        # refresh templates git repo
+        GitRepository.objects.get(name="golden_config_templates").save(trigger_resync=True)
 
         PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get( # type: ignore
             "nautobot_plugin_nornir", {}
         )
         NORNIR_SETTINGS = PLUGIN_CFG.get("nornir_settings")
         NORNIR_SETTINGS["runner"] = dict(plugin="serial")
+
+        uuid = Device.objects.get(name="a1-p50c").uuid
 
         Command().run_from_argv(
             [

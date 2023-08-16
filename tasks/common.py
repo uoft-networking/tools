@@ -6,8 +6,6 @@ from invoke import task, Context
 
 from . import ROOT
 
-from setuptools_scm import get_version
-
 
 def all_projects():
     return sorted(ROOT.glob("projects/*"))
@@ -95,7 +93,8 @@ def new_project(c: Context, name: str):
     # copier does not like being run inside of an invoke task runner,
     # so we shell out to the system to call it instead
     os.system(
-        f"copier -d name={name} copy tasks/new_project_template {ROOT}/projects/{name}"
+        # --UNSAFE is needed so we can run our custom template extensions
+        f"copier copy -d name={name} --UNSAFE tasks/new_project_template {ROOT}/projects/{name}"
     )
     install_editable(c, name)
 
@@ -174,35 +173,6 @@ def global_deploy_pipx(c: Context, path: str):
     needs_sudo(c)
     c.sudo("PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install --force projects/core")
     c.sudo(f"PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx inject --force uoft_core {path}")
-
-
-
-@task()
-def version(c: Context):
-    """get current version of repository from git tag"""
-    print(get_version(root=str(ROOT), version_scheme="post-release"))
-
-
-@task()
-def version_next(c: Context, minor: bool = False):
-    """suggest the next version to use as a git tag"""
-    from packaging.version import Version
-
-    v = get_version(root=str(ROOT), version_scheme="post-release")
-    print(f"current version: {v}")
-    segments = list(Version(v)._version.release)  # pylint: disable=protected-access
-    if len(segments) == 2:
-        segments.append(0)
-    # at this point, segments should be [major, minor, patch]
-    if minor:
-        segments[1] += 1
-        segments[2] = 0
-    else:
-        segments[2] += 1
-    new_version = Version(".".join(map(str, segments)))
-    print(
-        f"suggested command: \n\ngit tag --sign --message 'Version {new_version}' {new_version}\ngit push --tags\n"
-    )
 
 
 @task()
