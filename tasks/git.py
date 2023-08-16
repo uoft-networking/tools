@@ -1,14 +1,15 @@
 import os
 import re
-from invoke import task, Context, Result
+from invoke.tasks import task
+from invoke.context import Context
+from invoke.runners import Result
 
-from tasks.common import needs_sudo
 
 @task()
 def merge_from_main(c: Context):
     """pull changes to main branch and merge into current branch"""
     my_branch = os.environ.get("MY_BRANCH", input("Enter branch name: "))
-    res: Result = c.run("git status", hide="stdout")
+    res: Result = c.run("git status", hide="stdout")  # type: ignore # c.run only returns None if paramenter disown=True
     if "nothing to commit, working tree clean" not in res.stdout:
         raise Exception("Working tree is not clean, please commit or stash changes")
     c.run("git checkout main")
@@ -19,7 +20,7 @@ def merge_from_main(c: Context):
 @task()
 def latest_tag(c: Context):
     """find and print the most recent tag on the current branch"""
-    res: Result = c.run("git describe --tags --abbrev=0", hide="stdout")
+    res: Result = c.run("git describe --tags --abbrev=0", hide="stdout")  # type: ignore
     if c.config.run.dry:
         return ""
     tag = res.stdout.splitlines()[0]
@@ -60,7 +61,7 @@ def version_next(c: Context, patch: bool = False):
     return new_version
 
 @task()
-def tag(c: Context, version: str = None, push = False): # type: ignore
+def tag(c: Context, version: str = '', push = False): # type: ignore
     """create a new git tag with the given version, or the next version if not specified"""
     if not version:
         version = version_next(c)
@@ -69,20 +70,20 @@ def tag(c: Context, version: str = None, push = False): # type: ignore
         c.run("git push --tags")
 
 @task()
-def files_changed_since_tag(c: Context, tag: str = None): # type: ignore
+def files_changed_since_tag(c: Context, tag: str = ''): # type: ignore
     """List out all files that have changed since the last tag"""
     if not tag:
         tag = latest_tag(c)
-    res = c.run(f"git --no-pager diff --name-only {tag} HEAD", hide="stdout")
+    res: Result = c.run(f"git --no-pager diff --name-only {tag} HEAD", hide="stdout")  # type: ignore
     print(f"Files changed since {tag}:\n{res.stdout}")
     return res.stdout
 
 @task()
-def commit_msgs_since_tag(c: Context, tag: str = None): # type: ignore
+def commit_msgs_since_tag(c: Context, tag: str = ''): # type: ignore
     """List out all commit messages since the last tag"""
     if not tag:
         tag = latest_tag(c)
-    res = c.run(f"git --no-pager log --oneline {tag}..HEAD", hide="stdout")
+    res: Result = c.run(f"git --no-pager log --oneline {tag}..HEAD", hide="stdout")  # type: ignore
     print(f"Commit messages since {tag}:\n{res.stdout}")
     return res.stdout
 
@@ -91,7 +92,7 @@ def should_bump_version(c: Context):
     """"
     Check if the version should be bumped based on changes since the last tag.
     """
-    files = files_changed_since_last_tag(c)
+    files = files_changed_since_tag(c)
     if re.search(r"projects/\w+/(uoft_|pyproject.toml)", files):
         print("Version bump required")
         return True
