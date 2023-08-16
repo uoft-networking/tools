@@ -13,7 +13,7 @@ as well as modifying their certs to 'factory-approved' so the registrations do n
 import typer
 import sys
 import re
-from uoft_aruba.api import ArubaRESTAPIClient
+from uoft_aruba.api import ArubaRESTAPIClient, ArubaRESTAPIError
 from pathlib import Path
 from .. import settings
 
@@ -187,14 +187,20 @@ def Create_Whitelist_Entry_CPSEC_And_Approve(host: ArubaRESTAPIClient, input_tab
     for line in input_table:
         input_mac_address, input_ap_group, input_ap_name = line
         input_ap_name = input_ap_name.rstrip("\n")
-        host.ap_provisioning.wdb_cpsec_add_mac(input_mac_address, input_ap_group, input_ap_name)
-        print(
-            f"Added new CPSEC whitelist entry for {input_ap_name} / {input_mac_address}"
-        )  # Create a CPSEC whitelist entry, for each WAP in the supplied file.
-        host.ap_provisioning.wdb_cpsec_modify_mac_factory_approved(input_mac_address)
-        # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
-        print(f"Modified CPSEC entry for {input_ap_name} / {input_mac_address} to factory_approved")
+        try:
+            host.ap_provisioning.wdb_cpsec_add_mac(input_mac_address, input_ap_group, input_ap_name)
+            print(
+                f"Added new CPSEC whitelist entry for {input_ap_name} / {input_mac_address}"
+            )  # Create a CPSEC whitelist entry, for each WAP in the supplied file.
+            host.ap_provisioning.wdb_cpsec_modify_mac_factory_approved(input_mac_address)
+            # Modify a CPSEC whitelist entry to have a permanent factory-approved certifiacte, for each WAP in the supplied file.
+            print(f"Modified CPSEC entry for {input_ap_name} / {input_mac_address} to factory_approved")
 
+        except ArubaRESTAPIError as e:
+            if e.data:
+                msg = e.data.get("_global_result", {}).get("status_str")
+                if msg and "already exists" in msg:
+                    print(f"Warning: CPSEC entry for {input_ap_name} / {input_mac_address} already exists, skipping")
 
 def _debug():
     "Debugging function, only used in active debugging sessions."

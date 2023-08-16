@@ -3,7 +3,9 @@ import urllib3
 
 
 class ArubaRESTAPIError(Exception):
-    pass
+    def __init__(self, msg, data=None, *args: object) -> None:
+        self.data = data or {}
+        super().__init__(msg, data, *args)
 
 
 class ArubaRESTAPIClient:
@@ -66,10 +68,10 @@ class ArubaRESTAPIClient:
         resp_data = resp.json()
 
         if "Error" in resp_data:
-            raise ArubaRESTAPIError(f"POST {url} failed: {resp_data}")
+            raise ArubaRESTAPIError(f"POST {url} failed: {resp_data}", resp_data)
 
         if resp_data["_global_result"]["status_str"] != "Success":
-            raise ArubaRESTAPIError(f"POST {url} failed: {resp_data}")
+            raise ArubaRESTAPIError(f"POST {url} failed: {resp_data}", resp_data)
 
         return resp_data
 
