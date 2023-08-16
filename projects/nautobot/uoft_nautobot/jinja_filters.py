@@ -11,6 +11,7 @@ import sys
 from importlib.util import spec_from_file_location, module_from_spec
 from base64 import b64encode
 import inspect
+from django.conf import settings
 
 # At import time, we need to import filters defined in git repositories
 def _hash_path(path: Path):
@@ -32,7 +33,6 @@ def _import_repo_filters_module(repo_path: Path):
     spec.loader.exec_module(module) # type: ignore
     return module
 
-from django.conf import settings
 for repo in Path(settings.GIT_ROOT).iterdir():
     if repo.is_dir():
         _import_repo_filters_module(repo)
