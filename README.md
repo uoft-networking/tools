@@ -10,7 +10,7 @@ Getting Started
 
 1. `git clone https://github.com/uoft-networking/tools uoft-tools`
 2. `cd uoft-tools`
-3. `tasks/ensure-python.py venv` (this will install a standalone copy of python3.10 if you don't already have it, and create a python3.10 virtual environment in `.venv/`)
+3. `tasks/ensure-python.py install venv` (this will install a standalone copy of python3.10 if you don't already have it, and create a python3.10 virtual environment in `.venv/`)
 4. `source .venv/bin/activate` to activate the virtual environment in your current shell
 4. (optionally) install [direnv](https://direnv.net/) and run `direnv allow .`, so that you don't have to manually activate the virtual environment every time you open a new shell
 5. `pip install -r dev.requirements.txt` to install the dev tools needed to work on this repository

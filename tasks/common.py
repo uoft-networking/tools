@@ -93,7 +93,8 @@ def new_project(c: Context, name: str):
     # copier does not like being run inside of an invoke task runner,
     # so we shell out to the system to call it instead
     os.system(
-        f"copier -d name={name} copy tasks/new_project_template {ROOT}/projects/{name}"
+        # --UNSAFE is needed so we can run our custom template extensions
+        f"copier copy -d name={name} --UNSAFE tasks/new_project_template {ROOT}/projects/{name}"
     )
     install_editable(c, name)
 
