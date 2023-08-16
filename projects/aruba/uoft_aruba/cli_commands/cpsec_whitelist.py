@@ -75,22 +75,16 @@ def Provision(
     00:01:02:12:02:21,-CC Lab,test_ap_name_19
     """
     if filename.name == "-":
+        print(
+            """Please enter AP details to be provisioned, one per line. Press CTRL+D when complete.\n
+              MAC_ADDRESS,AP_GROUP,AP_NAME
+              MAC_ADDRESS,AP_GROUP,AP_NAME"""
+        )
         file = sys.stdin.readlines()
     else:
         file = filename.open().readlines()
     input_WAPs = Read_From_File(file)
     Verify_And_Create(input_WAPs)
-
-
-def Read_From_CLI(input_table: list[str]) -> InputTable:
-    "Reads a single 'MAC_ADDRESS,AP_GROUP,AP_NAME' entry from cli."
-    response = []
-    for line in input_table:
-        items = line.split(",")
-        # confirm we only have 3 fields in CSV and split into list 'items'
-        assert len(items) == 3, f"Error in input {line} has more than three fields."
-        response.append(tuple(items))
-    return response
 
 
 def Read_From_File(file: list[str]) -> InputTable:
@@ -170,7 +164,7 @@ def Check_Input_Names_Macs(host: ArubaRESTAPIClient, input_table: InputTable):
         mac_address_validate_pattern = "^(?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2})$"
         match = re.match(mac_address_validate_pattern, input_ap_mac)
         if match:
-            print(f"Verifying fotmat of input MAC_ADDRESS {input_ap_mac} ...GOOD")
+            print(f"Verifying format of input MAC_ADDRESS {input_ap_mac} ...GOOD")
         else:
             raise Exception(f"Mac address format incorrect for {input_ap_mac}")
         if input_ap_mac in controller_ap_macs:
