@@ -33,7 +33,7 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
     if not gql_dir.exists():
         job_result.log("No graphql directory found in repository, skipping.")
         return
-    for file in gql_dir.iterdir():
+    for file in gql_dir.glob("[!_]*.graphql"): # ignore files starting with _
         
         name = file.stem
         with open(file, "r") as f:
