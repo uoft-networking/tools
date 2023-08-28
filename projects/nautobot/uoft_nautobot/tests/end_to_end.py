@@ -74,10 +74,23 @@ class Nautobot:
     def runjob(self, _nautobot_initialized, mocker):
         from nautobot.extras.management.commands.runjob import Command
         from nautobot.extras.models import GitRepository
+        from nautobot.utilities.utils import NautobotFakeRequest
+        from nautobot.users.models import User
         from nautobot.dcim.models import Device
 
         # refresh templates git repo
-        GitRepository.objects.get(name="golden_config_templates").save(trigger_resync=True)
+        repo = GitRepository.objects.get(name="golden_config_templates")
+        request = NautobotFakeRequest(
+            {
+                "user": User.objects.get(username="admin"),
+                "path": "plugins/nautobot_golden_config.jobs/IntendedJob",
+                "META": {},
+                "POST": {},
+                "GET": {}
+            }
+        )
+        repo.request = request
+        repo.save(trigger_resync=True)
 
         PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get( # type: ignore
             "nautobot_plugin_nornir", {}
@@ -85,7 +98,7 @@ class Nautobot:
         NORNIR_SETTINGS = PLUGIN_CFG.get("nornir_settings")
         NORNIR_SETTINGS["runner"] = dict(plugin="serial")
 
-        uuid = Device.objects.get(name="a1-p50c").uuid
+        uuid = Device.objects.get(name="a1-p50c").id
 
         Command().run_from_argv(
             [
@@ -96,7 +109,7 @@ class Nautobot:
                 "--username",
                 "trembl94",
                 "--data",
-                '{"device":["80fae153-d00c-492f-ba0d-cdc3d4022c79"]}',
+                f'{{"device":["{uuid}"]}}',
                 "plugins/nautobot_golden_config.jobs/IntendedJob",
             ]
         )
