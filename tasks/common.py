@@ -2,7 +2,8 @@
 import os
 from pathlib import Path
 
-from invoke import task, Context
+from invoke.tasks import task
+from invoke.context import Context
 
 from . import ROOT
 
