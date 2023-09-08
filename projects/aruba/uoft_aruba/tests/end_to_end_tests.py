@@ -10,7 +10,7 @@ def _get_blacklist(*controllers):
     return set(blacklist)
 
 @pytest.mark.end_to_end
-class TestAPI:
+class APITests:
     def test_blmgr_blacklist(self):
         s = Settings.from_cache()
 

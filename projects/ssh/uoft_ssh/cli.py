@@ -18,7 +18,6 @@ app = typer.Typer(
 def callback():
     pass
 
-# Be sure to replace the below example commands with your own
 @app.command()
 def wrapper():
     # TODO: write and embed an expect script here
@@ -27,6 +26,7 @@ def wrapper():
 @app.command()
 def nornir():
     # TODO: nornir! with napalm!
+    pass
 
 def _debug():
     "Debugging function, only used in active debugging sessions."
