@@ -111,9 +111,9 @@ ADVANCED_INTERMEDIARY = {
 }
 
 
-class CLI:
+class CLITests:
     "integration tests for the CLI code"
-    def template_name_completion(self):
+    def template_name_completion_test(self):
         class MockContext:
             params = {"cache_dir": Path(__file__).parent / "fixtures/templates"}
 
@@ -142,7 +142,7 @@ class CLI:
             ]
         )
 
-    def console_name_completion(self, mocker: "MockFixture"):
+    def console_name_completion_test(self, mocker: "MockFixture"):
         mock_settings = Settings(
             generate={"templates_dir": Path(__file__).parent / "templates"}, # type: ignore
             deploy=dict( # type: ignore
@@ -182,10 +182,10 @@ class CLI:
         assert res == ["newconsole"]
 
 
-class Util:
+class UtilTests:
     "Unit tests for uoft_switchconfig.util"
 
-    def get_comment_block_schema(self):
+    def get_comment_block_schema_test(self):
         """
         Test get_comment_block_schema()
         """
@@ -247,7 +247,7 @@ class Util:
         assert res == ADVANCED_INTERMEDIARY
 
 
-    def model_source_from_comment_block_schema(self):
+    def model_source_from_comment_block_schema_test(self):
         schema = SIMPLE_INTERMEDIARY
 
         res = model_source_from_comment_block_schema(schema)
@@ -309,7 +309,7 @@ class Util:
         )
 
 
-    def construct_model_from_comment_block_schema(self):
+    def construct_model_from_comment_block_schema_test(self):
         from pydantic import BaseModel
 
         schema = SIMPLE_INTERMEDIARY

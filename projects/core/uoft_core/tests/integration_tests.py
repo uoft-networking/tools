@@ -21,8 +21,8 @@ class _Settings(uoft_core.BaseSettings):
 
 
 @pytest.mark.integration
-class Settings:
-    def from_env_vars(self, monkeypatch: MonkeyPatch) -> None:
+class SettingsTests:
+    def test_from_env_vars(self, monkeypatch: MonkeyPatch) -> None:
         for k in os.environ:
             monkeypatch.delenv(k)
         monkeypatch.setattr("os.isatty", lambda fd: False)
@@ -62,7 +62,7 @@ class _Example(BaseModel):
     a_model: _SubModel
 
 @pytest.mark.integration
-class Prompt:
+class PromptTests:
 
     def _wait_for_screen_update(self, child_pty_file_descriptor, vty_input_stream):
         """Wait for the child process to finish writing to "screen", pipe contents to the vty for analysis"""
@@ -84,6 +84,7 @@ class Prompt:
                     # reading empty
                     break
 
+    @pytest.mark.skip(reason="This test is not yet implemented")
     def test_unmocked_prompt(self):
         import pyte
         # create pseudo-terminal

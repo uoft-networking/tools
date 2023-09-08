@@ -15,7 +15,4 @@
     "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "ansible.python.interpreterPath": ".venv/bin/python",
-  "python.analysis.extraPaths": [
-    "./projects/*"
-  ]
 }

@@ -18,9 +18,9 @@ template_dir = Path(__file__).parent.joinpath("fixtures/templates")
 
 
 @pytest.mark.integration
-class Generate:
+class TestGenerate:
 
-    def model_questionnaire(self, mock_config: "MockedConfig", mock_pt_app: "MockPTApp"):
+    def model_questionnaire_test(self, mock_config: "MockedConfig", mock_pt_app: "MockPTApp"):
         mod = create_python_module(
             "test_model_questionnaire", template_dir.joinpath("data-model-test.py")
         )
@@ -45,7 +45,7 @@ class Generate:
             }
         )
 
-    def render_from_question_block(self, mock_config: "MockedConfig"):
+    def render_from_question_block_test(self, mock_config: "MockedConfig"):
         answers = {
             "usage": "podium",
             "building_code": "AC",
@@ -82,7 +82,7 @@ class Generate:
             """
         )
 
-    def render_from_model(self, mock_config: "MockedConfig"):
+    def render_from_model_test(self, mock_config: "MockedConfig"):
         answers = {
             "switch": {
                 "usage": {"kind": "podium"},

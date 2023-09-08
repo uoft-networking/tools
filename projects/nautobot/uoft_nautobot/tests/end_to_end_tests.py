@@ -44,8 +44,8 @@ def _golden_config_data():
 
 
 @pytest.mark.end_to_end
-class Nautobot:
-    def golden_config(self, _nautobot_initialized, mocker):
+class NautobotTests:
+    def test_golden_config(self, _nautobot_initialized, mocker):
         from ..golden_config import transposer
         from nautobot_golden_config.utilities.constant import PLUGIN_CFG
         from ..jinja_filters import _import_repo_filters_module
@@ -71,7 +71,7 @@ class Nautobot:
         Path("test.cisco").write_text(text)
         Path("test.cisco").unlink()
 
-    def runjob(self, _nautobot_initialized, mocker):
+    def test_runjob(self, _nautobot_initialized, mocker):
         from nautobot.extras.management.commands.runjob import Command
         from nautobot.extras.models import GitRepository
         from nautobot.utilities.utils import NautobotFakeRequest

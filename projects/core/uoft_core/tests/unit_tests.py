@@ -124,7 +124,7 @@ def test_timeit():
     timer.stop()
 
 
-class Utils:
+class UtilsTests:
     def test_config_files(self, mock_util: "MockedUtil", caplog: "LogCaptureFixture"):
         """
         the `config_files` property of the `Util` class should return a list of (path, state) pairs
@@ -631,9 +631,9 @@ class Utils:
         raise NotImplementedError
 
 
-class NestedData:
+class NestedDataTests:
 
-    def unstructure(self):
+    def test_unstructure(self):
         input_data = {
             "menu": {
                 "header": "SVG Viewer",
@@ -710,7 +710,7 @@ class NestedData:
             output.append((keypath, value))
         assert output == expected_output
 
-    def restructure(self):
+    def test_restructure(self):
         input_data = [
             ("menu.header", "SVG Viewer"),
             ("menu.items.[0].id", "Open"),
@@ -783,7 +783,7 @@ class NestedData:
         output = uoft_core.NestedData.restructure(input_data)
         assert output == expected_output
 
-    def remap(self):
+    def test_remap(self):
         keymap = [
             # basic renaming
             ("menu.header", "menu.footer"),
@@ -827,7 +827,7 @@ class NestedData:
         output = uoft_core.NestedData.restructure(unstructured)
         assert output == expected_output
 
-    def filter(self):
+    def test_filter(self):
         input_data = {
             "menu": {
                 "header": "SVG Viewer",

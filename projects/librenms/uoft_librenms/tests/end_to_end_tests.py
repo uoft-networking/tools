@@ -18,8 +18,8 @@ def vcr_config():
 @pytest.mark.end_to_end
 @pytest.mark.vcr(record_mode="new_episodes")
 @pytest.mark.default_cassette("LibreNMS.default.yaml")
-class LibreNMS:
-    def discovery(self):
+class LibreNMSTests:
+    def test_discovery(self):
         s = Settings.from_cache()
         api = s.api_connection()
         res = "from typing import List, Optional, Union, TypedDict"
@@ -70,7 +70,7 @@ class LibreNMS:
         print(res)
         print()
 
-    def collect(self):
+    def test_collect(self):
 
         import pandas as pd
         s = Settings.from_cache()
