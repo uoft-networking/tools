@@ -9,8 +9,8 @@ The process_template_data function in this template module demonstrates two diff
 interactively getting and validating template data
 """
 
-from uoft_switchconfig.types import IPv4Address, IPv4Network, Path, Literal, Union ,Choice
-from pydantic import BaseModel, Field
+from uoft_core.types import BaseModel, IPv4Address, IPv4Network, Path, Literal
+from pydantic import Field
 
 PATH = Path(__file__).parent
 
@@ -34,7 +34,7 @@ class Filters:
         """
         for a given subnet in CIDR notation, return the network address of that network
         """
-        return str(IPv4Network(subnet).network_address)
+        return str(IPv4Network(subnet).ip)
 
     @staticmethod
     def network_mask(subnet: str) -> str:
@@ -60,24 +60,24 @@ class Filters:
 GLOBALS = {}
 
 
-class DeskSwitch(Choice):
+class DeskSwitch(BaseModel):
     kind: Literal["deskswitch"]
     user_id: str = Field(
         description="user_id of the person this deskswitch is for, Example: someuser"
     )
 
 
-class Podium(Choice):
+class Podium(BaseModel):
     kind: Literal["podium"]
 
 
-class Access(Choice):
+class Access(BaseModel):
     kind: Literal["access"]
     tr_code: str = Field(description="Telecom Room code, Example: 2r")
 
 
 class Switch(BaseModel):
-    usage: Union[DeskSwitch, Podium, Access]
+    usage: DeskSwitch | Podium | Access = Field(..., discriminator="kind")
     building_code: str = Field(description="(aka alpha code) Example: SW")
     room_code: str = Field(description="Example: 254A")
     network: IPv4Network = Field(
