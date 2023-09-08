@@ -10,8 +10,8 @@ def _get_blacklist(*controllers):
     return set(blacklist)
 
 @pytest.mark.end_to_end
-class API:
-    def blmgr_blacklist(self):
+class TestAPI:
+    def test_blmgr_blacklist(self):
         s = Settings.from_cache()
 
         mm = s.mm_api_connection
@@ -33,7 +33,7 @@ class API:
             md1.logout()
             md2.logout()
 
-    def cpsec_whitelist(self):
+    def test_cpsec_whitelist(self):
         s = Settings.from_cache()
 
         mm = s.mm_api_connection
@@ -44,7 +44,7 @@ class API:
             mm.login()
             md1.login()
             md2.login()
-        
+
             group_name = mm.wlan.get_ap_groups()[0]["profile-name"]
             mm.ap_provisioning.wdb_cpsec_add_mac("11:11:11:11:11:11", group_name, "testap")
             whitelist = mm.ap_provisioning.get_cpsec_whitelist()

@@ -79,7 +79,7 @@ class Assert(YAMLData):
         return self._pa
 
 
-def pytest_generate_tests(metafunc):
+def pytest_generate_test_data(metafunc):
     test_yaml = []
     paths = sorted(base_path.glob("**/*.yaml"))
     idlist = []

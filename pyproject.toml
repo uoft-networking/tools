@@ -25,7 +25,6 @@ dev-dependencies = [
     "pytest-cov",
     "pytest-mock>=3.6",
     "pytest-recording",
-    "pytest-relaxed",
     "ruff>=0.0.149",
     "setuptools_scm>=7",
     "tomlkit>=0.11",
@@ -68,7 +67,11 @@ norecursedirs = [
     ".ruff_cache",
     ".pants.d",
 ]
-python_files = ["*"] # enable support for assertion-rewriting in "pytest-relaxed" test suites
+# more flexible test-naming schemes
+python_files = ["test_*.py", "*_test.py", "*_tests.py"]
+python_classes = ["Test*", "*Test", "*Tests"]
+python_functions = ["test_*", "*_test", "*_tests"]
+
 
 [tool.ruff]
 line-length = 120
