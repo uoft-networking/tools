@@ -63,7 +63,6 @@ def _hash(s: str) -> str:
 
 class Prompt:
     def __init__(self, history_cache: Path):
-
         self.history_cache = history_cache
         if not self.history_cache.exists():
             self.history_cache.mkdir(parents=True)
@@ -77,7 +76,6 @@ class Prompt:
         default_from_history: bool = False,
         **kwargs,
     ) -> str:
-
         message = HTML(f"<style fg='#ffffff' bg='#888888'>{var}</style>: ")
         opts: dict[str, Any] = dict(
             message=message,
@@ -114,7 +112,6 @@ class Prompt:
         fuzzy_search: bool = False,
         **kwargs,
     ) -> str:
-
         validator = Validator.from_callable(
             lambda x: x in choices,
             error_message=f"Choice must be one of {', '.join(choices)}",
@@ -161,7 +158,6 @@ class Prompt:
         default_value: bool | None = None,
         **kwargs,
     ) -> bool:
-
         truths = "y Y yes Yes true True".split()
         falses = "n N no No false False".split()
         all_valid = truths + falses
@@ -221,7 +217,6 @@ class Prompt:
         default_value: list[str] | None = None,
         **kwargs,
     ) -> list[str]:
-
         kb = KeyBindings()
 
         @kb.add("c-d")
@@ -244,8 +239,13 @@ class Prompt:
         )
         return val.strip().split("\n")
 
-    def get_dict(self, var: str, description: str | None, default_value: dict[str, str] | None = None, **kwargs) -> dict[str, str]:
-
+    def get_dict(
+        self,
+        var: str,
+        description: str | None,
+        default_value: dict[str, str] | None = None, # type: ignore
+        **kwargs,
+    ) -> dict[str, str]:
         kb = KeyBindings()
 
         class DictValidator(Validator):
@@ -270,7 +270,9 @@ class Prompt:
         )
         opts.update(kwargs)
         if default_value:
-            default_value: str = "\n".join(f"{k}: {v}" for k, v in default_value.items())
+            default_value: str = "\n".join(
+                f"{k}: {v}" for k, v in default_value.items()
+            )
         val = self.get_string(var, description, **opts)
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
@@ -294,7 +296,6 @@ class Prompt:
         if field.field_info.extra.get("prompt", True) is False:
             # Do not prompt for value, only return default
             return default
-
 
         class PydanticValidator(Validator):
             def validate(self, document: Document):
