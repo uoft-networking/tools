@@ -57,7 +57,7 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
     marker = request.node.get_closest_marker("app_name")
     app_name = marker.args[0] if marker else "example_app"
 
-    import uoft_core  # noqa
+    import uoft_core
 
     # To test the config file testing logic of the Util class, we need to mock out all the system calls
     # it makes to return repeatable, predictable paths we can control, regardless of which platform
@@ -93,22 +93,22 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
 
     # clean up the Util instance
     del util.mock_folders  # type: ignore
-    util._clear_caches()  # noqa
+    util._clear_caches()
 
 
 ############
-# The following hooks configure the integration and end_to_end markers and their command line options
+# Some of the following hooks configure the integration and end_to_end markers and their command line options
 # They are based on the pytest-integration plugin, but modified to work with our own markers
 # https://github.com/jbwdevries/pytest-integration/blob/master/pytest_integration/pytest_plugin.py
 ############
-# region pytest-markers
+# region pytest-hooks
 
 
 def pytest_addoption(parser: pytest.Parser, pluginmanager):
     """
     Adds configuration options to enable integration and end-to-end tests
     """
-    del pluginmanager # not needed in this context
+    del pluginmanager  # not needed in this context
 
     group = parser.getgroup("uoft-tools", "uoft-tools options")
 
@@ -133,14 +133,14 @@ def pytest_addoption(parser: pytest.Parser, pluginmanager):
         default=False,
         const=True,
         dest="run_end_to_end",
-        help="Run end-to-end tests (disabled by default)"
+        help="Run end-to-end tests (disabled by default)",
     )
     group.addoption(
         "--no-end-to-end",
         action="store_const",
         const=False,
         dest="run_end_to_end",
-        help="Do not run end-to-end tests (default)"
+        help="Do not run end-to-end tests (default)",
     )
 
 
@@ -166,7 +166,6 @@ def pytest_collection_modifyitems(session, config, items: list[pytest.Item]):
     end-to-end tests.
     """
     del session, config
-
     def _get_items_key(item: pytest.Item):
         if item.get_closest_marker("end_to_end"):
             return 2
@@ -221,4 +220,14 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     item.config.option.run_integration = False
 
 
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_itemcollected(item: pytest.Item):
+    "Rename all pytest Package items to match their folder structure"
+    parent = item.parent # type: ignore
+    while not isinstance(parent, pytest.Package):
+        parent = parent.parent # type: ignore
+
+    parent: pytest.Package
+    parent.name = str(item.path.parent.relative_to(item.session.config.rootpath))
+    yield
 # endregion pytest-markers
