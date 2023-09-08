@@ -1,4 +1,5 @@
-from typing import Any, Sequence, get_args, get_origin
+from typing import Any, Sequence, Union, get_args, get_origin
+from types import UnionType
 import sys
 from base64 import b64encode
 
@@ -13,6 +14,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.output.defaults import create_output
 from pydantic.error_wrappers import ErrorWrapper
 from pydantic.fields import ModelField
+import pydantic
 
 from .types import Enum, Literal, BaseModel, Path, FilePath, DirectoryPath, SecretStr
 
@@ -28,6 +30,7 @@ SUPPORTED_TYPES = (
     Enum,
     Literal,
     BaseModel,
+    Union,
     list[str],
     list[int],
     list[float],
@@ -318,6 +321,12 @@ class Prompt:
         elif type_ is int:
             return self.get_int(name, desc, default_value=default)
         elif type_ is Literal:
+            if len(type_args) == 1:
+                # This is a special case, a literal with only one value, ex: Literal["podium"]
+                # This case is generally used in combination with discriminated unions
+                # https://docs.pydantic.dev/1.10/usage/types/#discriminated-unions-aka-tagged-unions
+                # In this case, we can just return the literal value directly
+                return type_args[0]
             return self.get_from_choices(name, type_args, desc, default_value=default)
         elif type_ is Path:
             return self.get_path(name, desc, default_value=default)
@@ -337,6 +346,42 @@ class Prompt:
             return self.get_list(name, desc, default_value=default)
         elif type_ is dict:
             return self.get_dict(name, desc, default_value=default)
+        elif type_ in [Union, UnionType]:
+            assert field.sub_fields
+            if not field.discriminator_key:
+                # this is a naive union, ex: Union[str, int, bool]
+                # not sure how to handle this correctly, so just prompt for the first type
+                return self.from_model_field(name, field.sub_fields[0])
+
+            # This is a discriminated union, ex: Union[Model1, Model2] = Field(..., discriminator=kind)
+            # Prompt for the discriminator first, then prompt for the model.
+            # each submodel will have a field matching the discriminator key, and those fields will each have a type of
+            # Literal with one of more values. to select the righ model for prompting, we need to enumerate all the
+            # literal values of the discriminator fields of all those submodels
+            discriminator = field.discriminator_key
+            discriminator_to_model = {}
+            for subfield in field.sub_fields:
+                if not issubclass(subfield.type_, pydantic.BaseModel):
+                    raise ValueError(
+                        f"Discriminated union {field.name} contains a non-model type {subfield.type_}"
+                    )
+                if discriminator not in subfield.type_.__fields__:
+                    raise ValueError(
+                        f"Discriminated union {field.name} contains a model {subfield.type_} \
+                            without a discriminator field {discriminator}"
+                    )
+                for key in get_args(subfield.type_.__fields__[discriminator].type_):
+                    discriminator_to_model[key] = subfield.type_
+
+            target_model_name = self.get_from_choices(
+                "discriminator",
+                list(discriminator_to_model.keys()),
+                "Select a model",
+                fuzzy_search=True,
+            )
+            target_model = discriminator_to_model[target_model_name]
+            return self.from_model(target_model, prefix=name)
+
         else:
             if issubclass(type_, Enum):
                 choices = list(type_.__members__.keys())
@@ -347,10 +392,8 @@ class Prompt:
                 # How would that work?
                 return self.from_model(field.type_, prefix=name)
 
-            # this implementation only supports list[str], dict[str, str], and similar types like list[int],
-            # which pydantic can coerce directly from list[str] or dict[str, str].
-            # TODO: move list & dict handling down to this else block, and validate subtypes contained in them
-
-            raise RuntimeError(
-                f"{self.__class__} does not yet support prompting for values of type {field.type_}. Supported types are: {SUPPORTED_TYPES}"
-            )
+            # At this point, we've handled every exceptional type I can think of.
+            # If we get here, we're dealing with a type that we don't know how to handle.
+            # Rather than throwing an exception, we'll prompt for a string with pydantic validation
+            # and hope for the best.
+            return self.get_string(name, desc, default_value=default, validator=PydanticValidator())

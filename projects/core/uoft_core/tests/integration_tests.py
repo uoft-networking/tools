@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Literal
 import select
 from pydantic import BaseModel
-from pydantic.types import SecretStr, DirectoryPath, FilePath
 import uoft_core
 import uoft_core.prompt
+from uoft_core.types import SecretStr, DirectoryPath, FilePath
 
 
 class _Settings(uoft_core.BaseSettings):
