@@ -1,6 +1,5 @@
 [project]
 name = "uoft_ssh"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "A toolkit for working with SSH. Wrappers, Ansible convenience features, Nornir integration, etc"
 authors = [
     { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
@@ -12,6 +11,7 @@ dependencies = [
     "uoft_core",
     "nornir_napalm"
 ]
+dynamic = ["version"]
 
 license = { text = "MIT" }
 
@@ -24,6 +24,9 @@ uoft-ssh = "uoft_ssh.cli:app"
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"

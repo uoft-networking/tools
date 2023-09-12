@@ -1,6 +1,5 @@
 [project]
 name = "uoft_core"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "an opinionated set of utilities designed to be easily included in any number of projects"
 readme = "README.md"
 authors = [
@@ -18,6 +17,7 @@ dependencies = [
   "pydantic[dotenv] >= 1.9",
   "prompt_toolkit >= 3.0",
 ]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 all = [
@@ -33,6 +33,9 @@ uoft = "uoft_core.__main__:cli"
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"

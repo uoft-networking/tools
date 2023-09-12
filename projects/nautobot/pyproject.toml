@@ -1,6 +1,5 @@
 [project]
 name = "uoft_nautobot"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "A collection of UofT-specific modifications and extensions to Nautobot"
 authors = [
     { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
@@ -26,6 +25,7 @@ dependencies = [
   "librenms_handler",
   "python-box",
 ]
+dynamic = ["version"]
 
 license = { text = "MIT" }
 

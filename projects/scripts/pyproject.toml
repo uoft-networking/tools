@@ -1,6 +1,5 @@
 [project]
 name = "uoft_scripts"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "a collection of scripts and one-off tools"
 readme = "README.md"
 authors = [
@@ -17,6 +16,7 @@ dependencies = [
   "pyquery >= 1.4.0",
   "ldap3",
 ]
+dynamic = ["version"]
 
 [project.scripts]
 uoft-scripts = "uoft_scripts.cli:cli"
@@ -26,6 +26,9 @@ uoft_scripts = "uoft_scripts.cli:deprecated"
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"
