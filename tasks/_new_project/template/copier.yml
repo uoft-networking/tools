@@ -17,4 +17,4 @@ author_email:
   default: "{{ git.email }}"
 
 _jinja_extensions:
-- tasks.jinja_extensions.DefaultsFromGit
+- jinja_extensions:DefaultsFromGit

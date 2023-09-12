@@ -93,8 +93,13 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_bluecat')
+import _cog as c; c.gen_conf_table('uoft_bluecat')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| url | str |  |  | https://localhost |
+| username | str |  |  | admin |
+| password | SecretStr |  |  |  |
 <!--[[[end]]] -->
 
 ## License

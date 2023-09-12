@@ -1,15 +1,16 @@
 import os
 import re
-from invoke import task, Context
 
-from tasks.common import needs_sudo
+from invoke.tasks import task
+from invoke.context import Context
+
+from tasks.common import _needs_sudo
 
 PROD_SERVICES = ["nautobot", "nautobot-scheduler", "nautobot-worker"]
 DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
 
 
 @task()
-
 def server(c: Context, cmdline: str):
     """run a given nautobot-server subcommand"""
     with c.cd("projects/nautobot"):
@@ -20,6 +21,7 @@ def server(c: Context, cmdline: str):
 def start(c: Context):
     """start nautobot dev server"""
     server(c, "runserver --noreload")
+
 
 @task(
     help={
@@ -45,8 +47,8 @@ def systemd(c: Context, action: str, prod: bool = False):
 @task()
 def prod_shell(c: Context):
     """start a shell as the prod app user"""
-    needs_sudo(c)
-    c.sudo("env -C /opt/nautobot bash --login", pty=True, user='nautobot')
+    _needs_sudo(c)
+    c.sudo("env -C /opt/nautobot bash --login", pty=True, user="nautobot")
 
 
 def _parse_built_files(output: str) -> str:
@@ -60,9 +62,11 @@ def _parse_built_files(output: str) -> str:
 @task()
 def deploy_to_prod(c: Context):
     """build and deploy the current code to prod"""
-    needs_sudo(c)
+    _needs_sudo(c)
     systemd(c, "stop", prod=True)
-    c.sudo(f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh projects/librenms projects/bluecat")
+    c.sudo(
+        f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh projects/librenms projects/bluecat"
+    )
     c.sudo(
         "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
     )
@@ -77,16 +81,26 @@ def deploy_to_prod(c: Context):
 def db_refresh(c: Context):
     """refresh the dev db from the prod db"""
     c.run("/opt/backups/db/actions sync_prod_to_dev")
-    server(c, "dbshell \"--command=UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';\"")
+    server(
+        c,
+        "dbshell \"--command=UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';\"",
+    )
     server(c, "migrate")
+
 
 @task()
 def refresh_graphql_schema(c: Context):
     """rebuild local graphql schema file from running models. should be done after every nautobot update, and every time a custom field is created or modified"""
-    server(c, "graphql_schema --out uoft_nautobot/tests/fixtures/_private/.gitlab_repo/graphql/_schema.graphql")
+    server(
+        c,
+        "graphql_schema --out uoft_nautobot/tests/fixtures/_private/.gitlab_repo/graphql/_schema.graphql",
+    )
+
 
 @task()
-def curl_as(c: Context, endpoint: str, user: str = "me", prod: bool = False, method="GET"):
+def curl_as(
+    c: Context, endpoint: str, user: str = "me", prod: bool = False, method="GET"
+):
     """curl an endpoint as either myself, or another nautobot user, for testing"""
     if user == "me":
         token = os.environ["MY_API_TOKEN"]

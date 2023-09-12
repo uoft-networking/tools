@@ -39,9 +39,9 @@ fix_annotations()
 
 
 # import tasks
-from invoke import Collection
+from invoke.collection import Collection
 from . import common, nautobot, git
 
-ns = Collection.from_module(common)
-ns.add_collection(nautobot)
-ns.add_collection(git)
+ns: Collection = Collection.from_module(common)
+ns.add_collection(Collection.from_module(nautobot))
+ns.add_collection(Collection.from_module(git))

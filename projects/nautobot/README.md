@@ -93,7 +93,7 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_nautobot')
+import _cog as c; c.gen_conf_table('uoft_nautobot')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
@@ -111,15 +111,14 @@ import tasks.codegen as c; c.gen_conf_table('uoft_nautobot')
 | redis_username | str |  |  |  |
 | redis_password | SecretStr |  |  |  |
 | redis_ssl | bool |  |  |  |
-| bluecat_url | str |  |  | https://localhost |
-| bluecat_username | str |  |  | admin |
-| bluecat_password | SecretStr |  |  |  |
-| nornir_username | str |  |  |  |
-| nornir_password | SecretStr |  |  |  |
-| nornir_secret | SecretStr |  |  |  |
+| bluecat | Settings |  |  |  |
+| aruba | Settings |  |  |  |
+| ssh | SSHSettings |  |  |  |
 | nornir_timeout | int |  |  | 30 |
-| gitlab_username | str |  |  |  |
-| gitlab_password | SecretStr |  |  |  |
+| gitlab_templates_username | str |  |  |  |
+| gitlab_templates_password | SecretStr |  |  |  |
+| gitlab_data_username | str |  |  |  |
+| gitlab_data_password | SecretStr |  |  |  |
 | ldap_server | str |  |  |  |
 | ldap_is_active_directory | bool |  |  |  |
 | ldap_cert_is_self_signed | bool |  |  |  |
@@ -132,7 +131,6 @@ import tasks.codegen as c; c.gen_conf_table('uoft_nautobot')
 | ldap_groups_staff | str |  |  | GL_SysNetAdmins |
 | ldap_groups_superuser | str |  |  | GL_SysNet_SuperUsers |
 | ldap_additional_groups | str |  |  |  |
-| aruba | Settings |  |  | svc_account='apiadmin' mm_vrrp_hostname='sdc-aruba-mobility-conductor-5k-01.netmgmt.utsc.utoronto.ca' md_hostnames=['aruba-7240xm-01.netmgmt.utsc.utoronto.ca', 'aruba-7240xm-02.netmgmt.utsc.utoronto.ca'] password=SecretStr('**********') default_config_path='/md/UTSC' |
 <!--[[[end]]] -->
 
 ## License

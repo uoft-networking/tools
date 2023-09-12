@@ -1,26 +1,62 @@
 """common tasks for all projects in the repo"""
 import os
 from pathlib import Path
+from textwrap import dedent
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 
 from invoke.tasks import task
 from invoke.context import Context
 
 from . import ROOT
 
+GLOBAL_PIPX = "sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx"
 
-def all_projects():
+
+def _all_projects():
     return sorted(ROOT.glob("projects/*"))
 
-def all_projects_by_name():
-    return set([p.name for p in all_projects()])
 
-def all_projects_by_name_except_core():
-    return all_projects_by_name().symmetric_difference({"core"})
+def _all_projects_by_name():
+    return set([p.name for p in _all_projects()])
 
 
-def needs_sudo(c: Context):
+def _all_projects_by_name_except_core():
+    return _all_projects_by_name().symmetric_difference({"core"})
+
+def _get_prompt():
+    from uoft_core import Util
+    from uoft_core.prompt import Prompt
+    return Prompt(Util("uoft-tools").history_cache)
+
+
+def _pipx_install(c: Context, root_project: str, packages: list[str] | None = None):
+    """install a package to /usr/local/bin through pipx"""
+    requirements = []
+    if packages:
+        packages = [f"projects/{p}" for p in packages]
+
+    with open("requirements.lock", "r") as f:
+        for line in f.readlines():
+            if line.startswith("-e"):
+                continue
+            else:
+                requirements.append(line)
+
+    with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
+        req_file.writelines(requirements)
+        req_file.flush()
+        with_constraints = f'--pip-args "--constraint {req_file.name}"'
+        c.run(f"{GLOBAL_PIPX} install projects/{root_project} {with_constraints}")
+        if packages:
+            packages_str = " ".join(packages)
+            c.run(
+                f"{GLOBAL_PIPX} inject --include-apps uoft_{root_project} {packages_str} {with_constraints}"
+            )
+
+
+def _needs_sudo(c: Context):
     """
-    Called from functions which need to run sudo. 
+    Called from functions which need to run sudo.
     Pulls sudo password from `pass sudo` if sudo password not already set
     """
     if not c.config.sudo.password:
@@ -33,109 +69,88 @@ def needs_sudo(c: Context):
                 "sudo.password config not set, and shell command `pass sudo` failed"
             ) from e
 
+
 @task
 def cog_files(c: Context):
     "Run cog against all cog files in the repo"
-    c.run("cog -r -I . projects/*/README.md")
+    c.run(f"cog -r -I {ROOT}/tasks/ projects/*/README.md")
 
 
 @task()
 def build(c: Context, project: str):
     """build sdist and wheel packages for a given project"""
     print(f"building {project} from projects/{project}")
-    assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
-    c.run(f"python -m build --sdist --outdir {ROOT}/dist/ projects/{project}")
-    c.run(f"python -m build --wheel --outdir {ROOT}/dist/ projects/{project}")
+    # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
+    # the pyproject.py build hook doesn't get included in the sdist, and the subsequent
+    # wheel build fails. So we build the sdist and wheel separately.
+    c.run(f"rye build -p uoft_{project} --sdist", pty=True)
+    c.run(f"rye build -p uoft_{project} --wheel", pty=True)
 
 
 @task()
 def build_all(c: Context):
     """build sdist and wheel packages for all projects"""
-    c.run("rm dist/*")
-    for project in all_projects():
-        build(c, project.name)
+    # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
+    # the pyproject.py build hook doesn't get included in the sdist, and the subsequent
+    # wheel build fails. So we build the sdist and wheel separately.
+    c.run("rye build --all --clean --sdist", pty=True)
+    c.run("rye build --all --wheel", pty=True)
 
 
 @task()
 def test(c: Context, project: str):
     """run tests for a given project"""
-    from . import ROOT
 
     print(f"testing {project} from projects/{project}")
-    assert (ROOT / f"tests/{project}").exists(), f"No tests found for project {project}"
-    c.run(f"python -m pytest tests/{project}")
+    c.run(f"python -m pytest -k {project}", pty=True)
 
 
 @task()
 def test_all(c: Context):
     """run tests for all projects"""
-    for p in all_projects():
-        test(c, p.name)
+    c.run("python -m pytest --integration --end-to-end", pty=True)
 
 
 @task()
 def coverage(c: Context):
     """run coverage on all projects"""
-    c.run("pytest --cov-config=.coveragerc --cov-report xml:cov.xml --cov")
+    c.run("pytest --cov-config=.coveragerc --cov-report xml:cov.xml --cov", pty=True)
 
 
 @task()
 def list_projects(c: Context):
     """list all projects"""
-    print(all_projects_by_name())
+    print(_all_projects_by_name())
 
 
 @task()
 def new_project(c: Context, name: str):
-    """create a new project from the copier template at tasks/new_project_template"""
-    # copier does not include the current directory in python path, so we need to add it
-    # this is needed so that copier can import jinja extensions from the tasks directory
-    os.environ["PYTHONPATH"] = str(ROOT)
+    """create a new project from the copier template at tasks/_new_project/template"""
+    # our copier template makes use of a jinja extension in a module inside tasks/_new_project
+    # we need to add that module to the python path so that copier can find it
+    os.environ["PYTHONPATH"] = str(ROOT / "tasks/_new_project")
     # copier does not like being run inside of an invoke task runner,
     # so we shell out to the system to call it instead
-    os.system(
-        # --UNSAFE is needed so we can run our custom template extensions
-        f"copier copy -d name={name} --UNSAFE tasks/new_project_template {ROOT}/projects/{name}"
+    return_code = os.system(
+        f"copier copy --trust -d name={name} tasks/_new_project/template {ROOT}/projects/{name}"
     )
-    install_editable(c, name)
+    if not return_code == 0:
+        raise Exception("copier failed")
+    # add the new project to the lock file
+    c.run("rye lock", pty=True)
+    # install the new project in editable mode
+    update_venv(c)
 
 
 @task()
 def update_venv(c: Context):
     """update the virtual environment with the latest dependencies"""
-    c.run("python -m pip install -r dev.requirements.txt")
-    install_editable_all(c)
-
-
-@task()
-def install_editable(c: Context, project: str, include_core: bool = True):
-    """install a project in editable mode"""
-    from . import ROOT
-
-    if project != "core":
-        print("bumping uoft_core editable install version number...")
-        install_editable(c, "core")
-
-    print(f"installing projects/{project} in editable mode")
-    assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
-    c.run(f"python -m pip install -e projects/{project}")
-
-
-@task()
-def install_editable_all(c: Context):
-    """install all projects in editable mode"""
-    install_editable(c, "core")
-    for p in all_projects_by_name_except_core():
-        install_editable(c, p, include_core=False)
+    c.run("rye sync --no-lock")
 
 
 @task()
 def repl(c: Context, project: str):
     """start a python repl with a given project imported"""
-    from . import ROOT
-    from textwrap import dedent
-    from pathlib import Path
-    from tempfile import TemporaryDirectory
 
     assert (ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
 
@@ -169,21 +184,22 @@ def changes_since_last_tag(c: Context):
 
 
 @task()
-def global_deploy_pipx(c: Context, path: str):
-    """deploy all projects to /usr/local/bin via pipx"""
-    needs_sudo(c)
-    c.sudo("PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install --force projects/core")
-    c.sudo(f"PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx inject --force uoft_core {path}")
+def global_install(c: Context, package: str):
+    """install a package to /usr/local/bin through pipx"""
+    _pipx_install(c, f"projects/{package}")
+
+
+@task()
+def global_install_all(c: Context):
+    """install all packages to /usr/local/bin through pipx"""
+    projects = [f"projects/{p}" for p in _all_projects_by_name_except_core()]
+    _pipx_install(c, "projects/core", projects)
 
 
 @task()
 def package_inspect(c: Context):
     """list the contents of an sdist or wheel file in the dist/ directory"""
-    from . import ROOT
-    from uoft_core import Util
-    from uoft_core.prompt import Prompt
 
-    prompt = Prompt(Util("uoft-tools").history_cache)
     os.chdir(ROOT / "dist")
     package = prompt.get_path(
         "package", "Enter a filename for a package to inspect", fuzzy_search=True
@@ -199,11 +215,7 @@ def package_inspect(c: Context):
 @task()
 def package_peek(c: Context):
     """print out the contents of a file in an sdist or wheel file in the dist/ directory"""
-    from . import ROOT
-    from uoft_core import Util
-    from uoft_core.prompt import Prompt
-
-    prompt = Prompt(Util("uoft-tools").history_cache)
+    prompt = _get_prompt()
     os.chdir(ROOT / "dist")
     package = prompt.get_path(
         "package", "Enter a filename for a package to inspect", fuzzy_search=True
@@ -240,16 +252,17 @@ def package_peek(c: Context):
     else:
         raise Exception(f"Unknown package type: {package}")
 
+
 @task()
 def debug_pydantic(c: Context, undo: bool = False):
     """disable pydantic compiled modules in virtualenv so we can step through the python code"""
     if undo:
-        for ext in Path('.venv').glob('lib/python*/site-packages/pydantic/*.cpython-*.so.disabled'):
+        for ext in Path(".venv").glob(
+            "lib/python*/site-packages/pydantic/*.cpython-*.so.disabled"
+        ):
             print(f"renaming {ext.name} to {ext.with_suffix('').name}")
-            ext.rename(ext.with_suffix(''))
+            ext.rename(ext.with_suffix(""))
     else:
-        for ext in Path('.venv').glob('lib/python*/site-packages/pydantic/*.so'):
+        for ext in Path(".venv").glob("lib/python*/site-packages/pydantic/*.so"):
             print(f"renaming {ext.name} to {ext.with_suffix('.so.disabled').name}")
-            ext.rename(ext.with_suffix('.so.disabled'))
-
-    
+            ext.rename(ext.with_suffix(".so.disabled"))
