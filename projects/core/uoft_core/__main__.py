@@ -2,6 +2,7 @@ import sys
 from typing import Optional
 from sys import version_info, platform, executable
 from importlib.metadata import version
+from pkgutil import iter_modules, resolve_name
 
 from . import Util
 
@@ -48,35 +49,44 @@ def callback(
     util.logging.add_stderr_rich_sink(log_level)
     util.logging.add_syslog_sink()
 
-try:
-    from uoft_aruba import cli as aruba
-    app.add_typer(aruba.app, name="aruba")
-except Exception:
-    pass
+for mod in iter_modules():
+    if mod.ispkg and mod.name.startswith("uoft_") and mod.name != "uoft_core":
+        try:
+            print(f"Adding {mod.name} to subcommands")
+            subapp = resolve_name(f"{mod.name}.cli:app")
+            app.add_typer(subapp)
+        except (ImportError) as e:
+            pass
 
-try:
-    from uoft_scripts import cli as scripts
-    app.add_typer(scripts.app, name="scripts")
-except Exception:
-    pass
+# try:
+#     from uoft_aruba import cli as aruba
+#     app.add_typer(aruba.app)
+# except Exception:
+#     pass
 
-try:
-    from uoft_switchconfig import cli as switchconfig
-    app.add_typer(switchconfig.app, name="switchconfig")
-except Exception:
-    pass
+# try:
+#     from uoft_scripts import cli as scripts
+#     app.add_typer(scripts.app, name="scripts")
+# except Exception:
+#     pass
 
-try:
-    from uoft_snipeit import cli as snipeit
-    app.add_typer(snipeit.app, name="snipeit")
-except Exception:
-    pass
+# try:
+#     from uoft_switchconfig import cli as switchconfig
+#     app.add_typer(switchconfig.app, name="switchconfig")
+# except Exception:
+#     pass
 
-try:
-    from uoft_phpipam import cli as phpipam
-    app.add_typer(phpipam.app, name="phpipam")
-except Exception:
-    pass
+# try:
+#     from uoft_snipeit import cli as snipeit
+#     app.add_typer(snipeit.app, name="snipeit")
+# except Exception:
+#     pass
+
+# try:
+#     from uoft_phpipam import cli as phpipam
+#     app.add_typer(phpipam.app)
+# except Exception:
+#     pass
 
 @logger.catch
 def cli():

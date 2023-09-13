@@ -14,7 +14,8 @@ app = typer.Typer(
 )
 
 @app.callback()
-@Settings.wrap_typer_command
+#@Settings.wrap_typer_command
+#TODO: implement click paramtype support for Settings AnyHttpUrl
 def callback():
     pass
 

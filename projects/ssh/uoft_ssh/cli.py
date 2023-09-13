@@ -14,7 +14,8 @@ app = typer.Typer(
 )
 
 @app.callback()
-@Settings.wrap_typer_command
+#@Settings.wrap_typer_command
+#TODO: implement support for exploding submodels in Settings.wrap_typer_command
 def callback():
     pass
 

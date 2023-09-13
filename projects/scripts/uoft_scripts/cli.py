@@ -10,7 +10,7 @@ import typer
 from loguru import logger
 
 app = typer.Typer(
-    name="uoft_scripts",
+    name="scripts",
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
