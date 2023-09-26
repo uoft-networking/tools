@@ -1,8 +1,10 @@
+import os
 import sys
 from typing import Optional
 from sys import version_info, platform, executable
 from importlib.metadata import version
 from pkgutil import iter_modules, resolve_name
+from pathlib import Path
 
 from . import Util
 
@@ -49,48 +51,54 @@ def callback(
     util.logging.add_stderr_rich_sink(log_level)
     util.logging.add_syslog_sink()
 
-for mod in iter_modules():
-    if mod.ispkg and mod.name.startswith("uoft_") and mod.name != "uoft_core":
-        try:
-            print(f"Adding {mod.name} to subcommands")
-            subapp = resolve_name(f"{mod.name}.cli:app")
-            app.add_typer(subapp)
-        except (ImportError) as e:
-            pass
+def _add_subcommands():
+    """
+    Dynamically add subcommands from uoft_* packages, and add virtual subcommands for any uoft-* executables
+    not already added as a subcommand.
+    """
+    local_subcommands = set()
+    # add subcommands from uoft_* packages in same virtualenv
+    for mod in iter_modules():
+        if mod.ispkg and mod.name.startswith("uoft_") and mod.name != "uoft_core":
+            try:
+                subapp = resolve_name(f"{mod.name}.cli:app")
+                local_subcommands.add(mod.name)
+                app.add_typer(subapp)
+            except (ImportError, AttributeError):
+                # if the module doesn't have a cli.py, or if it doesn't have an app object, skip it
+                pass
+    
+    # add virtual subcommands for any uoft-* executables available in PATH which aren't already added as a subcommand
+    paths = os.environ.get("PATH", os.defpath)
+    executable_file = os.X_OK | os.F_OK
+    names = set()
+    for path in [Path(p) for p in paths.split(os.pathsep)]:
+        if not path.exists():
+            continue
+        for fn in path.iterdir():
+            if not fn.is_file():
+                continue
+            if not os.access(fn, executable_file):
+                continue
+            if not fn.name.startswith("uoft-"):
+                continue
+            name = fn.name.partition('uoft-')[2].replace('-', '_')
+            if name in local_subcommands:
+                continue
+            if name in names:
+                continue
+            names.add(name)
+            # now we need to create a virtual command or command group for this external command
+            app.command(name)(lambda: os.execv(fn, sys.argv[1:]))
 
-# try:
-#     from uoft_aruba import cli as aruba
-#     app.add_typer(aruba.app)
-# except Exception:
-#     pass
+            # TODO: figure out how to handle and forward shell completions for virtual subcommands
 
-# try:
-#     from uoft_scripts import cli as scripts
-#     app.add_typer(scripts.app, name="scripts")
-# except Exception:
-#     pass
-
-# try:
-#     from uoft_switchconfig import cli as switchconfig
-#     app.add_typer(switchconfig.app, name="switchconfig")
-# except Exception:
-#     pass
-
-# try:
-#     from uoft_snipeit import cli as snipeit
-#     app.add_typer(snipeit.app, name="snipeit")
-# except Exception:
-#     pass
-
-# try:
-#     from uoft_phpipam import cli as phpipam
-#     app.add_typer(phpipam.app)
-# except Exception:
-#     pass
 
 @logger.catch
 def cli():
     try:
+        _add_subcommands()
+        print({e:v for e,v in os.environ.items() if e.startswith("COMP")}, file=sys.stderr)
         app()
     except KeyboardInterrupt:
         print("Aborted!")
