@@ -12,6 +12,7 @@ cov.xml
 *.pkl
 *.uoft_core.debug*
 **/tests/fixtures/_private/*
+.skip_pyproject_metadata_hooks
 
 
 # garbage / prototyping code not ready for prime time

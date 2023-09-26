@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from textwrap import dedent
 from tempfile import TemporaryDirectory, NamedTemporaryFile
+import re
 
 from invoke.tasks import task
 from invoke.context import Context
@@ -98,6 +99,54 @@ def build_all(c: Context):
 
 
 @task()
+def update_pyproject_build_hooks(c: Context):
+    """update all pyproject.py build hooks"""
+    for project in _all_projects_by_name():
+        print(f"updating build hook for {project}")
+        c.run(f"cp tasks/_new_project/template/pyproject.py projects/{project}/pyproject.py", pty=True)
+
+
+@task()
+def rebuild_lock_files(c: Context):
+    """gather all dependencies for all projects and rebuild the lock files"""
+    # rye uses pip-tools to build lock files, pip-tools uses pip to gather all dependencies
+    # pip uses a vendored copy of resolvelib to resolve dependencies. resolvelib has a bug
+    # when dealing with relative link dependencies. if the root project has an editable install
+    # link to a project, and another project has a direct link reference to that same project,
+    # resolvelib will throw a RequirementsConflicted exception, because it thinks the two
+    # projects are different versions of the same project. This is a problem because rye
+    # automatically and implicitly adds editable links to all projects in the repo to the root
+    # project. To work around this, we need to remove the direct link references from all
+    # projects before rebuilding the lock files, and then put them back afterwards
+    import toml
+    for project in _all_projects():
+        original = project / "pyproject.toml"
+        backup = original.with_suffix(".bak")
+        c.run(f"cp {original} {backup}")
+        d = toml.load(original)
+        for dep in d['project']['dependencies'][:]:
+            if dep.startswith("uoft_"):
+                d['project']['dependencies'].remove(dep)
+        with open(original, "w") as f:
+            toml.dump(d, f)
+    try:
+        c.run("rye lock -v", pty=True)
+    finally:
+        for project in _all_projects():
+            original = project / "pyproject.toml"
+            backup = original.with_suffix(".bak")
+            c.run(f"mv {backup} {original}")
+
+
+@task()
+def sync_venv(c: Context, lock: bool = False):
+    """sync the virtual environment with the latest dependencies"""
+    if lock:
+        rebuild_lock_files(c)
+    c.run("rye sync --no-lock")
+
+
+@task()
 def test(c: Context, project: str):
     """run tests for a given project"""
 
@@ -136,17 +185,8 @@ def new_project(c: Context, name: str):
     )
     if not return_code == 0:
         raise Exception("copier failed")
-    # add the new project to the lock file
-    c.run("rye lock", pty=True)
-    # install the new project in editable mode
-    update_venv(c)
-
-
-@task()
-def update_venv(c: Context):
-    """update the virtual environment with the latest dependencies"""
-    c.run("rye sync --no-lock")
-
+    # add the new project to the lock file and install in editable mode
+    sync_venv(c, lock=True)
 
 @task()
 def repl(c: Context, project: str):
@@ -201,6 +241,7 @@ def package_inspect(c: Context):
     """list the contents of an sdist or wheel file in the dist/ directory"""
 
     os.chdir(ROOT / "dist")
+    prompt = _get_prompt()
     package = prompt.get_path(
         "package", "Enter a filename for a package to inspect", fuzzy_search=True
     )
