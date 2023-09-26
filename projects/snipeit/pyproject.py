@@ -1,9 +1,15 @@
 from hatchling.metadata.plugin.interface import MetadataHookInterface
-from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from setuptools_scm import get_version
+from pathlib import Path
 
-V = get_version(
-    root="../..", relative_to=__file__, version_scheme="post-release"
+
+V = get_version(root="../..", relative_to=__file__, version_scheme="post-release")
+
+SKIP_UPDATE = any(
+    [
+        Path(f"{__file__}/{'../' * depth}/.skip_pyproject_metadata_hooks").exists()
+        for depth in range(5)
+    ]
 )
 
 
@@ -12,8 +18,14 @@ class CustomMetadataHook(MetadataHookInterface):
         """
         This updates the metadata mapping of the `project` table in-place.
         """
-        
+
         metadata["version"] = V
+
+        if SKIP_UPDATE:
+            import sys
+            print("Skipping pyproject metadata hooks", file=sys.stderr)
+            return
+        
         new_deps = []
         for dep in metadata["dependencies"]:
             if "uoft_" in dep:
