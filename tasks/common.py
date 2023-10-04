@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from textwrap import dedent
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-import re
 
 from invoke.tasks import task
 from invoke.context import Context
@@ -30,31 +29,6 @@ def _get_prompt():
     return Prompt(Util("uoft-tools").history_cache)
 
 
-def _pipx_install(c: Context, root_project: str, packages: list[str] | None = None):
-    """install a package to /usr/local/bin through pipx"""
-    requirements = []
-    if packages:
-        packages = [f"projects/{p}" for p in packages]
-
-    with open("requirements.lock", "r") as f:
-        for line in f.readlines():
-            if line.startswith("-e"):
-                continue
-            else:
-                requirements.append(line)
-
-    with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
-        req_file.writelines(requirements)
-        req_file.flush()
-        with_constraints = f'--pip-args "--constraint {req_file.name}"'
-        c.run(f"{GLOBAL_PIPX} install projects/{root_project} {with_constraints}")
-        if packages:
-            packages_str = " ".join(packages)
-            c.run(
-                f"{GLOBAL_PIPX} inject --include-apps uoft_{root_project} {packages_str} {with_constraints}"
-            )
-
-
 def _needs_sudo(c: Context):
     """
     Called from functions which need to run sudo.
@@ -74,7 +48,7 @@ def _needs_sudo(c: Context):
 @task
 def cog_files(c: Context):
     "Run cog against all cog files in the repo"
-    c.run(f"cog -r -I {ROOT}/tasks/ projects/*/README.md")
+    c.run(f"cog -r -I {ROOT}/tasks/ projects/*/README.md projects/core/uoft_core/__main__.py")
 
 
 @task()
@@ -104,46 +78,6 @@ def update_pyproject_build_hooks(c: Context):
     for project in _all_projects_by_name():
         print(f"updating build hook for {project}")
         c.run(f"cp tasks/_new_project/template/pyproject.py projects/{project}/pyproject.py", pty=True)
-
-
-@task()
-def rebuild_lock_files(c: Context):
-    """gather all dependencies for all projects and rebuild the lock files"""
-    # rye uses pip-tools to build lock files, pip-tools uses pip to gather all dependencies
-    # pip uses a vendored copy of resolvelib to resolve dependencies. resolvelib has a bug
-    # when dealing with relative link dependencies. if the root project has an editable install
-    # link to a project, and another project has a direct link reference to that same project,
-    # resolvelib will throw a RequirementsConflicted exception, because it thinks the two
-    # projects are different versions of the same project. This is a problem because rye
-    # automatically and implicitly adds editable links to all projects in the repo to the root
-    # project. To work around this, we need to remove the direct link references from all
-    # projects before rebuilding the lock files, and then put them back afterwards
-    import toml
-    for project in _all_projects():
-        original = project / "pyproject.toml"
-        backup = original.with_suffix(".bak")
-        c.run(f"cp {original} {backup}")
-        d = toml.load(original)
-        for dep in d['project']['dependencies'][:]:
-            if dep.startswith("uoft_"):
-                d['project']['dependencies'].remove(dep)
-        with open(original, "w") as f:
-            toml.dump(d, f)
-    try:
-        c.run("rye lock -v", pty=True)
-    finally:
-        for project in _all_projects():
-            original = project / "pyproject.toml"
-            backup = original.with_suffix(".bak")
-            c.run(f"mv {backup} {original}")
-
-
-@task()
-def sync_venv(c: Context, lock: bool = False):
-    """sync the virtual environment with the latest dependencies"""
-    if lock:
-        rebuild_lock_files(c)
-    c.run("rye sync --no-lock")
 
 
 @task()
@@ -186,7 +120,7 @@ def new_project(c: Context, name: str):
     if not return_code == 0:
         raise Exception("copier failed")
     # add the new project to the lock file and install in editable mode
-    sync_venv(c, lock=True)
+    c.run("rye sync", pty=True)
 
 @task()
 def repl(c: Context, project: str):
@@ -223,17 +157,42 @@ def changes_since_last_tag(c: Context):
     c.run("git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
 
 
+def _pipx_install(c: Context, root_project: str, packages: list[str] | None = None):
+    """install a package to /usr/local/bin through pipx"""
+    requirements = []
+    if packages:
+        packages = [f"projects/{p}" for p in packages]
+
+    with open("requirements.lock", "r") as f:
+        for line in f.readlines():
+            if line.startswith("-e"):
+                continue
+            else:
+                requirements.append(line)
+
+    with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
+        req_file.writelines(requirements)
+        req_file.flush()
+        with_constraints = f'--pip-args "--constraint {req_file.name}"'
+        c.run(f"{GLOBAL_PIPX} install projects/{root_project} {with_constraints}")
+        if packages:
+            packages_str = " ".join(packages)
+            c.run(
+                f"{GLOBAL_PIPX} inject --include-apps uoft_{root_project} {packages_str} {with_constraints}"
+            )
+
+
 @task()
 def global_install(c: Context, package: str):
     """install a package to /usr/local/bin through pipx"""
-    _pipx_install(c, f"projects/{package}")
+    _pipx_install(c, package)
 
 
 @task()
 def global_install_all(c: Context):
     """install all packages to /usr/local/bin through pipx"""
-    projects = [f"projects/{p}" for p in _all_projects_by_name_except_core()]
-    _pipx_install(c, "projects/core", projects)
+    projects = _all_projects_by_name_except_core()
+    _pipx_install(c, "core", list(projects))
 
 
 @task()
