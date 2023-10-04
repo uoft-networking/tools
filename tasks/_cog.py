@@ -1,7 +1,7 @@
 """Utility functions and code generators for the cog command."""
 
 import importlib
-import textwrap
+from pathlib import Path
 from uoft_core import BaseSettings
 
 try:
@@ -25,3 +25,13 @@ def gen_conf_table(module_path: str, class_name: str = "Settings"):
         default = field.default or ''
         cog.outl(f"\
         | {name} | {field.type_.__name__} | {title} | {desc} | {default} |")
+
+
+def all_projects_as_python_list():
+    "Generate a list of all projects in the uoft-* namespace."
+    cog.outl("ALL_PROJECTS = [")
+    for p in Path('projects').iterdir():
+        if not p.is_dir():
+            continue
+        cog.outl(f"    '{p.name}',")
+    cog.outl("]")
