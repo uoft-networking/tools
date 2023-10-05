@@ -116,7 +116,7 @@ Do not supply a password for this password store if you intend to use these tool
 
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_phpipam')
+import _cog as c; c.gen_conf_table('uoft_phpipam')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |

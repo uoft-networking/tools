@@ -93,8 +93,14 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_ssh')
+import _cog as c; c.gen_conf_table('uoft_ssh')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| enable_secret | SecretStr |  | Password used to enter the enable mode of a device. |  |
+| admin | Credentials |  | Credentials for the admin user. |  |
+| personal | Credentials |  | Your personal credentials. |  |
+| other | SecretStr |  | Other, optional credentials. |  |
 <!--[[[end]]] -->
 
 ## License

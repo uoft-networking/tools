@@ -140,42 +140,6 @@ from pydantic.types import (
 from uoft_core import StrEnum
 
 
-class IPv4Address(IPAddress):
-    @classmethod
-    def __get_validators__(cls):
-        def validator(val: Any) -> "IPv4Address":
-            return cls(val).ipv4()  # type: ignore
-
-        yield validator
-
-
-class IPv6Address(IPAddress):
-    @classmethod
-    def __get_validators__(cls):
-        def validator(val: Any) -> "IPv6Address":
-            return cls(val).ipv6()  # type: ignore
-
-        yield validator
-
-
-class IPv4Network(IPNetwork):
-    @classmethod
-    def __get_validators__(cls):
-        def validator(val: Any) -> "IPv4Network":
-            return cls(val).ipv4()  # type: ignore
-
-        yield validator
-
-
-class IPv6Network(IPNetwork):
-    @classmethod
-    def __get_validators__(cls):
-        def validator(val: Any) -> "IPv6Network":
-            return cls(val).ipv6()  # type: ignore
-
-        yield validator
-
-
 class Choice(BaseModel):
     # Base class used to define multiple choices in a discriminated union.
     # see the "Union" example under https://pydantic-docs.helpmanual.io/usage/types/#literal-type

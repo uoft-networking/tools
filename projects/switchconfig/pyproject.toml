@@ -35,6 +35,9 @@ uoft_switchconfig = "uoft_switchconfig.cli:deprecated"
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.metadata.hooks.custom]
 path = "pyproject.py"
 

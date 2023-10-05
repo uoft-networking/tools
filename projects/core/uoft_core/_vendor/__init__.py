@@ -8,7 +8,4 @@ mv ruamel/yaml ./
 mv tomlkit toml
 rm -rf ruamel*
 rm -rf *.dist-info
-grep -rl 'if False:' yaml | xargs sed -i '' 's/if False:/from typing import TYPE_CHECKING\nif TYPE_CHECKING:/g'
-grep -rl 'from ruamel.yaml.' yaml | xargs sed -i '' 's/from ruamel.yaml./from ./g'
-grep -rl 'import ruamel.yaml' yaml | xargs sed -i '' 's/import ruamel.yaml//g'
 """

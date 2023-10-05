@@ -1,6 +1,5 @@
 [project]
 name = "uoft_nautobot"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "A collection of UofT-specific modifications and extensions to Nautobot"
 authors = [
     { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
@@ -12,8 +11,8 @@ dependencies = [
   "uoft_core",
   "uoft_aruba",
   "uoft_ssh",
-  "nautobot == 1.5.24",
-  "nautobot_ssot >= 1.1.0",
+  "nautobot == 1.6.1",
+  "nautobot_ssot >= 1.3",
   "nautobot_golden_config",
   "nautobot-device-onboarding",
   "django-auth-ldap",
@@ -26,6 +25,7 @@ dependencies = [
   "librenms_handler",
   "python-box",
 ]
+dynamic = ["version"]
 
 license = { text = "MIT" }
 

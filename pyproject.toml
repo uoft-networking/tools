@@ -3,6 +3,10 @@ name = "uoft"
 version = "0.1.0"
 readme = "README.md"
 requires-python = ">= 3.10"
+authors = [
+  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
+  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" }
+]
 license = { text = "MIT" }
 
 [build-system]
@@ -25,7 +29,6 @@ dev-dependencies = [
     "pytest-cov",
     "pytest-mock>=3.6",
     "pytest-recording",
-    "pytest-relaxed",
     "ruff>=0.0.149",
     "setuptools_scm>=7",
     "tomlkit>=0.11",
@@ -37,6 +40,9 @@ dev-dependencies = [
     "python-ldap @ https://github.com/uoft-networking/python-ldap/releases/download/latest/python_ldap-3.4.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl ; sys_platform == 'linux' and python_version == '3.10' and platform_machine == 'x86_64'",
     "python-ldap @ https://github.com/uoft-networking/python-ldap/releases/download/latest/python_ldap-3.4.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl ; sys_platform == 'linux' and python_version == '3.10' and platform_machine == 'arm64'",
     "python-ldap @ https://github.com/uoft-networking/python-ldap/releases/download/latest/python_ldap-3.4.3-cp310-cp310-macosx_10_9_universal2.whl ; sys_platform == 'darwin' and python_version == '3.10'",
+    "copier-templates-extensions>=0.3.0",
+    "hatchling>=1.18.0",
+    "scalene>=1.5.31.1",
 ]
 
 [tool.rye.workspace]
@@ -68,7 +74,11 @@ norecursedirs = [
     ".ruff_cache",
     ".pants.d",
 ]
-python_files = ["*"] # enable support for assertion-rewriting in "pytest-relaxed" test suites
+# more flexible test-naming schemes
+python_files = ["test_*.py", "*_test.py", "*_tests.py"]
+python_classes = ["Test*", "*Test", "*Tests"]
+python_functions = ["test_*", "*_test", "*_tests"]
+
 
 [tool.ruff]
 line-length = 120

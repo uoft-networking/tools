@@ -46,7 +46,7 @@ def remove(ctx: typer.Context, mac_address: str):
     print(f"Removed {mac_address} from the STM/BLMGR Blacklist")
     
 @app.command()
-def purge(ctx: typer.Context, mac_address: str):
+def purge(ctx: typer.Context):
     "Purge all entries from the STM/BLMGR Blacklist"
     with settings().mm_api_connection as c:
         c.wlan.blmgr_blacklist_purge()

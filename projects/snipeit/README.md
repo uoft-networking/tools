@@ -159,7 +159,7 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_snipeit')
+import _cog as c; c.gen_conf_table('uoft_snipeit')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |

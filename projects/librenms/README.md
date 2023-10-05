@@ -93,8 +93,12 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_librenms')
+import _cog as c; c.gen_conf_table('uoft_librenms')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| url | AnyHttpUrl |  |  |  |
+| token | SecretStr |  |  |  |
 <!--[[[end]]] -->
 
 ## License
