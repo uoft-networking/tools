@@ -6,7 +6,6 @@
 #   features: []
 #   all-features: false
 
--e file:custom-forks/netmiko
 -e file:.
 -e file:projects/aruba
 -e file:projects/bluecat
@@ -31,6 +30,7 @@ backcall==0.2.0
 bcrypt==4.0.1
 billiard==4.1.0
 black==23.7.0
+boltons==23.0.0
 build==0.10.0
 celery==5.3.1
 certifi==2023.7.22
@@ -91,13 +91,16 @@ drf-spectacular-sidecar==2023.8.1
 drf-yasg==1.21.7
 dunamai==1.18.0
 editables==0.5
+et-xmlfile==1.1.0
 exceptiongroup==1.1.3
 executing==1.2.0
+face==20.1.1
 fonttools==4.42.1
 funcy==1.18
 future==0.18.3
 gitdb==4.0.10
 gitpython==3.1.32
+glom==23.3.0
 graphene==2.1.9
 graphene-django==2.16.0
 graphene-django-optimizer==0.8.0
@@ -143,6 +146,7 @@ nautobot-plugin-nornir==1.0.0
 nautobot-ssot==1.3.2
 ncclient==0.6.13
 netaddr==0.8.0
+netmiko==4.1.2
 netutils==1.5.0
 nornir==3.3.0
 nornir-jinja2==0.2.0
@@ -153,6 +157,7 @@ nornir-utils==0.2.0
 ntc-templates==3.5.0
 numpy==1.25.2
 oauthlib==3.2.2
+openpyxl==3.1.2
 ordered-set==4.1.0
 packaging==23.1
 paramiko==3.3.1
@@ -229,6 +234,7 @@ stack-data==0.6.2
 structlog==22.3.0
 svgwrite==1.4.3
 swagger-spec-validator==3.0.3
+tenacity==8.2.3
 text-unidecode==1.3
 textfsm==1.1.2
 toml==0.10.2

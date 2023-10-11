@@ -35,7 +35,7 @@ dev-dependencies = [
     "typer-cli",
     # python-ldap, required by django-auth-ldap, required by uoft_nautobot
     # ONLY ships as a source distribution, does not provide wheels.
-    # it is notoriously difficult and finicky to build on some platforms, 
+    # it is notoriously difficult and finicky to build on some platforms,
     # so we provide pre-built wheels for the most common platforms.
     "python-ldap @ https://github.com/uoft-networking/python-ldap/releases/download/latest/python_ldap-3.4.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl ; sys_platform == 'linux' and python_version == '3.10' and platform_machine == 'x86_64'",
     "python-ldap @ https://github.com/uoft-networking/python-ldap/releases/download/latest/python_ldap-3.4.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl ; sys_platform == 'linux' and python_version == '3.10' and platform_machine == 'arm64'",

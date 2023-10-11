@@ -174,7 +174,7 @@ def _pipx_install(c: Context, root_project: str, packages: list[str] | None = No
         req_file.writelines(requirements)
         req_file.flush()
         with_constraints = f'--pip-args "--constraint {req_file.name}"'
-        c.run(f"{GLOBAL_PIPX} install projects/{root_project} {with_constraints}")
+        c.run(f"{GLOBAL_PIPX} install --force projects/{root_project} {with_constraints}")
         if packages:
             packages_str = " ".join(packages)
             c.run(

@@ -4,7 +4,7 @@ import re
 from invoke.tasks import task
 from invoke.context import Context
 
-from tasks.common import _needs_sudo
+from tasks.common import _needs_sudo, global_install
 
 PROD_SERVICES = ["nautobot", "nautobot-scheduler", "nautobot-worker"]
 DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
@@ -64,9 +64,7 @@ def deploy_to_prod(c: Context):
     """build and deploy the current code to prod"""
     _needs_sudo(c)
     systemd(c, "stop", prod=True)
-    c.sudo(
-        f"gpipx runpip nautobot install --upgrade projects/core projects/nautobot projects/aruba projects/ssh projects/librenms projects/bluecat"
-    )
+    global_install(c, "nautobot")
     c.sudo(
         "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
     )
