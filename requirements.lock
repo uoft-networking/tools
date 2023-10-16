@@ -11,6 +11,7 @@
 -e file:projects/aruba
 -e file:projects/bluecat
 -e file:projects/core
+-e file:projects/grist
 -e file:projects/librenms
 -e file:projects/nautobot
 -e file:projects/phpipam
@@ -96,6 +97,7 @@ graphql-core==2.3.2
 graphql-relay==2.0.1
 h11==0.14.0
 hier-config==2.2.3
+grist-api==0.1.0
 html-table-parser-python3==0.3.1
 httpcore==0.17.3
 httpx==0.24.1

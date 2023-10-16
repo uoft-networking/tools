@@ -11,6 +11,7 @@
 -e file:projects/aruba
 -e file:projects/bluecat
 -e file:projects/core
+-e file:projects/grist
 -e file:projects/librenms
 -e file:projects/nautobot
 -e file:projects/phpipam
@@ -110,6 +111,7 @@ graphene-django-optimizer==0.8.0
 graphql-core==2.3.2
 graphql-relay==2.0.1
 h11==0.14.0
+grist-api==0.1.0
 hatchling==1.18.0
 hier-config==2.2.3
 html-table-parser-python3==0.3.1
