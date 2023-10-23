@@ -18,13 +18,16 @@ def _hash_path(path: Path):
     """Converts a path to a unique-ish valid python identifier / module name"""
     return b64encode(path.stem.encode()).decode().replace("/", "").replace("+", "").replace("=", "")
 
-def _import_repo_filters_module(repo_path: Path):
-    module_name = "uoft_nautobot.jinja_filters.from_git_repo_" + _hash_path(repo_path)
+def repo_filters_module_name(repo_path: Path):
+    return "uoft_nautobot.jinja_filters_from_git_repo_" + _hash_path(repo_path)
+
+def import_repo_filters_module(repo_path: Path, force=False):
+    module_name = repo_filters_module_name(repo_path)
     module_file = repo_path / "filters.py"
     if not module_file.exists():
         # Skip if this repo doesn't have a filters.py
         return None
-    if module_name in sys.modules:
+    if module_name in sys.modules and not force:
         # Skip if this module has already been imported
         return sys.modules[module_name]
     spec = spec_from_file_location(module_name, module_file)
@@ -35,7 +38,7 @@ def _import_repo_filters_module(repo_path: Path):
 
 for repo in Path(settings.GIT_ROOT).iterdir():
     if repo.is_dir():
-        _import_repo_filters_module(repo)
+        import_repo_filters_module(repo)
 
 def _get_jinja_env() -> SandboxedEnvironment:
     """
@@ -58,7 +61,7 @@ def load_local_jinja_library(_):
     environment = _get_jinja_env()
     loader: FileSystemLoader = environment.loader  # type: ignore
     repo = Path(loader.searchpath[0])
-    _import_repo_filters_module(repo)
+    import_repo_filters_module(repo)
 
     # The imported filters module is expected to register its own filters, tests, globals, and extensions
     # using the django_jinja.library decorators

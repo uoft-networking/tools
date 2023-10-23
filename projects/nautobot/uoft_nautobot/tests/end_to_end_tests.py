@@ -49,7 +49,7 @@ class NautobotTests:
     def test_golden_config(self, _nautobot_initialized, mocker):
         from ..golden_config import transposer
         from nautobot_golden_config.utilities.constant import PLUGIN_CFG
-        from ..jinja_filters import _import_repo_filters_module
+        from ..jinja_filters import import_repo_filters_module
 
         git_repo = fixtures_dir / "_private/.gitlab_repo"
         mocker.patch.dict(
@@ -63,7 +63,7 @@ class NautobotTests:
         data["obj"] = obj
 
         assert git_repo.exists()
-        _import_repo_filters_module(git_repo)
+        import_repo_filters_module(git_repo)
         template = "templates/entrypoint.j2"
 
         jinja_settings = Jinja2.get_default()
