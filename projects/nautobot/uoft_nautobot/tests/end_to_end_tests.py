@@ -21,6 +21,7 @@ def _nautobot_initialized():
         initializer=_configure_settings,
     )
     django.setup()
+    from django.conf import settings
 
 
 def _golden_config_data(device_name):
@@ -40,7 +41,8 @@ def _golden_config_data(device_name):
         }
     )
     settings = GoldenConfigSetting.objects.get(slug="default")
-    _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
+    q = settings.sot_agg_query.query  # type: ignore
+    _, device_data = graph_ql_query(request, device, q)
     return device, device_data
 
 
@@ -50,32 +52,47 @@ class NautobotTests:
         from ..golden_config import transposer
         from nautobot_golden_config.utilities.constant import PLUGIN_CFG
         from ..jinja_filters import import_repo_filters_module
+        from nautobot.extras.datasources.git import (
+            update_git_config_contexts,
+            GitRepository,
+        )
 
         git_repo = fixtures_dir / "_private/.gitlab_repo"
+        assert git_repo.exists()
         mocker.patch.dict(
             PLUGIN_CFG,
             {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"},
         )
 
-        device_name = "d1-sw"
-        obj, data = _golden_config_data(device_name)
-        data = transposer(data)
-        data["obj"] = obj
+        mocker.patch.object(
+            GitRepository, "filesystem_path", property(lambda _: str(git_repo))
+        )
+        _repo_record = GitRepository.objects.get(name="golden_config_templates")
+        _job_result = mocker.Mock()
+        update_git_config_contexts(_repo_record, _job_result)
 
-        assert git_repo.exists()
         import_repo_filters_module(git_repo)
         template = "templates/entrypoint.j2"
 
-        jinja_settings = Jinja2.get_default()
-        jinja_env: Environment = jinja_settings.env
-        jinja_env.trim_blocks = True
-        jinja_env.undefined = StrictUndefined
-        jinja_env.loader = FileSystemLoader(git_repo)
+        def _render(device_name):
+            obj, data = _golden_config_data(device_name)
+            data = transposer(data)
+            data["obj"] = obj
 
-        t = jinja_env.get_template(template)
-        text = t.render(**data)
-        Path("hazmat/test.cisco").write_text(text)
+            jinja_settings = Jinja2.get_default()
+            jinja_env: Environment = jinja_settings.env
+            jinja_env.trim_blocks = True
+            jinja_env.undefined = StrictUndefined
+            jinja_env.loader = FileSystemLoader(git_repo)
+
+            t = jinja_env.get_template(template)
+            text = t.render(**data)
+            return text
+        
+        Path("hazmat/test.cisco").write_text(_render("d1-sw"))
+        Path("hazmat/test-aruba.cisco").write_text(_render("a1-p50c"))
         Path("hazmat/test.cisco").unlink()
+        Path("hazmat/test-aruba.cisco").unlink()
 
     def test_runjob(self, _nautobot_initialized, mocker):
         from nautobot.extras.management.commands.runjob import Command
