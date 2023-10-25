@@ -19,12 +19,11 @@ import os
 import sys
 import string
 import secrets
-from importlib.abc import Loader
-from importlib.util import spec_from_file_location, spec_from_loader, module_from_spec
+
 
 from . import config, types
 
-from uoft_core import txt
+from uoft_core import txt, create_python_module
 from uoft_core.prompt import Prompt
 from uoft_core.nested_data import NestedData
 from pydantic.fields import ModelField
@@ -186,29 +185,8 @@ def model_source_from_comment_block_schema(
     return model_src
 
 
-class VirtualSourceLoader(Loader):
-    def __init__(self, source_code):
-        self.source = source_code
-
-    def exec_module(self, module) -> None:
-        exec(self.source, module.__dict__)  # pylint: disable=exec-used
-
-
 def normalize_extension_name(extension_name: str):
     return extension_name.replace("-", "_").replace(".", "_").replace(" ", "_")
-
-
-def create_python_module(module_name, source: types.Path | str):
-    if isinstance(source, types.Path):
-        spec = spec_from_file_location(module_name, source)
-    else:
-        spec = spec_from_loader(module_name, VirtualSourceLoader(source))
-    assert spec is not None
-    module = module_from_spec(spec)
-    assert spec.loader is not None
-    spec.loader.exec_module(module)
-    sys.modules[module_name] = module
-    return sys.modules[module_name]
 
 
 def construct_model_from_comment_block_schema(

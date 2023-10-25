@@ -18,6 +18,8 @@ from pathlib import Path, PosixPath
 from subprocess import CalledProcessError, run
 from textwrap import dedent
 from types import GenericAlias
+from importlib.abc import Loader
+from importlib.util import spec_from_file_location, spec_from_loader, module_from_spec
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -375,16 +377,18 @@ class PassPath(PosixPath):
             return False
         return bool(self.contents)
 
-    def mkdir(self, mode: int = ..., parents: bool = ..., exist_ok: bool = ...) -> None:
+    def mkdir(
+        self, mode: int = 0, parents: bool = False, exist_ok: bool = True
+    ) -> None:
         # mkdir doesn't make sense in the context of pass,
         # so we'll stub it out and pretend it succeeded
         return None
 
-    def read_text(self, encoding: str | None = ..., errors: str | None = ...) -> str:
+    def read_text(self, encoding: str | None = None, errors: str | None = None) -> str:
         return self.contents
 
     def write_text(
-        self, data: str, encoding: str | None = ..., errors: str | None = ...
+        self, data: str, encoding: str | None = None, errors: str | None = None
     ) -> None:
         if self._pass_installed:
             shell(f"pass insert -m {self}", input=data)
@@ -465,6 +469,35 @@ class Timeit:
     def total(self):
         total = self.now - self.start
         return f"{total:.4f}s"
+
+
+def create_python_module(module_name, source: types.Path | str, globals_=None):
+    class VirtualSourceLoader(Loader):
+        def __init__(self, source_code):
+            self.source = source_code
+
+        def exec_module(self, module) -> None:
+            exec(self.source, module.__dict__)  # pylint: disable=exec-used
+
+    if isinstance(source, types.Path):
+        spec = spec_from_file_location(module_name, source)
+    else:
+        spec = spec_from_loader(module_name, VirtualSourceLoader(source))
+    assert spec is not None
+    module = module_from_spec(spec)
+    if globals_ is not None:
+        assert isinstance(globals_, dict), "globals_ must be a dict"
+        module.__dict__.update(globals_)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    sys.modules[module_name] = module
+    return sys.modules[module_name]
+
+
+def compile_source_code(source_code, globals_=None):
+    module_name = f"<virtual_module#{hash(source_code)}>"
+    module = create_python_module(module_name, source_code, globals_)
+    return module
 
 
 class UofTCoreError(Exception):
@@ -802,7 +835,6 @@ class Util:
             logger.add(sys.stderr, **options)
 
         def add_stderr_rich_sink(self, level="INFO", **kwargs):
-
             options = dict(
                 backtrace=False,
                 level=level,
@@ -1125,7 +1157,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @classmethod
     def _prompt(cls):
         return Prompt(cls._util().history_cache)
-    
+
     @property
     def prompt(self):
         return self._prompt()
@@ -1133,7 +1165,6 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @root_validator(pre=True)
     @classmethod
     def prompt_for_missing_values(cls, values):
-
         missing_keys = [key for key in cls.__fields__ if key not in values]
 
         # If a BaseSettings subclass appears in the missing_keys list, and that field is marked prompt=False,

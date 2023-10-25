@@ -5,7 +5,6 @@ from pathlib import Path
 from uoft_switchconfig import Settings
 from uoft_switchconfig.cli import template_name_completion, console_name_completion
 from uoft_switchconfig.generate import render_template, model_questionnaire
-from uoft_switchconfig.util import create_python_module
 from uoft_core import txt
 import pytest
 
