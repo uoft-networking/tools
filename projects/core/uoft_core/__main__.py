@@ -135,10 +135,14 @@ def handle_external_subcommand_completion(external: set[str]):
             os.environ[f"_UOFT_{subcommand.upper()}_COMPLETE"] = os.environ[
                 "_UOFT_COMPLETE"
             ]
-            os.environ[var] = os.environ[var].replace(f"uoft{sep}{subcommand}", f"uoft-{subcommand}", 1)
+            os.environ[var] = os.environ[var].replace(
+                f"uoft{sep}{subcommand}", f"uoft-{subcommand}", 1
+            )
             if bash_comp_word_count := os.environ.get("COMP_CWORD"):
                 os.environ["COMP_CWORD"] = str(int(bash_comp_word_count) - 1)
-            os.execvpe("uoft-" + subcommand, [f"uoft-{subcommand}"] + sys.argv[1:], os.environ)
+            os.execvpe(
+                "uoft-" + subcommand, [f"uoft-{subcommand}"] + sys.argv[1:], os.environ
+            )
 
 
 @logger.catch
