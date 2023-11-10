@@ -367,7 +367,9 @@ class PassPath(PosixPath):
             if self._contents is None:
                 try:
                     self._contents = shell(self.command_name)
-                except CalledProcessError:
+                except CalledProcessError as e:
+                    if b'gpg: decryption failed:' in e.stderr:
+                        raise e
                     self._contents = ""
             return self._contents
         return ""
