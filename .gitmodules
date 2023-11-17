@@ -1,0 +1,3 @@
+[submodule "custom-forks/macropy"]
+	path = custom-forks/macropy
+	url = https://github.com/alextremblay/macropy
