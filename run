@@ -444,7 +444,7 @@ def _create_root_app():
         sub_app = typer_app_from_module(mod, name="hazmat")
         app.add_typer(
             sub_app,
-            name="hazmat",
+            name="hazmat.",
             no_args_is_help=True,
             context_settings=default_context_settings,
         )
@@ -602,13 +602,11 @@ def _create_root_app():
 
 
 if __name__ == "__main__":
-    if os.environ.get("PROFILE_IMPORTS"):
-        sys.exit()
     from rich.logging import RichHandler
 
     log_handler = RichHandler(console=console, show_time=False, markup=True)
     logging.basicConfig(
-        level=logging.INFO, format="%(message)s", handlers=[log_handler]
+        level=LOG_LEVEL, format="%(message)s", handlers=[log_handler]
     )
 
     app = _create_root_app()
