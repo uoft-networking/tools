@@ -22,7 +22,6 @@ dev-dependencies = [
     "copier>=7",
     "invoke>=1.7",
     "ipython>=8",
-    "mypy>=0.971",
     "ptpython>=3.0",
     "pylint",
     "pytest>=7.0",
@@ -32,7 +31,7 @@ dev-dependencies = [
     "ruff>=0.0.149",
     "setuptools_scm>=7",
     "tomlkit>=0.11",
-    "typer-cli",
+    "typer >= 0.9",
     # python-ldap, required by django-auth-ldap, required by uoft_nautobot
     # ONLY ships as a source distribution, does not provide wheels.
     # it is notoriously difficult and finicky to build on some platforms,
@@ -43,15 +42,17 @@ dev-dependencies = [
     "copier-templates-extensions>=0.3.0",
     "hatchling>=1.18.0",
     "scalene>=1.5.31.1",
+    "mypy>=1.6",
+    "coconut[watch]>=3.0.3",
+    "shellingham>=1.5.4",
+    "pexpect @ git+https://github.com/pexpect/pexpect",
+    "lazyasd>=0.1.4",
+    "lazy-imports>=0.3.1",
+    #"macropy @ git+https://github.com/alextremblay/macropy",
 ]
 
 [tool.rye.workspace]
-members = ["projects/*"]
-
-[[tool.rye.sources]]
-name = "python-ldap-builds"
-url = "https://github.com/uoft-networking/python-ldap/releases/tag/latest"
-type = "find-links"
+members = ["projects/*", "custom-forks/*"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -80,6 +81,18 @@ python_classes = ["Test*", "*Test", "*Tests"]
 python_functions = ["test_*", "*_test", "*_tests"]
 
 
+[tool.pylsp-mypy]
+enabled = true
+dmypy = true
+overrides = [
+    "--python-executable",
+    ".venv/bin/python",
+    # putting a true here tells pylsp-mypy to include all the 
+    # default command line args, instead of replacing them
+    true
+]
+
+
 [tool.ruff]
 line-length = 120
 
@@ -87,7 +100,7 @@ typing-modules = ["uoft_core.types"]
 
 # Enable Flake's "E", "W", and "F" codes by default.
 select = ["E", "W", "F", "RUF"]
-ignore = []
+ignore = ["E401", "W291"]
 
 # Exclude a variety of commonly ignored directories.
 exclude = [

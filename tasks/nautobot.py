@@ -1,104 +1,193 @@
+"nautobot-specific tasks"
+
 import os
-import re
+from typing import Annotated, List
+import logging
+import time
 
-from invoke.tasks import task
-from invoke.context import Context
+import typer
+from task_runner import REPO_ROOT, run, sudo
+from task_runner import macros, lazy_imports  # noqa: F401
+from . import pipx_install
 
-from tasks.common import _needs_sudo, global_install
+with lazy_imports:  # type: ignore
+    from requests import Session
+    from urllib.parse import urljoin
+
 
 PROD_SERVICES = ["nautobot", "nautobot-scheduler", "nautobot-worker"]
 DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
 
+PROD_API_SESSION = None
 
-@task()
-def server(c: Context, cmdline: str):
+logger = logging.getLogger(__name__)
+
+
+def _get_prod_api_session():
+    global PROD_API_SESSION
+    if PROD_API_SESSION:
+        return PROD_API_SESSION
+    base_url, token = (
+        run("pass nautobot-api-token", cap=True).splitlines()
+    )
+
+    class NautobotSession(Session):
+        def request(self, method, url, *args, **kwargs):
+            joined_url = urljoin(base_url, url)
+            return super().request(method=method, url=joined_url, *args, **kwargs)
+
+    s = NautobotSession()
+    s.headers["Authorization"] = f"Token {token}"
+    s.headers["Accept"] = "application/json"
+    s.headers["Content-Type"] = "application/json"
+    PROD_API_SESSION = s
+    return s
+
+
+def server(args: list[str]):
     """run a given nautobot-server subcommand"""
-    with c.cd("projects/nautobot"):
-        c.run(f"direnv exec . nautobot-server {cmdline}")
+    run(
+        f"direnv exec . nautobot-server {' '.join(args)}",
+        cwd=REPO_ROOT / "projects/nautobot",
+    )
 
 
-@task()
-def start(c: Context):
+def prod_server(args: list[str]):
+    """run a given nautobot-server subcommand against the prod server"""
+    sudo(
+        f"direnv exec . nautobot-server {' '.join(args)}",
+        user="nautobot",
+        cwd="/opt/nautobot",
+    )
+
+
+def start(args: Annotated[List[str] | None, typer.Argument()] = None):
     """start nautobot dev server"""
-    server(c, "runserver --noreload")
+    if args is None:
+        args = []
+    server(["runserver", "--noreload", *args])
 
 
-@task(
-    help={
-        "action": "any valid systemd action, or the special actions 'edit' and 'tail'"
-    }
-)
-def systemd(c: Context, action: str, prod: bool = False):
+def db_command(cmd: str):
+    """run a SQL command against the dev db using nautobot-server dbshell"""
+    cmd = f'"{cmd}"'
+    server(["dbshell", "--", "--command", cmd])
+
+
+def systemd(
+    action: Annotated[
+        str,
+        typer.Argument(
+            help="any valid systemd action, or the special actions 'edit' and 'tail'"
+        ),
+    ],
+    prod: Annotated[
+        bool,
+        typer.Option(
+            help="Run this systemd task against the production systemd services"
+        ),
+    ] = False,
+):
     """
-    Run systemd commands on the services
+    Run systemd commands on nautobot services
     """
 
     services = PROD_SERVICES if prod else DEV_SERVICES
     if action == "edit":
         services = " ".join([f"/etc/systemd/system/{s}.service" for s in services])
-        c.run(f"sudoedit {services}")
+        run(f"sudoedit {services}")
     elif action == "tail":
         services = " ".join([f"-u {s}" for s in services])
-        c.run(f"sudo journalctl -f {services}")
+        sudo(f"journalctl -f {services}")
     else:
-        c.run(f"sudo systemctl -n 0 {action} {' '.join(services)}")
+        sudo(f"systemctl -n 0 {action} {' '.join(services)}")
 
 
-@task()
-def prod_shell(c: Context):
+def prod_shell():
     """start a shell as the prod app user"""
-    _needs_sudo(c)
-    c.sudo("env -C /opt/nautobot bash --login", pty=True, user="nautobot")
+    sudo("bash", user="nautobot", login=True, cwd="/opt/nautobot")
 
 
-def _parse_built_files(output: str) -> str:
-    found = re.search(r"Successfully built (.*\.whl)", output)
-    if not found:
-        raise RuntimeError("Could not find wheel file in output")
-    wheel: str = found.group(1)
-    return wheel
-
-
-@task()
-def deploy_to_prod(c: Context):
+def deploy_to_prod():
     """build and deploy the current code to prod"""
-    _needs_sudo(c)
-    systemd(c, "stop", prod=True)
-    global_install(c, "nautobot")
-    c.sudo(
-        "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py"
+    systemd("stop", prod=True)
+    pipx_install("nautobot")
+    sudo(
+        "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py",
     )
-    c.sudo("chown nautobot:nautobot /opt/nautobot/nautobot_config.py")
-    c.sudo("chmod 644 /opt/nautobot/nautobot_config.py")
-    c.run("sudo -iu nautobot direnv exec /opt/nautobot nautobot-server post_upgrade")
-    systemd(c, "start", prod=True)
-    systemd(c, "status", prod=True)
+    sudo("chown nautobot:nautobot /opt/nautobot/nautobot_config.py")
+    sudo("chmod 644 /opt/nautobot/nautobot_config.py")
+    prod_server(["post_upgrade"])
+    systemd("start", prod=True)
+    systemd("status", prod=True)
 
 
-@task()
-def db_refresh(c: Context):
+def prod_update_templates():
+    """update the prod templates from the current code"""
+    repo_path = "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
+    run("git add .", cwd=repo_path)
+    run("git commit -m 'update templates'", cwd=repo_path, check=False)
+    run("git push", cwd=repo_path)
+    s = _get_prod_api_session()
+    repos = s.get("api/extras/git-repositories").json()["results"]
+    templates_repo = next(r for r in repos if r["name"] == "golden_config_templates")
+    logger.info(f"Triggering sync of templates repo: {templates_repo['name']}")
+    s.post(f"api/extras/git-repositories/{templates_repo['id']}/sync/")
+    while True:
+        time.sleep(0.5)
+        latest_job = s.get("api/extras/job-results/?limit=1").json()["results"][0]
+        if latest_job["name"] != "golden_config_templates":
+            logger.info("Waiting for 'golden_config_templates' job to complete")
+            continue
+        if latest_job["status"]["value"] == "completed":
+            logger.info("Job completed")
+            break
+
+
+def prod_trigger_intended_config():
+    """trigger the intended config job on the prod server"""
+    prod_update_templates()
+    s = _get_prod_api_session()
+    role = s.get("api/dcim/device-roles/?name=Distribution%20Switches").json()[
+        "results"
+    ][0]
+    r = s.post(
+        "api/extras/jobs/plugins/nautobot_golden_config.jobs/IntendedJob/run/",
+        json={"commit": True, "data": {"role": [role["id"]]}},
+    )
+    r.raise_for_status()
+    job_log = r.json()["result"]
+    while True:
+        time.sleep(0.5)
+        job_log = s.get(f'api/extras/job-results/{job_log["id"]}').json()
+        if job_log["status"]["value"] not in ["pending", "running"]:
+            break
+        logger.info("Waiting for job to complete")
+    logger.info(f"Job {job_log['status']['label']}")
+
+
+def db_refresh():
     """refresh the dev db from the prod db"""
-    c.run("/opt/backups/db/actions sync_prod_to_dev")
-    server(
-        c,
-        "dbshell \"--command=UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';\"",
+    run("/opt/backups/db/actions sync_prod_to_dev")
+    db_command(
+        "UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';"
     )
-    server(c, "migrate")
+    server(["migrate"])
 
 
-@task()
-def refresh_graphql_schema(c: Context):
-    """rebuild local graphql schema file from running models. should be done after every nautobot update, and every time a custom field is created or modified"""
+def refresh_graphql_schema():
+    """
+    Rebuild local graphql schema file from running models.
+    Should be done after every nautobot update, and every
+    time a custom field is created or modified
+    """
+    templates_repo = "uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
     server(
-        c,
-        "graphql_schema --out uoft_nautobot/tests/fixtures/_private/.gitlab_repo/graphql/_schema.graphql",
+        f"graphql_schema --out {templates_repo}/graphql/_schema.graphql".split()  # type: ignore
     )
 
 
-@task()
-def curl_as(
-    c: Context, endpoint: str, user: str = "me", prod: bool = False, method="GET"
-):
+def curl_as(endpoint: str, user: str = "me", prod: bool = False, method="GET"):
     """curl an endpoint as either myself, or another nautobot user, for testing"""
     if user == "me":
         token = os.environ["MY_API_TOKEN"]
@@ -108,6 +197,7 @@ def curl_as(
         url = "https://engine.netmgmt.utsc.utoronto.ca/api"
     else:
         url = "https://dev.engine.netmgmt.utsc.utoronto.ca/api"
-    c.run(
-        f"curl -H 'Authorization: Token {token}' -H 'Accept: application/json;' -H 'Content-Type: application/json' -X {method} {url}/{endpoint}"
+    run(
+        f"curl -H 'Authorization: Token {token}' -H 'Accept: application/json;' "
+        + f"-H 'Content-Type: application/json' -X {method} {url}/{endpoint}"
     )

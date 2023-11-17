@@ -1,52 +1,115 @@
-import os
 import re
-from invoke.tasks import task
-from invoke.context import Context
-from invoke.runners import Result
+import logging
+
+from task_runner import run, REPO_ROOT
+from task_runner import macros, coco_compile  # noqa: F401
+
+logger = logging.getLogger(__name__)
 
 
-@task()
-def merge_from_main(c: Context):
-    """pull changes to main branch and merge into current branch"""
-    my_branch = os.environ.get("MY_BRANCH", input("Enter branch name: "))
-    res: Result = c.run("git status", hide="stdout")  # type: ignore # c.run only returns None if paramenter disown=True
+def _my_branch():
+    """get the name of the current branch"""
+    return run("git rev-parse --abbrev-ref HEAD", cap=True)
+
+
+def _make_git_safe():
+    """prompt user to commit or stash changes if working tree is not clean"""
+    res = run("git status", cap=True, check=False)
+    if "nothing to commit, working tree clean" not in res:
+        print("Working tree is not clean, you need to either commit or stash changes")
+        stash = input("Press enter to commit changes, or type 'stash' to stash them: ")
+        # if the user did anything other than press enter, `stash` will evaluate to True
+        if stash:
+            run("git stash")
+            logger.warning("Changes stashed, don't forget to pop them later with `git stash pop`")
+        else:
+            run('git commit -am "."')
+
+
+def _last_commit_from_my_branch_on_main():
+    """get the commit hash of the last commit on the current branch that is also on main branch"""
+    branch = _my_branch()
+    run("git fetch origin main:main")
+
+    # list all commits on current branch that are not on main branch, grab last one
+    res = run(f"git log main..{branch} --oneline", cap=True).splitlines()[-1]
+    logger.info(f"Last commit on {branch} that is not on main: ")
+    logger.info(res)
+    res = re.match(r"(\w+)", res).group(1)
+
+    # get the commit hash of the parent of that commit
+    res = run(f"git log {res}^ -n 1 --oneline", cap=True)
+    logger.info(f"latest commit on {branch} that IS on main: ")
+    logger.info(res)
+    res = re.match(r"(\w+)", res).group(1)
+
+    return res
+
+
+def rewrite_history():
+    """rewrite history interactively for all commits on current branch that are not on main branch"""
+    _make_git_safe()
+    last_commit = _last_commit_from_my_branch_on_main()
+    run(f"git rebase -i {last_commit}")
+
+
+def last_pr():
+    """get the commit hash of the last PR merged into main branch from current branch, or the given branch"""
+    branch = _my_branch()
+    run("git fetch origin main:main")
+    cmd = f"git log main --grep='Merge pull request' --grep='{branch}' -n 1"
+    res = run(cmd, cap=True)
+    return re.match(r"commit (\w+)", res).group(1)
+
+@coco_compile
+def add_changes_from_main():
+    """
+    "use git rebase to splice in any changes from main branch into current branch"
+    _make_git_safe()
+    "git fetch origin main:main" |> run
+    "git rebase main" |> run
+    """
+
+@coco_compile
+def merge_from_main():
+    """
+    "pull changes to main branch and merge into current branch"
+    my_branch = _my_branch()
+    res = run("git status", capture_output=True)
     if "nothing to commit, working tree clean" not in res.stdout:
         raise Exception("Working tree is not clean, please commit or stash changes")
-    c.run("git checkout main")
-    c.run("git pull")
-    c.run(f"git checkout {my_branch}")
-    c.run("git merge main")
+    "git checkout main" |> run
+    "git pull" |> run
+    f"git checkout {my_branch}" |> run
+    "git merge main" |> run
+    """
 
-@task()
-def latest_tag(c: Context):
-    """find and print the most recent tag on the current branch"""
-    res: Result = c.run("git describe --tags --abbrev=0", hide="stdout")  # type: ignore
-    if c.config.run.dry:
-        return ""
-    tag = res.stdout.splitlines()[0]
+
+def latest_tag():
+    """get the commit hash of the most recent git tag on the current branch"""
+    tag = run("git describe --tags $(git rev-list --tags --max-count=1)", cap=True)
     print(f"The latest git tag on the current branch is {tag}")
     return tag
 
 
-@task()
-def version(c: Context):
+def version():
     """get current version of repository from git tag"""
     from setuptools_scm import get_version
-    version = get_version(root='.', version_scheme="post-release")
+
+    version = get_version(root=REPO_ROOT, version_scheme="post-release")
     print(f"Current version: {version}")
     return version
 
 
-@task()
-def version_next(c: Context, patch: bool = False):
+def version_next(patch: bool = False):
     """
     suggest the next version to use as a git tag.
-    By default, the mnor version is incremented.
+    By default, the minor version is incremented.
     Use --patch to increment the patch version instead.
     """
     from packaging.version import Version
 
-    v = version(c)
+    v = version()
     segments = list(Version(v)._version.release)  # pylint: disable=protected-access
     if len(segments) == 2:
         segments.append(0)
@@ -60,42 +123,41 @@ def version_next(c: Context, patch: bool = False):
     print(f"New version: {new_version}")
     return new_version
 
-@task()
-def tag(c: Context, version: str = '', push = False): # type: ignore
+
+def tag(version: str = "", push=False):  # type: ignore
     """create a new git tag with the given version, or the next version if not specified"""
     if not version:
-        version = version_next(c)
-    c.run(f"git tag --sign --message 'Version {version}' {version}")
+        version = version_next()
+    run(f"git tag --sign --message 'Version {version}' {version}")
     if push:
-        c.run("git push --tags")
+        run("git push --tags")
 
-@task()
-def files_changed_since_tag(c: Context, tag: str = ''): # type: ignore
+
+def files_changed_since_tag(tag: str = ""):  # type: ignore
     """List out all files that have changed since the last tag"""
     if not tag:
-        tag = latest_tag(c)
-    res: Result = c.run(f"git --no-pager diff --name-only {tag} HEAD", hide="stdout")  # type: ignore
-    print(f"Files changed since {tag}:\n{res.stdout}")
-    return res.stdout
+        tag = latest_tag()
+    res = run(f"git --no-pager diff --name-only {tag} HEAD", capture_output=True).stdout  # type: ignore
+    print(f"Files changed since {tag}:\n{res}")
+    return res
 
-@task()
-def commit_msgs_since_tag(c: Context, tag: str = ''): # type: ignore
+
+def commit_msgs_since_tag(tag: str = ""):  # type: ignore
     """List out all commit messages since the last tag"""
     if not tag:
-        tag = latest_tag(c)
-    res: Result = c.run(f"git --no-pager log --oneline {tag}..HEAD", hide="stdout")  # type: ignore
-    print(f"Commit messages since {tag}:\n{res.stdout}")
-    return res.stdout
+        tag = latest_tag()
+    res = run(f"git --no-pager log --oneline {tag}..HEAD", capture_output=True).stdout  # type: ignore
+    print(f"Commit messages since {tag}:\n{res}")
+    return res
 
-@task()
-def should_bump_version(c: Context):
-    """"
+
+def should_bump_version():
+    """ "
     Check if the version should be bumped based on changes since the last tag.
     """
-    files = files_changed_since_tag(c)
+    files = files_changed_since_tag()
     if re.search(r"projects/\w+/(uoft_|pyproject.toml)", files):
         print("Version bump required")
         return True
     print("No version bump required")
     return False
-
