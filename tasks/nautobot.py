@@ -10,9 +10,6 @@ from task_runner import REPO_ROOT, run, sudo
 from task_runner import macros, lazy_imports  # noqa: F401
 from . import pipx_install
 
-with lazy_imports:  # type: ignore
-    from requests import Session
-    from urllib.parse import urljoin
 
 
 PROD_SERVICES = ["nautobot", "nautobot-scheduler", "nautobot-worker"]
@@ -24,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 def _get_prod_api_session():
+    from requests import Session
+    from urllib.parse import urljoin
+    
     global PROD_API_SESSION
     if PROD_API_SESSION:
         return PROD_API_SESSION

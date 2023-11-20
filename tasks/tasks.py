@@ -1,14 +1,15 @@
 """top-level tasks for the monorepo"""
 import os
-
-from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
-from task_runner import macros, lazy_imports, coco_compile  # noqa: F401
-from task_runner import run, REPO_ROOT
+from typing import Annotated, Optional
+from textwrap import dedent
+from tempfile import TemporaryDirectory
 from pathlib import Path
 
-with lazy_imports:  # type: ignore
-    from textwrap import dedent
-    from tempfile import TemporaryDirectory
+from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
+from task_runner import macros, coco_compile  # noqa: F401
+from task_runner import run, REPO_ROOT
+
+import typer
 
 
 def _get_prompt():
@@ -75,8 +76,10 @@ def new_project(name: str):
     run("rye sync")
 
 
-def repl(project: str):
+def repl(project: Annotated[Optional[str], typer.Argument()] = None):
     """start a python repl with a given project imported"""
+    if not project:
+        project = "core"
 
     assert (
         REPO_ROOT / f"projects/{project}"
