@@ -18,24 +18,24 @@ find_rye() {
     for rye in rye $HOME/.rye/shims/rye $RYE_HOME/shims/rye; do
         if command -v "$rye" >/dev/null 2>&1; then
             rye_bin="$rye"
-            break
+            return
         fi
-        echo "This script requires rye to be installed"
-        echo "Would you like to have it installed into ~/.rye? It does not need to be linked into your PATH. [Y/n]"
-        read -r yn
-        case $yn in
-            [Nn]* ) exit 1;;
-            * ) curl -sSf https://rye-up.com/get | /usr/bin/env bash;;
-        esac
-        find_rye
     done
+    echo "This script requires rye to be installed"
+    echo "Would you like to have it installed into ~/.rye? It does not need to be linked into your PATH. [Y/n]"
+    read -r yn
+    case $yn in
+        [Nn]* ) exit 1;;
+        * ) curl -sSf https://rye-up.com/get | /usr/bin/env bash;;
+    esac
+    find_rye
 }
 find_rye
 
 # Install monorepo virtualenv
 echo "using rye to install monorepo virtualenv..."
 "$rye_bin" sync --no-lock
-ln -s "$HERE/run" "$HERE/.venv/lib/python3*/site-packages/task_runner.py"
+ln -s "$HERE/run" $HERE/.venv/lib/python3.10/site-packages/task_runner.py
 
 run_script "$0" "$@"
 """
