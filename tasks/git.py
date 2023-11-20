@@ -32,18 +32,22 @@ def _last_commit_from_my_branch_on_main():
     run("git fetch origin main:main")
 
     # list all commits on current branch that are not on main branch, grab last one
-    res = run(f"git log main..{branch} --oneline", cap=True).splitlines()[-1]
+    commit_line = run(f"git log main..{branch} --oneline", cap=True).splitlines()[-1]
     logger.info(f"Last commit on {branch} that is not on main: ")
-    logger.info(res)
-    res = re.match(r"(\w+)", res).group(1)
+    logger.info(commit_line)
+    m = re.match(r"(\w+)", commit_line)
+    assert m
+    commit_hash = m.group(1)
 
     # get the commit hash of the parent of that commit
-    res = run(f"git log {res}^ -n 1 --oneline", cap=True)
+    parent_commit_line = run(f"git log {commit_hash}^ -n 1 --oneline", cap=True)
     logger.info(f"latest commit on {branch} that IS on main: ")
-    logger.info(res)
-    res = re.match(r"(\w+)", res).group(1)
+    logger.info(parent_commit_line)
+    m = re.match(r"(\w+)", parent_commit_line)
+    assert m
+    parent_commit_hash = m.group(1)
 
-    return res
+    return parent_commit_hash
 
 
 def rewrite_history():
@@ -70,20 +74,6 @@ def add_changes_from_main():
     "git rebase main" |> run
     """
 
-@coco_compile
-def merge_from_main():
-    """
-    "pull changes to main branch and merge into current branch"
-    my_branch = _my_branch()
-    res = run("git status", capture_output=True)
-    if "nothing to commit, working tree clean" not in res.stdout:
-        raise Exception("Working tree is not clean, please commit or stash changes")
-    "git checkout main" |> run
-    "git pull" |> run
-    f"git checkout {my_branch}" |> run
-    "git merge main" |> run
-    """
-
 
 def latest_tag():
     """get the commit hash of the most recent git tag on the current branch"""
@@ -92,11 +82,31 @@ def latest_tag():
     return tag
 
 
+def files_changed_since_tag(tag: str = ""):  # type: ignore
+    """List out all files that have changed since the last tag"""
+    if not tag:
+        tag = latest_tag()
+    res = run(f"git --no-pager diff --name-only {tag} HEAD", capture_output=True).stdout  # type: ignore
+    logger.info(f"There have been {len(res.splitlines())} files changed since {tag}")
+    return res
+
+
+def commit_msgs_since_tag(tag: str = ""):  # type: ignore
+    """List out all commit messages since the last tag"""
+    if not tag:
+        tag = latest_tag()
+    res = run(f"git --no-pager log --oneline {tag}..HEAD", capture_output=True).stdout  # type: ignore
+    logger.info(f"There have been {len(res.splitlines())} commits since {tag}")
+    return res
+
+
+# TODO: clean up these tasks
+
 def version():
     """get current version of repository from git tag"""
     from setuptools_scm import get_version
 
-    version = get_version(root=REPO_ROOT, version_scheme="post-release")
+    version = get_version(root=str(REPO_ROOT), version_scheme="post-release")
     print(f"Current version: {version}")
     return version
 
@@ -133,24 +143,6 @@ def tag(version: str = "", push=False):  # type: ignore
         run("git push --tags")
 
 
-def files_changed_since_tag(tag: str = ""):  # type: ignore
-    """List out all files that have changed since the last tag"""
-    if not tag:
-        tag = latest_tag()
-    res = run(f"git --no-pager diff --name-only {tag} HEAD", capture_output=True).stdout  # type: ignore
-    print(f"Files changed since {tag}:\n{res}")
-    return res
-
-
-def commit_msgs_since_tag(tag: str = ""):  # type: ignore
-    """List out all commit messages since the last tag"""
-    if not tag:
-        tag = latest_tag()
-    res = run(f"git --no-pager log --oneline {tag}..HEAD", capture_output=True).stdout  # type: ignore
-    print(f"Commit messages since {tag}:\n{res}")
-    return res
-
-
 def should_bump_version():
     """ "
     Check if the version should be bumped based on changes since the last tag.
@@ -161,3 +153,9 @@ def should_bump_version():
         return True
     print("No version bump required")
     return False
+
+
+def changes_since_last_tag():
+    """print changes since last tag"""
+    print("changes since last tag")
+    run("git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")

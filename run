@@ -327,6 +327,10 @@ def _create_root_app():
         "Pretty print the return value of a task"
         if result is None:
             return
+        # special case for strings
+        if isinstance(result, str):
+            console.print(result)
+            return
         pprint(result)
 
     default_context_settings = {

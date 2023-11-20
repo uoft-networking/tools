@@ -1,62 +1,26 @@
 """top-level tasks for the monorepo"""
 import os
 
-from . import pipx_install
+from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
 from task_runner import macros, lazy_imports, coco_compile  # noqa: F401
 from task_runner import run, REPO_ROOT
+from pathlib import Path
 
 with lazy_imports:  # type: ignore
-    from pathlib import Path
     from textwrap import dedent
     from tempfile import TemporaryDirectory
 
 
-def _all_projects():
-    return sorted(REPO_ROOT.glob("projects/*"))
-
-
-def _all_projects_by_name():
-    return set([p.name for p in _all_projects()])
-
-
-def _all_projects_by_name_except_core():
-    return _all_projects_by_name().symmetric_difference({"core"})
-
 def _get_prompt():
     from uoft_core import Util
     from uoft_core.prompt import Prompt
+
     return Prompt(Util("uoft-tools").history_cache)
 
 
-def cog_files():
-    "Run cog against all cog files in the repo"
-    run(f"cog -r -I {REPO_ROOT}/tasks/ projects/*/README.md projects/core/uoft_core/__main__.py")
-
-
-@coco_compile
-def example_coconut_fn(arg: str):
-    """
-    "example docstring" # This will end up being the docstring / help text for this function / task
-    'hello world' |> print  # supports coconut syntax like pipes
-    arg + REPO_ROOT |> print # the function body has full access to args and globals
-    """
-
-
-def lock():
-    import tomlkit
-    reqs = []
-    dev_reqs = []
-    for p in Path(REPO_ROOT).glob("projects/*/pyproject.toml"):
-        pyproj = tomlkit.load(p.open())
-        reqs.extend(pyproj.get('project', {}).get("dependencies", []))
-    root_pyproj = tomlkit.load((REPO_ROOT / "pyproject.toml").open())
-    dev_reqs.extend(root_pyproj.get('tool', {}).get('rye', {}).get("dev-dependencies", []))
-
-    import tempfile
-    with tempfile.NamedTemporaryFile() as f:
-        f.write("\n".join(reqs).encode("utf-8"))
-        f.flush()
-        run(f"pipgrip --tree -r {f.name}")
+def list_projects():
+    """list all projects"""
+    return all_projects_by_name()
 
 
 def build(project: str):
@@ -69,7 +33,6 @@ def build(project: str):
     run(f"rye build -p uoft_{project} --wheel")
 
 
-
 def build_all():
     """build sdist and wheel packages for all projects"""
     # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
@@ -79,15 +42,6 @@ def build_all():
     run("rye build --all --wheel")
 
 
-
-def update_pyproject_build_hooks():
-    """update all pyproject.py build hooks"""
-    for project in _all_projects_by_name():
-        print(f"updating build hook for {project}")
-        run(f"cp tasks/_new_project/template/pyproject.py projects/{project}/pyproject.py")
-
-
-
 def test(project: str):
     """run tests for a given project"""
 
@@ -95,23 +49,14 @@ def test(project: str):
     run(f"python -m pytest -k {project}")
 
 
-
 def test_all():
     """run tests for all projects"""
     run("python -m pytest --integration --end-to-end")
 
 
-
 def coverage():
     """run coverage on all projects"""
     run("pytest --cov-config=.coveragerc --cov-report xml:cov.xml --cov")
-
-
-
-def list_projects():
-    """list all projects"""
-    print(_all_projects_by_name())
-
 
 
 def new_project(name: str):
@@ -133,7 +78,9 @@ def new_project(name: str):
 def repl(project: str):
     """start a python repl with a given project imported"""
 
-    assert (REPO_ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
+    assert (
+        REPO_ROOT / f"projects/{project}"
+    ).exists(), f"Project {project} does not exist"
 
     print(f"starting repl with uoft_{project} imported")
     with TemporaryDirectory() as tmpdir:
@@ -157,22 +104,14 @@ def repl(project: str):
         os.system(f"ptipython -i {prelude}")
 
 
-
-def changes_since_last_tag():
-    """print changes since last tag"""
-    print("changes since last tag")
-    run("git --no-pager log --oneline $(git describe --tags --abbrev=0)..HEAD")
-
-
 def global_install(package: str):
     """install a package to /usr/local/bin through pipx"""
     pipx_install(package)
 
 
-
 def global_install_all():
     """install all packages to /usr/local/bin through pipx"""
-    projects = _all_projects_by_name_except_core()
+    projects = all_projects_by_name_except_core()
     pipx_install("core", list(projects))
 
 
@@ -190,7 +129,6 @@ def package_inspect():
         run(f"unzip -l {package}")
     else:
         raise Exception(f"Unknown package type: {package}")
-
 
 
 def package_peek():
@@ -233,16 +171,18 @@ def package_peek():
         raise Exception(f"Unknown package type: {package}")
 
 
+# def lock():
+#     import tomlkit
+#     reqs = []
+#     dev_reqs = []
+#     for p in Path(REPO_ROOT).glob("projects/*/pyproject.toml"):
+#         pyproj = tomlkit.load(p.open())
+#         reqs.extend(pyproj.get('project', {}).get("dependencies", []))
+#     root_pyproj = tomlkit.load((REPO_ROOT / "pyproject.toml").open())
+#     dev_reqs.extend(root_pyproj.get('tool', {}).get('rye', {}).get("dev-dependencies", []))
 
-def debug_pydantic(undo: bool = False):
-    """disable pydantic compiled modules in virtualenv so we can step through the python code"""
-    if undo:
-        for ext in Path(".venv").glob(
-            "lib/python*/site-packages/pydantic/*.cpython-*.so.disabled"
-        ):
-            print(f"renaming {ext.name} to {ext.with_suffix('').name}")
-            ext.rename(ext.with_suffix(""))
-    else:
-        for ext in Path(".venv").glob("lib/python*/site-packages/pydantic/*.so"):
-            print(f"renaming {ext.name} to {ext.with_suffix('.so.disabled').name}")
-            ext.rename(ext.with_suffix(".so.disabled"))
+#     import tempfile
+#     with tempfile.NamedTemporaryFile() as f:
+#         f.write("\n".join(reqs).encode("utf-8"))
+#         f.flush()
+#         run(f"pipgrip --tree -r {f.name}")
