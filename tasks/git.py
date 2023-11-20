@@ -63,7 +63,9 @@ def last_pr():
     run("git fetch origin main:main")
     cmd = f"git log main --grep='Merge pull request' --grep='{branch}' -n 1"
     res = run(cmd, cap=True)
-    return re.match(r"commit (\w+)", res).group(1)
+    m = re.match(r"commit (\w+)", res)
+    assert m
+    return m.group(1)
 
 @coco_compile
 def add_changes_from_main():
@@ -99,6 +101,15 @@ def commit_msgs_since_tag(tag: str = ""):  # type: ignore
     logger.info(f"There have been {len(res.splitlines())} commits since {tag}")
     return res
 
+def push_my_branch():
+    _make_git_safe()
+    run("git push --force-with-lease")
+
+def split_commit():
+    res = run("git status", cap=True, check=False)
+    if "You are currently editing a commit while rebasing branch" not in res:
+        raise Exception("Only run this task when editing a commit in the middle of a rebase")
+    run("git reset HEAD~")
 
 # TODO: clean up these tasks
 
