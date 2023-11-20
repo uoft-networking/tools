@@ -26,7 +26,7 @@ find_rye() {
     read -r yn
     case $yn in
         [Nn]* ) exit 1;;
-        * ) curl -sSf https://rye-up.com/get | /usr/bin/env bash;;
+        * ) curl -sSfL https://rye-up.com/get | /usr/bin/env bash;; # New URL https://rye.astral.sh/ for when redirect fails.
     esac
     find_rye
 }
@@ -34,6 +34,7 @@ find_rye
 
 # Install monorepo virtualenv
 echo "using rye to install monorepo virtualenv..."
+git submodule update --init
 "$rye_bin" sync --no-lock
 ln -s "$HERE/run" $HERE/.venv/lib/python3.10/site-packages/task_runner.py
 $HERE/run --install-completion-in-virtualenv
