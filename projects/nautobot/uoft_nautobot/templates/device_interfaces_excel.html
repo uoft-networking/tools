@@ -1,0 +1,5 @@
+<form action="/plugins/uoft/interfaces-excel/{{pk}}/" method="post" class="form" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{form.as_p}}
+    <input class="btn btn-warning" type="submit" value="Upload '.xlsx' file" />
+</form>

@@ -33,5 +33,5 @@ def all_projects_as_python_list():
     for p in Path('projects').iterdir():
         if not p.is_dir():
             continue
-        cog.outl(f"    '{p.name}',")
+        cog.outl(f'    "{p.name}",')
     cog.outl("]")

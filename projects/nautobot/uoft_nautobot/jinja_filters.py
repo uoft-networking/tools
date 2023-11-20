@@ -3,28 +3,36 @@ from typing import Literal
 from hashlib import shake_128
 from django_jinja import library
 from jinja2.sandbox import SandboxedEnvironment
-from jinja2 import FileSystemLoader
+from jinja2.runtime import Context
+from jinja2 import FileSystemLoader, pass_context
 from . import Settings
 from .golden_config import encrypt_type9, type9_encode
 from pathlib import Path
 import sys
+import ipaddress
+import re
 from importlib.util import spec_from_file_location, module_from_spec
 from base64 import b64encode
 import inspect
 from django.conf import settings
+from box import Box
+from uoft_core import compile_source_code
 
 # At import time, we need to import filters defined in git repositories
 def _hash_path(path: Path):
     """Converts a path to a unique-ish valid python identifier / module name"""
     return b64encode(path.stem.encode()).decode().replace("/", "").replace("+", "").replace("=", "")
 
-def _import_repo_filters_module(repo_path: Path):
-    module_name = "uoft_nautobot.jinja_filters.from_git_repo_" + _hash_path(repo_path)
+def repo_filters_module_name(repo_path: Path):
+    return "uoft_nautobot.jinja_filters_from_git_repo_" + _hash_path(repo_path)
+
+def import_repo_filters_module(repo_path: Path, force=False):
+    module_name = repo_filters_module_name(repo_path)
     module_file = repo_path / "filters.py"
     if not module_file.exists():
         # Skip if this repo doesn't have a filters.py
         return None
-    if module_name in sys.modules:
+    if module_name in sys.modules and not force:
         # Skip if this module has already been imported
         return sys.modules[module_name]
     spec = spec_from_file_location(module_name, module_file)
@@ -35,7 +43,7 @@ def _import_repo_filters_module(repo_path: Path):
 
 for repo in Path(settings.GIT_ROOT).iterdir():
     if repo.is_dir():
-        _import_repo_filters_module(repo)
+        import_repo_filters_module(repo)
 
 def _get_jinja_env() -> SandboxedEnvironment:
     """
@@ -58,7 +66,7 @@ def load_local_jinja_library(_):
     environment = _get_jinja_env()
     loader: FileSystemLoader = environment.loader  # type: ignore
     repo = Path(loader.searchpath[0])
-    _import_repo_filters_module(repo)
+    import_repo_filters_module(repo)
 
     # The imported filters module is expected to register its own filters, tests, globals, and extensions
     # using the django_jinja.library decorators
@@ -68,6 +76,7 @@ def load_local_jinja_library(_):
     # TODO: remove this hack
     environment.trim_blocks = True
     environment.lstrip_blocks = True
+    environment.autoescape = False
 
     # because this is a filter, we need to return something,
     # something that won't show up in the rendered output
@@ -128,6 +137,36 @@ def derive_type9_password(hostname, password_variant: Literal['enable', 'admin']
     # convert variable-length switch name to 14 bytes of cisco-compatible salt
     salt = type9_encode(shake_128(hostname.encode()).digest(14))[:14]
     return encrypt_type9(password, salt=salt)
+
+
+@library.filter
+@pass_context
+def python_eval(ctx: Context, code_block: str):
+    """Evaluates a block of python code in the context of the current template"""
+    code_block = dedent(code_block)
+    function_definition = "def virtual_function():\n" + indent(code_block, "    ")
+    global_vars = Box(ctx.environment.globals)
+    global_vars.update(ctx.environment.filters)
+    global_vars.update(ctx.environment.tests)
+    global_vars.update(dict(ipaddress=ipaddress, re=re))
+    template_frame = None
+    for frameinfo in inspect.stack():
+        if frameinfo.filename.endswith(".j2"):
+            template_frame = frameinfo.frame
+            break
+    assert template_frame is not None
+    local_vars = Box()
+    for k, v in template_frame.f_locals.items():
+        # template frame context vars are prefixed with jinja state machine identifiers.
+        # These identifiers all follow a patern of <letter>_<number>_<var_name>
+        # We want to strip off the prefix and just use the var_name
+        k = k.split("_", 2)
+        if len(k) == 3:
+            k = k[2]
+            global_vars[k] = v
+    mod = compile_source_code(function_definition, global_vars)
+    virtual_function = getattr(mod, "virtual_function")
+    return virtual_function()
 
 
 @library.filter

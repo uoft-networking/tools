@@ -1,0 +1,617 @@
+#!/bin/bash
+""":"
+
+# If monorepo virtualenv is already installed, use it
+HERE=$(realpath $(dirname "${BASH_SOURCE[0]}"))
+
+run_script() {
+    exec "$HERE/.venv/bin/python" -s "$@"
+}
+
+if [ -d "$HERE/.venv" ]; then
+    run_script "$0" "$@"
+fi
+
+# If not, try to find a rye installation
+rye_bin=""
+find_rye() {
+    for rye in rye $HOME/.rye/shims/rye $RYE_HOME/shims/rye; do
+        if command -v "$rye" >/dev/null 2>&1; then
+            rye_bin="$rye"
+            break
+        fi
+        echo "This script requires rye to be installed"
+        echo "Would you like to have it installed into ~/.rye? It does not need to be linked into your PATH. [Y/n]"
+        read -r yn
+        case $yn in
+            [Nn]* ) exit 1;;
+            * ) curl -sSf https://rye-up.com/get | /usr/bin/env bash;;
+        esac
+        find_rye
+    done
+}
+find_rye
+
+# Install monorepo virtualenv
+echo "using rye to install monorepo virtualenv..."
+"$rye_bin" sync --no-lock
+ln -s "$HERE/run" "$HERE/.venv/lib/python3*/site-packages/task_runner.py"
+
+run_script "$0" "$@"
+"""
+# ruff: noqa: E401 EXE003 A001
+__doc__ = """Monorepo task runner
+
+"""
+import os
+import sys
+import io
+import json
+import socket
+from importlib import import_module
+from pathlib import Path
+from typing import Annotated, Any, Optional, Callable, TYPE_CHECKING, overload
+import inspect
+import subprocess
+import logging
+from contextlib import contextmanager
+import functools
+
+from lazyasd import lazyobject
+import macropy.activate  # noqa: F401
+
+from macropy.core.macros import Macros
+from macropy.core.quotes import macros, ast_literal
+
+if TYPE_CHECKING:
+    import typer
+    from rich.pretty import pprint
+    from rich.console import Console
+    from rich.syntax import Syntax
+    from ast import parse
+    from textwrap import dedent, indent
+    from coconut.api import parse as parse_coco
+else:
+
+    @lazyobject
+    def typer():
+        import typer
+
+        return typer
+
+    @lazyobject
+    def pprint():
+        from rich.pretty import pprint
+
+        return pprint
+
+    @lazyobject
+    def Console():
+        from rich.console import Console
+
+        return Console
+
+    @lazyobject
+    def Syntax():
+        from rich.syntax import Syntax
+
+        return Syntax
+
+    @lazyobject
+    def parse():
+        from ast import parse
+
+        return parse
+
+    @lazyobject
+    def dedent():
+        from textwrap import dedent
+
+        return dedent
+
+    @lazyobject
+    def indent():
+        from textwrap import indent
+
+        return indent
+
+    @lazyobject
+    def parse_coco():
+        from coconut.api import parse as parse_coco
+
+        return parse_coco
+
+
+# this task runner is executed as a script, but also provides / exports common functions and globals
+# to the task modules it imports. Those modules import this file as a module called 'task_runner'.
+# during the deployment of the .venv for this repo, we symlink this file into site-packages as 'task_runner.py'
+# so type checking and autocomplete will work, but in order to avoid importing this module twice
+# at runtime, we need to let the python import system know that `__main__` (this script) and `task_runner`
+# are the same module.
+if __name__ == "__main__":
+    sys.modules["task_runner"] = sys.modules["__main__"]
+
+logger = logging.getLogger("task_runner")
+LOG_LEVEL = logging.INFO
+
+if "--verbose" in sys.argv:
+    LOG_LEVEL = logging.DEBUG
+    root_logger = logging.getLogger()
+    root_logger.setLevel(LOG_LEVEL)
+    for handler in root_logger.handlers:
+        if isinstance(handler, type(logging.StreamHandler())):
+            handler.setLevel(LOG_LEVEL)
+            logger.debug("Debug logging enabled")
+
+macros = Macros()  # noqa: F811
+
+
+def _in_completion_context():
+    for k in os.environ:
+        if "COMPLETE" in k:
+            return True
+
+
+@macros.decorator  # type: ignore
+def coco_compile(tree, **kw):
+    """Compile a coconut function to python"""
+    # skip compilation if we're in a shell auto-completion context
+    # shell autocomplete doesn't need to know anything about a function's body to work, it only needs
+    # to know the function's signature, which we're not modifying
+    if _in_completion_context():
+        return tree
+    cococ_src: str = tree.body[0].value.value
+    compiled_py_src: str = parse_coco(dedent(cococ_src), "block")
+    coco_tree = parse(compiled_py_src)
+    tree.body = coco_tree.body
+    logger.debug(ast_literal(tree))
+    return tree
+
+
+@macros.block  # type: ignore
+def lazy_imports(tree, gen_sym, **kw):
+    """Import modules lazily"""
+    if _in_completion_context():
+        return tree
+    from macropy.core import real_repr, unparse
+    import ast
+
+    import_map = {}
+    for import_stmt in tree:
+        for name in import_stmt.names:
+            if name.asname is None:
+                import_map[name.name] = unparse(import_stmt)
+            else:
+                import_map[name.asname] = unparse(import_stmt)
+
+    lazy_import_stmts = []
+    for name, import_stmt in import_map.items():
+        s = (
+            "@lazyobject\n"
+            + f"def {name}():\n"
+            + f"    print('importing {name}')\n"
+            + "    {import_stmt.strip()}\n"
+            + f"    return {name}"
+        )
+        lazy_import_stmts.append(ast.parse(s).body)
+
+    lazy_imports_attr = [f"'{name}'" for name in import_map.keys()]
+    lazy_imports_attr = f"__lazy_imports__ = [{','.join(lazy_imports_attr)}]"
+
+    new_tree = ast.parse(
+        "from typing import TYPE_CHECKING\n"
+        + "from lazyasd import lazyobject\n"
+        + "if TYPE_CHECKING:\n    pass\nelse:\n    pass\n"
+        + lazy_imports_attr
+    ).body
+    if_type_checking: ast.If = new_tree[2]  # type: ignore
+    if_type_checking.body = tree
+    if_type_checking.orelse = lazy_import_stmts
+    logger.debug(real_repr(new_tree))
+    return new_tree
+
+
+REPO_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(REPO_ROOT))
+
+console = Console(stderr=True)
+
+@overload
+def run(cmd: str, cap: bool, **kwargs) -> str:
+    ...
+
+@overload
+def run(cmd: str, **kwargs) -> subprocess.CompletedProcess[str]:
+    ...
+
+def run(cmd: str, cap=False, **kwargs) -> subprocess.CompletedProcess[str]:  # type: ignore
+    """Run a command in the repo root
+
+    Args:
+        cmd (str): the command to run
+        **kwargs: passed to subprocess.run
+    """
+    kwargs: dict[str, Any] = (
+        dict(cwd=REPO_ROOT, shell=True, check=True, text=True) | kwargs
+    )
+    if cap:
+        kwargs["capture_output"] = True
+    # TODO: find a way to reimplement this so that it captures AND streams output and stderr
+    logger.info("[blue]run:[/] " + cmd)
+    proc = subprocess.run(cmd, **kwargs)
+    if cap:
+        return proc.stdout.strip()
+    return proc
+
+
+def sudo(cmd: str, user: str = "root", login=False, capture_output=True, **kwargs):  # type: ignore
+    """Run a command as root
+
+    Args:
+        cmd (str): the command to run
+        user (str): the user to run the command as
+        login (bool): whether to use a login shell
+        capture_output (bool): whether to capture stdout and stderr
+        **kwargs: passed to pexpect.spawn
+    """
+    import pexpect
+
+    kwargs: dict[str, Any] = dict(cwd=REPO_ROOT, timeout=5) | kwargs
+    passwd = run("pass sudo", cap=True)
+    login_flag = "-i" if login else ""
+    logger.info(f"[orange3]sudo({user}):[/] " + cmd)
+    cmd = f"sudo {login_flag} -u {user} {cmd}"
+    proc = pexpect.spawn(cmd, **kwargs)
+    proc.expect("(?i)password [^:]+:")
+    proc.sendline(passwd)
+    proc.expect("\r\n")
+    if capture_output:
+        proc_stdout = io.BytesIO()
+        proc.logfile_read = proc_stdout
+    proc.interact()
+    if capture_output:
+        return proc_stdout.getvalue().decode().strip().replace("\r\n", "\n")  # type: ignore
+
+
+@contextmanager
+def cd(path: Path | str):
+    """Context manager to change the current working directory"""
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(old_cwd)
+
+
+def coconut_compile(func, **kwargs):
+    """Decorator which wraps a function containing coconut code in its docstring and compiles it to python"""
+    if not isinstance(func, Callable):
+        return functools.partial(coconut_compile, help=func, **kwargs)
+    import coconut.api
+
+    coconut.api.auto_compilation(False)  # disable auto compilation
+    # coco_cache = _get_coco_compile_cache()
+    if any(filter(lambda x: "COMPLETE" in x, os.environ)):  # type: ignore
+        # If we're running in a completion context, don't bother compiling
+        return func
+    orig_fn_source = dedent(inspect.getsource(func))
+    # if orig_fn_source in coco_cache:
+    #    return coco_cache[orig_fn_source]
+    orig_signature = next(
+        filter(lambda line: line.startswith("def"), orig_fn_source.splitlines())
+    )
+    if not func.__doc__:
+        raise Exception(
+            f"Function {func.__name__} has no docstring, cannot compile coconut code in docstring"
+        )
+    new_fn_body = indent(coconut.api.parse(dedent(func.__doc__), "block"), "    ")
+    new_fn_source = f"{orig_signature}\n{new_fn_body}"
+    orig_module = inspect.getmodule(func)
+    if orig_module and orig_module.__file__:
+        filename = orig_module.__file__
+    else:
+        filename = "<string>"
+    new_fn_code = compile(new_fn_source, filename, "exec")
+    exec(new_fn_code, orig_module.__dict__)
+    wrapped_func = orig_module.__dict__[func.__name__]
+
+    wrapped_func.__wrapped__ = func
+
+    # coco_cache[orig_fn_source] = wrapped_func
+    return wrapped_func  # type: ignore
+
+
+def _create_root_app():
+    def prettyprinter_result_callback(result, *args, **kwargs):
+        "Pretty print the return value of a task"
+        if result is None:
+            return
+        # special case for strings
+        if isinstance(result, str):
+            console.print(result)
+            return
+        pprint(result)
+
+    default_context_settings = {
+        "allow_extra_args": True,
+        "ignore_unknown_options": True,
+        "max_content_width": 120,
+        "help_option_names": ["-h", "--help"],
+    }
+
+    app = typer.Typer(
+        name="UofT Task Runner",
+        no_args_is_help=True,
+        help=__doc__,
+        result_callback=prettyprinter_result_callback,
+        context_settings=default_context_settings,
+    )
+
+    def print_func_source(func):
+        source = inspect.getsource(func)
+        logger.info("Without --dry-run, this command would have executed:")
+        console.print(Syntax(source, "python", theme="ansi_dark"))
+
+    def get_all_tasks(mod):
+        """For a given task file (python module), return all of the tasks defined in it
+
+        a task is defined as a public function (not starting with an underscore)
+        that is defined in (not imported into) the module
+        """
+        if hasattr(mod, "__lazy_imports__"):
+            skiplist: list[str] = mod.__lazy_imports__
+        else:
+            skiplist = []
+
+        for name in mod.__dict__:
+            if name in skiplist:
+                continue
+            if name.startswith("_"):
+                continue
+            obj = mod.__dict__[name]
+            if not inspect.isfunction(obj):
+                continue
+            if inspect.getmodule(obj) != mod:
+                continue
+            yield obj
+
+    def typer_app_from_module(mod, name=None):
+        if name is None:
+            name = mod.__name__
+
+        if hasattr(mod, "app") and isinstance(mod.app, typer.Typer):
+            return mod.app
+
+        app = typer.Typer(
+            name=mod.__name__,
+            help=mod.__doc__,
+            context_settings=default_context_settings,
+        )
+
+        @app.callback()
+        def _(ctx: typer.Context):
+            if ctx.obj and ctx.obj.get("dry_run") and ctx.invoked_subcommand:
+                func = typer.main.get_group(app).commands.get(ctx.invoked_subcommand)
+                print_func_source(func)
+                raise typer.Exit(0)
+
+        for task in get_all_tasks(mod):
+            app.command(context_settings=default_context_settings)(task)
+        return app
+
+    def _install_completion_in_virtualenv(ctx: typer.Context, value: bool):
+        if not value:
+            return
+        if ctx.resilient_parsing:
+            return
+        prog = Path(__file__).resolve()
+        line = f'eval "$({prog} --show-completion)"\n'
+        script = Path(".venv/bin/activate")
+        if line not in script.read_text():
+            with script.open("a") as f:
+                f.write("\n")
+                f.write(line)
+            logger.info("Completion installed in .venv/bin/activate")
+        else:
+            logger.info("Completion already installed in .venv/bin/activate")
+        logger.info("Completion will take effect once you re-activate the virtualenv")
+        raise typer.Exit(0)
+
+    _tasks_module = import_module("tasks.tasks")
+    app.registered_commands.extend(
+        typer_app_from_module(_tasks_module).registered_commands
+    )
+
+    TASKS = REPO_ROOT / "tasks"
+    for file in TASKS.iterdir():
+        if not file.is_file():
+            continue
+        if file.name.startswith("_"):
+            continue
+        if file.stem == "tasks":
+            continue  # We've already imported these tasks into the top level of the task tree
+        if file.suffix not in [".py"]:
+            continue
+        mod_name = file.stem
+        mod = import_module(f"tasks.{mod_name}")
+        sub_app = typer_app_from_module(mod, name=mod_name)
+        app.add_typer(
+            sub_app,
+            name=f"{mod_name}.",  # add a trailinig dot to the name to distinguish task groups from tasks
+            no_args_is_help=True,
+            context_settings=default_context_settings,
+        )
+
+    if REPO_ROOT.joinpath("hazmat/tasks.py").exists():
+        mod = import_module("hazmat.tasks")
+        sub_app = typer_app_from_module(mod, name="hazmat")
+        app.add_typer(
+            sub_app,
+            name="hazmat.",
+            no_args_is_help=True,
+            context_settings=default_context_settings,
+        )
+
+    def _get_vscode_debug_launcher_url(port: int):
+        launch_config = {
+            "name": "Python: Remote Attach",
+            "type": "python",
+            "request": "attach",
+            "connect": {"host": "localhost", "port": port},
+            "pathMappings": [
+                {"localRoot": "${workspaceFolder}", "remoteRoot": str(REPO_ROOT)}
+            ],
+            "justMyCode": False,
+        }
+        launch_config = json.dumps(launch_config)
+        return f"vscode://fabiospampinato.vscode-debug-launcher/launch?args={launch_config}"
+
+    def _handle_vscode_remote(vscode_ipc: str, port: int):
+        # the VSCode Remote extension does not support `code --open-url {url}` with a `vscode://` extension
+        # This may change in the future, but for now we need to bypass this limitation by using the VSCode IPC
+        # secket to send the `vscode://` url to the VSCode instance server directly
+        import requests
+
+        from urllib3.connection import HTTPConnection
+        from urllib3.connectionpool import HTTPConnectionPool
+        from requests.adapters import HTTPAdapter
+
+        class VSCodeIPCConnection(HTTPConnection):
+            def __init__(self):
+                super().__init__("localhost")
+
+            def connect(self):
+                self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.sock.connect(vscode_ipc)
+
+        class VSCodeIPCConnectionPool(HTTPConnectionPool):
+            def __init__(self):
+                super().__init__("localhost")
+
+            def _new_conn(self):
+                return VSCodeIPCConnection()
+
+        class VSCodeIPCAdapter(HTTPAdapter):
+            def get_connection(self, url, proxies=None):
+                return VSCodeIPCConnectionPool()
+
+        session = requests.Session()
+        session.mount("vscode://", VSCodeIPCAdapter())
+        session.post(
+            "vscode://",
+            headers={"content-type": "application/json", "accept": "application/json"},
+            json={
+                "type": "openExternal",
+                "uris": [_get_vscode_debug_launcher_url(port)],
+            },
+        )
+
+    @app.callback()
+    def _(
+        ctx: typer.Context,
+        verbose: Annotated[
+            bool,
+            typer.Option(
+                "--verbose",
+                "-v",
+                help="Show verbose output",
+            ),
+        ] = False,
+        debug: Annotated[
+            bool,
+            typer.Option(
+                "--debug",
+                help="Run a debug apadpter and wait for debugger to connect before launching task",
+            ),
+        ] = False,
+        dry_run: Annotated[
+            bool,
+            typer.Option(
+                "--dry-run", help="print out the task to run instead of running it"
+            ),
+        ] = False,
+        _: Annotated[
+            bool,
+            typer.Option(
+                "--install-completion-in-virtualenv",
+                help="Install completion for the current shell into .venv/bin/activate",
+                callback=_install_completion_in_virtualenv,
+                is_eager=True,
+            ),
+        ] = False,
+        exec_: Annotated[
+            Optional[str],
+            typer.Option(
+                "--exec",
+                help="Execute a python function in the virtualenv (ex: --exec uoft_aruba.cli:_debug "
+                + "to execute the _debug function in the uoft_aruba.cli module)",
+            ),
+        ] = None,
+    ):
+        # Callback to process task runner global options
+        if verbose:
+            pass  # annoyingly, this needs to be handled globally, beforer the callback is invoked
+        if debug:
+            import debugpy
+
+            # Find an open port to listen on
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind(("localhost", 0))
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            port = s.getsockname()[1]
+            s.close()
+
+            debugpy.listen(port)
+
+            # If we're in a local vscode terminal session, we need to tell VSCode to connect to the debug adapter
+            # using fabiospampinato.vscode-debug-launcher extension
+            if os.environ.get("TERM_PROGRAM") == "vscode":
+                vscode_ipc = os.environ.get("VSCODE_IPC_HOOK_CLI")
+                if vscode_ipc:
+                    # If VSCode is running in a remote SSH or container session, this gets pretty complex
+                    _handle_vscode_remote(vscode_ipc, port)
+                else:
+                    # If VSCode is running locally (ie not using the Remote SSH or Remote Containers extensions),
+                    # this is pretty straightforward
+                    import subprocess
+
+                    subprocess.run(
+                        ["code", "--open-url", _get_vscode_debug_launcher_url(port)]
+                    )
+
+            # If we're not in a VSCode terminal window, we will need to prompt the user to connect to the debug adapter
+            # with their preferred editor's debugger
+            logger.info(f"Waiting for debugger to attach on port {port}...")
+            debugpy.wait_for_client()
+
+        if dry_run:
+            if ctx.invoked_subcommand and (
+                func := typer.main.get_group(app).commands.get(ctx.invoked_subcommand)
+            ):
+                print_func_source(func)
+                raise typer.Exit(0)
+            # We need to pass the dry run flag into the context so that tasks can check it
+            if not ctx.obj:
+                ctx.obj = {}
+            ctx.obj["dry_run"] = True
+        if exec_:
+            module_name, func_name = exec_.split(":")
+            module = import_module(module_name)
+            func = getattr(module, func_name)
+            func()
+            raise typer.Exit(0)
+
+    return app
+
+
+if __name__ == "__main__":
+    from rich.logging import RichHandler
+
+    log_handler = RichHandler(console=console, show_time=False, markup=True)
+    logging.basicConfig(
+        level=LOG_LEVEL, format="%(message)s", handlers=[log_handler]
+    )
+
+    app = _create_root_app()
+    app()

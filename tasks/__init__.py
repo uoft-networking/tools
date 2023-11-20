@@ -1,47 +1,44 @@
-import os
-from pathlib import Path
+from tempfile import NamedTemporaryFile
 
-# all tasks should run relative to the project root,
-# so we will set the working directory to the project root at the moment invoke imports tasks
-# when running subtasks with invoke called from a parent invoke task, 
-# we want the subtask to run in whichever directory we told it to
-ROOT = Path(__file__).parent.parent
-CWD = os.getcwd()
-if not os.environ.get("RUNNING_INSIDE_INVOKE"):
-    os.chdir(ROOT)
-    os.environ["RUNNING_INSIDE_INVOKE"] = 'true'
+from task_runner import run, sudo, REPO_ROOT
+
+GLOBAL_PIPX = "PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx"
 
 
-# Invoke currently still supports python 2.7, and therefore does not support annotations in task signatures
-# This is a workaround to make it work until Invoke finally drops support for python 2.7
-from unittest.mock import patch
-from inspect import getfullargspec, ArgSpec
-import invoke
+def pipx_install(root_project: str, packages: list[str] | None = None):
+    """install a package to /usr/local/bin through pipx"""
+    requirements = []
+    if packages:
+        packages = [f"projects/{p}" for p in packages]
 
-def fix_annotations():
-    """
-        Pyinvoke doesnt accept annotations by default, this fix that
-        Based on: https://github.com/pyinvoke/invoke/pull/606
-    """
-    def patched_inspect_getargspec(func):
-        spec = getfullargspec(func)
-        return ArgSpec(*spec[0:4]) # type: ignore
+    with open("requirements.lock", "r") as f:
+        for line in f.readlines():
+            if line.startswith("-e"):
+                continue
+            else:
+                requirements.append(line)
 
-    org_task_argspec = invoke.tasks.Task.argspec
+    with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
+        req_file.writelines(requirements)
+        req_file.flush()
+        with_constraints = f'--pip-args "--constraint {req_file.name}"'
+        sudo(
+            f"{GLOBAL_PIPX} install --force projects/{root_project} {with_constraints}",
+        )
+        if packages:
+            packages_str = " ".join(packages)
+            sudo(
+                f"{GLOBAL_PIPX} inject --include-apps uoft_{root_project} {packages_str} {with_constraints}",
+            )
 
-    def patched_task_argspec(*args, **kwargs):
-        with patch(target="inspect.getargspec", new=patched_inspect_getargspec):
-            return org_task_argspec(*args, **kwargs)
 
-    invoke.tasks.Task.argspec = patched_task_argspec
-
-fix_annotations()
+def all_projects():
+    return sorted(REPO_ROOT.glob("projects/*"))
 
 
-# import tasks
-from invoke.collection import Collection
-from . import common, nautobot, git
+def all_projects_by_name():
+    return set([p.name for p in all_projects()])
 
-ns: Collection = Collection.from_module(common)
-ns.add_collection(Collection.from_module(nautobot))
-ns.add_collection(Collection.from_module(git))
+
+def all_projects_by_name_except_core():
+    return all_projects_by_name().symmetric_difference({"core"})

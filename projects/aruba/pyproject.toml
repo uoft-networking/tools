@@ -7,7 +7,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = ["pydantic[dotenv]", "uoft_core", "typer"]
+dependencies = ["uoft_core", "typer"]
 dynamic = ["version"]
 
 license = { text = "MIT" }

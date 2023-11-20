@@ -8,51 +8,37 @@ Getting Started
 
 # Getting started
 
-1. Install [rye](https://rye-up.com/guide/installation/)
-2. `git clone https://github.com/uoft-networking/tools uoft-tools`
-3. `cd uoft-tools`
-4. `rye sync --no-lock` (this will install a standalone copy of python3.10 if you don't already have it, and create a python3.10 virtual environment in `.venv/` with all the projects installed in "editable mode")
-5. `source .venv/bin/activate` to activate the virtual environment in your current shell
+1. `git clone https://github.com/uoft-networking/tools uoft-tools`
+2. `cd uoft-tools`
+3. `./run` (this will install [rye](https://rye-up.com/guide/installation/) if you don't already have it, and create a python3.10 virtual environment in `.venv/` with all the projects installed in "editable mode")
 
 ## Optional steps
 
 To get the most out of your dev experience in this monorepo, consider the following optional steps you can take:
 
- - `invoke list-projects` to see a list of all projects
+ - `source .venv/bin/activate` to activate the virtual environment in your current shell
  - Install [direnv](https://direnv.net/) and run `direnv allow .`, so that you don't have to manually activate the virtual environment every time you open a new shell
  - Config your editor to use `.venv/bin/python` as python interpreter (this should be automatically done in VSCode)
- - Add `export MY_BRANCH=dev-<your branch name>` to your `.bashrc` or `.zshrc` file, so that you can use `invoke git.*` commands without having to specify a branch name every time
 
 ## Running tests
 
 This repository is configured to support pytest autodiscovery. Any IDE which supports pytest should be able to run tests without any additional configuration.
 
-You can also run tests from the command line using `invoke test-all` or `invoke test <project>`.
+You can also run tests from the command line using `./run test-all` or `./run test <project>`.
 
-## Building packages
+## Installing packages
 
-To build a package, run `invoke build <project>`. This will create a wheel file and an sdist file in `dist/`.
-You can then install the package using `pip install dist/<package>.whl` or `pip install dist/<package>.tar.gz`.
+To install a project into your regular pipx installation, run `pipx install ./projects/<project>`. 
 
-You can also build all packages at once using `invoke build-all`.
+To install a package globally on your machine, (ex. when installing onto a shared tool server), run `./run global-install <project>`
 
 ## Adding a project to the repo
 
-1. `invoke new-project <project>`
+1. `./run new-project <project>`
 2. Follow all prompts to create a new project
 
 ## Making a new release
 
-All projects in this repository are versioned together. There is a single version number which is shared by all projects. Version info is stored in git tags. To make a new release, follow these steps:
-1. `invoke changes-since-last-tag` to see if a new release is needed
-2. `invoke version-next` and follow the prompts to bump the version number
-3. `invoke build-all` to build all packages
-4. TODO: `invoke publish-all` to publish all packages to PyPI
+All projects in this repository are versioned together. There is a single version number which is shared by all projects. Version info is stored in git tags.
 
-# Notes
-
-Each project should implement its own typer cli in `cli.py`. Each project's pyproject file (ie `projects/<project>/pyproject.toml`) should contain an entrypoint that looks something like this:
-```toml
-[project.scripts]
-"uoft-<project>" = "uoft_<project>.cli:cli"
-```
+TODO: document project release process

@@ -1,4 +1,6 @@
 from pathlib import Path
+from .jinja_filters import import_repo_filters_module
+import sys
 
 from nautobot.apps.datasources import DatasourceContent
 from nautobot.extras.datasources.git import GitRepository
@@ -29,7 +31,8 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
         # and ensure their deletion, but for now this is a no-op.
         return
     
-    gql_dir = Path(repository_record.filesystem_path) / "graphql"
+    repo_path = Path(repository_record.filesystem_path)
+    gql_dir = repo_path / "graphql"
     if not gql_dir.exists():
         job_result.log("No graphql directory found in repository, skipping.")
         return
@@ -46,6 +49,13 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
         )
         job_result.log(f"Updated GraphQL query: {name}", level_choice=LogLevelChoices.LOG_SUCCESS)
 
+    # TODO: clean up this hack
+    # we use the same repository to store jinja filters for golden config templates as well as graphql queries
+    # we need to re-import the jinja filters module to pick up any changes when we update from git
+    # And this is the only hook we have into the git update process
+    # So we do it here
+    import_repo_filters_module(repo_path, force=True)
+        
 
 
 # Register that DeviceType records can be loaded from a Git repository,

@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 @pytest.mark.skip("need to figure out how to run bluecat test instance")
 def test_bluecat(mock_config: "MockedConfig", monkeypatch: "MonkeyPatch") -> None:
     """Test bluecat."""
+    with pytest.raises(ValueError):
+        int('hello')
     mock_config.util.mock_folders.user_config.toml_file.write_text(
         txt(
             """

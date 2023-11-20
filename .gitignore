@@ -12,6 +12,7 @@ cov.xml
 *.pkl
 *.uoft_core.debug*
 **/tests/fixtures/_private/*
+.dmypy.json
 
 
 # garbage / prototyping code not ready for prime time
@@ -24,3 +25,6 @@ utsc_templates
 /projects/nautobot/.dev_data
 !.venv/make_pipenv_install_here
 projects/aruba/.env
+
+# temp workaround, until we figure out whether to use submodules, subtrees, subrepos, git-cross, or something else
+custom-forks/

@@ -21,9 +21,10 @@ def _nautobot_initialized():
         initializer=_configure_settings,
     )
     django.setup()
+    from django.conf import settings
 
 
-def _golden_config_data():
+def _golden_config_data(device_name):
     # These modules cannot be imported until after django.setup() is called
     # as part of the _nautobot_initialized fixture.
     from nautobot_golden_config.utilities.graphql import graph_ql_query
@@ -31,7 +32,8 @@ def _golden_config_data():
     from nautobot.utilities.utils import NautobotFakeRequest
     from nautobot.users.models import User
     from nautobot.dcim.models import Device
-    device = Device.objects.get(name="a1-p50c")
+
+    device = Device.objects.get(name=device_name)
     request = NautobotFakeRequest(
         {
             "user": User.objects.get(username="admin"),
@@ -39,7 +41,8 @@ def _golden_config_data():
         }
     )
     settings = GoldenConfigSetting.objects.get(slug="default")
-    _, device_data = graph_ql_query(request, device, settings.sot_agg_query.query)
+    q = settings.sot_agg_query.query  # type: ignore
+    _, device_data = graph_ql_query(request, device, q)
     return device, device_data
 
 
@@ -48,28 +51,48 @@ class NautobotTests:
     def test_golden_config(self, _nautobot_initialized, mocker):
         from ..golden_config import transposer
         from nautobot_golden_config.utilities.constant import PLUGIN_CFG
-        from ..jinja_filters import _import_repo_filters_module
+        from ..jinja_filters import import_repo_filters_module
+        from nautobot.extras.datasources.git import (
+            update_git_config_contexts,
+            GitRepository,
+        )
+
         git_repo = fixtures_dir / "_private/.gitlab_repo"
-        mocker.patch.dict(PLUGIN_CFG, {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"})
-
-        obj, data = _golden_config_data()
-        data = transposer(data)
-        data['obj'] = obj
-
         assert git_repo.exists()
-        _import_repo_filters_module(git_repo)
+        mocker.patch.dict(
+            PLUGIN_CFG,
+            {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"},
+        )
+
+        mocker.patch.object(
+            GitRepository, "filesystem_path", property(lambda _: str(git_repo))
+        )
+        _repo_record = GitRepository.objects.get(name="golden_config_templates")
+        _job_result = mocker.Mock()
+        update_git_config_contexts(_repo_record, _job_result)
+
+        import_repo_filters_module(git_repo)
         template = "templates/entrypoint.j2"
 
-        jinja_settings = Jinja2.get_default()
-        jinja_env: Environment = jinja_settings.env
-        jinja_env.trim_blocks = True
-        jinja_env.undefined = StrictUndefined
-        jinja_env.loader = FileSystemLoader(git_repo)
+        def _render(device_name):
+            obj, data = _golden_config_data(device_name)
+            data = transposer(data)
+            data["obj"] = obj
 
-        t = jinja_env.get_template(template)
-        text = t.render(**data)
-        Path("test.cisco").write_text(text)
-        Path("test.cisco").unlink()
+            jinja_settings = Jinja2.get_default()
+            jinja_env: Environment = jinja_settings.env
+            jinja_env.trim_blocks = True
+            jinja_env.undefined = StrictUndefined
+            jinja_env.loader = FileSystemLoader(git_repo)
+
+            t = jinja_env.get_template(template)
+            text = t.render(**data)
+            return text
+        
+        Path("hazmat/test.cisco").write_text(_render("d1-sw"))
+        Path("hazmat/test-aruba.cisco").write_text(_render("a1-p50c"))
+        Path("hazmat/test.cisco").unlink()
+        Path("hazmat/test-aruba.cisco").unlink()
 
     def test_runjob(self, _nautobot_initialized, mocker):
         from nautobot.extras.management.commands.runjob import Command
@@ -86,13 +109,13 @@ class NautobotTests:
                 "path": "plugins/nautobot_golden_config.jobs/IntendedJob",
                 "META": {},
                 "POST": {},
-                "GET": {}
+                "GET": {},
             }
         )
         repo.request = request
         repo.save(trigger_resync=True)
 
-        PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get( # type: ignore
+        PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get(  # type: ignore
             "nautobot_plugin_nornir", {}
         )
         NORNIR_SETTINGS = PLUGIN_CFG.get("nornir_settings")
@@ -113,3 +136,18 @@ class NautobotTests:
                 "plugins/nautobot_golden_config.jobs/IntendedJob",
             ]
         )
+
+    def test_interfaces_excel(self, _nautobot_initialized):
+        from ..excel import import_from_excel, export_to_excel
+        from nautobot.dcim.models import Device
+
+        device = "d1-sw"
+        device_obj = Device.objects.get(name=device)
+        pk = device_obj.id
+
+        _, xlsx_content = export_to_excel(pk)
+        Path("hazmat/test.xlsx").write_bytes(xlsx_content)
+
+        import_from_excel(pk, Path("hazmat/test.xlsx").read_bytes())
+
+        Path("hazmat/test.xlsx").unlink()

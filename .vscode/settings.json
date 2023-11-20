@@ -15,4 +15,5 @@
     "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "ansible.python.interpreterPath": ".venv/bin/python",
+  "pylsp.plugins.jedi.environment": ".venv/bin/python",
 }

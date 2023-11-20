@@ -30,7 +30,8 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {
-                "VSCODE_DEBUGGER": "1"
+                "VSCODE_DEBUGGER": "1",
+                "PYDEBUG": "1"
             },
         },
         {
