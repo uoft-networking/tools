@@ -1,4 +1,4 @@
-from .diffsync import SyncFromYAML, SyncFromBluecat
+from .diffsync import FromYAML, FromBluecat
 
 
-jobs = [SyncFromYAML, SyncFromBluecat]
+jobs = [FromYAML, FromBluecat]
