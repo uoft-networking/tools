@@ -171,6 +171,7 @@ pathspec==0.11.2
 pexpect @ git+https://github.com/pexpect/pexpect
 pickleshare==0.7.5
 pillow==10.0.0
+pipdeptree==2.13.1
 platformdirs==3.10.0
 pluggy==1.2.0
 plumbum==1.8.2
@@ -265,4 +266,5 @@ yamlordereddictloader==0.4.0
 yarl==1.9.2
 zipp==3.16.2
 # The following packages are considered to be unsafe in a requirements file:
+pip==23.3.1
 setuptools==68.1.2
