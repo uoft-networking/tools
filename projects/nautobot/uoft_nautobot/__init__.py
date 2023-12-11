@@ -1,5 +1,6 @@
 from importlib import metadata
 from uoft_core import BaseSettings, Field, SecretStr
+from uoft_core.types import BaseModel
 from uoft_aruba import Settings as ArubaSettings
 from uoft_ssh import Settings as SSHSettingsBase, Credentials
 from uoft_bluecat import Settings as BluecatSettings
@@ -11,7 +12,43 @@ from nautobot.apps import NautobotAppConfig
 
 
 class SSHSettings(SSHSettingsBase):
-    nautobot: Credentials = Field(description="Credentials for the Nautobot user, typically has read-only access.")
+    nautobot: Credentials = Field(
+        description="Credentials for the Nautobot user, typically has read-only access."
+    )
+
+
+class LDAPSettings(BaseModel):
+    server: str
+    is_active_directory: bool = False
+    cert_is_self_signed: bool = False
+    bind_dn: str
+    bind_password: SecretStr
+    user_search_base: str = (
+        "OU=UTORIDStaff,OU=Staff Users,DC=utscad,DC=utsc,DC=utoronto,DC=ca"
+    )
+    user_attribute_map: dict[str, str] = Field(
+        default_factory=lambda: {
+            "first_name": "givenName",
+            "last_name": "sn",
+            "email": "mail",
+        }
+    )
+    group_search_base: str = "OU=Security Groups,DC=utscad,DC=utsc,DC=utoronto,DC=ca"
+
+
+class KeycloakSettings(BaseModel):
+    endpoint: str
+    client_id: str
+    client_secret: SecretStr
+    public_key: str
+
+    @property
+    def authorization_url(self):
+        return f"{self.endpoint}/protocol/openid-connect/auth"
+
+    @property
+    def access_token_url(self):
+        return f"{self.endpoint}/protocol/openid-connect/token"
 
 
 class Settings(BaseSettings):
@@ -37,28 +74,19 @@ class Settings(BaseSettings):
     gitlab_templates_password: SecretStr
     gitlab_data_username: str
     gitlab_data_password: SecretStr
-    ldap_server: str
-    ldap_is_active_directory: bool = False
-    ldap_cert_is_self_signed: bool = False
-    ldap_bind_dn: str
-    ldap_bind_password: SecretStr
-    ldap_user_search_base: str = (
-        "OU=UTORIDStaff,OU=Staff Users,DC=utscad,DC=utsc,DC=utoronto,DC=ca"
+    groups_active: str = "GL_IITS_Users"
+    groups_staff: str = "GL_SysNetAdmins"
+    groups_superuser: str = "GL_SysNetAdmins"
+    additional_groups: list[str] = Field(
+        default_factory=lambda: [
+            "GL_IITS_Helpdesk",
+            "GL_IITS_Networking",
+            "GL_IITS_Security",
+            "GL_IITS_Systems",
+        ]
     )
-    ldap_user_attribute_map: dict[str, str] = Field(
-        default_factory=lambda: {
-            "first_name": "givenName",
-            "last_name": "sn",
-            "email": "mail",
-        }
-    )
-    ldap_group_search_base: str = (
-        "OU=Security Groups,DC=utscad,DC=utsc,DC=utoronto,DC=ca"
-    )
-    ldap_groups_active: str = "GL_IITS_Users"
-    ldap_groups_staff: str = "GL_SysNetAdmins"
-    ldap_groups_superuser: str = "GL_SysNet_SuperUsers"
-    ldap_additional_groups: list[str] = Field(default_factory = lambda: ["GL_Helpdesk"])
+    ldap: LDAPSettings | None = Field(prompt=False)
+    keycloak: KeycloakSettings | None = Field(prompt=False)
 
     class Config(BaseSettings.Config):
         app_name = "nautobot"
@@ -67,7 +95,7 @@ class Settings(BaseSettings):
         @classmethod
         def parse_env_var(cls, field_name: str, raw_val: str):
             if field_name in {"allowed_hosts", "aruba_controllers"}:
-                return raw_val.split(',')
+                return raw_val.split(",")
             return cls.json_loads(raw_val)
 
     def get_db_connection(self):
@@ -88,6 +116,9 @@ class Settings(BaseSettings):
         return (
             f"{scheme}://{creds}{self.redis_host}:{self.redis_port}/{database_number}"
         )
+    
+    def all_groups(self):
+        return {self.groups_active, self.groups_staff, self.groups_superuser, *self.additional_groups}
 
 
 class UofTPluginConfig(NautobotAppConfig):
