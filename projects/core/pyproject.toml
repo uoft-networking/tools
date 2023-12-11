@@ -42,4 +42,5 @@ path = "pyproject.py"
 
 [tool.hatch.build]
 only-packages = true
+packages = ["uoft_core"]
 exclude = ["**/tests"]

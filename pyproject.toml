@@ -13,6 +13,12 @@ license = { text = "MIT" }
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build]
+include = ['conftest.py'] # This is a meta-package, it doesn't need to package ANY files, but hatch requires a file selection -_-
+
 [tool.rye]
 managed = true
 dev-dependencies = [
@@ -55,9 +61,6 @@ dev-dependencies = [
 
 [tool.rye.workspace]
 members = ["projects/*", "custom-forks/*"]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
