@@ -579,7 +579,6 @@ class Util:
     """
 
     app_name: str
-    dirs: PlatformDirs
     console: Console
     logging: "Util.Logging"
     config: "Util.Config"
@@ -834,7 +833,7 @@ class Util:
                 format=self.stderr_format,
             )
             options.update(kwargs)
-            logger.add(sys.stderr, **options)
+            logger.add(sys.stderr, **options)  # type: ignore
 
         def add_stderr_rich_sink(self, level="INFO", **kwargs):
             options = dict(
@@ -843,7 +842,7 @@ class Util:
                 format=self.stderr_format,
             )
             options.update(kwargs)
-            logger.add(self.parent.console.print, **options)
+            logger.add(self.parent.console.print, **options)  # type: ignore
 
         def add_json_logfile_sink(self, filename=None, level="DEBUG", **kwargs):
             filename = filename or f"{self.parent.app_name}.log"
@@ -856,7 +855,7 @@ class Util:
                 compression="zip",
             )
             options.update(kwargs)
-            logger.add(filename, **options)
+            logger.add(filename, **options)  # type: ignore
 
         def add_syslog_sink(self, level="DEBUG", syslog_address=None, **kwargs):
             if platform.system() == "Windows":
@@ -880,7 +879,7 @@ class Util:
 
             options = dict(level=level, format=self.syslog_format)
             options.update(kwargs)
-            logger.add(handler, **options)
+            logger.add(handler, **options)  # type: ignore
 
         def add_sentry_sink(self, level="ERROR", **kwargs):
             try:

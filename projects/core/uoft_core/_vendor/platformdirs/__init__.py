@@ -2,41 +2,47 @@
 Utilities for determining application-specific dirs. See <https://github.com/platformdirs/platformdirs> for details and
 usage.
 """
-import importlib
 import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Type, Union
 
-if TYPE_CHECKING:
-    from typing_extensions import Literal  # pragma: no cover
-
 from .api import PlatformDirsABC
 from .version import __version__, __version_info__
 
+if TYPE_CHECKING:
+    from typing_extensions import Literal, TypeAlias  # pragma: no cover
+    from . import android, macos, unix, windows  # pragma: no cover
 
-def _set_platform_dir_class() -> Type[PlatformDirsABC]:
+    PlatformDirsType: TypeAlias = Union[
+        Type[android.Android], Type[macos.MacOS], Type[unix.Unix], Type[windows.Windows]
+    ]  # pragma: no cover
+else:
+    PlatformDirsType = Type[PlatformDirsABC]
+
+
+def _set_platform_dir_class() -> PlatformDirsType:
     if os.getenv("ANDROID_DATA") == "/data" and os.getenv("ANDROID_ROOT") == "/system":
-        from .android import Android  # type: ignore # noqa: F401
+        from .android import Android  # type: ignore
 
         result = Android
     elif sys.platform == "win32":
-        from .windows import Windows  # type: ignore # noqa: F401
+        from .windows import Windows  # type: ignore
 
         result = Windows
     elif sys.platform == "darwin":
-        from .macos import MacOS  # type: ignore # noqa: F401
+        from .macos import MacOS  # type: ignore
 
         result = MacOS
     else:
-        from .unix import Unix  # type: ignore # noqa: F401
+        from .unix import Unix  # type: ignore
 
         result = Unix
-    result: Type[PlatformDirsABC]
+    result: PlatformDirsType
     return result
 
 
-PlatformDirs = _set_platform_dir_class()  #: Currently active platform
+PlatformDirs: PlatformDirsType = _set_platform_dir_class()  #: Currently active platform
 AppDirs = PlatformDirs  #: Backwards compatibility with appdirs
 
 
