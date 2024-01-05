@@ -85,7 +85,7 @@ class Provisioner:
                 else:
                     raise e
             except AlreadyExists as e:
-                if 'already correctly provisioned' in e.args[0]:
+                if "already correctly provisioned" in e.args[0]:
                     self.console.print(
                         f"AP_NAME {e.ap.name} already correctly provisioned. [green]SKIPPING[/]"
                     )
@@ -105,12 +105,12 @@ class Provisioner:
         return self.provision_ap(ap.name, group=ap.group, mac_address=ap.mac_address)
 
     def delete_existing_ap(self, old_ap):
-        msg = f"Deleted existing AP_NAME {old_ap['AP-Name']} / {old_ap['MAC-Address']} from whitelist...[green]GOOD[/]"
+        msg = f"Deleted existing AP_NAME {old_ap['AP-Name']} / {old_ap['MAC-Address']} from allowlist...[green]GOOD[/]"
         if self.dry_run:
             msg = "Would have " + msg
         else:
             self.mobility_master.ap_provisioning.wdb_cpsec_delete_mac(
-                old_ap['MAC-Address']
+                old_ap["MAC-Address"]
             )
         self.console.print(msg)
 
@@ -129,7 +129,7 @@ class Provisioner:
 
         self._validate_mac(ap)
 
-        msg = f"Added new AP_NAME {ap.name} / {ap.mac_address} to whitelist...[green]GOOD[/]"
+        msg = f"Added new AP_NAME {ap.name} / {ap.mac_address} to allowlist...[green]GOOD[/]"
         if self.dry_run:
             msg = "Would have " + msg
         else:
@@ -231,19 +231,19 @@ class Provisioner:
         }
 
     @cached_property
-    def existing_aps_in_whitelist(self):
-        return self.mobility_master.ap_provisioning.get_cpsec_whitelist()
+    def existing_aps_in_allowlist(self):
+        return self.mobility_master.ap_provisioning.get_cpsec_allowlist()
 
     @cached_property
     def existing_aps_by_name(self):
         return {
-            ap["AP-Name"]: ap for ap in self.existing_aps_in_whitelist if ap["AP-Name"]
+            ap["AP-Name"]: ap for ap in self.existing_aps_in_allowlist if ap["AP-Name"]
         }
 
     @cached_property
     def existing_aps_by_mac(self):
         return {
             ap["MAC-Address"]: ap
-            for ap in self.existing_aps_in_whitelist
+            for ap in self.existing_aps_in_allowlist
             if ap["MAC-Address"]
         }

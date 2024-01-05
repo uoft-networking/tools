@@ -9,7 +9,9 @@ class ArubaRESTAPIError(Exception):
 
 
 class ArubaRESTAPIClient:
-    def __init__(self, host, username, password, default_config_path = "/mm", ssl_verify = False) -> None:
+    def __init__(
+        self, host, username, password, default_config_path="/mm", ssl_verify=False
+    ) -> None:
         self.host = host
         self.auth = dict(username=username, password=password)
         self.session = Session()
@@ -155,7 +157,7 @@ class ArubaRESTAPIClient:
                     data={
                         "name": mac_address,
                         "ap_group": ap_group,
-                        "ap_name": ap_name
+                        "ap_name": ap_name,
                     },
                 )
 
@@ -185,8 +187,10 @@ class ArubaRESTAPIClient:
                 )
 
             @staticmethod
-            def get_cpsec_whitelist():
-                return self.showcommand("show whitelist-db cpsec")['Control-Plane Security Allowlist-entry Details']
+            def get_cpsec_allowlist():
+                return self.showcommand("show whitelist-db cpsec")[
+                    "Control-Plane Security Allowlist-entry Details"
+                ]
 
         return AP_Provisioning
 
@@ -218,9 +222,7 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def get_ap_groups():
-                res = self.session.get(
-                    self.endpoint.object + "/ap_group"
-                ).json()
+                res = self.session.get(self.endpoint.object + "/ap_group").json()
                 return res["_data"]["ap_group"]
 
             @staticmethod

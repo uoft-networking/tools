@@ -36,7 +36,7 @@ class APITests:
             md1.logout()
             md2.logout()
 
-    def test_cpsec_whitelist(self):
+    def test_cpsec_allowlist(self):
         s = Settings.from_cache()
 
         mm = s.mm_api_connection
@@ -52,15 +52,15 @@ class APITests:
             mm.ap_provisioning.wdb_cpsec_add_mac(
                 "11:11:11:11:11:11", group_name, "testap"
             )
-            whitelist = mm.ap_provisioning.get_cpsec_whitelist()
-            whitelist = {x["MAC-Address"]: x for x in whitelist}
-            assert "11:11:11:11:11:11" in whitelist
+            allowlist = mm.ap_provisioning.get_cpsec_allowlist()
+            allowlist = {x["MAC-Address"]: x for x in allowlist}
+            assert "11:11:11:11:11:11" in allowlist
 
             mm.ap_provisioning.wdb_cpsec_delete_mac("11:11:11:11:11:11")
 
-            whitelist = mm.ap_provisioning.get_cpsec_whitelist()
-            whitelist = {x["MAC-Address"]: x for x in whitelist}
-            assert "11:11:11:11:11:11" not in whitelist
+            allowlist = mm.ap_provisioning.get_cpsec_allowlist()
+            allowlist = {x["MAC-Address"]: x for x in allowlist}
+            assert "11:11:11:11:11:11" not in allowlist
 
         finally:
             mm.logout()
@@ -104,7 +104,7 @@ def test_batch_provisioner():
 
     # setup
 
-    # we want 'ap_already_provisioned' to already exist in the whitelist
+    # we want 'ap_already_provisioned' to already exist in the allowlist
     # by the time we run the batch provisioner
     p.mobility_master.ap_provisioning.wdb_cpsec_add_mac(
         ap_name=ap_already_provisioned[0],
@@ -112,7 +112,7 @@ def test_batch_provisioner():
         mac_address=ap_already_provisioned[2],
     )
 
-    # we want 'ap_other_group' to already exist in the whitelist
+    # we want 'ap_other_group' to already exist in the allowlist
     # but in a different group than the one we're trying to provision it in
     p.mobility_master.ap_provisioning.wdb_cpsec_add_mac(
         ap_name=ap_other_group[0],
@@ -120,7 +120,7 @@ def test_batch_provisioner():
         mac_address=ap_other_group[2],
     )
 
-    # we want the mac address of 'ap_mac_in_use' to already exist in the whitelist
+    # we want the mac address of 'ap_mac_in_use' to already exist in the allowlist
     # but with a different ap name than the one we're trying to provision
     p.mobility_master.ap_provisioning.wdb_cpsec_add_mac(
         ap_name="already_in_use",
