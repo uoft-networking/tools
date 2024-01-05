@@ -174,6 +174,20 @@ def package_peek():
         raise Exception(f"Unknown package type: {package}")
 
 
+def uoft():
+    """run the uoft cli"""
+    from uoft_core import __main__ as cli
+    import sys
+
+    # remove all arguments before "uoft" from sys.argv
+    for arg in sys.argv[:]:
+        if arg == "uoft":
+            break
+        else:
+            sys.argv.remove(arg)
+    cli._add_subcommands()
+    cli.app()
+
 # def lock():
 #     import tomlkit
 #     reqs = []

@@ -615,4 +615,5 @@ if __name__ == "__main__":
     )
 
     app = _create_root_app()
+    debug = "--debug" in sys.argv
     app()
