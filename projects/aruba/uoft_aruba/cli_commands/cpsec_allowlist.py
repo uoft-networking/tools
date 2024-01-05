@@ -15,6 +15,7 @@ import sys
 import csv
 import io
 from pathlib import Path
+from uoft_core import StrEnum
 from .. import Settings, batch
 
 run = typer.Typer(  # If run as main create a 'typer.Typer' app instance to run the program within.
@@ -41,6 +42,10 @@ def get_ap_groups():  # Create the 'get-ap-groups' command within typer.
         )
         print(*controller_ap_groups, sep="\n")
 
+class OnError(StrEnum):
+    skip = "skip"
+    stop = "stop"
+    force = "force"
 
 @run.command(  # Create the 'from-file' subcommand within 'provision'.
     short_help="Provisions a CSV list of MAC_ADDRESS,AP_GROUP,AP_NAME's, one per line.",
@@ -55,6 +60,8 @@ def provision(
         resolve_path=True,
         allow_dash=True,
     ),
+    on_error: OnError = OnError.skip,
+    dry_run: bool = False,
 ):
     """
     Provision a list of APs using information from a provided CSV file.
@@ -90,7 +97,7 @@ def provision(
         (ap_name, ap_group, mac_address)
         for mac_address, ap_group, ap_name, *_ in reader
     ]
-    results = batch.Provisioner(dry_run=True).provision_aps(aps_list)
+    results = batch.Provisioner(on_error.value, dry_run).provision_aps(aps_list)
     failed_aps = [ap for ap in results if isinstance(ap, Exception)]
 
     if failed_aps:
