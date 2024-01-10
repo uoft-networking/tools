@@ -112,6 +112,18 @@ class Provisioner:
             self.mobility_master.ap_provisioning.wdb_cpsec_delete_mac(
                 old_ap["MAC-Address"]
             )
+            try:
+                del self.existing_aps_by_mac
+            except AttributeError:
+                pass
+            try:
+                del self.existing_aps_by_name
+            except AttributeError:
+                pass
+            try:
+                del self.existing_aps_in_allowlist
+            except AttributeError:
+                pass
         self.console.print(msg)
 
     def provision_ap(self, name, group, mac_address):
