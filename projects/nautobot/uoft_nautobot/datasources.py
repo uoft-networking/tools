@@ -1,6 +1,5 @@
 from pathlib import Path
 from .jinja_filters import import_repo_filters_module
-import sys
 
 from nautobot.apps.datasources import DatasourceContent
 from nautobot.extras.datasources.git import GitRepository

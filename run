@@ -36,6 +36,7 @@ find_rye
 echo "using rye to install monorepo virtualenv..."
 "$rye_bin" sync --no-lock
 ln -s "$HERE/run" $HERE/.venv/lib/python3.10/site-packages/task_runner.py
+$HERE/run --install-completion-in-virtualenv
 
 run_script "$0" "$@"
 """
@@ -614,4 +615,5 @@ if __name__ == "__main__":
     )
 
     app = _create_root_app()
+    debug = "--debug" in sys.argv
     app()

@@ -579,7 +579,6 @@ class Util:
     """
 
     app_name: str
-    dirs: PlatformDirs
     console: Console
     logging: "Util.Logging"
     config: "Util.Config"
@@ -834,7 +833,7 @@ class Util:
                 format=self.stderr_format,
             )
             options.update(kwargs)
-            logger.add(sys.stderr, **options)
+            logger.add(sys.stderr, **options)  # type: ignore
 
         def add_stderr_rich_sink(self, level="INFO", **kwargs):
             options = dict(
@@ -843,7 +842,7 @@ class Util:
                 format=self.stderr_format,
             )
             options.update(kwargs)
-            logger.add(self.parent.console.print, **options)
+            logger.add(self.parent.console.print, **options)  # type: ignore
 
         def add_json_logfile_sink(self, filename=None, level="DEBUG", **kwargs):
             filename = filename or f"{self.parent.app_name}.log"
@@ -856,7 +855,7 @@ class Util:
                 compression="zip",
             )
             options.update(kwargs)
-            logger.add(filename, **options)
+            logger.add(filename, **options)  # type: ignore
 
         def add_syslog_sink(self, level="DEBUG", syslog_address=None, **kwargs):
             if platform.system() == "Windows":
@@ -880,7 +879,7 @@ class Util:
 
             options = dict(level=level, format=self.syslog_format)
             options.update(kwargs)
-            logger.add(handler, **options)
+            logger.add(handler, **options)  # type: ignore
 
         def add_sentry_sink(self, level="ERROR", **kwargs):
             try:
@@ -1171,6 +1170,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
         # If a BaseSettings subclass appears in the missing_keys list, and that field is marked prompt=False,
         # Then we should source the value from the subclass's from_cache method, and remove the subclass from the missing_keys list
+        # Additionally, if a field marked prompt=False is missing, and that field has a default value, we should use the default value
         for key in missing_keys[:]:
             field = cls.__fields__[key]
             type_ = get_origin(field.outer_type_)
@@ -1180,9 +1180,15 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 is_model = issubclass(type_, BaseSettings)
             except TypeError:
                 is_model = False
-            if is_model and field.field_info.extra.get("prompt", True) is False:
-                values[key] = type_.from_cache()
+            if field.field_info.extra.get("prompt", True) is False:
+
+                if is_model:
+                    values[key] = type_.from_cache()
+                
+                if field.required is False:
+                    values[key] = field.default
                 missing_keys.remove(key)
+
 
         if not missing_keys:
             # Everything's present and accounted for. nothing to do here
@@ -1190,6 +1196,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
         if not cls.Config.prompt_on_missing_values:
             # interactively prompting for values is disabled on this subclass
+            # Return values as is and let pydantic report validation errors on missing fields
             return values
 
         if not sys.stdout.isatty():

@@ -65,7 +65,13 @@ def start(args: Annotated[List[str] | None, typer.Argument()] = None):
     """start nautobot dev server"""
     if args is None:
         args = []
-    server(["runserver", "--noreload", *args])
+    
+    os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
+    from nautobot.core.runner import runner
+    from nautobot.core.cli import main
+    from unittest.mock import patch
+    with patch("nautobot.core.runner.runner.sys.argv", ["nautobot-server", "runserver", "--noreload", *args]):
+        main()
 
 
 def db_command(cmd: str):

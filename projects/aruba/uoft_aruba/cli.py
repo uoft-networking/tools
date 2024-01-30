@@ -1,4 +1,4 @@
-from .cli_commands import cpsec_whitelist, station_blocklist
+from .cli_commands import cpsec_allowlist, station_blocklist
 import typer
 
 from . import Settings
@@ -10,7 +10,8 @@ app = typer.Typer(
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
 )
-app.add_typer(cpsec_whitelist.run, name="cpsec-whitelist")
+app.add_typer(cpsec_allowlist.run, name="cpsec-allowlist")
+app.add_typer(cpsec_allowlist.run, name="cpsec-whitelist", deprecated=True)
 app.add_typer(station_blocklist.app, name="station-blocklist")
 app.add_typer(station_blocklist.app, name="station-blacklist", deprecated=True)
 
@@ -31,8 +32,8 @@ def deprecated():
         to = "uoft-aruba"
         cmd = app
     elif (from_ := "Aruba_Provision_CPSEC_Whitelist") in cmdline:
-        to = "uoft-aruba cpsec-whitelist"
-        cmd = cpsec_whitelist.run
+        to = "uoft-aruba cpsec-allowlist"
+        cmd = cpsec_allowlist.run
     else:
         raise ValueError(f"command {cmdline} is not deprecated")
 
