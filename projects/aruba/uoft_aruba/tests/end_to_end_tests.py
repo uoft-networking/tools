@@ -4,17 +4,17 @@ from .. import batch
 import pytest
 
 
-def _get_blacklist(*controllers):
-    blacklist = []
+def _get_blocklist(*controllers):
+    blocklist = []
     for controller in controllers:
         controller: ArubaRESTAPIClient
-        blacklist += [x["STA"] for x in controller.wlan.get_ap_client_blacklist()]
-    return set(blacklist)
+        blocklist += [x["STA"] for x in controller.wlan.get_ap_client_blocklist()]
+    return set(blocklist)
 
 
 @pytest.mark.end_to_end
 class APITests:
-    def test_blmgr_blacklist(self):
+    def test_blmgr_blocklist(self):
         s = Settings.from_cache()
 
         mm = s.mm_api_connection
@@ -25,12 +25,12 @@ class APITests:
             mm.login()
             md1.login()
             md2.login()
-            mm.wlan.blmgr_blacklist_add("11:11:11:11:11:11")
-            blacklist = _get_blacklist(md1, md2)
-            assert "11:11:11:11:11:11" in blacklist
-            mm.wlan.blmgr_blacklist_remove("11:11:11:11:11:11")
-            blacklist = _get_blacklist(md1, md2)
-            assert "11:11:11:11:11:11" not in blacklist
+            mm.wlan.blmgr_blocklist_add("11:11:11:11:11:11")
+            blocklist = _get_blocklist(md1, md2)
+            assert "11:11:11:11:11:11" in blocklist
+            mm.wlan.blmgr_blocklist_remove("11:11:11:11:11:11")
+            blocklist = _get_blocklist(md1, md2)
+            assert "11:11:11:11:11:11" not in blocklist
         finally:
             mm.logout()
             md1.logout()
