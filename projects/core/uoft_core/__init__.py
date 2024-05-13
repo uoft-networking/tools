@@ -360,7 +360,7 @@ def create_or_update_config_file(
 
 
 class PassPath(PosixPath):
-    """An abstract path representing an entry in the pass password store"""
+    """An abstract path representing an entry in the `pass` password store"""
 
     _pass_installed: bool
     _contents: str | None
@@ -383,8 +383,10 @@ class PassPath(PosixPath):
                     logger.debug(f"Running pass command: `{self.command_name}`")
                     self._contents = shell(self.command_name)
                 except CalledProcessError as e:
-                    if b'gpg: decryption failed:' in e.stderr:
+                    if 'gpg: decryption failed:' in e.stderr:
                         raise e
+                    if e.returncode == 1:
+                        logger.debug(f"Password-store entry {self} does not exist, skipping")
                     self._contents = ""
             return self._contents
         logger.debug(f"pass is not installed, skipping {self}")
@@ -409,7 +411,7 @@ class PassPath(PosixPath):
         self, data: str, encoding: str | None = None, errors: str | None = None
     ) -> None:
         if self._pass_installed:
-            shell(f"pass insert -m {self}", input=data)
+            shell(f"pass insert -m {self}", input_=data)
             self._contents = data
         else:
             raise UofTCoreError(
