@@ -1,5 +1,7 @@
 from pathlib import Path
 import uuid
+import pickle
+from pathlib import Path
 
 import pytest
 from nautobot.core.runner.runner import configure_app
@@ -10,6 +12,8 @@ from django.test.client import RequestFactory
 from django_jinja.backend import Jinja2
 from jinja2.loaders import FileSystemLoader
 from jinja2 import Environment, StrictUndefined
+
+from pytest_mock import MockerFixture
 
 fixtures_dir = Path(__file__).parent / "fixtures"
 
@@ -154,3 +158,5 @@ class NautobotTests:
         job.calculate_diff()
         job.sync_data(memory_profiling=False)
         print(job.diff.summary())
+
+

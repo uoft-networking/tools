@@ -46,10 +46,15 @@ def _get_prod_api_session():
 
 def server(args: list[str]):
     """run a given nautobot-server subcommand"""
-    run(
-        f"direnv exec . nautobot-server {' '.join(args)}",
-        cwd=REPO_ROOT / "projects/nautobot",
-    )
+    if args is None:
+        args = []
+    
+    os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
+    from django.core.management import ManagementUtility
+    from nautobot.core.cli import main
+    from unittest.mock import patch
+    with patch("django.core.management.sys.argv", ["nautobot-server", *args]):
+        main()
 
 
 def prod_server(args: list[str]):
@@ -148,28 +153,6 @@ def prod_update_templates():
         if latest_job["status"]["value"] == "completed":
             logger.info("Job completed")
             break
-
-
-def prod_trigger_intended_config():
-    """trigger the intended config job on the prod server"""
-    prod_update_templates()
-    s = _get_prod_api_session()
-    role = s.get("api/dcim/device-roles/?name=Distribution%20Switches").json()[
-        "results"
-    ][0]
-    r = s.post(
-        "api/extras/jobs/plugins/nautobot_golden_config.jobs/IntendedJob/run/",
-        json={"commit": True, "data": {"role": [role["id"]]}},
-    )
-    r.raise_for_status()
-    job_log = r.json()["result"]
-    while True:
-        time.sleep(0.5)
-        job_log = s.get(f'api/extras/job-results/{job_log["id"]}').json()
-        if job_log["status"]["value"] not in ["pending", "running"]:
-            break
-        logger.info("Waiting for job to complete")
-    logger.info(f"Job {job_log['status']['label']}")
 
 
 def db_refresh():

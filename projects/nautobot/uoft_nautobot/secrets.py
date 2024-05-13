@@ -1,9 +1,11 @@
+from uoft_core.types import SecretStr
+
 from django import forms
 from nautobot.apps.secrets import SecretsProvider
 from nautobot.extras.secrets.exceptions import SecretParametersError, SecretValueNotFoundError
 from nautobot.core.forms import BootstrapMixin
 
-from . import Settings, SecretStr
+from . import Settings
 
 
 class EncryptedConfigSecretsProvider(SecretsProvider):

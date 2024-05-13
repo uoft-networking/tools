@@ -69,9 +69,10 @@ def load_local_jinja_library(_):
     import_repo_filters_module(repo)
 
     # The imported filters module is expected to register its own filters, tests, globals, and extensions
-    # using the django_jinja.library decorators
+    # using the uoft_core.jinja_library decorators
     # We need to re-register them with the current environment
-    library._update_env(environment)
+    from uoft_core import jinja_library
+    jinja_library._update_env(environment)
 
     # TODO: remove this hack
     environment.trim_blocks = True
