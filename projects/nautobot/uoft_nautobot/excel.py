@@ -20,10 +20,10 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
-from glom import glom, register, Coalesce
+from glom import glom, register, Coalesce, T, Check
 
 from django.db.models import Manager, QuerySet
-import nautobot.core.models.generics
+import nautobot.core.models.managers
 
 
 def _register_manager_classes():
@@ -41,7 +41,7 @@ def _register_manager_classes():
     register(Manager, iterate=lambda m: m.all())
     register(QuerySet, iterate=lambda qs: qs.all())
     register(
-        nautobot.core.models.generics._NautobotTaggableManager,
+        nautobot.core.models.managers.TagsManager,
         iterate=lambda m: m.all(),
     )
 
@@ -55,14 +55,13 @@ class ExcelContext:
         self.interface_types_inverse = {v: k for k, v in self.interface_types.items()}
         self.statuses = InterfaceStatusChoices.as_dict().values()
         self.vlan_modes = InterfaceModeChoices.values()
-        self.device_relationships = {
-            k.slug: v
-            for k, v in self.device_obj.get_relationships_data()["destination"].items()
-        }
-        self.vlan_group = self.device_relationships["vlan_group_switch_association"][
-            "value"
-        ]
-        if self.vlan_group is None:
+
+        # 
+        for assoc in self.device_obj.associations:
+            if assoc.relationship.label == 'VLAN Group Switch Association':
+                self.vlan_group = assoc.source
+                break
+        else:
             vlan_group_name = self.device_obj.name.partition("-")[2][:2]  # type: ignore
             self.vlan_group = VLANGroup.objects.get(name=vlan_group_name)
         self.valid_vlans = VLAN.objects.filter(group=self.vlan_group)
@@ -248,7 +247,7 @@ def import_from_excel(pk, file):
             return None
         group, name = vlan.split("/")
         name = name.partition("(")[0]
-        return VLAN.objects.get(group__slug=group, name=name)
+        return VLAN.objects.get(group__=group, name=name)
 
     def _parse_vlan_list(vlans: str):
         if not vlans:
@@ -331,7 +330,7 @@ def import_from_excel(pk, file):
                 intf.custom_field_data[k] = v
         intf.validated_save()
         yield "."
-    
+
     yield f"<p>Done! Please <a href='/dcim/devices/{pk}/interfaces'>click here</a> to see the changes.</p>"
 
 

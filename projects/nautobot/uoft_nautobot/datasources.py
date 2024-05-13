@@ -46,7 +46,7 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
                 "query": query,
             },
         )
-        job_result.log(f"Updated GraphQL query: {name}", level_choice=LogLevelChoices.LOG_SUCCESS)
+        job_result.log(f"Updated GraphQL query: {name}", level_choice=LogLevelChoices.LOG_INFO)
 
     # TODO: clean up this hack
     # we use the same repository to store jinja filters for golden config templates as well as graphql queries
@@ -64,7 +64,7 @@ datasource_contents = [
         "extras.gitrepository",  # datasource class we are registering for
         DatasourceContent(
             name="Device Types",  # human-readable name to display in the UI
-            content_identifier="nautobot.device_types",  # internal slug to identify the data type
+            content_identifier="nautobot.device_types",  # internal id to identify the data type
             icon="mdi-archive-sync",  # Material Design Icons icon to use in UI
             callback=refresh_device_types,  # callback function on GitRepository refresh
         ),
@@ -73,7 +73,7 @@ datasource_contents = [
         "extras.gitrepository",  # datasource class we are registering for
         DatasourceContent(
             name="GraphQL Queries",  # human-readable name to display in the UI
-            content_identifier="nautobot.graphql",  # internal slug to identify the data type
+            content_identifier="nautobot.graphql",  # internal id to identify the data type
             icon="mdi-graph",  # Material Design Icons icon to use in UI
             callback=refresh_graphql_queries,  # callback function on GitRepository refresh
         ),

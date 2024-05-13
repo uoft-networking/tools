@@ -1,9 +1,11 @@
 from pathlib import Path
+import uuid
 
 import pytest
 from nautobot.core.runner.runner import configure_app
 from nautobot.core.cli import _configure_settings
 import django
+from django.test.client import RequestFactory
 
 from django_jinja.backend import Jinja2
 from jinja2.loaders import FileSystemLoader
@@ -29,18 +31,15 @@ def _golden_config_data(device_name):
     # as part of the _nautobot_initialized fixture.
     from nautobot_golden_config.utilities.graphql import graph_ql_query
     from nautobot_golden_config.models import GoldenConfigSetting
-    from nautobot.utilities.utils import NautobotFakeRequest
     from nautobot.users.models import User
     from nautobot.dcim.models import Device
 
     device = Device.objects.get(name=device_name)
-    request = NautobotFakeRequest(
-        {
-            "user": User.objects.get(username="admin"),
-            "path": "/extras/jobs/plugins/nautobot_golden_config.jobs/AllGoldenConfig/",
-        }
-    )
-    settings = GoldenConfigSetting.objects.get(slug="default")
+    request = RequestFactory().get("/extras/jobs/plugins/nautobot_golden_config.jobs/AllGoldenConfig/")
+    request.user = User.objects.get(username="admin")
+    request.id = uuid.uuid4() # type: ignore
+
+    settings = GoldenConfigSetting.objects.get(name="Default Settings")
     q = settings.sot_agg_query.query  # type: ignore
     _, device_data = graph_ql_query(request, device, q)
     return device, device_data
@@ -50,12 +49,14 @@ def _golden_config_data(device_name):
 class NautobotTests:
     def test_golden_config(self, _nautobot_initialized, mocker):
         from ..golden_config import transposer
+        from ..datasources import refresh_graphql_queries
         from nautobot_golden_config.utilities.constant import PLUGIN_CFG
         from ..jinja_filters import import_repo_filters_module
         from nautobot.extras.datasources.git import (
             update_git_config_contexts,
             GitRepository,
         )
+        
 
         git_repo = fixtures_dir / "_private/.gitlab_repo"
         assert git_repo.exists()
@@ -70,6 +71,7 @@ class NautobotTests:
         _repo_record = GitRepository.objects.get(name="golden_config_templates")
         _job_result = mocker.Mock()
         update_git_config_contexts(_repo_record, _job_result)
+        refresh_graphql_queries(_repo_record, _job_result)
 
         import_repo_filters_module(git_repo)
         template = "templates/entrypoint.j2"
@@ -97,23 +99,12 @@ class NautobotTests:
     def test_runjob(self, _nautobot_initialized, mocker):
         from nautobot.extras.management.commands.runjob import Command
         from nautobot.extras.models import GitRepository
-        from nautobot.utilities.utils import NautobotFakeRequest
         from nautobot.users.models import User
         from nautobot.dcim.models import Device
 
         # refresh templates git repo
         repo = GitRepository.objects.get(name="golden_config_templates")
-        request = NautobotFakeRequest(
-            {
-                "user": User.objects.get(username="admin"),
-                "path": "plugins/nautobot_golden_config.jobs/IntendedJob",
-                "META": {},
-                "POST": {},
-                "GET": {},
-            }
-        )
-        repo.request = request
-        repo.save(trigger_resync=True)
+        repo.sync(user=User.objects.get(username="admin"))
 
         PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get(  # type: ignore
             "nautobot_plugin_nornir", {}

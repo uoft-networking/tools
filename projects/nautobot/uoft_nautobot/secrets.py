@@ -1,7 +1,7 @@
 from django import forms
 from nautobot.apps.secrets import SecretsProvider
 from nautobot.extras.secrets.exceptions import SecretParametersError, SecretValueNotFoundError
-from nautobot.utilities.forms import BootstrapMixin
+from nautobot.core.forms import BootstrapMixin
 
 from . import Settings, SecretStr
 

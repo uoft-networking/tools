@@ -87,13 +87,14 @@ def config_path(obj):
     "returns an ideal file path to store the rendered/backed-up config for a given object"
     folder_name = "device-location-missing"
     if obj.location:
-        if obj.location.location_type.slug == "building":
-            folder_name = obj.location.slug
+        if obj.location.location_type.name == "Building":
+            building = obj.location
         else:
-            folder_name = obj.location.parent.slug
+            building = obj.location.parent
+        folder_name = building.cf['building_code']
     ext = "txt"
     if obj.platform:
-        match obj.platform.slug:
+        match obj.platform.network_driver:
             case 'arista_eos':
                 ext = "eos.cfg"
             case 'cisco_ios':
@@ -155,7 +156,6 @@ def python_eval(ctx: Context, code_block: str):
             template_frame = frameinfo.frame
             break
     assert template_frame is not None
-    local_vars = Box()
     for k, v in template_frame.f_locals.items():
         # template frame context vars are prefixed with jinja state machine identifiers.
         # These identifiers all follow a patern of <letter>_<number>_<var_name>

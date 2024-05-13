@@ -83,7 +83,7 @@ def get_all_interfaces(device=None):
         )
         intf["tagged_vlans"] = [v["vid"] for v in intf["tagged_vlans"]]
         intf["cable"] = intf["cable"]["id"] if intf["cable"] else None
-        intf["tags"] = [t["slug"] for t in intf["tags"]]
+        intf["tags"] = [t["name"] for t in intf["tags"]]
     return intfs
 
 
