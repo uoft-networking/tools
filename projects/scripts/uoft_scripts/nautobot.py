@@ -985,3 +985,222 @@ def device_type_add_or_update(
 
     logger.info("Done!")
 
+
+@app.command()
+def new_switch(
+    dev: bool = False,
+):
+    """
+    Create a new switch in Nautobot
+    """
+    prompt = Settings._prompt()
+    nb = NautobotManager(dev).api
+
+    def _select_from_queryset(
+        queryset,
+        name,
+        msg,
+        key="name",
+        create_new_callback: typing.Callable | None = None,
+        **kwargs,
+    ):
+        mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
+        choices = list(mapping.keys())
+        if create_new_callback:
+            choices = ["Create a new one...", *choices]
+        choice = prompt.get_from_choices(
+            name,
+            list(mapping.keys()),
+            msg,
+            completer_opts=dict(ignore_case=True),
+            **kwargs,
+        )
+        if create_new_callback and choice == "Create a new one...":
+            return create_new_callback()
+        return choice, mapping[choice]
+
+    name = prompt.get_string("name", "Enter the name of the switch")
+
+    logger.info("Loading list of available Manufacturers from Nautobot...")
+    manufacturer, manufacturer_id = _select_from_queryset(
+        nb.dcim.manufacturers.all(),
+        "manufacturer",
+        "Select a manufacturer for this switch",
+    )
+
+    logger.info(
+        f"Loading list of available {manufacturer} Device Types from Nautobot..."
+    )
+    dt, dt_id = _select_from_queryset(
+        nb.dcim.device_types.filter(manufacturer=manufacturer_id),
+        "device_type",
+        "Select a device type for this switch",
+        key="model",
+        fuzzy_search=True,
+    )
+
+    logger.info("Loading list of Device Roles from Nautobot...")
+    role, role_id = _select_from_queryset(
+        nb.extras.roles.filter(content_types="dcim.device"),
+        "role",
+        "What kind of switch are you creating?",
+    )
+
+    logger.info("Loading list of Locations from Nautobot...")
+    locations: dict[str, str] = {obj["display"]: obj["id"] for obj in nb.dcim.locations.all()}  # type: ignore
+
+    def _new_room():
+        building_name = prompt.get_from_choices(
+            "Building",
+            list(locations.keys()),
+            "The building which this room is in",
+            completer_opts=dict(ignore_case=True),
+            fuzzy_search=True,
+            generate_rprompt=False,
+        )
+        location_name = prompt.get_string("room_name", "Enter the name of the location")
+        logger.info(f"Creating new location '{name}'...")
+        location_record = nb.dcim.locations.create(
+            name=location_name,
+            location_type={"name": "Room"},
+            parent=locations[building_name],
+            status={"name": "Active"},
+            custom_fields=dict(
+                room_number=prompt.get_string(
+                    "room_number", "Enter the room number (ex. AC290)"
+                )
+            ),
+        )
+        return location_name, location_record.id  # type: ignore
+
+    choice = prompt.get_from_choices(
+        "location",
+        ["Create a new one...", *list(locations.keys())],
+        "Select a location for this switch",
+        completer_opts=dict(ignore_case=True),
+        fuzzy_search=True,
+        generate_rprompt=False,
+    )
+    if choice == "Create a new one...":
+        location, location_id = _new_room()
+    else:
+        location, location_id = choice, locations[choice]
+
+    # Tags
+    tags = []
+    logger.info("Loading list of available device Tags from Nautobot...")
+    available_tags: dict[str, str] = {
+        tag["name"]: tag["id"]  # type: ignore
+        for tag in nb.extras.tags.filter(content_types="dcim.device")
+    }
+    while True:
+        if not prompt.get_bool(
+            "add_tag", "Would you like to add a tag to this switch?"
+        ):
+            break
+        tag_name = prompt.get_from_choices(
+            "tag",
+            list(available_tags.keys()),
+            "Select a tag to add to this switch",
+        )
+
+    if role == "Distribution Switches":
+        # figure out vlan group association
+        logger.warning(
+            "VLAN group association not yet supported. "
+            "you will need to manually create a vlan group for this dist switch and associate it with the switch"
+        )
+
+    status = "Planned"
+
+    # Set up the primary interface
+    # on Dist and Core switches, this'll be Loopback0
+
+    # On all other switches, this'll be Vlan900
+    if role in ["Distribution Switches", "Core Switches"]:
+        interface_name = "Loopback0"
+    else:
+        interface_name = "Vlan900"
+
+    primary_ip4 = prompt.get_string(
+        "primary_ip4",
+        "Primary IPv4 address for this switch in CIDR (ex aa.bb.cc.dd/ee)",
+    )
+
+    logger.info("Checking to see if Device already exists in Nautobot...")
+    if device := nb.dcim.devices.get(name=name):
+        logger.info(f"Device {name} already exists in Nautobot, updating...")
+        nb.dcim.devices.update(
+            id=device.id,  # type: ignore
+            device_type=dt_id,
+            role=role_id,
+            status="Planned",
+            location=location_id,
+            manufacturer=manufacturer_id,
+            tags=tags,
+        )
+    else:
+        logger.info(f"Creating new device {name} in Nautobot...")
+        device = nb.dcim.devices.create(
+            name=name,
+            device_type=dt_id,
+            role=role_id,
+            status="Planned",
+            location=location_id,
+            manufacturer=manufacturer_id,
+            tags=tags,
+        )
+
+    logger.info(
+        f"Checking to see if {name}/{interface_name} already exists in Nautobot..."
+    )
+    mgmt_interface = nb.dcim.interfaces.get(device=device, name=interface_name)  # type: ignore
+    if not mgmt_interface:
+        logger.info(
+            f"Creating primary interface {interface_name} for {name} in Nautobot..."
+        )
+        mgmt_interface = nb.dcim.interfaces.create(
+            device=device.id,  # type: ignore
+            name=interface_name,
+            type="virtual",
+            status="Active",
+        )
+
+    logger.info(f"Checking to see if {primary_ip4} already exists in Nautobot...")
+    if ipv4 := nb.ipam.ip_addresses.get(address=primary_ip4):
+        logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
+        nb.ipam.ip_addresses.update(
+            id=ipv4.id,  # type: ignore
+            status="Active",
+            description=name,
+            dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+        )
+    else:
+        logger.info(f"Creating new IP Address {primary_ip4} in Nautobot...")
+        ipv4 = nb.ipam.ip_addresses.create(
+            address=primary_ip4,
+            status="Active",
+            namespace={"name": "Global"},
+            description=name,
+            dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+        )
+
+    logger.info(f"Associating {primary_ip4} with {interface_name}...")
+    try:
+        nb.ipam.ip_address_to_interface.create(
+            ip_address=ipv4.id,  # type: ignore
+            interface=mgmt_interface.id,  # type: ignore
+        )
+    except pynautobot.RequestError as e:
+        if "must make a unique set" in e.args[0]:
+            logger.info(
+                f"IP Address {primary_ip4} is already associated with {interface_name}"
+            )
+        else:
+            raise e
+
+    logger.info(f"Assigning {primary_ip4} as Primary IP for {name}...")
+    device.primary_ip4 = ipv4
+    device.save()
+
+    logger.info("Done!")
