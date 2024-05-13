@@ -734,3 +734,254 @@ def push_changes_to_nautobot(
     )
     print(job_result.url.replace("/api/", "/"))
 
+
+def _assert_cwd_is_devicetype_library():
+    if not (Path(".git").exists() and Path("device-types").exists()):
+        logger.error(
+            "This command is meant to be run from within the device-type-library repository. "
+            "Please clone the repository from https://github.com/netbox-community/devicetype-library"
+            "and run this command from within the repository folder."
+        )
+        raise typer.Exit(1)
+
+
+def _complete_mfg(incomplete: str):
+    _assert_cwd_is_devicetype_library()
+    if incomplete:
+        search_space = Path("device-types").glob(f"{incomplete}*")
+    else:
+        search_space = Path("device-types").iterdir()
+    for dir in search_space:
+        if dir.is_dir():
+            yield dir.name
+
+
+def _complete_model(incomplete: str, ctx: typer.Context):
+    _assert_cwd_is_devicetype_library()
+    manufacturer = ctx.params["manufacturer"]
+    search_space = (
+        Path("device-types").joinpath(manufacturer).glob(f"{incomplete}*.yaml")
+    )
+    for file in search_space:
+        yield file.stem  # stem instead of name, because we don't want the .yaml extension
+
+
+def _device_family_id(nb, prompt, model):
+    device_families_by_name = {}
+    for family in nb.dcim.device_families.all():
+        device_families_by_name[family.name] = family.id  # type: ignore
+
+    matching_families = [f for f in device_families_by_name if f in model]
+    if len(matching_families) == 1:
+        logger.info(f"Device family found for {model}: {matching_families[0]}")
+        return device_families_by_name[matching_families[0]]
+    elif len(matching_families) > 1:
+        family_name = prompt.get_from_choices(
+            "device_family",
+            matching_families,
+            "Select a device family for this device type",
+        )
+        return device_families_by_name[family_name]
+    else:
+        logger.info(
+            f"Unable to automatically determine device family based on part number {model}"
+        )
+        if not prompt.get_bool(
+            "has_device_family",
+            "Should this device_type belong to a device family?",
+        ):
+            return None
+        family_name = prompt.get_from_choices(
+            "family_name",
+            ["Create a new one...", *list(device_families_by_name.keys())],
+            "Select a device family for this device type",
+        )
+        if family_name == "Create a new one...":
+            family_name = Settings._prompt().get_string(
+                "device_family",
+                'Enter a device family name for this device type (Ex: "C9300")',
+            )
+            family = nb.dcim.device_families.create(name=family_name)
+            return family.id  # type: ignore
+        else:
+            return device_families_by_name[family_name]
+
+
+def _manufacturer_id(nb, manufacturer):
+    mfg = nb.dcim.manufacturers.get(name=manufacturer)
+    if not mfg:
+        logger.info(f"Manufacturer {manufacturer} not found, creating...")
+        mfg = nb.dcim.manufacturers.create(name=manufacturer)
+    return mfg.id  # type: ignore
+
+
+@app.command()
+def device_type_add_or_update(
+    manufacturer: typing.Annotated[str, typer.Argument(autocompletion=_complete_mfg)],
+    model: typing.Annotated[str, typer.Argument(autocompletion=_complete_model)],
+    dev: bool = False,
+):
+    """
+    create or update a device type in nautobot based on a device type file in the device-types repo
+    """
+
+    # check to make sure this command is being run from within the device-types library repo
+    _assert_cwd_is_devicetype_library()
+
+    # make sure the specified manufacturer and model exist in the device-types library
+    device_type_file = Path("device-types").joinpath(manufacturer, f"{model}.yaml")
+    assert device_type_file.exists(), f"Device type file not found: {device_type_file}"
+
+    # read the device type file
+    from uoft_core.yaml import loads
+
+    device_type = loads(device_type_file.read_text())
+
+    prompt = Settings._prompt()
+
+    nb = NautobotManager(dev).api
+
+    # the device_type dictionary ALMOST perfectly matches the structure expected by the Nautobot API
+    # for device_types
+    model = device_type["model"]
+
+    if existing_device_type := nb.dcim.device_types.get(
+        model=model, manufacturer=device_type["manufacturer"]
+    ):
+        logger.info(f"Device type {model} already exists in Nautobot")
+        if not prompt.get_bool(
+            "update_device_type",
+            "Would you like to update this device type?",
+        ):
+            return
+        device_type_id = existing_device_type.id  # type: ignore
+    else:
+        nb_data = dict(
+            front_image=device_type.get("front_image"),
+            rear_image=device_type.get("rear_image"),
+            model=device_type.get("model"),
+            part_number=device_type.get("part_number"),
+            u_height=device_type.get("u_height"),
+            is_full_depth=device_type.get("is_full_depth"),
+            subdevice_role=device_type.get("subdevice_role"),
+            comments=device_type.get("comments"),
+            family=_device_family_id(nb, prompt, device_type.get("part_number")),
+            manufacturer=_manufacturer_id(nb, manufacturer),
+        )
+        if nb_data["comments"] is None:
+            del nb_data["comments"]
+
+        res = nb.dcim.device_types.create(nb_data)
+        device_type_id = res.id  # type: ignore
+
+    logger.info(f"Device type {model} created with id {device_type_id}")
+
+    def _populate_interface(interface):
+        interface_data = dict(
+            device_type=device_type_id,
+            name=interface.get("name"),
+            type=interface.get("type"),
+            mgmt_only=interface.get("mgmt_only"),
+            description=interface.get("description"),
+        )
+        if interface_data["description"] is None:
+            del interface_data["description"]
+        if interface_data["mgmt_only"] is None:
+            del interface_data["mgmt_only"]
+        try:
+            nb.dcim.interface_templates.create(interface_data)
+            logger.info(f"Created interface {interface_data['name']}")
+        except pynautobot.RequestError:
+            # in case of updating an existing device type, some or all interfaces will already exist
+            # in this case, we can ignore the error
+            pass
+
+    def _populate_console_port(console_port):
+        console_port_data = dict(
+            device_type=device_type_id,
+            name=console_port.get("name"),
+            type=console_port.get("type"),
+            description=console_port.get("description"),
+        )
+        if console_port_data["description"] is None:
+            del console_port_data["description"]
+        try:
+            nb.dcim.console_port_templates.create(console_port_data)
+        except pynautobot.RequestError:
+            # in case of updating an existing device type, some or all console ports
+            # will already exist. in this case, we can ignore the error
+            pass
+
+    def _populate_power_port(power_port):
+        power_port_data = dict(
+            device_type=device_type_id,
+            name=power_port.get("name"),
+            type=power_port.get("type"),
+            description=power_port.get("description"),
+        )
+        if power_port_data["description"] is None:
+            del power_port_data["description"]
+        try:
+            nb.dcim.power_port_templates.create(power_port_data)
+        except pynautobot.RequestError:
+            # in case of updating an existing device type, some or all power ports
+            # will already exist. in this case, we can ignore the error
+            pass
+
+    def _populate_module_bay(module_bay):
+        mb_name = module_bay.get("name")
+        if prompt.get_bool(
+            "load_module",
+            f"{model} defines a module bay called {mb_name}. "
+            "Would you like to link a module into it?",
+        ):
+            modules_available = [
+                f.stem
+                for f in Path("module-types").joinpath(manufacturer).glob("*.yaml")
+            ]
+            module_file_name = prompt.get_from_choices(
+                "module",
+                modules_available,
+                "Select a module to link to this module bay",
+            )
+            module_file = Path("module-types").joinpath(
+                manufacturer, f"{module_file_name}.yaml"
+            )
+            module_data = loads(module_file.read_text())
+            _populate_device_type_components(module_data)
+
+    def _populate_device_type_components(component_data):
+        # component_data could be the device_type dict,
+        # or it could be a dict loaded from a module
+        if interfaces := component_data.get("interfaces"):
+            logger.info(f"Creating interfaces for {model}")
+            for interface in interfaces:
+                _populate_interface(interface)
+
+        if console_ports := component_data.get("console-ports"):
+            logger.info(f"Creating console ports for {model}")
+            for console_port in console_ports:
+                _populate_console_port(console_port)
+
+        if power_ports := component_data.get("power-ports"):
+            logger.info(f"Creating power ports for {model}")
+            for power_port in power_ports:
+                _populate_power_port(power_port)
+
+        if "rear-ports" in component_data or "front-ports" in component_data:
+            # TODO: add support for front and rear ports to support patch panels
+            logger.error(
+                f"{model} defines rear-ports or front-ports, which are not yet supported by this script. Skipping..."
+            )
+            logger.error(
+                "Please create these manually in Nautobot or ask my creator to add support for them."
+            )
+
+        if module_bays := component_data.get("module-bays"):
+            for module_bay in module_bays:
+                _populate_module_bay(module_bay)
+
+    _populate_device_type_components(device_type)
+
+    logger.info("Done!")
+
