@@ -243,7 +243,7 @@ def lst(s: str) -> List[str]:
     return list_
 
 
-def shell(cmd: str, input: str | bytes | None = None) -> str:
+def shell(cmd: str, input_: str | bytes | None = None, cwd: str | Path | None = None) -> str:
     """
     run a shell command, and return its output
 
@@ -253,11 +253,11 @@ def shell(cmd: str, input: str | bytes | None = None) -> str:
         >>> shell("grep -i 'hello'", "Hello world")
         'Hello world'
     """
-    if input is not None and isinstance(input, str):
-        input = input.encode()
+    if input_ is not None and isinstance(input_, bytes):
+        input_ = input_.decode()
     return (
-        run(cmd, shell=True, capture_output=True, check=True, input=input)
-        .stdout.decode()
+        run(cmd, shell=True, capture_output=True, check=True, text=True, input=input_, cwd=cwd)
+        .stdout
         .strip()
     )
 
