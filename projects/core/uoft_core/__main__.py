@@ -64,7 +64,6 @@ ALL_PROJECTS = [
     "ssh",
     "scripts",
     "switchconfig",
-    "core",
 ]
 # [[[end]]]
 
@@ -88,9 +87,16 @@ def _add_subcommands() -> tuple[set[str], set[str]]:
             # if the module isn't installed locally, doesn't have a cli.py,
             # or if it doesn't have an app object,
             # look for it on PATH and add a virtual subcommand for it
-            if ext := which(f"uoft-{p}"):
+            ext = which(f"uoft-{p}")
+            if ext:
+                name = ext
                 external_subcommands.add(p)
-                app.command(p)(lambda: os.execve(ext, [f"uoft-{p}"] + sys.argv[2:]))  # type: ignore
+
+                # I think a typer update broke my lambda...
+                # seems to require an actual function now
+                @app.command(p)
+                def _():
+                    os.execv(name, [f"uoft-{p}"] + sys.argv[2:])
 
     return internal_subcommands, external_subcommands
 
@@ -153,6 +159,7 @@ def cli():
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
+        
 
 
 if __name__ == "__main__":
