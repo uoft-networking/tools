@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import logging
 from pathlib import Path
 import os
+import sys
 
 from uoft_core.tests import MockFolders
 
@@ -31,6 +32,17 @@ if os.getenv("VSCODE_DEBUGGER"):
     @pytest.hookimpl(tryfirst=True)
     def pytest_internalerror(excinfo):
         raise excinfo.value
+    
+    import logging
+    configured = False
+    for handler in logging.root.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream.name == "<stderr>":
+                configured = True
+                break
+    if not configured:
+        logging.root.setLevel(logging.INFO)
+        logging.root.addHandler(logging.StreamHandler())
 
 
 @pytest.fixture
