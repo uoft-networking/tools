@@ -47,9 +47,8 @@ def callback(
         log_level = "DEBUG"
     if trace:
         log_level = "TRACE"
-    util.logging.enable()
-    util.logging.add_stderr_rich_sink(log_level)
-    util.logging.add_syslog_sink()
+    import logging
+    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s", stream=sys.stderr)
 
 
 # [[[cog
