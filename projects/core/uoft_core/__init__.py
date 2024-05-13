@@ -1069,6 +1069,8 @@ S = TypeVar("S", bound="BaseSettings")
 
 
 class BaseSettingsMeta(ModelMetaclass):
+    # This metaclass is responsible for setting the env_prefix attribute on the Config class of any 
+    # subclass of BaseSettings
     def __new__(cls, name, bases, namespace, **kwargs):
         config_class = namespace.get("Config")
         if config_class is None:

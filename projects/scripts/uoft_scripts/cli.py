@@ -50,9 +50,8 @@ def callback(
         log_level = "DEBUG"
     if trace:
         log_level = "TRACE"
-    config.util.logging.enable()
-    config.util.logging.add_stderr_rich_sink(log_level)
-    config.util.logging.add_syslog_sink()
+    import logging
+    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s", stream=sys.stderr)
 
 
 def cli():
@@ -62,10 +61,6 @@ def cli():
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
-    except Exception as e:  # pylint: disable=broad-except
-        # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
-        logger.error(e)
-        logger.debug(traceback.format_exc())
 
 
 def deprecated():

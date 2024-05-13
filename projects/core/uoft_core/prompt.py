@@ -110,6 +110,7 @@ class Prompt:
         default_value: str | None = None,
         completer_opts: dict | None = None,
         fuzzy_search: bool = False,
+        generate_rprompt: bool = True,
         **kwargs,
     ) -> str:
         validator = Validator.from_callable(
@@ -121,10 +122,11 @@ class Prompt:
         completer = WordCompleter(list(choices), **completer_opts)
         if fuzzy_search:
             completer = FuzzyCompleter(completer)
+        if generate_rprompt:
+            kwargs["rprompt"] = HTML(f"Valid options are: <b>{', '.join(choices)}</b>")
         opts = dict(
             completer=completer,
             complete_while_typing=True,
-            rprompt=HTML(f"Valid options are: <b>{', '.join(choices)}</b>"),
             validator=validator,
         )
         opts.update(kwargs)
