@@ -592,3 +592,145 @@ def sync_from_bluecat(dev: bool = False):
     print(runtime)
 
 
+def _autocomplete_hostnames(partial: str):
+    nb = NautobotManager().api
+    if partial:
+        query = nb.dcim.devices.filter(name__ic=partial)
+    else:
+        query = nb.dcim.devices.all()
+    return [d.name for d in query]  # type: ignore
+
+
+def _get_jinja_env(templates_dir: Path):
+    from . import _jinja
+    from uoft_core import jinja_library
+
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(templates_dir),
+        undefined=jinja2.StrictUndefined,
+        trim_blocks=True,
+        lstrip_blocks=True,
+        autoescape=False,
+    )
+    _jinja.import_repo_filters_module(templates_dir)
+    # the _jinja module registers filters when it's imported,
+    # and the templates_dir's filters.py file registers filters / functions / extensions when it's imported
+    # we need to update the environment with the filters / functions / extensions from both
+    jinja_library._update_env(env)
+    return env
+
+
+@app.command()
+def show_golden_config_data(
+    device_name: str = typer.Argument(..., autocompletion=_autocomplete_hostnames),
+    dev: bool = False,
+):
+    nb = NautobotManager(dev).api
+    device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
+    gql_query: str = nb.extras.graphql_queries.get(name="golden_config").query  # type: ignore
+    data = nb.graphql.query(gql_query, {"device_id": device.id})
+    print(json.dumps(data.json["data"]["device"], indent=2))
+
+
+@typing.no_type_check
+@app.command()
+def trigger_golden_config_intended(
+    device_name: typing.Annotated[
+        str, typer.Argument(..., autocompletion=_autocomplete_hostnames)
+    ],
+    dev: bool = False,
+):
+    nb = NautobotManager(dev).api
+    device: Record = nb.dcim.devices.get(name=device_name)
+    job = nb.extras.jobs.get(name="Generate Intended Configurations")
+    job_result = nb.extras.jobs.run(
+        job_id=job.id, data={"device": [device.id]}
+    ).job_result
+    print(
+        "A new `Generate Intended Configurations` job run has been triggered. Job status / results can be found here:"
+    )
+    print(job_result.url.replace("/api/", "/"))
+
+
+@app.command()
+def template_filter_info(
+    templates_dir: TemplatesPath = Path("."),
+):
+
+    # scan the templates for uses of jinja filters
+    found_filters = set()
+    import re
+
+    for template_file in templates_dir.glob("templates/**/*.j2"):
+        logger.info(f"Scanning {template_file}")
+        for match in re.finditer(
+            r"\|\s*([a-zA-Z_][a-zA-Z0-9_]*)", template_file.read_text()
+        ):
+            filter_name = match.group(1).strip()
+            found_filters.add(filter_name)
+            logger.debug(filter_name)
+    found_filters = sorted(found_filters)
+    found_filters = "\n- ".join(found_filters)
+    logger.info(f"Your templates use the following filters: \n- {found_filters}")
+    env = _get_jinja_env(templates_dir)
+    filters = [f for f in env.filters]
+    filters = sorted(filters)
+    filters = "\n- ".join(filters)
+    logger.info(f"You have the following filters available: \n- {filters}")
+
+
+@app.command()
+def test_golden_config_templates(
+    device_name: typing.Annotated[
+        str, typer.Argument(autocompletion=_autocomplete_hostnames)
+    ],
+    templates_dir: TemplatesPath = Path("."),
+    dev: bool = False,
+):
+    nb = NautobotManager(dev).api
+    device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
+    gql_query = templates_dir.joinpath("graphql/golden_config.graphql").read_text()
+    data = nb.graphql.query(gql_query, {"device_id": device.id}).json["data"]["device"]
+
+    # we need to copy the behaviour of the transposer function without actually importing it
+    data["data"] = data.copy()
+
+    # we need to set up a jinja environment which mimics the behaviour of the one set up by
+    # nautobot for rendering golden config templates
+    env = _get_jinja_env(templates_dir)
+    t = env.get_template("templates/entrypoint.j2")
+    text = t.render(data)
+    print(text)
+
+
+@typing.no_type_check
+@app.command()
+def push_changes_to_nautobot(
+    templates_dir: TemplatesPath = Path("."),
+    dev: bool = False,
+):
+    import subprocess
+
+    # make sure git status is clean
+    git_status = subprocess.run(
+        ["git", "status", "--porcelain"], capture_output=True, cwd=templates_dir
+    )
+    assert (
+        git_status.returncode == 0
+    ), "This command is meant to be run AFTER you've committed your changes."
+
+    logger.info("Pushing local changes to gitlab")
+    subprocess.run(["git", "push"], check=True, cwd=templates_dir)
+
+    logger.info("Telling nautobot to pull the changes")
+    nb = NautobotManager(dev).api
+    gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
+    job = nb.extras.jobs.get(name="Git Repository: Sync")
+    job_result = nb.extras.jobs.run(
+        job_id=job.id, data={"repository": gitrepo.id}
+    ).job_result
+    print(
+        "A new `GitRepository: Sync` job run has been triggered. Job status / results can be found here:"
+    )
+    print(job_result.url.replace("/api/", "/"))
+
