@@ -422,6 +422,17 @@ class PassPath(PosixPath):
             )
 
 
+def bitwarden_get(secret_name: str) -> str:
+    # for interactive use, e.g. for use in scripts & CLI tools, prefer the `rbw` command line tool
+    # for non-interative use, e.g. in a web server, use the `bw` command line tool
+    raise NotImplementedError("bitwarden_get is not yet implemented")
+    if sys.stdout.isatty():
+        # look for rbw, fall back to bw
+        pass
+    else:
+        # look for bw, raise an error if it's not found
+        pass
+
 class Timeit:
     """
     Wall-clock timer for performance profiling. makes it really easy to see
@@ -1115,6 +1126,24 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 "Subclasses of BaseSettings must include a Config class that is a subclass of BaseSettings.Config"
             )
         super().__init_subclass__(**kwargs)
+
+    #@pydantic.validator("*", pre=True)
+    def _validate_ref_fields(cls, value):
+        # if any field has a value that looks like "ref[prefix:field]", 
+        # verify that prefix is either `pass` (for the linux password-store) or `bw` (for bitwarden)
+        # look up 'field' in the password store or bitwarden and replace the value with the result
+        if isinstance(value, str) and value.startswith("ref[") and value.endswith(']'):
+            ref = value[4:-1]
+            if not ref:
+                raise ValueError("Reference field cannot be empty")
+            if ref.startswith("pass:"):
+                lookup_name = ref[5:]
+                return shell(f"pass show {lookup_name}").strip()
+            if ref.startswith("bw:"):
+                lookup_name = ref[3:]
+                return bitwarden_get(lookup_name)
+            raise ValueError(f"Invalid reference field: {value}")
+
 
     @classmethod
     def _util(cls) -> "Util":
