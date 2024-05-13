@@ -48,13 +48,12 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
         )
         job_result.log(f"Updated GraphQL query: {name}", level_choice=LogLevelChoices.LOG_INFO)
 
-    # TODO: clean up this hack
-    # we use the same repository to store jinja filters for golden config templates as well as graphql queries
-    # we need to re-import the jinja filters module to pick up any changes when we update from git
-    # And this is the only hook we have into the git update process
-    # So we do it here
+    # TODO: reimplement this as a separate datasource
+    # we have a mechanism to load jinja filters fro ma file called filters.py in the root of the repo
+    # When this file changes (as part of a git pull) we want to reload the filters module
+    # in the running nautobot instance. Since we use the same repo to store our filters.py file and
+    # our graphql queries, we can use this datasource function to trigger the reload.
     import_repo_filters_module(repo_path, force=True)
-        
 
 
 # Register that DeviceType records can be loaded from a Git repository,

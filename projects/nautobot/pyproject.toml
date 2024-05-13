@@ -14,7 +14,7 @@ dependencies = [
   "uoft_bluecat",
   "nautobot >= 2.1.1",
   "python-jose >= 3.0.0",
-  "nautobot_ssot >= 2.0",
+  "nautobot_ssot >= 2.3",
   "nautobot_golden_config >= 2.0",
   "nautobot-device-onboarding >= 3.0",
   "python-jose >= 3.0.0",

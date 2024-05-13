@@ -64,7 +64,7 @@ class ExcelContext:
         else:
             vlan_group_name = self.device_obj.name.partition("-")[2][:2]  # type: ignore
             self.vlan_group = VLANGroup.objects.get(name=vlan_group_name)
-        self.valid_vlans = VLAN.objects.filter(group=self.vlan_group)
+        self.valid_vlans = VLAN.objects.filter(vlan_group=self.vlan_group)
 
 
 def export_to_excel(pk):
@@ -78,7 +78,7 @@ def export_to_excel(pk):
     def _vlan_to_string(vlan):
         if not vlan:
             return None
-        return f"{vlan.group.name}/{vlan.name}({vlan.vid})"
+        return f"{vlan.vlan_group.name}/{vlan.name}({vlan.vid})"
 
     spec = [
         {
