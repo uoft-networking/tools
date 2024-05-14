@@ -6,7 +6,7 @@ import logging.handlers
 import os
 import pickle
 import platform
-import re
+import logging
 import sys
 import time
 from shutil import which
@@ -34,7 +34,7 @@ from typing import (
     get_origin,
 )
 
-from loguru import logger
+
 from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
 from pydantic.fields import Field
 import pydantic.types
@@ -52,9 +52,20 @@ if TYPE_CHECKING:
 
 __version__ = version(__package__)
 
-logger.disable(__name__)
-# loguru best practice is for libraries to disable themselves and
-# for cli apps to re-enable logging on the libraries they use
+class CoreLogger(logging.Logger):
+    def trace(self, msg, *args, **kwargs):
+        self.log(5, msg, *args, **kwargs)
+
+def get_logger(name):
+    orig_logger_class = logging.getLoggerClass()
+    logging.setLoggerClass(CoreLogger)
+    logger: CoreLogger = logging.getLogger(name) # type: ignore
+    logging.setLoggerClass(orig_logger_class)
+    return logger
+
+
+logging.addLevelName(5, "TRACE")
+logger = get_logger(__name__)
 
 # region SECTION util functions & classes
 
@@ -232,7 +243,7 @@ def lst(s: str) -> List[str]:
     return list_
 
 
-def shell(cmd: str, input: str | bytes | None = None) -> str:
+def shell(cmd: str, input_: str | bytes | None = None, cwd: str | Path | None = None) -> str:
     """
     run a shell command, and return its output
 
@@ -242,11 +253,11 @@ def shell(cmd: str, input: str | bytes | None = None) -> str:
         >>> shell("grep -i 'hello'", "Hello world")
         'Hello world'
     """
-    if input is not None and isinstance(input, str):
-        input = input.encode()
+    if input_ is not None and isinstance(input_, bytes):
+        input_ = input_.decode()
     return (
-        run(cmd, shell=True, capture_output=True, check=True, input=input)
-        .stdout.decode()
+        run(cmd, shell=True, capture_output=True, check=True, text=True, input=input_, cwd=cwd)
+        .stdout
         .strip()
     )
 
@@ -339,14 +350,17 @@ def create_or_update_config_file(
     file: Path, obj: dict[str, Any], write_as: Optional[DataFileFormats] = None
 ):
     if file.exists():
+        logger.debug(f"Updating existing config file {file}")
         existing = parse_config_file(file, parse_as=write_as)
         existing.update(obj)
         obj = existing
+    else:
+        logger.debug(f"Creating new config file {file}")
     write_config_file(file, obj, write_as=write_as)
 
 
 class PassPath(PosixPath):
-    """An abstract path representing an entry in the pass password store"""
+    """An abstract path representing an entry in the `pass` password store"""
 
     _pass_installed: bool
     _contents: str | None
@@ -366,12 +380,16 @@ class PassPath(PosixPath):
         if self._pass_installed:
             if self._contents is None:
                 try:
+                    logger.debug(f"Running pass command: `{self.command_name}`")
                     self._contents = shell(self.command_name)
                 except CalledProcessError as e:
-                    if b'gpg: decryption failed:' in e.stderr:
+                    if 'gpg: decryption failed:' in e.stderr:
                         raise e
+                    if e.returncode == 1:
+                        logger.debug(f"Password-store entry {self} does not exist, skipping")
                     self._contents = ""
             return self._contents
+        logger.debug(f"pass is not installed, skipping {self}")
         return ""
 
     def exists(self) -> bool:
@@ -393,7 +411,7 @@ class PassPath(PosixPath):
         self, data: str, encoding: str | None = None, errors: str | None = None
     ) -> None:
         if self._pass_installed:
-            shell(f"pass insert -m {self}", input=data)
+            shell(f"pass insert -m {self}", input_=data)
             self._contents = data
         else:
             raise UofTCoreError(
@@ -511,6 +529,7 @@ class InterceptHandler(logging.Handler):
 
     def emit(self, record):
         # Get corresponding Loguru level if it exists
+        from loguru import logger
         try:
             level = logger.level(record.levelname).name
         except ValueError:
@@ -682,7 +701,7 @@ class Util:
         @cached_property
         def files(self):
             res = list(self.files_generator())
-            logger.bind(list=res).trace("Caching list of config files: ")
+            logger.trace(f"Caching list of config files: {res}")
             return res
 
         @property
@@ -826,6 +845,7 @@ class Util:
             self.syslog_format = f"{self.parent.app_name} | {{name}}:{{function}}:{{line}} - {{level.name: ^8}} | {{message}} | Data: {{extra}}"
 
         def add_stderr_sink(self, level="INFO", **kwargs):
+            from loguru import logger
             options = dict(
                 backtrace=False,
                 level=level,
@@ -836,6 +856,7 @@ class Util:
             logger.add(sys.stderr, **options)  # type: ignore
 
         def add_stderr_rich_sink(self, level="INFO", **kwargs):
+            from loguru import logger
             options = dict(
                 backtrace=False,
                 level=level,
@@ -845,6 +866,7 @@ class Util:
             logger.add(self.parent.console.print, **options)  # type: ignore
 
         def add_json_logfile_sink(self, filename=None, level="DEBUG", **kwargs):
+            from loguru import logger
             filename = filename or f"{self.parent.app_name}.log"
             options = dict(
                 level=level,
@@ -858,6 +880,7 @@ class Util:
             logger.add(filename, **options)  # type: ignore
 
         def add_syslog_sink(self, level="DEBUG", syslog_address=None, **kwargs):
+            from loguru import logger
             if platform.system() == "Windows":
                 # syslog configs like level and facility don't apply in windows,
                 # so we set up a basic event log handler instead
@@ -882,6 +905,7 @@ class Util:
             logger.add(handler, **options)  # type: ignore
 
         def add_sentry_sink(self, level="ERROR", **kwargs):
+            from loguru import logger
             try:
                 sentry_dsn = self.parent.config.get_key_or_fail("sentry_dsn")
             except KeyError:
@@ -938,6 +962,7 @@ class Util:
             logger.add(sentry_sink, level=level, **kwargs)
 
         def enable(self):
+            from loguru import logger
             logger.remove()  # remove default handler, if it exists
             logger.enable("")  # enable all logs from all modules
 
@@ -1044,6 +1069,8 @@ S = TypeVar("S", bound="BaseSettings")
 
 
 class BaseSettingsMeta(ModelMetaclass):
+    # This metaclass is responsible for setting the env_prefix attribute on the Config class of any 
+    # subclass of BaseSettings
     def __new__(cls, name, bases, namespace, **kwargs):
         config_class = namespace.get("Config")
         if config_class is None:
@@ -1070,7 +1097,10 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     def from_cache(cls: Type[S]) -> S:
         # For each subclass of BaseSettings, this method should return an instance of that subclass
         if cls._instance is None:
+            logger.debug(f"Settings(app_name={cls.Config.app_name}): Loading settings")
             cls._instance = cls()
+        else:
+            logger.debug(f"Settings(app_name={cls.Config.app_name}): Settings already loaded")
         cls._instance: S
         return cls._instance
 
@@ -1167,6 +1197,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @classmethod
     def prompt_for_missing_values(cls, values):
         missing_keys = [key for key in cls.__fields__ if key not in values]
+        logger.debug(f"Settings(app_name={cls.Config.app_name}): Missing keys: {missing_keys}")
 
         # If a BaseSettings subclass appears in the missing_keys list, and that field is marked prompt=False,
         # Then we should source the value from the subclass's from_cache method, and remove the subclass from the missing_keys list
@@ -1181,7 +1212,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             except TypeError:
                 is_model = False
             if field.field_info.extra.get("prompt", True) is False:
-
+                logger.debug(f"Settings(app_name={cls.Config.app_name}): Prompting disabled for field {key}")
                 if is_model:
                     values[key] = type_.from_cache()
                 
@@ -1192,16 +1223,19 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
         if not missing_keys:
             # Everything's present and accounted for. nothing to do here
+            logger.debug(f"Settings(app_name={cls.Config.app_name}): No missing keys remaining to prompt for")
             return values
 
         if not cls.Config.prompt_on_missing_values:
             # interactively prompting for values is disabled on this subclass
             # Return values as is and let pydantic report validation errors on missing fields
+            logger.debug(f"Settings(app_name={cls.Config.app_name}): Prompting disabled for missing values")
             return values
 
         if not sys.stdout.isatty():
             # We're not in a terminal.  We can't prompt for input.
             # Return values as is and let pydantic report validation errors on missing fields
+            logger.debug(f"Settings(app_name={cls.Config.app_name}): Not in a terminal. Skipping interactive prompt for missing values")
             return values
 
         # We're in a terminal and we're missing some values.
@@ -1225,6 +1259,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         for file_path, file in cls._util().config.files:
             if file in {File.writable, File.creatable}:
                 save_targets.append(str(file_path))
+        logger.debug(f"Settings(app_name={cls.__config__.app_name}): Save targets: {save_targets}")
 
         # prompt user to select a save target
         p = cls._prompt()
@@ -1277,13 +1312,16 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                         if not text:
                             # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
                             continue
+                        logger.debug(f"Attempting to parse TOML data from {path}")
                         res.update(toml.loads(text))
+                        logger.info(f"Loaded settings from {path}")
                     except toml.TOMLDecodeError as e:
                         # at this point, we can be sure that pass is installed, and the user did create a pass entry,
                         # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
                         raise UofTCoreError(
                             f"Error parsing data returned from `{path.command_name}`. expected a TOML document, but failed parsing as TOML: {e.args}"
                         ) from e
+                    logger.debug(f"Successfully loaded settings from {path}")
                 return res
 
             return settings_from_pass

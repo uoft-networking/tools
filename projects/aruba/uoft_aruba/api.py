@@ -226,31 +226,31 @@ class ArubaRESTAPIClient:
                 return res["_data"]["ap_group"]
 
             @staticmethod
-            def get_ap_client_blacklist():
+            def get_ap_client_blocklist():
                 res = self.showcommand("show ap blacklist-clients")
                 # In AOS 8.10, the output key was changed from "Blacklisted Clients" to "Client Denylist"
                 return res.get("Blacklisted Clients", res.get("Client Denylist"))
 
             @staticmethod
-            def stm_blacklist_remove(mac_address: str):
+            def stm_blocklist_remove(mac_address: str):
                 return self.post(
                     "stm_blacklist_client_remove", {"client-mac": mac_address}
                 )
 
             @staticmethod
-            def blmgr_blacklist_add(mac_address: str):
+            def blmgr_blocklist_add(mac_address: str):
                 return self.post(
                     "blmgr_blacklist_client_add", {"client-mac": mac_address}
                 )
 
             @staticmethod
-            def blmgr_blacklist_remove(mac_address: str):
+            def blmgr_blocklist_remove(mac_address: str):
                 return self.post(
                     "blmgr_blacklist_client_remove", {"client-mac": mac_address}
                 )
 
             @staticmethod
-            def blmgr_blacklist_purge():
+            def blmgr_blocklist_purge():
                 return self.post("blmgr_blacklist_clients_purge", {})
 
         return WLAN

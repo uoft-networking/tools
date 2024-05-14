@@ -4,7 +4,7 @@ from typing import Literal, Any
 from pathlib import Path
 from pydantic import BaseModel, Field
 from pydantic.types import SecretStr as SecretStrBase, FilePath, DirectoryPath
-from ._vendor.netaddr import IPNetwork, IPAddress
+from ._vendor.netaddr import IPNetwork as IPNetworkBase, IPAddress as IPAddressBase
 
 
 _json_default = json.JSONEncoder.default
@@ -28,7 +28,19 @@ json.JSONEncoder.default = _custom_json_default_encoder
 BaseModel.__json_encode__ = BaseModel.dict # type: ignore
 
 
-class IPv4Address(IPAddress):
+class IPAddress(IPAddressBase):
+    @classmethod
+    def __get_validators__(cls):
+        def validator(val: Any) -> "IPAddress":
+            nv = cls(val)
+            if nv.version == 4:
+                return nv.ipv4()  # type: ignore
+            return nv.ipv6() # type: ignore
+
+        yield validator
+
+
+class IPv4Address(IPAddressBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv4Address":
@@ -37,7 +49,7 @@ class IPv4Address(IPAddress):
         yield validator
 
 
-class IPv6Address(IPAddress):
+class IPv6Address(IPAddressBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv6Address":
@@ -46,7 +58,19 @@ class IPv6Address(IPAddress):
         yield validator
 
 
-class IPv4Network(IPNetwork):
+class IPNetwork(IPNetworkBase):
+    @classmethod
+    def __get_validators__(cls):
+        def validator(val: Any) -> "IPNetwork":
+            nv = cls(val)
+            if nv.version == 4:
+                return nv.ipv4()  # type: ignore
+            return nv.ipv6() # type: ignore
+
+        yield validator
+
+
+class IPv4Network(IPNetworkBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv4Network":
@@ -55,7 +79,7 @@ class IPv4Network(IPNetwork):
         yield validator
 
 
-class IPv6Network(IPNetwork):
+class IPv6Network(IPNetworkBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv6Network":
@@ -109,5 +133,9 @@ __all__ = (
     "DirectoryPath",
     "StrEnum",
     "IPNetwork",
+    "IPv4Network",
+    "IPv6Network",
     "IPAddress",
+    "IPv4Address",
+    "IPv6Address",
 )

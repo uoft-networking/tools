@@ -86,7 +86,7 @@ class ArubaBlocklistView(APIView):
     )
     def get(self, request, format=None):
         """
-        Get the current aggregated WiFi authentication block list (aka 'stm blacklist')
+        Get the current aggregated WiFi authentication block list (aka 'stm blocklist')
         from the aruba controllers
 
         Example:
@@ -118,7 +118,12 @@ class ArubaBlocklistView(APIView):
         res = {}
         for c in self.controllers:
             with c as conn:
-                res.update({entry['STA']: entry for entry in conn.wlan.get_ap_client_blacklist()})
+                res.update(
+                    {
+                        entry["STA"]: entry
+                        for entry in conn.wlan.get_ap_client_blocklist()
+                    }
+                )
         return Response(list(res.values()))
 
     @extend_schema(
@@ -144,7 +149,7 @@ class ArubaBlocklistView(APIView):
     )
     def delete(self, request, format=None):
         """
-        Remove a mac address from the WiFi authentication block list (aka 'stm blacklist')
+        Remove a mac address from the WiFi authentication block list (aka 'stm blocklist')
         of the aruba controllers.
         Requests on this endpoint must include a JSON payload with a 'mac-address'
         key whose value matches the regex pattern '^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})$'.
@@ -165,7 +170,7 @@ class ArubaBlocklistView(APIView):
 
         # Now we can go ahead and delete the mac-address
         with self.mobility_master as conn:
-            conn.wlan.blmgr_blacklist_remove(mac)
+            conn.wlan.blmgr_blocklist_remove(mac)
 
         res = {
             "detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"
