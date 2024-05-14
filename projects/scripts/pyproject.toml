@@ -10,6 +10,13 @@ license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
   "uoft_core",
+  "uoft_bluecat",
+  "uoft_ssh",
+  "pynautobot >= 2.1.1",
+  "jinja2",
+  "deepdiff",
+  "python-box",
+  "glom",
   "pydantic >= 1.9.0",
   "prompt-toolkit >= 3.0.19",
   "rich >= 10.7.0",

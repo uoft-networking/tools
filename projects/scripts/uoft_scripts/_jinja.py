@@ -1,12 +1,9 @@
 from textwrap import indent, dedent
 from typing import Literal
 from hashlib import shake_128
-from django_jinja import library
 from jinja2.sandbox import SandboxedEnvironment
 from jinja2.runtime import Context
 from jinja2 import FileSystemLoader, pass_context
-from . import Settings
-from .golden_config import encrypt_type9, type9_encode
 from pathlib import Path
 import sys
 import ipaddress
@@ -14,9 +11,18 @@ import re
 from importlib.util import spec_from_file_location, module_from_spec
 from base64 import b64encode
 import inspect
-from django.conf import settings
 from box import Box
 from uoft_core import compile_source_code
+from uoft_core.types import Field
+import uoft_core.jinja_library as library
+from uoft_ssh import Settings as SSHSettingsBase, Credentials
+
+
+
+class SSHSettings(SSHSettingsBase):
+    nautobot: Credentials = Field(
+        description="Credentials for the Nautobot user, typically has read-only access."
+    )
 
 # At import time, we need to import filters defined in git repositories
 def _hash_path(path: Path):
@@ -24,7 +30,7 @@ def _hash_path(path: Path):
     return b64encode(path.stem.encode()).decode().replace("/", "").replace("+", "").replace("=", "")
 
 def repo_filters_module_name(repo_path: Path):
-    return "uoft_nautobot.jinja_filters_from_git_repo_" + _hash_path(repo_path)
+    return "jinja_filters_from_git_repo_" + _hash_path(repo_path)
 
 def import_repo_filters_module(repo_path: Path, force=False):
     module_name = repo_filters_module_name(repo_path)
@@ -41,43 +47,14 @@ def import_repo_filters_module(repo_path: Path, force=False):
     spec.loader.exec_module(module) # type: ignore
     return module
 
-for repo in Path(settings.GIT_ROOT).iterdir():
-    if repo.is_dir():
-        import_repo_filters_module(repo)
-
-def _get_jinja_env() -> SandboxedEnvironment:
-    """
-    nautobot-nornir, nautobot-golden-config, and nautobot-netbox-importer all use a
-    separate jinja environment from the one used by django_jinja
-    This function finds the jinja environment being used to render the current template
-    """
-    for frame in inspect.stack():
-        if frame.function == "load":
-            vars = frame.frame.f_locals
-            if 'environment' not in vars:
-                continue
-            return vars['environment']
-    raise RuntimeError("Unable to find the template being rendered")
-
 @library.filter
 def load_local_jinja_library(_):
-    """Loads filters, tests, globals, and extensions collocated with the template being rendered"""
-
-    environment = _get_jinja_env()
-    loader: FileSystemLoader = environment.loader  # type: ignore
-    repo = Path(loader.searchpath[0])
-    import_repo_filters_module(repo)
-
-    # The imported filters module is expected to register its own filters, tests, globals, and extensions
-    # using the uoft_core.jinja_library decorators
-    # We need to re-register them with the current environment
-    from uoft_core import jinja_library
-    jinja_library._update_env(environment)
-
-    # TODO: remove this hack
-    environment.trim_blocks = True
-    environment.lstrip_blocks = True
-    environment.autoescape = False
+    # in nautobot, this filter would dynamically find the root of the templates git repo
+    # load the filters.py file, and import it as a module
+    # find the currently-running Jinja environment, override some of its otherwise-inaccessible settings
+    # and inject the filters from the imported module into the environment
+    # this is a bit of a hack, but it's the only way to dynamically load filters from a git repo in nautobot golden config
+    # here in uoft-scripts, none of that is necessary and this filter is a no-op
 
     # because this is a filter, we need to return something,
     # something that won't show up in the rendered output
@@ -128,11 +105,12 @@ def reindent(text: str, spaces: int):
 @library.filter
 def derive_type9_password(hostname, password_variant: Literal['enable', 'admin']):
     """Derives a type 9 password from a given switch object and a password variant"""
-    s = Settings.from_cache()
+
+    s = SSHSettings.from_cache()
     if password_variant == 'enable':
-        password = s.ssh.enable_secret.get_secret_value()
+        password = s.enable_secret.get_secret_value()
     elif password_variant == 'admin':
-        password = s.ssh.admin.password.get_secret_value()
+        password = s.admin.password.get_secret_value()
     else:
         raise ValueError(f"Invalid password variant: {password_variant}")
 
@@ -187,3 +165,78 @@ def debug_jinja(obj):
     filters = template.environment.filters  # noqa
     breakpoint()
     return obj
+
+# temporary code for inject_secrets post-processor
+# This stuff is in the process of being upstreamed to nautobot
+import base64
+from hashlib import scrypt
+import string
+import secrets
+
+ALPHABET = string.ascii_letters + string.digits
+ENCRYPT_TYPE9_ENCODING_CHARS = "".join(
+    ("./", string.digits, string.ascii_uppercase, string.ascii_lowercase)
+)
+BASE64_ENCODING_CHARS = "".join(
+    (string.ascii_uppercase, string.ascii_lowercase, string.digits, "+/")
+)
+
+
+def type9_encode(data: bytes) -> str:
+    encoding_translation_table = str.maketrans(
+        BASE64_ENCODING_CHARS,
+        ENCRYPT_TYPE9_ENCODING_CHARS,
+    )
+    res = base64.b64encode(data).decode().translate(encoding_translation_table)
+
+    # and strip off the trailing '='
+    res = res[:-1]
+    return res
+
+
+def type9_decode(data: str) -> bytes:
+    encoding_translation_table = str.maketrans(
+        ENCRYPT_TYPE9_ENCODING_CHARS,
+        BASE64_ENCODING_CHARS,
+    )
+    # add back the trailing '='
+    data += "=="
+    res = data.translate(encoding_translation_table)
+    res = base64.b64decode(res)
+    return res
+
+
+def encrypt_type9(unencrypted_password: str, salt: str | None = None) -> str:
+    """Given an unencrypted password of Cisco Type 9 password, encypt it.
+
+    Args:
+        unencrypted_password: A password that has not been encrypted, and will be compared against.
+        salt: a 14-character string that can be set by the operator. Defaults to random generated one.
+
+    Returns:
+        The encrypted password.
+
+    Examples:
+        >>> from netutils.password import encrypt_type9
+        >>> encrypt_type9("123456")
+        "$9$cvWdfQlRRDKq/U$VFTPha5VHTCbSgSUAo.nPoh50ZiXOw1zmljEjXkaq1g"
+        >>> encrypt_type9("123456", "cvWdfQlRRDKq/U")
+        "$9$cvWdfQlRRDKq/U$VFTPha5VHTCbSgSUAo.nPoh50ZiXOw1zmljEjXkaq1g"
+    """
+
+    if salt:
+        if len(salt) != 14:
+            raise ValueError("Salt must be 14 characters long.")
+    else:
+        # salt must always be a 14-byte-long printable string, often includes symbols
+        salt = "".join(secrets.choice(ENCRYPT_TYPE9_ENCODING_CHARS) for _ in range(14))
+
+    key = scrypt(
+        unencrypted_password.encode(), salt=salt.encode(), n=2**14, r=1, p=1, dklen=32
+    )
+
+    # Cisco type 9 uses a different base64 encoding than the standard one, so we need to translate from
+    # the standard one to the Cisco one.
+    hash = type9_encode(key)
+
+    return f"$9${salt}${hash}"

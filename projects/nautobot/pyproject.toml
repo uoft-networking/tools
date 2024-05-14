@@ -12,12 +12,11 @@ dependencies = [
   "uoft_aruba",
   "uoft_ssh",
   "uoft_bluecat",
-  "nautobot == 1.6.1",
+  "nautobot >= 2.2.0",
   "python-jose >= 3.0.0",
-  "nautobot_ssot >= 1.3",
-  "nautobot_golden_config",
-  "nautobot-device-onboarding",
-  "django-auth-ldap",
+  "nautobot_ssot >= 2.3",
+  "nautobot_golden_config >= 2.0",
+  "nautobot-device-onboarding >= 3.0",
   "debugpy",
   "django-debug-toolbar",
   "html-table-parser-python3 >=0.2.0",
@@ -28,6 +27,8 @@ dependencies = [
   "python-box",
   "glom",
   "openpyxl",
+  "pynautobot",
+  "deepdiff",
 ]
 dynamic = ["version"]
 

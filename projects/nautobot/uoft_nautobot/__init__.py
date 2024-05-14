@@ -1,4 +1,8 @@
 from importlib import metadata
+import typing
+
+from nautobot.apps import NautobotAppConfig
+from importlib import metadata
 from uoft_core import BaseSettings, Field, SecretStr
 from uoft_core.types import BaseModel
 from uoft_aruba import Settings as ArubaSettings
@@ -6,9 +10,6 @@ from uoft_ssh import Settings as SSHSettingsBase, Credentials
 from uoft_bluecat import Settings as BluecatSettings
 
 __version__ = metadata.version(__name__)
-
-
-from nautobot.apps import NautobotAppConfig
 
 
 class SSHSettings(SSHSettingsBase):
@@ -116,9 +117,14 @@ class Settings(BaseSettings):
         return (
             f"{scheme}://{creds}{self.redis_host}:{self.redis_port}/{database_number}"
         )
-    
+
     def all_groups(self):
-        return {self.groups_active, self.groups_staff, self.groups_superuser, *self.additional_groups}
+        return {
+            self.groups_active,
+            self.groups_staff,
+            self.groups_superuser,
+            *self.additional_groups,
+        }
 
 
 class UofTPluginConfig(NautobotAppConfig):
@@ -127,13 +133,16 @@ class UofTPluginConfig(NautobotAppConfig):
     author = "Alex Tremblay"
     author_email = "alex.tremblay@utoronto.ca"
     version = __version__
-    description = "A Plugin containing all the extensions and customizations to Nautobot that the UofT networking teams need"
+    description = (
+        "A Plugin containing all the extensions and customizations to Nautobot that the "
+        "UofT networking teams need"
+    )
     base_url = "uoft"
     min_version = "0.9"
     max_version = "9.0"
-    middleware = []
-    installed_apps = []
-    default_settings = {}
+    middleware: typing.ClassVar = []
+    installed_apps: typing.ClassVar = []
+    default_settings: typing.ClassVar = {}
 
 
 def print_config_path():

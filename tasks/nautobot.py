@@ -4,6 +4,7 @@ import os
 from typing import Annotated, List
 import logging
 import time
+from subprocess import CalledProcessError
 
 import typer
 from task_runner import REPO_ROOT, run, sudo
@@ -44,12 +45,17 @@ def _get_prod_api_session():
     return s
 
 
-def server(args: list[str]):
+def server(args: Annotated[List[str] | None, typer.Argument()] = None):
     """run a given nautobot-server subcommand"""
-    run(
-        f"direnv exec . nautobot-server {' '.join(args)}",
-        cwd=REPO_ROOT / "projects/nautobot",
-    )
+    if args is None:
+        args = []
+    
+    os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
+    from nautobot.core.runner import runner
+    from nautobot.core.cli import main
+    from unittest.mock import patch
+    with patch("nautobot.core.runner.runner.sys.argv", ["nautobot-server", *args]):
+        main()
 
 
 def prod_server(args: list[str]):
@@ -63,21 +69,23 @@ def prod_server(args: list[str]):
 
 def start(args: Annotated[List[str] | None, typer.Argument()] = None):
     """start nautobot dev server"""
-    if args is None:
-        args = []
-    
-    os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
-    from nautobot.core.runner import runner
-    from nautobot.core.cli import main
-    from unittest.mock import patch
-    with patch("nautobot.core.runner.runner.sys.argv", ["nautobot-server", "runserver", "--noreload", *args]):
-        main()
+    all_args = ["runserver", "--noreload"]
+    if args is not None:
+        all_args.extend(args)
+    server(all_args)
+
+
+def worker(args: Annotated[List[str] | None, typer.Argument()] = None):
+    """start nautobot dev worker instance"""
+    all_args = ["celery", "worker", "--loglevel", "DEBUG"]
+    if args is not None:
+        all_args.extend(args)
+    server(all_args)
 
 
 def db_command(cmd: str):
     """run a SQL command against the dev db using nautobot-server dbshell"""
-    cmd = f'"{cmd}"'
-    server(["dbshell", "--", "--command", cmd])
+    server(["dbshell", "--", f"--command={cmd}"])
 
 
 def systemd(
@@ -150,35 +158,18 @@ def prod_update_templates():
             break
 
 
-def prod_trigger_intended_config():
-    """trigger the intended config job on the prod server"""
-    prod_update_templates()
-    s = _get_prod_api_session()
-    role = s.get("api/dcim/device-roles/?name=Distribution%20Switches").json()[
-        "results"
-    ][0]
-    r = s.post(
-        "api/extras/jobs/plugins/nautobot_golden_config.jobs/IntendedJob/run/",
-        json={"commit": True, "data": {"role": [role["id"]]}},
-    )
-    r.raise_for_status()
-    job_log = r.json()["result"]
-    while True:
-        time.sleep(0.5)
-        job_log = s.get(f'api/extras/job-results/{job_log["id"]}').json()
-        if job_log["status"]["value"] not in ["pending", "running"]:
-            break
-        logger.info("Waiting for job to complete")
-    logger.info(f"Job {job_log['status']['label']}")
-
-
 def db_refresh():
     """refresh the dev db from the prod db"""
-    run("/opt/backups/db/actions sync_prod_to_dev")
+    try:
+        run("/opt/backups/db/actions sync_prod_to_dev", cap=True)
+    except CalledProcessError as e:
+        if "is being accessed by other users" in e.stderr:
+            print("Dev DB is locked. shut down the dev server and try again")
+            exit(1)
     db_command(
         "UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';"
     )
-    server(["migrate"])
+    server(["post_upgrade"])
 
 
 def refresh_graphql_schema():
@@ -187,7 +178,7 @@ def refresh_graphql_schema():
     Should be done after every nautobot update, and every
     time a custom field is created or modified
     """
-    templates_repo = "uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
+    templates_repo = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
     server(
         f"graphql_schema --out {templates_repo}/graphql/_schema.graphql".split()  # type: ignore
     )

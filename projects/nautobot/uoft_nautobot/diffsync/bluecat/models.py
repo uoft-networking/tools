@@ -3,7 +3,8 @@ from uuid import UUID
 
 from diffsync import DiffSyncModel
 
-from nautobot.ipam.models import Prefix, Status, IPAddress
+from nautobot.ipam.models import Prefix, IPAddress
+from nautobot.extras.models import Status
 
 if TYPE_CHECKING:
     from .adapters import Nautobot
