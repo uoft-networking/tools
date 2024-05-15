@@ -250,7 +250,7 @@ class NautobotManager(SyncManager):
                 t["id"] for t in nb_address["tags"]
             ]:
                 continue
-            addr = str(IPAddress(nb_address["host"]))
+            addr = str(IPNetwork(nb_address["address"]))
             status_id = nb_address["status"]["id"]
             local_ids[addr] = nb_address["id"]
             addresses[addr] = IPAddressModel(
@@ -333,10 +333,12 @@ class NautobotManager(SyncManager):
                             namespace=self.syncdata.local_ids["Global namespace"],
                         )
                     )
-        logger.info(f"Nautobot: Batch-creating {len(prefixes)} prefixes")
-        self.api.ipam.prefixes.create(prefixes)
-        logger.info(f"Nautobot: Batch-creating {len(addresses)} addresses")
-        self.api.ipam.ip_addresses.create(addresses)
+        for prefix in prefixes:
+            logger.info(f"Nautobot: Creating prefix {prefix['prefix']}")
+            self.api.ipam.prefixes.create(prefix)
+        for address in addresses:
+            logger.info(f"Nautobot: Creating address {address['address']}")
+            self.api.ipam.ip_addresses.create(address)
 
     def update(self):
         for dataset, records in self._get_all_change_paths("update").items():
@@ -464,11 +466,7 @@ class BluecatManager(SyncManager):
             else:
                 raise Exception(f"Unexpected object type {ip_object['type']}")
 
-            if ip_object["properties"].get("CIDR"):
-                prefix = ip_object["properties"]["CIDR"]
-                local_ids[prefix] = ip_object["id"]
-            elif ip_object["properties"].get("prefix"):
-                prefix = ip_object["properties"]["prefix"]
+            if prefix := _get_prefix(ip_object):
                 local_ids[prefix] = ip_object["id"]
             elif type_ == "address":
                 address = ip_object["properties"]["address"]
@@ -511,7 +509,12 @@ class BluecatManager(SyncManager):
                 else:
                     dns_name = ""
 
-                addr = str(IPAddress(address))
+                parent = objects_by_id[ip_object["parent_id"]]
+                prefix: str | None = _get_prefix(parent)
+                if prefix is None:
+                    raise Exception(f"Parent prefix not found for object {ip_object['id']}")
+                pfx_len = prefix.partition('/')[2]
+                addr = str(IPNetwork(f'{address}/{pfx_len}'))
                 addresses[addr] = IPAddressModel(
                     address=addr, name=_name, status=status, dns_name=dns_name
                 )
@@ -544,6 +547,18 @@ class BluecatManager(SyncManager):
             ip_objects=ip_objects,
             dns_objects=dns_objects,
         )
+
+
+def _get_prefix(ip_object):
+    if "properties" not in ip_object:
+        raise Exception(f"Missing properties for object {ip_object['id']}")
+    props = ip_object["properties"]
+    if "CIDR" in props:
+        return props["CIDR"]
+    elif "prefix" in props:
+        return props["prefix"]
+    else:
+        return None
 
 
 def _validate_templates_dir(templates_dir):
@@ -1122,7 +1137,7 @@ def new_switch(
     else:
         interface_name = "Vlan900"
 
-    primary_ip4 = prompt.get_string(
+    primary_ip4 = prompt.get_cidr(
         "primary_ip4",
         "Primary IPv4 address for this switch in CIDR (ex aa.bb.cc.dd/ee)",
     )
@@ -1132,12 +1147,14 @@ def new_switch(
         logger.info(f"Device {name} already exists in Nautobot, updating...")
         nb.dcim.devices.update(
             id=device.id,  # type: ignore
-            device_type=dt_id,
-            role=role_id,
-            status="Planned",
-            location=location_id,
-            manufacturer=manufacturer_id,
-            tags=tags,
+            data=dict(
+                device_type=dt_id,
+                role=role_id,
+                status="Planned",
+                location=location_id,
+                manufacturer=manufacturer_id,
+                tags=tags,
+            )
         )
     else:
         logger.info(f"Creating new device {name} in Nautobot...")
@@ -1171,9 +1188,12 @@ def new_switch(
         logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
         nb.ipam.ip_addresses.update(
             id=ipv4.id,  # type: ignore
-            status="Active",
-            description=name,
-            dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+            data=dict(
+                status="Active",
+                description=name,
+                dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+                address=primary_ip4
+            )
         )
     else:
         logger.info(f"Creating new IP Address {primary_ip4} in Nautobot...")
