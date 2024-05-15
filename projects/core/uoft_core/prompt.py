@@ -280,6 +280,24 @@ class Prompt:
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
 
+    def get_cidr(
+        self,
+        var: str,
+        description: str | None,
+        **kwargs,
+    ):
+        class CIDRValidator(Validator):
+            def validate(self, document) -> None:
+                try:
+                    ip, _, mask = document.text.partition("/")
+                    if not 0 <= int(mask) <= 32:
+                        raise ValueError
+                except ValueError:
+                    raise ValidationError(
+                        message="Value must be a valid CIDR notation, ex: 192.168.0.1/24"\
+                    )
+        return self.get_string(var, description, validator=CIDRValidator(), **kwargs)
+
     def from_model(self, model: type[BaseModel], prefix: str | None = None):
         res = {}
         for name, field in model.__fields__.items():
