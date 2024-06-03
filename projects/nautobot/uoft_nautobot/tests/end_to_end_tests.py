@@ -4,8 +4,7 @@ import pickle
 from pathlib import Path
 
 import pytest
-from nautobot.core.runner.runner import configure_app
-from nautobot.core.cli import _configure_settings
+from nautobot.core.cli import _load_settings, execute_from_command_line
 import django
 from django.test.client import RequestFactory
 
@@ -20,12 +19,7 @@ fixtures_dir = Path(__file__).parent / "fixtures"
 
 @pytest.fixture(scope="session")
 def _nautobot_initialized():
-    configure_app(
-        default_config_path="projects/nautobot/.dev_data/nautobot_config.py",
-        project="nautobot",
-        default_settings="nautobot.core.settings",
-        initializer=_configure_settings,
-    )
+    _load_settings("projects/nautobot/.dev_data/nautobot_config.py")
     django.setup()
     from django.conf import settings
 

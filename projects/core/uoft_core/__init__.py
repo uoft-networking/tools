@@ -1256,8 +1256,8 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             f"[password-store] uoft-{cls.__config__.app_name}",
             f"[password-store] shared/uoft-{cls.__config__.app_name}",
         ]
-        for file_path, file in cls._util().config.files:
-            if file in {File.writable, File.creatable}:
+        for file_path, file_state in cls._util().config.files:
+            if file_state in {File.writable, File.creatable}:
                 save_targets.append(str(file_path))
         logger.debug(f"Settings(app_name={cls.__config__.app_name}): Save targets: {save_targets}")
 

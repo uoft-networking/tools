@@ -6,9 +6,10 @@ from functools import cached_property
 import asyncio
 
 from uoft_core import BaseSettings, Field
-from uoft_core.types import SecretStr
+from uoft_core.types import SecretStr, IPNetwork, IPAddress
 from uoft_core._vendor.bluecat_libraries.address_manager.api import Client
 from uoft_core._vendor.bluecat_libraries.address_manager import constants
+from uoft_core._vendor.bluecat_libraries.http_client.exceptions import ErrorResponse
 
 logger = getLogger(__name__)
 
@@ -73,12 +74,14 @@ class API:
 
     @cached_property
     def configuration_id(self):
-        return self.get_configuration()["id"]
+        id_ = self.get_configuration()["id"]
+        assert isinstance(id_, int)
+        return id_
 
     def get_view(self, name: str | None = None, parent_id: int | None = None):
         """Get a view by name, or the first available view if no name is provided"""
         if parent_id is None:
-            parent_id = self.get_configuration()["id"]
+            parent_id = self.configuration_id
         assert parent_id is not None
         if name:
             logger.info(f"Bluecat: getting view by name: {name}")
@@ -88,13 +91,17 @@ class API:
         logger.info("Bluecat: getting first available view")
         return next(self.get_entities(parent_id, constants.ObjectType.VIEW))
 
+    @cached_property
+    def default_view_id(self):
+        return self.get_view()["id"]
+
     def get_entities(self, parent_id, typ, start=0):
         page_size = 1000
         if parent_id in self.dhcp_only_network_ids:
             logger.info(f"Bluecat: skipping entities in DHCP-only network {parent_id}")
             return
         if not start:
-            logger.info(f"Bluecat: getting {typ} entries from parent {parent_id}")
+            logger.debug(f"Bluecat: getting {typ} entries from parent {parent_id}")
         entities = self.client.get_entities(
             parent_id, typ, start=start, count=page_size
         )
@@ -121,7 +128,7 @@ class API:
 
     def yield_ip_object_list(self, parent_id=None) -> Iterator[APIEntity]:
         if parent_id is None:
-            parent_id = self.get_configuration()["id"]
+            parent_id = self.configuration_id
         for typ in ALL_IP_OBJECTS:
             for entity in self.get_entities(parent_id, typ):
                 entity["parent_id"] = parent_id
@@ -182,7 +189,7 @@ class API:
         configuration_id: int | None = None,
     ):
         if not configuration_id:
-            configuration_id = self.get_configuration()["id"]
+            configuration_id = self.configuration_id
         assert configuration_id is not None
 
         return self.client.get_entity_by_cidr(
@@ -191,14 +198,64 @@ class API:
             parent_id=configuration_id,
         )
 
+    def create_prefix(
+        self,
+        net: IPNetwork,
+        name: str,
+        type: Literal["container", "network", "pool"],
+        parent_id: int,
+        configuration_id: int | None = None,
+    ):
+        if not configuration_id:
+            configuration_id = self.configuration_id
+        assert configuration_id is not None
+
+        prefix = str(net)
+        if net.version == 4:
+            if type == "container":
+                new_id = self.client.add_ip4_block_by_cidr(
+                    entity_id=parent_id,
+                    cidr=prefix,
+                    properties=dict(name=name),
+                )
+            elif type == "network":
+                new_id = self.client.add_ip4_network(
+                    ip4_block_id=parent_id,
+                    cidr=prefix,
+                    properties=dict(name=name),
+                )
+            else:
+                # pool
+                raise NotImplementedError
+                new_id = self.client.add_ip4_ip_group_by_range()
+        else:
+            if type == "container":
+                new_id = self.client.add_ip6_block_by_prefix(
+                    parent_ip6_block_id=parent_id,
+                    prefix=prefix,
+                    name=name,
+                )
+            elif type == "network":
+                new_id = self.client.add_ip6_network_by_prefix(
+                    ip6_block_id=parent_id,
+                    prefix=prefix,
+                    name=name,
+                )
+        return new_id
+
     def assign_ipv4_address(
         self,
         address: str,
-        mac_address: str,
+        mac_address: str | None = None,
         hostname: str | None = None,
         address_type: Literal["static", "reserved", "dhcp-reserved"] = "static",
+        domain: str = "netmgmt.utsc.utoronto.ca",
         configuration_id: int | None = None,
     ):
+
+        if not configuration_id:
+            configuration_id = self.configuration_id
+
         match address_type:
             case "static":
                 action = constants.IPAssignmentActionValues.MAKE_STATIC
@@ -208,10 +265,6 @@ class API:
                 action = constants.IPAssignmentActionValues.MAKE_DHCP_RESERVED
             case _:
                 raise ValueError(f"Invalid action {address_type}")
-
-        if not configuration_id:
-            configuration_id = self.get_configuration()["id"]
-        assert configuration_id is not None
 
         properties = {}
 
@@ -223,8 +276,91 @@ class API:
             action=action,
             ip4_address=address,
             mac_address=mac_address,
+            host_info=[
+                f"{hostname}.{domain}",  # FQDN
+                self.default_view_id,  # view_id
+                True,  # reverse PTR record flag
+                False,  # "sameAsZoneFlag"
+            ],
             properties=properties,
         )
+
+    def assign_ipv6_address(
+        self,
+        address: str,
+        mac_address: str | None = None,
+        hostname: str | None = None,
+        address_type: Literal["static", "reserved", "dhcp-reserved"] = "static",
+        domain: str = "netmgmt.utsc.utoronto.ca",
+        configuration_id: int | None = None,
+    ):
+
+        if not configuration_id:
+            configuration_id = self.configuration_id
+
+        match address_type:
+            case "static":
+                action = constants.IPAssignmentActionValues.MAKE_STATIC
+            case "reserved":
+                action = constants.IPAssignmentActionValues.MAKE_RESERVED
+            case "dhcp-reserved":
+                action = constants.IPAssignmentActionValues.MAKE_DHCP_RESERVED
+            case _:
+                raise ValueError(f"Invalid action {address_type}")
+
+        properties = {}
+        host_info = None
+
+        if hostname:
+            properties["name"] = hostname
+            host_info = [
+                self.get_view()["id"],  # view_id
+                f"{hostname}.{domain}",  # FQDN
+                False,  # "sameAsZoneFlag"
+                True,  # reverse PTR record flag
+            ]
+
+        return self.client.assign_ip6_address(
+            entity_id=configuration_id,
+            address=str(address),
+            action=action,
+            host_info=host_info,
+            properties=dict(name=hostname),
+        )
+
+    def assign_address(
+        self,
+        address: IPAddress | str,
+        hostname: str,
+        mac_address: str | None = None,
+        configuration_id: int | None = None,
+        domain: str = "netmgmt.utsc.utoronto.ca",
+    ):
+        if isinstance(address, str):
+            address = IPAddress(address)
+
+        if not configuration_id:
+            configuration_id = self.configuration_id
+
+        params = dict(
+            address=str(address),
+            mac_address=mac_address,
+            hostname=hostname,
+            configuration_id=configuration_id,
+            domain=domain,
+        )
+
+        try:
+            if address.version == 4:
+                return self.assign_ipv4_address(**params)
+            else:
+                return self.assign_ipv6_address(**params)
+        except ErrorResponse as e:
+            if 'Duplicate of another item' in e.message:
+                # TODO: reassign address
+                raise e
+            else:
+                raise e
 
 
 class MultiThreadedAPI(API):
@@ -249,12 +385,15 @@ class MultiThreadedAPI(API):
         )
 
     @property
-    def client(self):
+    def client(self) -> Client:
         if not hasattr(self.ns, "client"):
             self.ns.client = Client(self.url)
             self.ns.client._raw_api.session.headers.update(
-                self._client._raw_api.session.headers)
-        return self._client
+                self._client._raw_api.session.headers
+            )
+        if threading.current_thread() == self.main_thread:
+            return self._client
+        return self.ns.client
 
     @client.setter
     def client(self, value):
@@ -299,7 +438,7 @@ class MultiThreadedAPI(API):
 
     def get_ip_objects(self):
         """Get all IP objects in the default configuration"""
-        configuration_id = self.get_configuration()["id"]
+        configuration_id = self.configuration_id
         futures = []
         results = []
         self.queue_ip_objects(futures, configuration_id)
@@ -335,13 +474,16 @@ class MultiThreadedAPI(API):
 
     def multithread_jobs(self, *jobs: Callable):
         from uoft_core import Timeit
+
         t = Timeit()
         with self.pool:
             self.main_thread = threading.current_thread()
             futures = [self.pool.submit(job) for job in jobs]
             results = [fut.result() for fut in futures]
         multithread_runtime = t.interval().str
-        logger.info(f"Bluecat jobs {[j.__name__ for j in jobs]} complete. runtime: {multithread_runtime}")
+        logger.info(
+            f"Bluecat jobs {[j.__name__ for j in jobs]} complete. runtime: {multithread_runtime}"
+        )
         return results
 
 
@@ -351,7 +493,10 @@ class Settings(BaseSettings):
     url: str = Field("https://localhost")
     username: str = "admin"
     password: SecretStr = SecretStr("")
-    dhcp_only_network_ids: list[int] = Field(default_factory=set, description="Network IDs that contain only DHCP-assigned addresses")
+    dhcp_only_network_ids: list[int] = Field(
+        default_factory=set,
+        description="Network IDs that contain only DHCP-assigned addresses",
+    )
 
     class Config(BaseSettings.Config):
         app_name = "bluecat"
@@ -362,8 +507,22 @@ class Settings(BaseSettings):
     @overload
     def get_api_connection(self, multi_threaded: Literal[True]) -> MultiThreadedAPI: ...
 
+    @overload
+    def get_api_connection(self) -> API: ...
+
     def get_api_connection(self, multi_threaded=False):
-        args = self.url, self.username, self.password.get_secret_value(), self.dhcp_only_network_ids
+        args = (
+            self.url,
+            self.username,
+            self.password.get_secret_value(),
+            self.dhcp_only_network_ids,
+        )
         if multi_threaded:
             return MultiThreadedAPI(*args)
         return API(*args)
+
+
+class STGSettings(Settings):
+
+    class Config(BaseSettings.Config):
+        app_name = "bluecat-stg"

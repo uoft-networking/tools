@@ -6,6 +6,7 @@ from . import config
 from . import bluecat
 from . import ldap
 from . import nautobot
+from . import librenms
 
 import typer
 from loguru import logger
@@ -19,6 +20,7 @@ app = typer.Typer(
 app.add_typer(bluecat.app)
 app.add_typer(ldap.app)
 app.add_typer(nautobot.app)
+app.add_typer(librenms.app)
 
 
 def version_callback(value: bool):

@@ -29,8 +29,10 @@ import threading
 import concurrent.futures as cf
 
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
-from uoft_core import BaseSettings, Field
+from uoft_core import BaseSettings, Field, StrEnum
 from uoft_bluecat import Settings as BluecatSettings
+
+from . import _sync
 
 import pynautobot
 import pynautobot.core.endpoint
@@ -40,6 +42,7 @@ import deepdiff
 import deepdiff.model
 import typer
 import jinja2
+from rich import print
 
 
 class Settings(BaseSettings):
@@ -63,7 +66,7 @@ logger = logging.getLogger(__name__)
 app = typer.Typer(name="nautobot")
 
 ip_address: typing.TypeAlias = str
-"ip address in string format, e.g. '192.168.0.20'"
+"ip address in CIDR notation, e.g. '192.168.0.20/24'"
 network_prefix: typing.TypeAlias = str
 "network prefix in CIDR notation, e.g. '10.0.0.0/8'"
 common_id: typing.TypeAlias = ip_address | network_prefix
@@ -87,15 +90,31 @@ class PrefixModel(BaseModel):
     status: Status
 
 
+class DeviceModel(BaseModel):
+    hostname: str
+    ip_address: ip_address
+
+
+Prefixes: typing.TypeAlias = dict[network_prefix, PrefixModel]
+Addresses: typing.TypeAlias = dict[ip_address, IPAddressModel]
+Devices: typing.TypeAlias = dict[str, DeviceModel]
+
+
 class SyncData(BaseModel):
-    prefixes: dict[
-        network_prefix, PrefixModel
-    ]  # keys are network prefixes in CIDR notation
-    addresses: dict[ip_address, IPAddressModel]  # keys are ip addresses
+    prefixes: Prefixes | None
+    addresses: Addresses | None
+    devices: Devices | None
 
     # the keys will be ip addresses / network cidrs / dns names, and
     # the values will be bluecat object ids or nautobot uuids
     local_ids: dict[common_id, int | str]
+
+    @property
+    def datasets(self):
+        "compute the set of datasets that are present in this SyncData object"
+        res = set(k for k, v in self.dict().items() if v)
+        res.remove("local_ids")
+        return res
 
 
 class BluecatDataRaw(BaseModel):
@@ -108,6 +127,7 @@ class BluecatDataRaw(BaseModel):
 class NautobotDataRaw(BaseModel):
     prefixes: list[dict]
     addresses: list[dict]
+    devices: list[dict]
     statuses: dict[str, Status]  # maps status id to status name
     global_namespace_id: str
     soft_delete_tag_id: str
@@ -121,19 +141,8 @@ class SyncManager:
         self.syncdata = None  # type: ignore
         self.diff = None  # type: ignore
 
-    def load_data(self):
-        raise NotImplementedError
-
-    def create(self):
-        raise NotImplementedError
-
-    def update(self):
-        raise NotImplementedError
-
-    def delete(self):
-        raise NotImplementedError
-
     def synchronize(self, source_data: SyncData):
+        assert self.syncdata.datasets == source_data.datasets
         diff = deepdiff.DeepDiff(
             self.syncdata,
             source_data,
@@ -159,395 +168,33 @@ class SyncManager:
         self.syncdata = new_syncdata
         self.diff = diff
 
-    def save_data(self):
-        # all these methods make use of the diff attribute to determine
-        # which records need to be created, updated, or deleted
-        assert (
-            self.diff is not None
-        ), "You need to call synchronize() before calling commit()"
 
-        self.create()
-        self.update()
-        self.delete()
+def _get_all_change_paths(diff, change_type):
+    # dictionary_item_removed are items not present in source
+    # dictionary_item_added are items not present in dest
+    # values_changed are individual fields which have changed
+    # In order to commit the updated dataset to the destination system,
+    # we need to know which entries have been added, which have been removed, and which have been updated
+    change_type_mapping = {
+        "create": "dictionary_item_added",
+        "update": "values_changed",
+        "delete": "dictionary_item_removed",
+    }
+    change_type_name = change_type_mapping[change_type]
+    res: dict[str, set[common_id]]
+    res = dict(prefixes=set(), addresses=set())
+    for record in diff.tree[change_type_name]:  # type: ignore
+        record: deepdiff.model.DiffLevel
+        path: list[str] = record.path(output_format="list")  # type: ignore
 
-    def _get_all_change_paths(self, change_type):
-        # dictionary_item_removed are items not present in source
-        # dictionary_item_added are items not present in dest
-        # values_changed are individual fields which have changed
-        # In order to commit the updated dataset to the destination system,
-        # we need to know which entries have been added, which have been removed, and which have been updated
-        change_type_mapping = {
-            "create": "dictionary_item_added",
-            "update": "values_changed",
-            "delete": "dictionary_item_removed",
-        }
-        change_type_name = change_type_mapping[change_type]
-        res: dict[str, set[common_id]]
-        res = dict(prefixes=set(), addresses=set())
-        for record in self.diff.tree[change_type_name]:  # type: ignore
-            record: deepdiff.model.DiffLevel
-            path: list[str] = record.path(output_format="list")  # type: ignore
-
-            # path lists for records added / removed look like
-            # ["prefixes", "10.0.0.0/8"] or ["addresses", "192.168.0.20"],
-            # path lists for records updated look like
-            # ["prefixes", "10.0.0.0/8", "name"] or ["addresses", "192.168.0.20", "dns_name"]
-            dataset_name = path[0]
-            record_name = path[1]
-            res[dataset_name].add(record_name)
-        return res
-
-
-class NautobotManager(SyncManager):
-
-    def __init__(self, dev=False) -> None:
-        super().__init__()
-        if dev:
-            settings = DevSettings.from_cache()
-        else:
-            settings = Settings.from_cache()
-        self.url = settings.url
-        self.token = settings.token
-
-        # used to store thread-local copies of the api object
-        self._local_ns = threading.local()
-
-        try:
-            response = requests.get(self.url)
-            response.raise_for_status()
-        except requests.exceptions.RequestException:
-            print("need to run `./run nautobot. start` to start the nautobot server")
-            exit(1)
-
-    def load_data(self):
-        raw_data = self.load_data_raw()
-        logger.info("Nautobot: Parsing and processing data")
-        prefixes = {}
-        addresses = {}
-        local_ids = {}
-        local_ids["Global namespace"] = raw_data.global_namespace_id
-        local_ids["Soft Delete tag"] = raw_data.soft_delete_tag_id
-        for status_id, status in raw_data.statuses.items():
-            local_ids[status] = status_id
-
-        for nb_prefix in raw_data.prefixes:
-            if nb_prefix["tags"] and raw_data.soft_delete_tag_id in [
-                t["id"] for t in nb_prefix["tags"]
-            ]:
-                continue
-            pfx = str(IPNetwork(nb_prefix["prefix"]))
-            status_id = nb_prefix["status"]["id"]
-            local_ids[pfx] = nb_prefix["id"]
-            prefixes[pfx] = PrefixModel(
-                prefix=pfx,
-                description=nb_prefix["description"],
-                type=nb_prefix["type"]["value"],
-                status=raw_data.statuses[status_id],
-            )
-
-        for nb_address in raw_data.addresses:
-            if nb_address["tags"] and raw_data.soft_delete_tag_id in [
-                t["id"] for t in nb_address["tags"]
-            ]:
-                continue
-            addr = str(IPNetwork(nb_address["address"]))
-            status_id = nb_address["status"]["id"]
-            local_ids[addr] = nb_address["id"]
-            addresses[addr] = IPAddressModel(
-                address=addr,
-                name=nb_address["description"],
-                status=raw_data.statuses[status_id],
-                dns_name=nb_address["dns_name"],
-            )
-
-        self.syncdata = SyncData(
-            prefixes=prefixes,
-            addresses=addresses,
-            local_ids=local_ids,
-        )
-
-    def load_data_raw(self):
-        with cf.ThreadPoolExecutor(
-            thread_name_prefix="nautobot_fetch_data"
-        ) as executor:
-
-            logger.info("Nautobot: Fetching all Prefixes")
-            prefixes_task = executor.submit(lambda: self.api.ipam.prefixes.all())
-
-            logger.info("Nautobot: Fetching all IP Addresses")
-            addresses_task = executor.submit(lambda: self.api.ipam.ip_addresses.all())
-
-            logger.info(
-                "Nautobot: Fetching additional metadata (statuses, namespaces, tags)"
-            )
-            statuses_task = executor.submit(lambda: self.api.extras.statuses.all())
-            global_namespace_task = executor.submit(
-                lambda: self.api.ipam.namespaces.get(name="Global")["id"]  # type: ignore
-            )
-            soft_delete_tag_id_task = executor.submit(
-                lambda: self.api.extras.tags.get(name="Soft Delete")["id"]  # type: ignore
-            )
-
-            # Now join the threads and get the results
-            prefixes = list(dict(p) for p in prefixes_task.result())  # type: ignore
-            addresses = list(dict(a) for a in addresses_task.result())  # type: ignore
-            statuses: dict[str, Status] = {
-                s["id"]: s["name"]  # type: ignore
-                for s in statuses_task.result()
-                if s["name"] in ["Active", "Reserved", "Deprecated"]  # type: ignore
-            }  # type: ignore
-            global_namespace_id: str = global_namespace_task.result()  # type: ignore
-            soft_delete_tag_id: str = soft_delete_tag_id_task.result()  # type: ignore
-        return NautobotDataRaw(
-            prefixes=prefixes,
-            addresses=addresses,
-            statuses=statuses,
-            global_namespace_id=global_namespace_id,
-            soft_delete_tag_id=soft_delete_tag_id,
-        )
-
-    def create(self):
-        prefixes = []
-        addresses = []
-        for dataset, records in self._get_all_change_paths("create").items():
-            if dataset == "prefixes":
-                for record in records:
-                    prefix = self.syncdata.prefixes[record]
-                    prefixes.append(
-                        dict(
-                            prefix=prefix.prefix,
-                            description=prefix.description,
-                            status=prefix.status,
-                            type=prefix.type,
-                        )
-                    )
-            elif dataset == "addresses":
-                for record in records:
-                    address = self.syncdata.addresses[record]
-                    addresses.append(
-                        dict(
-                            address=address.address,
-                            description=address.name,
-                            status=address.status,
-                            dns_name=address.dns_name,
-                            namespace=self.syncdata.local_ids["Global namespace"],
-                        )
-                    )
-        for prefix in prefixes:
-            logger.info(f"Nautobot: Creating prefix {prefix['prefix']}")
-            self.api.ipam.prefixes.create(prefix)
-        for address in addresses:
-            logger.info(f"Nautobot: Creating address {address['address']}")
-            self.api.ipam.ip_addresses.create(address)
-
-    def update(self):
-        for dataset, records in self._get_all_change_paths("update").items():
-            with cf.ThreadPoolExecutor(
-                thread_name_prefix="nautobot_update"
-            ) as executor:
-                for record in records:
-                    executor.submit(self.update_one, dataset, record)
-
-    def update_one(self, dataset, record):
-        api_endpoint = self._get_api_endpoint(dataset)
-        dataset_singular = dict(prefixes="Prefix", addresses="IP Address")[dataset]
-        id_ = self.syncdata.local_ids[record]
-        if dataset == "prefix":
-            prefix = self.syncdata.prefixes[record]
-            data = dict(
-                prefix=prefix.prefix,
-                description=prefix.description,
-                status=prefix.status,
-                type=prefix.type,
-            )
-        elif dataset == "addresses":
-            address = self.syncdata.addresses[record]
-            data = dict(
-                address=address.address,
-                description=address.name,
-                status=address.status,
-                dns_name=address.dns_name,
-            )
-        logger.info(f"Nautobot: Updating {dataset_singular} {record}")
-        api_endpoint.update(id_, data)  # type: ignore
-
-    def delete(self):
-        for dataset, records in self._get_all_change_paths("delete").items():
-            with cf.ThreadPoolExecutor(
-                thread_name_prefix="nautobot_delete"
-            ) as executor:
-                for record in records:
-                    executor.submit(self.delete_one, dataset, record)
-
-    def delete_one(self, dataset, record):
-        soft_delete_tag = dict(id=self.syncdata.local_ids["Soft Delete tag"])
-        api_endpoint = self._get_api_endpoint(dataset)
-        dataset_singular = dict(prefixes="Prefix", addresses="IP Address")[dataset]
-        id_ = self.syncdata.local_ids[record]
-        logger.info(f"Nautobot: Soft-deleting {dataset_singular} {record}")
-
-        # get the existing record
-        try:
-            r = api_endpoint.get(id_)
-        except pynautobot.RequestError as e:
-            logger.warning(
-                f"Attempted to delete record {record}, but its id was not found in Nautobot, skipping..."
-            )
-            logger.debug(f"Error message: {e}")
-            return
-        assert isinstance(r, Record), f"Expected a single record, but got a list: {r}"
-
-        # add the soft delete tag to the record's (possibly empty) tags list
-        assert isinstance(r.tags, list), f"Expected a list of tags, but got: {r.tags}"
-        r.tags.append(soft_delete_tag)
-
-        # update the record with the new tags list
-        r.update(dict(tags=r.tags))  # type: ignore
-
-        # remove this record from syncdata, so it doesn't
-        # accidentally get synchronized back into the data source from which it was deleted
-        getattr(self.syncdata, dataset).pop(record)
-
-    @property
-    def api(self):
-        # get a thread-local copy of the api object, and returns the appropriate endpoint for the requested dataset
-        if not hasattr(self._local_ns, "api"):
-            self._local_ns.api = pynautobot.api(
-                self.url, token=self.token.get_secret_value()
-            )
-        return self._local_ns.api
-
-    def _get_api_endpoint(self, dataset) -> pynautobot.core.endpoint.Endpoint:
-        endpoint_name = dict(prefixes="prefixes", addresses="ip-addresses")[dataset]
-        return getattr(self.api.ipam, endpoint_name)
-
-
-class BluecatManager(SyncManager):
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.api = BluecatSettings.from_cache().get_api_connection(multi_threaded=True)
-
-        super().__init__()
-
-    def load_data(self):
-        raw_data = self.load_data_raw()
-        objects_by_id = {}
-        objects_by_ip = {}
-        dns_by_ip = {}
-        local_ids = {}
-        # construct id lookup table for cross-references
-        for ip_object in raw_data.ip_objects:
-            objects_by_id[ip_object["id"]] = ip_object
-            if ip_object["type"] in ["IP4Address", "IP6Address"]:
-                address = ip_object["properties"]["address"]
-                objects_by_ip[address] = ip_object
-                local_ids[address] = ip_object["id"]
-
-        for dns_object in raw_data.dns_objects:
-            objects_by_id[dns_object["id"]] = dns_object
-            if dns_object["type"] == "HostRecord":
-                _fqdn = dns_object["properties"]["absoluteName"]
-                local_ids[_fqdn] = dns_object["id"]
-                for ip in dns_object["properties"]["addresses"].split(","):
-                    dns_by_ip[ip] = dns_object
-
-        prefixes = {}
-        addresses = {}
-
-        # Prefixes
-        for ip_object in raw_data.ip_objects:
-            if ip_object["type"] in ["IP4Block", "IP6Block"]:
-                type_ = "container"
-            elif ip_object["type"] in ["IP4Network", "IP6Network"]:
-                type_ = "network"
-            elif ip_object["type"] in ["IP4Address", "IP6Address"]:
-                type_ = "address"
-            else:
-                raise Exception(f"Unexpected object type {ip_object['type']}")
-
-            if prefix := _get_prefix(ip_object):
-                local_ids[prefix] = ip_object["id"]
-            elif type_ == "address":
-                address = ip_object["properties"]["address"]
-            else:
-                raise Exception(f"Prefix not found for object {ip_object['id']}")
-
-            # Infer status from name
-            _name = ip_object["name"] or ""
-
-            # groups: reserved, deprecated
-            pattern = re.compile(
-                r"""
-                (reserve[d]?|tbd|do-not-use|cannot-use|avoid\ this) # reserved
-                |(to-be-moved|remove[d]?|deprecated|old-|unused|replaced|decommissioned|legacy|reclaimed) # deprecated
-            """,
-                re.VERBOSE,
-            )
-
-            match = pattern.search(_name.lower())
-            if match and match.group(1):
-                status = "Reserved"
-            elif match and match.group(2):
-                status = "Deprecated"
-            else:
-                status = "Active"
-
-            if type_ == "address":
-                if ip_object["properties"]["state"].startswith("DHCP_"):
-                    continue  # skip DHCP addresses
-                if ip_object["properties"]["state"] == "GATEWAY" and not _name:
-                    continue  # skip gateway addresses without a name
-                if ip_object["properties"]["state"] not in ["STATIC", "GATEWAY"]:
-                    raise Exception(
-                        f"Unexpected state {ip_object['properties']['state']} for address {ip_object['id']}"
-                    )
-
-                dns_name = dns_by_ip.get(address)
-                if dns_name:
-                    dns_name = dns_name["properties"]["absoluteName"]
-                else:
-                    dns_name = ""
-
-                parent = objects_by_id[ip_object["parent_id"]]
-                prefix: str | None = _get_prefix(parent)
-                if prefix is None:
-                    raise Exception(f"Parent prefix not found for object {ip_object['id']}")
-                pfx_len = prefix.partition('/')[2]
-                addr = str(IPNetwork(f'{address}/{pfx_len}'))
-                addresses[addr] = IPAddressModel(
-                    address=addr, name=_name, status=status, dns_name=dns_name
-                )
-
-            else:
-                pfx = str(IPNetwork(prefix))
-                prefixes[pfx] = PrefixModel(
-                    prefix=pfx,
-                    description=_name,
-                    type=type_,
-                    status=status,
-                )
-
-        self.syncdata = SyncData(
-            prefixes=prefixes,
-            addresses=addresses,
-            local_ids=local_ids,
-        )
-
-    def load_data_raw(self):
-        bc = self.api
-        configuration_id = bc.get_configuration()["id"]
-        dns_view_id = bc.get_view()["id"]
-        ip_objects, dns_objects = bc.multithread_jobs(
-            bc.get_ip_objects, bc.get_dns_objects
-        )
-        return BluecatDataRaw(
-            configuration_id=configuration_id,
-            dns_view_id=dns_view_id,
-            ip_objects=ip_objects,
-            dns_objects=dns_objects,
-        )
-
+        # path lists for records added / removed look like
+        # ["prefixes", "10.0.0.0/8"] or ["addresses", "192.168.0.20"],
+        # path lists for records updated look like
+        # ["prefixes", "10.0.0.0/8", "name"] or ["addresses", "192.168.0.20", "dns_name"]
+        dataset_name = path[0]
+        record_name = path[1]
+        res[dataset_name].add(record_name)
+    return res
 
 def _get_prefix(ip_object):
     if "properties" not in ip_object:
@@ -577,38 +224,47 @@ TemplatesPath: typing.TypeAlias = typing.Annotated[
     Path, typer.Option(exists=True, callback=_validate_templates_dir)
 ]
 
+class OnOrphanAction(StrEnum):
+    prompt = "prompt"
+    delete = "delete"
+    backport = "backport"
+    skip = "skip"
 
 @app.command()
-def sync_from_bluecat(dev: bool = False):
-    import concurrent.futures as cf
+def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: OnOrphanAction = OnOrphanAction.prompt):
+    from uoft_core import Timeit
 
-    with cf.ThreadPoolExecutor(thread_name_prefix="test") as executor:
-        from uoft_core import Timeit
+    t = Timeit()
 
-        t = Timeit()
+    def done():
+        runtime = t.stop().str
+        print(f"Sync completed in {runtime}")
 
-        # decrypt secrets and initialize managers
-        nb = executor.submit(lambda: NautobotManager(dev))
-        bc = executor.submit(lambda: BluecatManager())
-        nb = nb.result()
-        bc = bc.result()
+    datasets = {"prefixes", "addresses"}
+    bc = _sync.BluecatTarget()
+    nb = _sync.NautobotTarget(dev=dev)
+    sm = _sync.SyncManager(bc, nb, datasets, on_orphan=on_orphan.value) # type: ignore
 
-        # load data
-        futures = [executor.submit(nb.load_data), executor.submit(bc.load_data)]
-        [f.result() for f in cf.as_completed(futures)]
+    sm.load()
+    sm.synchronize()
+    if sm.changes.is_empty():
+        done()
+        return
+    if interactive:
+        print("Do you want to see a detailed breakdown of the changes?")
+        if typer.confirm("Show diff?"):
+            print(sm.changes)
+        print("Do you want to commit these changes to Nautobot?")
+        if typer.confirm("Commit changes?"):
+            sm.commit()
+    else:
+        sm.commit()
+    done()
 
-        # sync data
-        nb.synchronize(bc.syncdata)
 
-        # save data
-        nb.save_data()
-
-    runtime = t.stop().str
-    print(runtime)
-
-
-def _autocomplete_hostnames(partial: str):
-    nb = NautobotManager().api
+def _autocomplete_hostnames(ctx: typer.Context, partial: str):
+    dev = ctx.params.get("dev", False)
+    nb = _sync.NautobotTarget(dev).api
     if partial:
         query = nb.dcim.devices.filter(name__ic=partial)
     else:
@@ -640,7 +296,7 @@ def show_golden_config_data(
     device_name: str = typer.Argument(..., autocompletion=_autocomplete_hostnames),
     dev: bool = False,
 ):
-    nb = NautobotManager(dev).api
+    nb = _sync.NautobotTarget(dev).api
     device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
     gql_query: str = nb.extras.graphql_queries.get(name="golden_config").query  # type: ignore
     data = nb.graphql.query(gql_query, {"device_id": device.id})
@@ -655,7 +311,7 @@ def trigger_golden_config_intended(
     ],
     dev: bool = False,
 ):
-    nb = NautobotManager(dev).api
+    nb = _sync.NautobotTarget(dev).api
     device: Record = nb.dcim.devices.get(name=device_name)
     job = nb.extras.jobs.get(name="Generate Intended Configurations")
     job_result = nb.extras.jobs.run(
@@ -702,7 +358,7 @@ def test_golden_config_templates(
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
 ):
-    nb = NautobotManager(dev).api
+    nb = _sync.NautobotTarget(dev).api
     device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
     gql_query = templates_dir.joinpath("graphql/golden_config.graphql").read_text()
     data = nb.graphql.query(gql_query, {"device_id": device.id}).json["data"]["device"]
@@ -738,7 +394,7 @@ def push_changes_to_nautobot(
     subprocess.run(["git", "push"], check=True, cwd=templates_dir)
 
     logger.info("Telling nautobot to pull the changes")
-    nb = NautobotManager(dev).api
+    nb = _sync.NautobotTarget(dev).api
     gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
     job = nb.extras.jobs.get(name="Git Repository: Sync")
     job_result = nb.extras.jobs.run(
@@ -854,7 +510,7 @@ def device_type_add_or_update(
 
     prompt = Settings._prompt()
 
-    nb = NautobotManager(dev).api
+    nb = _sync.NautobotTarget(dev).api
 
     # the device_type dictionary ALMOST perfectly matches the structure expected by the Nautobot API
     # for device_types
@@ -1009,7 +665,7 @@ def new_switch(
     Create a new switch in Nautobot
     """
     prompt = Settings._prompt()
-    nb = NautobotManager(dev).api
+    nb = _sync.NautobotTarget(dev).api
 
     def _select_from_queryset(
         queryset,
@@ -1051,6 +707,13 @@ def new_switch(
         "device_type",
         "Select a device type for this switch",
         key="model",
+        fuzzy_search=True,
+    )
+
+    platform, platform_id = _select_from_queryset(
+        nb.dcim.platforms.filter(manufacturer=manufacturer_id),
+        "platform",
+        "Select a platform for this switch",
         fuzzy_search=True,
     )
 
@@ -1118,6 +781,7 @@ def new_switch(
             list(available_tags.keys()),
             "Select a tag to add to this switch",
         )
+        tags.append(available_tags[tag_name])
 
     if role == "Distribution Switches":
         # figure out vlan group association
@@ -1125,8 +789,6 @@ def new_switch(
             "VLAN group association not yet supported. "
             "you will need to manually create a vlan group for this dist switch and associate it with the switch"
         )
-
-    status = "Planned"
 
     # Set up the primary interface
     # on Dist and Core switches, this'll be Loopback0
@@ -1142,6 +804,12 @@ def new_switch(
         "Primary IPv4 address for this switch in CIDR (ex aa.bb.cc.dd/ee)",
     )
 
+    # optionally override config_context.os_version
+    config_context = {}
+    if prompt.get_bool('override_os_version', 'Would you like to override the OS version for this device?'):
+        os_version = prompt.get_string('os_version', 'Enter the OS version for this device')
+        config_context['os_version'] = os_version
+
     logger.info("Checking to see if Device already exists in Nautobot...")
     if device := nb.dcim.devices.get(name=name):
         logger.info(f"Device {name} already exists in Nautobot, updating...")
@@ -1149,18 +817,21 @@ def new_switch(
             id=device.id,  # type: ignore
             data=dict(
                 device_type=dt_id,
+                platform=platform_id,
                 role=role_id,
                 status="Planned",
                 location=location_id,
                 manufacturer=manufacturer_id,
                 tags=tags,
-            )
+                local_config_context_data=config_context,
+            ),
         )
     else:
         logger.info(f"Creating new device {name} in Nautobot...")
         device = nb.dcim.devices.create(
             name=name,
             device_type=dt_id,
+            platform=platform_id,
             role=role_id,
             status="Planned",
             location=location_id,
@@ -1192,8 +863,8 @@ def new_switch(
                 status="Active",
                 description=name,
                 dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
-                address=primary_ip4
-            )
+                address=primary_ip4,
+            ),
         )
     else:
         logger.info(f"Creating new IP Address {primary_ip4} in Nautobot...")
@@ -1220,7 +891,7 @@ def new_switch(
             raise e
 
     logger.info(f"Assigning {primary_ip4} as Primary IP for {name}...")
-    device.primary_ip4 = ipv4
-    device.save()
+    device.primary_ip4 = ipv4 # type: ignore
+    device.save() # type: ignore
 
     logger.info("Done!")

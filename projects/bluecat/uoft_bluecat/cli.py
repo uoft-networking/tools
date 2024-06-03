@@ -45,7 +45,7 @@ def register_ips_from_file(
     reader = DictReader(file, dialect=dialect)
 
     api = Settings.from_cache().get_api_connection()
-    conf_id = api.get_configuration()["id"]
+    conf_id = api.configuration_id
     for row in reader:
         mac = row['mac-address']
         ip = row['ipv4']
