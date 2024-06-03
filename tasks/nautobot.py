@@ -51,10 +51,9 @@ def server(args: Annotated[List[str] | None, typer.Argument()] = None):
         args = []
     
     os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
-    from nautobot.core.runner import runner
-    from nautobot.core.cli import main
     from unittest.mock import patch
-    with patch("nautobot.core.runner.runner.sys.argv", ["nautobot-server", *args]):
+    with patch("sys.argv", ["nautobot-server", *args]):
+        from nautobot.core.cli import main
         main()
 
 
