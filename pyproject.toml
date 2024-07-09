@@ -48,7 +48,6 @@ dev-dependencies = [
     "lazy-imports>=0.3.1",
     "pip>=23.3.1",
     "pipdeptree>=2.13.1",
-    #"macropy @ git+https://github.com/alextremblay/macropy",
 ]
 
 [tool.rye.workspace]

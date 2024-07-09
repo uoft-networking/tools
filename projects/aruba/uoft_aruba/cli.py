@@ -1,8 +1,7 @@
-from .cli_commands import cpsec_allowlist, station_blocklist
+from .cli_commands import cpsec_allowlist, station_blocklist, list_aps
 import typer
 
 from . import Settings
-
 
 app = typer.Typer(
     name="aruba",
@@ -13,6 +12,8 @@ app = typer.Typer(
 app.add_typer(cpsec_allowlist.run, name="cpsec-allowlist")
 app.add_typer(cpsec_allowlist.run, name="cpsec-whitelist", deprecated=True)
 app.add_typer(station_blocklist.app, name="station-blocklist")
+app.add_typer(list_aps.run, name="list-aps")
+app.add_typer(list_aps.run, name="inventory")
 app.add_typer(station_blocklist.app, name="station-blacklist", deprecated=True)
 
 
