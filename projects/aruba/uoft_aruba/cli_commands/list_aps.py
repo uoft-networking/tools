@@ -10,6 +10,7 @@ run = typer.Typer(  # If run as main create a 'typer.Typer' app instance to run 
     add_completion=False,
 )
 
+
 @run.command()
 def List_APs():
     s = settings()
