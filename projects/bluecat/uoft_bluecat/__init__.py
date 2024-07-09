@@ -52,8 +52,7 @@ class Address(APIEntity):
     address: str
 
 
-#TODO: replace all this garbage with a mult-threaded API wrapper on the V2 rest api, 
-# delete vendored bluecat libraries from uoft_core
+#TODO: replace all this garbage with a mult-threaded API wrapper on the V2 rest api, delete vendored bluecat libraries from uoft_core
 
 class API:
     """This class is a wrapper around the bluecat_libraries.address_manager.api.Client class"""
@@ -508,6 +507,10 @@ class Settings(BaseSettings):
 
     class Config(BaseSettings.Config):
         app_name = "bluecat"
+
+    def alt_api_connection(self):
+        from .api import API
+        return API(self.url, self.username, self.password.get_secret_value())
 
     @overload
     def get_api_connection(self, multi_threaded: Literal[False]) -> API: ...

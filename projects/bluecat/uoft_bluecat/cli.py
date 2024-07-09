@@ -9,6 +9,7 @@ from typing import Annotated, Optional
 
 import typer
 from uoft_core import logging
+from uoft_core.console import console
 
 from . import Settings
 
@@ -49,6 +50,15 @@ def callback(
         log_level = "DEBUG"
     logging.basicConfig(level=log_level)
 
+
+@app.command()
+def get_all_prefixes():
+    with Settings.from_cache().alt_api_connection() as api:
+        blocks = api.get('/blocks').json()['data']
+        nets = api.get('/networks').json()['data']
+    con = console()
+    con.print(blocks)
+    con.print(nets)
 
 @app.command()
 def register_ips_from_file(
