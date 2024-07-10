@@ -1,13 +1,15 @@
 """top-level tasks for the monorepo"""
+
 import os
-from typing import Annotated, Optional
+from typing import Annotated, Optional, no_type_check
 from textwrap import dedent
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
 from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
-from task_runner import macros, coco_compile  # noqa: F401
 from task_runner import run, REPO_ROOT
+
+from ._macros import macros, zxpy  # noqa: F401 # type: ignore
 
 import typer
 
@@ -24,28 +26,31 @@ def list_projects():
     return all_projects_by_name()
 
 
+@no_type_check
 def build(project: str):
     """build sdist and wheel packages for a given project"""
     print(f"building {project} from projects/{project}")
     # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
     # the pyproject.py build hook doesn't get included in the sdist, and the subsequent
     # wheel build fails. So we build the sdist and wheel separately.
-    run(f"rye build -p uoft_{project} --sdist")
-    run(f"rye build -p uoft_{project} --wheel")
+    with zxpy:
+        ~f"rye build -p uoft_{project} --sdist"
+        ~f"rye build -p uoft_{project} --wheel"
 
 
+@no_type_check
 def build_all():
     """build sdist and wheel packages for all projects"""
     # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
     # the pyproject.py build hook doesn't get included in the sdist, and the subsequent
     # wheel build fails. So we build the sdist and wheel separately.
-    run("rye build --all --clean --sdist")
-    run("rye build --all --wheel")
+    with zxpy:
+        ~"rye build --all --clean --sdist"
+        ~"rye build --all --wheel"
 
 
 def test(project: str):
     """run tests for a given project"""
-
     print(f"testing {project} from projects/{project}")
     run(f"python -m pytest -k {project}")
 
@@ -81,9 +86,7 @@ def repl(project: Annotated[Optional[str], typer.Argument()] = None):
     if not project:
         project = "core"
 
-    assert (
-        REPO_ROOT / f"projects/{project}"
-    ).exists(), f"Project {project} does not exist"
+    assert (REPO_ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
 
     print(f"starting repl with uoft_{project} imported")
     with TemporaryDirectory() as tmpdir:
@@ -123,9 +126,7 @@ def package_inspect():
 
     os.chdir(REPO_ROOT / "dist")
     prompt = _get_prompt()
-    package = prompt.get_path(
-        "package", "Enter a filename for a package to inspect", fuzzy_search=True
-    )
+    package = prompt.get_path("package", "Enter a filename for a package to inspect", fuzzy_search=True)
     if package.name.endswith(".tar.gz"):
         run(f"tar -tvf {package}")
     elif package.name.endswith(".whl"):
@@ -138,9 +139,7 @@ def package_peek():
     """print out the contents of a file in an sdist or wheel file in the dist/ directory"""
     prompt = _get_prompt()
     os.chdir(REPO_ROOT / "dist")
-    package = prompt.get_path(
-        "package", "Enter a filename for a package to inspect", fuzzy_search=True
-    )
+    package = prompt.get_path("package", "Enter a filename for a package to inspect", fuzzy_search=True)
     names = []
     if package.name.endswith(".tar.gz"):
         import tarfile
@@ -174,6 +173,28 @@ def package_peek():
         raise Exception(f"Unknown package type: {package}")
 
 
+def profile_import_time(cmd: str):
+    """Run a given command with python's `importtime` option set,
+    collect the generated report, convert it to json,
+    and open it in VS Code to drill-down & explore"""
+    import subprocess
+    import tempfile
+    from shutil import which
+
+    print(which('uoft'))
+
+    res = subprocess.run(cmd, capture_output=True, shell=True, env={"PYTHONPROFILEIMPORTTIME": "1"})
+    stderr = res.stderr.decode("utf-8")
+    Path("importtime.txt").write_text(stderr)
+    import sys
+    print(sys.executable)
+    try:
+        subprocess.run('tuna importtime.txt', shell=True)
+    except KeyboardInterrupt:
+        pass
+    Path("importtime.txt").unlink()
+
+
 def uoft():
     """run the uoft cli"""
     from uoft_core import __main__ as cli
@@ -187,19 +208,3 @@ def uoft():
             sys.argv.remove(arg)
     cli._add_subcommands()
     cli.app()
-
-# def lock():
-#     import tomlkit
-#     reqs = []
-#     dev_reqs = []
-#     for p in Path(REPO_ROOT).glob("projects/*/pyproject.toml"):
-#         pyproj = tomlkit.load(p.open())
-#         reqs.extend(pyproj.get('project', {}).get("dependencies", []))
-#     root_pyproj = tomlkit.load((REPO_ROOT / "pyproject.toml").open())
-#     dev_reqs.extend(root_pyproj.get('tool', {}).get('rye', {}).get("dev-dependencies", []))
-
-#     import tempfile
-#     with tempfile.NamedTemporaryFile() as f:
-#         f.write("\n".join(reqs).encode("utf-8"))
-#         f.flush()
-#         run(f"pipgrip --tree -r {f.name}")

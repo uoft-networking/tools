@@ -5,11 +5,8 @@ from task_runner import run, sudo, REPO_ROOT
 GLOBAL_PIPX = "PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx"
 
 
-def pipx_install(root_project: str, packages: list[str] | None = None):
-    """install a package to /usr/local/bin through pipx"""
+def pipx_raw(command: str):
     requirements = []
-    if packages:
-        packages = [f"projects/{p}" for p in packages]
 
     with open("requirements.lock", "r") as f:
         for line in f.readlines():
@@ -23,13 +20,20 @@ def pipx_install(root_project: str, packages: list[str] | None = None):
         req_file.flush()
         with_constraints = f'--pip-args "--constraint {req_file.name}"'
         sudo(
-            f"{GLOBAL_PIPX} install --force projects/{root_project} {with_constraints}",
+            f"{GLOBAL_PIPX} {command} {with_constraints}",
         )
-        if packages:
-            packages_str = " ".join(packages)
-            sudo(
-                f"{GLOBAL_PIPX} inject --include-apps uoft_{root_project} {packages_str} {with_constraints}",
-            )
+
+
+def pipx_install(root_project: str, packages: list[str] | None = None):
+    """install a package to /usr/local/bin through pipx"""
+    pipx_raw(f"install --force projects/{root_project}")
+
+    if packages:
+        packages = [f"projects/{p}" for p in packages]
+        packages_str = " ".join(packages)
+        pipx_raw(
+            f"inject --include-apps uoft_{root_project} {packages_str}",
+        )
 
 
 def all_projects():
