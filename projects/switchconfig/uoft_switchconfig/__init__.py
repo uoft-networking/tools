@@ -7,7 +7,9 @@ from uoft_core import Util, UofTCoreError, chomptxt, BaseSettings
 
 from pydantic import BaseModel, Field
 
-__version__ = version(__package__)
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
 
 APP_NAME = "switchconfig"

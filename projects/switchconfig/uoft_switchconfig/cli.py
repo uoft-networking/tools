@@ -2,7 +2,7 @@
 import os
 import sys
 import traceback
-from typing import Optional
+from typing import Annotated, Optional
 from pathlib import Path
 import json
 
@@ -27,6 +27,19 @@ import typer
 
 logger = logging.getLogger(__name__)
 
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
+
 app = typer.Typer(
     name="switchdeploy",
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
@@ -42,17 +55,6 @@ app.add_typer(generate)
 
 util = Settings._util()
 prompt = Prompt(util)
-
-
-def version_callback(value: bool):
-    if value:
-        from . import __version__
-        from sys import version_info as v, platform, executable
-
-        print(
-            f"Switchdeploy v{__version__} \nPython {v.major}.{v.minor} ({executable}) on {platform}"
-        )
-        raise typer.Exit()
 
 
 def initialize_config(value: bool):
@@ -141,6 +143,10 @@ def show_paths(value: bool):
 def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True),
+    ] = None,
     init_config: Optional[bool] = typer.Option(
         None,
         "--init-config",

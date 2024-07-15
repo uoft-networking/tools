@@ -1,8 +1,6 @@
-import os, sys
-import traceback
-from typing import Optional
+import sys
+from typing import Annotated, Optional
 
-from . import config
 from . import bluecat
 from . import ldap
 from . import nautobot
@@ -12,7 +10,17 @@ from uoft_core import logging
 
 import typer
 
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
 
+    print(
+        f"uoft-scripts v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
 
 
 app = typer.Typer(
@@ -27,19 +35,12 @@ app.add_typer(nautobot.app)
 app.add_typer(librenms.app)
 
 
-def version_callback(value: bool):
-    if value:
-        from . import __version__  # noqa
-        from sys import version_info as v, platform, executable  # noqa
-
-        print(
-            f"uoft_scripts v{__version__} \nPython {v.major}.{v.minor} ({executable}) on {platform}"
-        )
-        raise typer.Exit()
-
-
 @app.callback()
 def callback(
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):

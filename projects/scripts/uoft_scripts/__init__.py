@@ -6,7 +6,9 @@ from uoft_core import Util, shell
 
 from pydantic import BaseModel
 
-__version__ = version(__package__)
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
 
 APP_NAME = "scripts"

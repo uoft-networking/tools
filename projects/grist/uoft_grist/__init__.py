@@ -3,7 +3,10 @@ from uoft_core import BaseSettings, Field
 from uoft_core.types import SecretStr, BaseModel
 from importlib.metadata import version
 
-__version__ = version(__package__)  # type:ignore
+
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
 
 class Department(BaseModel):

@@ -12,6 +12,19 @@ from uoft_core import logging
 
 logger = logging.getLogger(__name__)
 
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
+
 app = typer.Typer(
     name="grist",
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
@@ -33,6 +46,10 @@ def version_callback(value: bool):
 
 @app.callback()
 def callback(
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
