@@ -22,13 +22,11 @@ logger = logging.getLogger(__name__)
 def _get_prod_api_session():
     from requests import Session
     from urllib.parse import urljoin
-    
+
     global PROD_API_SESSION
     if PROD_API_SESSION:
         return PROD_API_SESSION
-    base_url, token = (
-        run("pass nautobot-api-token", cap=True).splitlines()
-    )
+    base_url, token = run("pass nautobot-api-token", cap=True).splitlines()
 
     class NautobotSession(Session):
         def request(self, method, url, *args, **kwargs):
@@ -47,11 +45,13 @@ def server(args: Annotated[List[str] | None, typer.Argument()] = None):
     """run a given nautobot-server subcommand"""
     if args is None:
         args = []
-    
+
     os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
     from unittest.mock import patch
+
     with patch("sys.argv", ["nautobot-server", *args]):
         from nautobot.core.cli import main
+
         main()
 
 
@@ -88,15 +88,11 @@ def db_command(cmd: str):
 def systemd(
     action: Annotated[
         str,
-        typer.Argument(
-            help="any valid systemd action, or the special actions 'edit' and 'tail'"
-        ),
+        typer.Argument(help="any valid systemd action, or the special actions 'edit' and 'tail'"),
     ],
     prod: Annotated[
         bool,
-        typer.Option(
-            help="Run this systemd task against the production systemd services"
-        ),
+        typer.Option(help="Run this systemd task against the production systemd services"),
     ] = False,
 ):
     """
@@ -168,9 +164,7 @@ def db_refresh():
         if "is being accessed by other users" in e.stderr:
             print("Dev DB is locked. shut down the dev server and try again")
             exit(1)
-    db_command(
-        "UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';"
-    )
+    db_command("UPDATE extras_gitrepository SET branch='dev' WHERE name='nautobot_data';")
     server(["post_upgrade"])
 
 
