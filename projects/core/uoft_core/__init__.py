@@ -346,44 +346,48 @@ def create_or_update_config_file(
         logger.debug(f"Creating new config file {file}")
     write_config_file(file, obj, write_as=write_as)
 
+_pass_cmd = os.environ.get("PASS_CMD", "pass")
+_pass_installed = None
+def _is_pass_installed():
+    global _pass_installed
+    if _pass_installed is None:
+        _pass_installed = bool(which("pass"))
+    return _pass_installed
 
 class PassPath(PosixPath):
     """An abstract path representing an entry in the `pass` password store"""
 
-    _pass_installed: bool
     _contents: str | None
-    pass_cmd = os.environ.get("PASS_CMD", "pass")
 
     def __new__(cls, *args):
         self = super().__new__(cls, *args)
-        self._pass_installed = bool(which("pass"))
         self._contents = None
         return self
 
     @property
     def command_name(self) -> str:
-        return f"{self.pass_cmd} show {self}"
+        return f"{_pass_cmd} show {self}"
 
     @property
     def contents(self) -> str:
-        if self._pass_installed:
-            if self._contents is None:
-                try:
-                    logger.debug(f"Running pass command: `{self.command_name}`")
-                    self._contents = shell(self.command_name)
-                except CalledProcessError as e:
-                    if 'gpg: decryption failed:' in e.stderr:
-                        logger.error(e.stderr)
-                        raise UofTCoreError("Failed to decrypt password-store entry. Check your GPG keys") from e
-                    if e.returncode == 1:
-                        logger.debug(f"Password-store entry {self} does not exist, skipping")
-                    self._contents = ""
-            return self._contents
-        logger.debug(f"{self.pass_cmd} is not installed, skipping {self}")
-        return ""
+        if not _is_pass_installed():
+            logger.debug(f"{_pass_cmd} is not installed, skipping {self}")
+            return ""
+        if self._contents is None:
+            try:
+                logger.debug(f"Running pass command: `{self.command_name}`")
+                self._contents = shell(self.command_name)
+            except CalledProcessError as e:
+                if 'gpg: decryption failed:' in e.stderr:
+                    logger.error(e.stderr)
+                    raise UofTCoreError("Failed to decrypt password-store entry. Check your GPG keys") from e
+                if e.returncode == 1:
+                    logger.debug(f"Password-store entry {self} does not exist, skipping")
+                self._contents = ""
+        return self._contents
 
     def exists(self) -> bool:
-        if not self._pass_installed:
+        if not _is_pass_installed():
             return False
         return bool(self.contents)
 
@@ -400,8 +404,8 @@ class PassPath(PosixPath):
     def write_text(
         self, data: str, encoding: str | None = None, errors: str | None = None
     ) -> None:
-        if self._pass_installed:
-            shell(f"pass insert -m {self}", input_=data)
+        if _is_pass_installed():
+            shell(f"{_pass_cmd} insert -m {self}", input_=data)
             self._contents = data
         else:
             raise UofTCoreError(
@@ -412,16 +416,35 @@ class PassPath(PosixPath):
             )
 
 
-def bitwarden_get(secret_name: str) -> str:
-    # for interactive use, e.g. for use in scripts & CLI tools, prefer the `rbw` command line tool
-    # for non-interative use, e.g. in a web server, use the `bw` command line tool
-    raise NotImplementedError("bitwarden_get is not yet implemented")
-    if sys.stdout.isatty():
-        # look for rbw, fall back to bw
-        pass
+def bitwarden_unlock(password_file: Path | None = None):
+    if os.environ.get("BW_SESSION"):
+        # vault is already unlocked, nothing to see here
+        return
+    cmd = "bw unlock --raw"
+    if not password_file:
+        password_file = Path.home() / ".bw_pass"
+    # raise a warning if password file access mode is not 600
+    if password_file.exists():
+        # fancy bitwise AND to pull out just the permission bits and compare
+        if password_file.stat().st_mode & 0o777 != 0o600:
+            logger.warning(
+                f"Password file {password_file} has insecure permissions. Please set it to 600"
+            )
     else:
-        # look for bw, raise an error if it's not found
-        pass
+        logger.info(f"Password file {password_file} not found, skipping")
+    if password_file:
+        cmd += f" --password-file {password_file}"
+    session = shell(cmd)
+
+    # inject the session into the environment
+    os.environ["BW_SESSION"] = session
+
+
+def bitwarden_get(secret_name: str) -> str:
+    # this function may get called once or many times, depending on how many secrets are referenced in other config files
+    # when called, this function needs to unlock the bitwarden vault if it hasn't already been unlocked, and then fetch the secret
+    bitwarden_unlock()
+    return shell(f"bw get item {secret_name} --raw")
 
 class Timeit:
     """
@@ -951,22 +974,24 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             )
         super().__init_subclass__(**kwargs)
 
-    #@pydantic.validator("*", pre=True)
+    @pydantic.validator("*", pre=True)
     def _validate_ref_fields(cls, value):
         # if any field has a value that looks like "ref[prefix:field]", 
         # verify that prefix is either `pass` (for the linux password-store) or `bw` (for bitwarden)
         # look up 'field' in the password store or bitwarden and replace the value with the result
         if isinstance(value, str) and value.startswith("ref[") and value.endswith(']'):
+            logger.debug(f"Found reference field: {value}")
             ref = value[4:-1]
             if not ref:
                 raise ValueError("Reference field cannot be empty")
             if ref.startswith("pass:"):
                 lookup_name = ref[5:]
-                return shell(f"pass show {lookup_name}").strip()
+                return PassPath(lookup_name).contents
             if ref.startswith("bw:"):
                 lookup_name = ref[3:]
                 return bitwarden_get(lookup_name)
             raise ValueError(f"Invalid reference field: {value}")
+        return value
 
 
     @classmethod
