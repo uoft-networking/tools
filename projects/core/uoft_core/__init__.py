@@ -364,6 +364,7 @@ class PassPath(PosixPath):
 
     _pass_installed: bool
     _contents: str | None
+    pass_cmd = os.environ.get("PASS_CMD", "pass")
 
     def __new__(cls, *args):
         self = super().__new__(cls, *args)
@@ -373,7 +374,7 @@ class PassPath(PosixPath):
 
     @property
     def command_name(self) -> str:
-        return f"pass show {self}"
+        return f"{self.pass_cmd} show {self}"
 
     @property
     def contents(self) -> str:
@@ -389,7 +390,7 @@ class PassPath(PosixPath):
                         logger.debug(f"Password-store entry {self} does not exist, skipping")
                     self._contents = ""
             return self._contents
-        logger.debug(f"pass is not installed, skipping {self}")
+        logger.debug(f"{self.pass_cmd} is not installed, skipping {self}")
         return ""
 
     def exists(self) -> bool:
