@@ -4,7 +4,7 @@ This package contains a set of utilities useful for building python libraries, s
 
 This toolkit makes it really easy to write small, simple, well designed CLI utilities
 In fact, the aim of this project is to make well-engineered CLIs almost as easy to write and deploy as basic python scripts.
-It leverages a lot of really fantastic modern libraries and tools to do so, like *pydantic*, *typer*, and *loguru*
+It leverages a lot of really fantastic modern libraries and tools to do so, like *pydantic*, *typer*, and *rich*
 It's designed to be easy to include in other projects. all of its mainline dependencies are vendored and all modules which have external un-vendorable dependencies are available as optional extras
 
 # Install
@@ -124,7 +124,7 @@ def _debug():
 
 ```
 
-In this example, I'm debugging the uoft_aruba cli tool. If I run the debug selector, enter "uoft_aruba.cli" in the module prompt, and enter "cpsec allowist provision some_file.csv" in the args prompt, it would be equivalent to running "uoft_aruba cpsec allowist provision some_file.csv", but inside of a debugger. This would allow me to debug the `uoft_aruba.cpsec_allowlist.provision` function in the same context as when it's run from the command line in production.
+In this example, I'm debugging the uoft_aruba cli tool. If I run the debug selector, enter "uoft_aruba.cli" in the module prompt, and enter "cpsec allowlist provision some_file.csv" in the args prompt, it would be equivalent to running "uoft_aruba cpsec allowist provision some_file.csv", but inside of a debugger. This would allow me to debug the `uoft_aruba.cpsec_allowlist.provision` function in the same context as when it's run from the command line in production.
 
 ## `uoft_core.debug_cache`
 I've added a handy little utility to uoft_core which is great for debugging and testing code which has a long startup (Ex code that loads a bunch of data from an API or SSH session and then processes that data. This `debug_cache`function is a decorator you can add to a function which will save the output of that function to disk the first time that function is run, and then reuse that saved output every subsequent time you run your code. 

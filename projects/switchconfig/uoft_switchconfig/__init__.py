@@ -5,12 +5,10 @@ from pathlib import Path
 
 from uoft_core import Util, UofTCoreError, chomptxt, BaseSettings
 
-from loguru import logger
 from pydantic import BaseModel, Field
 
 __version__ = version(__package__)
 
-logger.disable(__name__)
 
 APP_NAME = "switchconfig"
 

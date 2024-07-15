@@ -5,6 +5,8 @@ API Wrapper and (hopefully soon) CLI interface for the LibreNMS REST API
 import typer
 
 from . import Settings
+from uoft_core import logging
+
 
 app = typer.Typer(
     name="librenms",
@@ -16,8 +18,14 @@ app = typer.Typer(
 @app.callback()
 #@Settings.wrap_typer_command
 #TODO: implement click paramtype support for Settings AnyHttpUrl
-def callback():
-    pass
+def callback(
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 # Be sure to replace the below example commands with your own
 @app.command()

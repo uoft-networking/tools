@@ -8,8 +8,12 @@ from . import ldap
 from . import nautobot
 from . import librenms
 
+from uoft_core import logging
+
 import typer
-from loguru import logger
+
+
+
 
 app = typer.Typer(
     name="scripts",
@@ -36,26 +40,13 @@ def version_callback(value: bool):
 
 @app.callback()
 def callback(
-    debug: bool = typer.Option(False, help="Turn on debug logging"),
-    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
-    version: Optional[bool] = typer.Option(  # pylint: disable=unused-argument
-        None,
-        "--version",
-        callback=version_callback,
-        help="Show version information and exit",
-    ),
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
-    """
-    Alex Tremblay's assorted scripts
-    """
-
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
-    if trace:
-        log_level = "TRACE"
-    import logging
-    logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s", stream=sys.stderr)
+    logging.basicConfig(level=log_level)
 
 
 def cli():

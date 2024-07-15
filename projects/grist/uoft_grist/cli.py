@@ -1,14 +1,14 @@
 """
 UofT Grist - Utilization Reporting
 """
-from grist_api import GristDocAPI
-import typer
-from typing import Optional
-from . import Settings, Department
+from typing import Annotated, Optional
 from collections import defaultdict
 import datetime
 import sys
-import logging
+from grist_api import GristDocAPI
+import typer
+from . import Settings, Department
+from uoft_core import logging
 
 logger = logging.getLogger(__name__)
 
@@ -33,25 +33,13 @@ def version_callback(value: bool):
 
 @app.callback()
 def callback(
-    debug: bool = typer.Option(False, help="Turn on debug logging"),
-    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
-    version: Optional[bool] = typer.Option(  # pylint: disable=unused-argument
-        None,
-        "--version",
-        callback=version_callback,
-        help="Show version information and exit",
-    ),
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
-    if trace:
-        log_level = "TRACE"
-
-    logging.basicConfig(
-        level=log_level, format="%(levelname)s: %(message)s", stream=sys.stderr
-    )
-    s = Settings.from_cache()
+    logging.basicConfig(level=log_level)
 
 
 def cli():

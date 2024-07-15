@@ -4,6 +4,7 @@ A toolkit for working with SSH. Wrappers, Ansible convenience features, Nornir i
 
 import typer
 
+from uoft_core import logging
 from . import Settings
 
 app = typer.Typer(
@@ -16,8 +17,14 @@ app = typer.Typer(
 @app.callback()
 #@Settings.wrap_typer_command
 #TODO: implement support for exploding submodels in Settings.wrap_typer_command
-def callback():
-    pass
+def callback(
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 @app.command()
 def wrapper():

@@ -1,6 +1,9 @@
-from .cli_commands import cpsec_allowlist, station_blocklist, list_aps
+
 import typer
 
+from uoft_core import logging
+
+from .cli_commands import cpsec_allowlist, station_blocklist, list_aps
 from . import Settings
 
 app = typer.Typer(
@@ -19,9 +22,14 @@ app.add_typer(station_blocklist.app, name="station-blacklist", deprecated=True)
 
 @app.callback()
 @Settings.wrap_typer_command
-def callback(debug: bool = typer.Option(False, help="Enable debug mode.")):
-    # TODO: Add debug mode
-    pass
+def callback(
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 
 def deprecated():

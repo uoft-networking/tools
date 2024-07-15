@@ -24,10 +24,10 @@ import secrets
 from . import config, types
 
 from uoft_core import txt, create_python_module
+from uoft_core import logging
 from uoft_core.prompt import Prompt
 from uoft_core.nested_data import NestedData
 from pydantic.fields import ModelField
-from loguru import logger
 from arrow import now
 from jinja2 import Environment
 
@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     CommentBlockSchema: TypeAlias = Mapping[
         str, "CommentBlockField" | "CommentBlockSchema"
     ]
+
+logger = logging.getLogger(__name__)
 
 prompt = Prompt(config.util.history_cache)
 

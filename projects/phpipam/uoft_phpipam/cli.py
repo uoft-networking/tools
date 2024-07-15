@@ -3,6 +3,7 @@ A collection of tools to interact with a phpIPAM instance, and to feed data into
 """
 
 import typer
+from uoft_core import logging
 from . import Settings
 from .ansible_lookup import phpipam_ansible_lookup
 from .serial_lookup import phpipam_serial_lookup
@@ -18,9 +19,14 @@ app = typer.Typer(
 
 @app.callback()
 @Settings.wrap_typer_command
-def callback(debug: bool = typer.Option(False, help="Enable debug mode.")):
-    # TODO: Add debug mode
-    pass
+def callback(
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 
 @app.command(help="From a serial, returns a dictionary object of a given device.", no_args_is_help=True)

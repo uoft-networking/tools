@@ -42,7 +42,8 @@ import deepdiff
 import deepdiff.model
 import typer
 import jinja2
-from rich import print
+from uoft_core.console import console
+
 
 
 class Settings(BaseSettings):
@@ -234,6 +235,8 @@ class OnOrphanAction(StrEnum):
 def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: OnOrphanAction = OnOrphanAction.prompt):
     from uoft_core import Timeit
 
+    print = console().print
+
     t = Timeit()
 
     def done():
@@ -251,6 +254,7 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
         done()
         return
     if interactive:
+        print({k: len(v) for k, v in sm.source.syncdata.dict().items() if v})
         print("Do you want to see a detailed breakdown of the changes?")
         if typer.confirm("Show diff?"):
             print(sm.changes)

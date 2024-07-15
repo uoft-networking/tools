@@ -5,6 +5,8 @@ Collection of tools to interact with SnipeIT, currently focused around Access Po
 from pathlib import Path
 import sys
 import typer
+
+from uoft_core import logging
 from . import Settings
 from .create import snipe_create_asset
 from .checkout import snipe_checkout_asset
@@ -24,8 +26,14 @@ app = typer.Typer(
 
 @app.callback()
 @Settings.wrap_typer_command
-def callback():
-    pass
+def callback(
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 
 @app.command(help="Create an asset.", no_args_is_help=True)

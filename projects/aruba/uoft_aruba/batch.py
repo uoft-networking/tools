@@ -4,6 +4,7 @@ from typing import Iterable, Sequence, Literal
 from functools import cached_property
 
 from uoft_core.types import BaseModel
+from uoft_core.console import console
 from pydantic import validator
 
 
@@ -78,7 +79,7 @@ class Provisioner:
                 yield self.provision_ap(*ap)
             except InvalidField as e:
                 if self.error_policy == "skip":
-                    self.console.print(
+                    console().print(
                         f"[red]ERROR[/] {e.args[0]} [red]SKIPPING[/] {e.ap}"
                     )
                     yield e
@@ -86,14 +87,14 @@ class Provisioner:
                     raise e
             except AlreadyExists as e:
                 if "already correctly provisioned" in e.args[0]:
-                    self.console.print(
+                    console().print(
                         f"AP_NAME {e.ap.name} already correctly provisioned. [green]SKIPPING[/]"
                     )
                     yield e.ap
                 elif self.error_policy == "force":
                     yield self.force_provision_ap(e.ap, e.old_ap)
                 elif self.error_policy == "skip":
-                    self.console.print(
+                    console().print(
                         f"[red]ERROR[/] {e.args[0]} [red]SKIPPING[/] {e.ap}"
                     )
                     yield e
@@ -124,16 +125,16 @@ class Provisioner:
                 del self.existing_aps_in_allowlist
             except AttributeError:
                 pass
-        self.console.print(msg)
+        console().print(msg)
 
     def provision_ap(self, name, group, mac_address):
-        self.console.print(
+        console().print(
             f"Provisioning {name} with MAC {mac_address} in group {group}..."
         )
 
         # instantiating the AP will validate the fields automatically. Thanks Pydantic!
         ap = AP(mac_address=mac_address, group=group, name=name)
-        self.console.print("Verifying input parameters...[green]GOOD[/]")
+        console().print("Verifying input parameters...[green]GOOD[/]")
 
         self._validate_group(ap)
 
@@ -148,7 +149,7 @@ class Provisioner:
             self.mobility_master.ap_provisioning.wdb_cpsec_add_mac(
                 ap.mac_address, ap.group, ap.name
             )
-        self.console.print(msg)
+        console().print(msg)
 
         msg = f"Modified CPSEC entry for {ap.name} / {ap.mac_address} to factory_approved...[green]GOOD[/]"
         if self.dry_run:
@@ -157,7 +158,7 @@ class Provisioner:
             self.mobility_master.ap_provisioning.wdb_cpsec_modify_mac_factory_approved(
                 ap.mac_address
             )
-        self.console.print(msg)
+        console().print(msg)
 
         return ap
 
@@ -188,7 +189,7 @@ class Provisioner:
         if ap.group not in self.all_groups_by_name:
             msg = f"AP_GROUP {ap.group} does not exist on controller."
             raise InvalidField(msg, field="ap_group", ap=ap)
-        self.console.print(
+        console().print(
             f"Verifying AP_GROUP {ap.group} exists on controller...[green]GOOD[/]"
         )
 
@@ -208,7 +209,7 @@ class Provisioner:
             else:
                 msg = f"AP_NAME {ap.name} already exists on controller with MAC {existing_ap['MAC-Address']}."
                 raise AlreadyExists(msg, ap=ap, old_ap=existing_ap)
-        self.console.print(
+        console().print(
             f"Verifying AP_NAME {ap.name} is not in use...[green]GOOD[/]"
         )
 
@@ -227,13 +228,9 @@ class Provisioner:
                     raise AlreadyExists(msg, ap=ap, old_ap=existing_ap)
             msg = f"MAC {ap.mac_address} already exists on controller with AP_NAME {existing_ap['AP-Name']}."
             raise AlreadyExists(msg, ap=ap, old_ap=existing_ap)
-        self.console.print(
+        console().print(
             f"Verifying MAC {ap.mac_address} is not in use...[green]GOOD[/]"
         )
-
-    @property
-    def console(self):
-        return self.settings.util.console
 
     @cached_property
     def all_groups_by_name(self) -> set[str]:

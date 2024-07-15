@@ -6,6 +6,7 @@ from pathlib import Path
 from csv import DictReader, Sniffer
 
 import typer
+from uoft_core import logging
 
 from . import Settings
 
@@ -19,8 +20,14 @@ app = typer.Typer(
 
 @app.callback()
 @Settings.wrap_typer_command
-def callback():
-    s = Settings.from_cache()
+def callback(
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 
 @app.command()

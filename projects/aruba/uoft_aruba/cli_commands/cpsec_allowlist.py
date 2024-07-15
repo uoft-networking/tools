@@ -16,6 +16,7 @@ import csv
 import io
 from pathlib import Path
 from uoft_core import StrEnum
+from uoft_core.console import console
 from .. import Settings, batch
 
 run = typer.Typer(  # If run as main create a 'typer.Typer' app instance to run the program within.
@@ -37,7 +38,7 @@ def get_ap_groups():  # Create the 'get-ap-groups' command within typer.
             controller_ap_groups.append(
                 raw_controller_ap_group["profile-name"].rpartition("'")[2]
             )
-        s.util.console.print(
+        console().print(
             "Below you will find a list of valid AP_GROUPs to use in your input:"
         )
         print(*controller_ap_groups, sep="\n")
@@ -78,10 +79,9 @@ def provision(
     00:01:10:12:02:21,-CC Lab,test_ap_name_18\n
     00:01:02:12:02:21,-CC Lab,test_ap_name_19
     """
-    s = Settings.from_cache()
     if filename.name == "-":
         if sys.stdin.isatty():
-            s.util.console.print(
+            console().print(
                 """Please enter AP details to be provisioned, one per line. Press CTRL+D when complete.\nMAC_ADDRESS,AP_GROUP,AP_NAME"""
             )
         file = io.StringIO(sys.stdin.read())
@@ -101,9 +101,9 @@ def provision(
     failed_aps = [ap for ap in results if isinstance(ap, Exception)]
 
     if failed_aps:
-        s.util.console.print("The following APs failed to provision:\nMAC_ADDRESS,AP_GROUP,AP_NAME,REASON")
+        console().print("The following APs failed to provision:\nMAC_ADDRESS,AP_GROUP,AP_NAME,REASON")
         for ap_error in failed_aps:
-            s.util.console.print(
+            console().print(
                 f"{ap_error.ap.mac_address},{ap_error.ap.group},{ap_error.ap.name},{ap_error.args[0]}"
             )
 
