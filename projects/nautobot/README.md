@@ -119,18 +119,12 @@ import _cog as c; c.gen_conf_table('uoft_nautobot')
 | gitlab_templates_password | SecretStr |  |  |  |
 | gitlab_data_username | str |  |  |  |
 | gitlab_data_password | SecretStr |  |  |  |
-| ldap_server | str |  |  |  |
-| ldap_is_active_directory | bool |  |  |  |
-| ldap_cert_is_self_signed | bool |  |  |  |
-| ldap_bind_dn | str |  |  |  |
-| ldap_bind_password | SecretStr |  |  |  |
-| ldap_user_search_base | str |  |  | OU=UTORIDStaff,OU=Staff Users,DC=utscad,DC=utsc,DC=utoronto,DC=ca |
-| ldap_user_attribute_map | str |  |  |  |
-| ldap_group_search_base | str |  |  | OU=Security Groups,DC=utscad,DC=utsc,DC=utoronto,DC=ca |
-| ldap_groups_active | str |  |  | GL_IITS_Users |
-| ldap_groups_staff | str |  |  | GL_SysNetAdmins |
-| ldap_groups_superuser | str |  |  | GL_SysNet_SuperUsers |
-| ldap_additional_groups | str |  |  |  |
+| groups_active | str |  |  | GL_IITS_Users |
+| groups_staff | str |  |  | GL_SysNetAdmins |
+| groups_superuser | str |  |  | GL_SysNetAdmins |
+| additional_groups | str |  |  |  |
+| ldap | LDAPSettings |  |  |  |
+| keycloak | KeycloakSettings |  |  |  |
 <!--[[[end]]] -->
 
 ## License
