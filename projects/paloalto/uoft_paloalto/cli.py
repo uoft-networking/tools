@@ -1,0 +1,58 @@
+"""
+CLI and API to work with Paloalto products (NSM, etc)
+"""
+from typing import Annotated, Optional
+
+import typer
+
+from uoft_core import logging
+from . import Settings
+
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
+
+app = typer.Typer(
+    name="paloalto",
+    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
+    no_args_is_help=True,
+    help=__doc__,  # Use this module's docstring as the main program help text
+)
+
+@app.callback()
+@Settings.wrap_typer_command
+def callback(
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
+
+# Be sure to replace the below example commands with your own
+@app.command()
+def example_subcommand1(arg1: str, arg2: str, option1: bool = typer.Option(False, help="An example option")):
+    print(arg1, arg2, option1)
+
+@app.command()
+def another_exampple_subcommand(arg1: str, arg2: str, option1: bool = typer.Option(False, help="An example option")):
+    print(arg1, arg2, option1)
+
+def _debug():
+    "Debugging function, only used in active debugging sessions."
+    # pylint: disable=all
+    app()

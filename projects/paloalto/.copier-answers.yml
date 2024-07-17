@@ -1,0 +1,6 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: tasks/_new_project/template
+author_email: alex.tremblay@utoronto.ca
+author_name: Alex Tremblay
+description: CLI and API to work with Paloalto products (NSM, etc)
+name: paloalto

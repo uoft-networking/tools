@@ -14,6 +14,7 @@
 -e file:projects/grist
 -e file:projects/librenms
 -e file:projects/nautobot
+-e file:projects/paloalto
 -e file:projects/phpipam
 -e file:projects/scripts
 -e file:projects/snipeit
