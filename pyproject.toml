@@ -94,12 +94,6 @@ overrides = [
 [tool.ruff]
 line-length = 120
 
-typing-modules = ["uoft_core.types"]
-
-# Enable Flake's "E", "W", and "F" codes by default.
-select = ["E", "W", "F", "RUF"]
-ignore = ["E401", "W291"]
-
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
@@ -122,10 +116,18 @@ exclude = [
     "node_modules",
     "venv",
 ]
-per-file-ignores = {}
 
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
 
 # Assume Python 3.10.
 target-version = "py310"
+
+[tool.ruff.lint]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+typing-modules = ["uoft_core.types"]
+
+# Enable Flake's "E", "W", and "F" codes by default.
+select = ["E", "W", "F", "RUF"]
+ignore = ["E401", "W291"]
