@@ -336,7 +336,7 @@ def _debug():
     # Debug code goes here
     # noqa
     from .util import construct_model_instance_interactively
-    from uoft_switchconfig.types import *
+    #from uoft_switchconfig.types import *
 
     class SubModel(BaseModel):
         id: int = Field(description="The VLAN ID of this VLAN, Example: 100")
