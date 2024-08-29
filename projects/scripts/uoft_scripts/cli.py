@@ -1,7 +1,6 @@
 import sys
 from typing import Annotated, Optional
 
-from . import bluecat
 from . import ldap
 from . import nautobot
 from . import librenms
@@ -29,7 +28,6 @@ app = typer.Typer(
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
 )
-app.add_typer(bluecat.app)
 app.add_typer(ldap.app)
 app.add_typer(nautobot.app)
 app.add_typer(librenms.app)
