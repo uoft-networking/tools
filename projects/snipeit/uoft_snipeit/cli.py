@@ -34,6 +34,7 @@ def _version_callback(value: bool):
     )
     raise typer.Exit()
 
+
 app = typer.Typer(
     name="snipeit",
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
@@ -63,43 +64,54 @@ def callback(
     logging.basicConfig(level=log_level)
 
 
-@app.command(help="Create an asset.", no_args_is_help=True)
+@app.command()
 def create_asset(mac_addr: str, name: str, serial: str, model_id: int = 138):
+    "Create an asset."
     snipe_create_asset(mac_addr, name, serial, model_id)
 
 
-@app.command(help="Checkout an asset.", no_args_is_help=True)
-def checkout_asset(asset: int, location_id: int = typer.Option(None), name: str = typer.Option(None)):
+@app.command()
+def checkout_asset(
+    asset: int,
+    location_id: int = typer.Option(None),
+    name: str = typer.Option(None),
+):
+    "Checkout an asset."
     snipe_checkout_asset(asset, location_id, name)
 
 
-@app.command(help="Generage an asset label.", no_args_is_help=True)
+@app.command()
 def generate_label(asset: int):
+    "Generage an asset label."
     snipe_generate_label(asset)
 
 
-@app.command(help="Print the last generated label.")
+@app.command()
 def print_label():
+    "Print the last generated label."
     system_print_label()
 
 
-@app.command(
-    help="Single provision from INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for the given asset provided.",
-    no_args_is_help=True,
-)
+@app.command()
 def single_provision(
-    mac_addr: str, name: str, serial: str, model_id: int = 138, location_id: int = typer.Option(None)
+    mac_addr: str,
+    name: str,
+    serial: str,
+    model_id: int = 138,
+    location_id: int = typer.Option(None),
 ):
+    """Single provision from INPUT.
+
+    Runs: create-asset, checkout-asset, generate-label, and print-label for the
+    given asset provided.
+    """
     asset = snipe_create_asset(mac_addr, name, serial, model_id)
     snipe_checkout_asset(asset, location_id, name)
     snipe_generate_label(asset)
     system_print_label()
 
 
-@app.command(
-    help="Batch provisioning from FILE and INPUT.  Runs: create-asset, checkout-asset, generate-label, and print-label for each given asset name. Names are taken from file/interactive input, and Mac's/Serials are taken from interactive input, in pairs of two, typically scanned via barcode scanner.\n\nIf FILE is a single dash (ex. '-'), data will be read from stdin.\n\n-Note the current default model-id is for an Aruba AP 535, supply the --model-id option as an argument along with a different model-id if required.",
-    no_args_is_help=True,
-)
+@app.command()
 def batch_provision(
     names_list: Path = typer.Argument(
         ...,
@@ -112,6 +124,18 @@ def batch_provision(
     ),
     model_id: int = 138,
 ):
+    """Batch provisioning from FILE and INPUT.
+
+    Runs: create-asset, checkout-asset, generate-label, and print-label for each
+    given asset name. Names are taken from file/interactive input, and Mac's/Serials
+    are taken from interactive input, in pairs of two, typically scanned via
+    barcode scanner.
+
+    If FILE is a single dash (ex. '-'), data will be read from stdin.
+
+    -Note the current default model-id is for an Aruba AP 535, supply the
+    --model-id option as an argument along with a different model-id if required.
+    """
     if names_list.name == "-":
         print("Enter AP names, one per line. Press CTRL+D when complete.")
         names = sys.stdin.readlines()
@@ -120,19 +144,15 @@ def batch_provision(
     snipe_batch_provision(names, model_id)
 
 
-@app.command(
-    help="Returns the asset_id of a given serial.",
-    no_args_is_help=True,
-)
+@app.command()
 def asset_id_lookup(serial):
+    "Returns the asset_id of a given serial."
     snipe_serial_lookup(serial)
 
 
-@app.command(
-    help="Returns the location_id of a given building code.",
-    no_args_is_help=True,
-)
+@app.command()
 def location_id_lookup(building_code):
+    "Returns the location_id of a given building code."
     snipe_location_lookup(building_code)
 
 

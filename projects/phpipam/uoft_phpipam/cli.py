@@ -57,15 +57,15 @@ def callback(
     logging.basicConfig(level=log_level)
 
 
-@app.command(help="From a serial, returns a dictionary object of a given device.", no_args_is_help=True)
+@app.command()
 def serial_lookup(serial):
+    "From a serial, returns a dictionary object of a given device."
     print(phpipam_serial_lookup(serial))
 
 
-@app.command(
-    help="From a serial, returns a dictionary configuration object to be used in Ansible.", no_args_is_help=True
-)
+@app.command()
 def ansible_lookup(serial):
+    "From a serial, returns a dictionary configuration object to be used in Ansible."
     print(phpipam_ansible_lookup(serial))
 
 
