@@ -137,7 +137,14 @@ def basicConfig(**kwargs):  # type: ignore
         handlers: list[logging.Handler] = []
         error_log_filename = kwargs.pop("error_log_filename", "errors.log")
 
-        handlers.append(RichHandler(console=console(), show_time=False))
+        show_path = False
+        level = kwargs.get("level", logging.INFO)
+        if isinstance(level, str):
+            level = logging._nameToLevel[level]
+        if level <= logging.DEBUG:
+            show_path = True
+
+        handlers.append(RichHandler(console=console(), show_time=False, show_path=show_path))
         if kwargs.pop("log_errors_to_file", False):
             handlers.append(RichHandler(console=Console(file=open(error_log_filename, "a"))))
 
