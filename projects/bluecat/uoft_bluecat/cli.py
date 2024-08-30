@@ -95,10 +95,10 @@ def register_ips_from_file(
         ip = row["ipv4"]
         res = api.get_ipv4_address(ip, configuration_id=conf_id)
         if res:
-            print(f"IP {ip} already registered to Bluecat Object ID: {res['id']}")
+            logger.info(f"IP {ip} already registered to Bluecat Object ID: {res['id']}")
             continue
         res = api.assign_ipv4_address(ip, mac, row["hostname"], configuration_id=conf_id)
-        print(f"Successfully registered MAC {mac} with address {ip} to Bluecat Object ID: {res}")
+        logger.success(f"Registered MAC {mac} with address {ip} to Bluecat Object ID: {res}")
 
 
 def cli():
