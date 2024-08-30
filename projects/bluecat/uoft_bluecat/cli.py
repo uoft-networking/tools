@@ -13,6 +13,10 @@ from uoft_core.console import console
 
 from . import Settings
 
+logger = logging.getLogger(__name__)
+
+DEBUG_MODE = False
+
 
 def _version_callback(value: bool):
     if not value:
@@ -45,9 +49,14 @@ def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
+    global DEBUG_MODE
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
+        DEBUG_MODE = True
+    if trace:
+        log_level = "TRACE"
+        DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
 
@@ -91,6 +100,19 @@ def register_ips_from_file(
         res = api.assign_ipv4_address(ip, mac, row["hostname"], configuration_id=conf_id)
         print(f"Successfully registered MAC {mac} with address {ip} to Bluecat Object ID: {res}")
 
+
+def cli():
+    try:
+        # CLI code goes here
+        app()
+    except KeyboardInterrupt:
+        print("Aborted!")
+        sys.exit()
+    except Exception as e:
+        if DEBUG_MODE:
+            raise
+        logger.error(e)
+        sys.exit(1)
 
 def _debug():
     "Debugging function, only used in active debugging sessions."

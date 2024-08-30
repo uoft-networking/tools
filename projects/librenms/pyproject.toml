@@ -18,7 +18,7 @@ license = { text = "MIT" }
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/librenms"
 
 [project.scripts]
-uoft-librenms = "uoft_librenms.cli:app"
+uoft-librenms = "uoft_librenms.cli:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

@@ -16,7 +16,7 @@ license = { text = "MIT" }
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/aruba"
 
 [project.scripts]
-uoft-aruba = "uoft_aruba.cli:app"
+uoft-aruba = "uoft_aruba.cli:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

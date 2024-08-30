@@ -17,6 +17,10 @@ from .batch import snipe_batch_provision
 from .serial_lookup import snipe_serial_lookup
 from .location_lookup import snipe_location_lookup
 
+logger = logging.getLogger(__name__)
+
+DEBUG_MODE = False
+
 
 def _version_callback(value: bool):
     if not value:
@@ -48,9 +52,14 @@ def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
+    global DEBUG_MODE
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
+        DEBUG_MODE = True
+    if trace:
+        log_level = "TRACE"
+        DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
 
@@ -125,6 +134,20 @@ def asset_id_lookup(serial):
 )
 def location_id_lookup(building_code):
     snipe_location_lookup(building_code)
+
+
+def cli():
+    try:
+        # CLI code goes here
+        app()
+    except KeyboardInterrupt:
+        print("Aborted!")
+        sys.exit()
+    except Exception as e:
+        if DEBUG_MODE:
+            raise
+        logger.error(e)
+        sys.exit(1)
 
 
 def _debug():

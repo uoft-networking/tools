@@ -19,7 +19,7 @@ license = { text = "MIT" }
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/ssh"
 
 [project.scripts]
-uoft-ssh = "uoft_ssh.cli:app"
+uoft-ssh = "uoft_ssh.cli:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

@@ -18,7 +18,7 @@ license = { text = "MIT" }
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/paloalto"
 
 [project.scripts]
-uoft-paloalto = "uoft_paloalto.cli:app"
+uoft-paloalto = "uoft_paloalto.cli:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

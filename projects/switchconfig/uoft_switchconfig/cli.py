@@ -27,6 +27,7 @@ import typer
 
 logger = logging.getLogger(__name__)
 
+DEBUG_MODE = False
 
 def _version_callback(value: bool):
     if not value:
@@ -169,11 +170,14 @@ def callback(
     """
     UofT NetMgmt Switch Deploy tool
     """
+    global DEBUG_MODE
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
+        DEBUG_MODE = True
     if trace:
         log_level = "TRACE"
+        DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
 
@@ -302,14 +306,11 @@ def cli():
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
-    except Exception as e:  # pylint: disable=broad-except
-        if settings().debug:
-            import ipdb
-
-            ipdb.set_trace()
-        # wrap exceptions so that only the message is printed to stderr, stacktrace printed to log
+    except Exception as e:
+        if DEBUG_MODE:
+            raise
         logger.error(e)
-        logger.debug(traceback.format_exc())
+        sys.exit(1)
 
 
 def deprecated():

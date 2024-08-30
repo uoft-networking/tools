@@ -18,7 +18,7 @@ license = { text = "MIT" }
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/phpipam"
 
 [project.scripts]
-uoft-phpipam = "uoft_phpipam.cli:app"
+uoft-phpipam = "uoft_phpipam.cli:cli"
 
 [build-system]
 requires = ["hatchling >= 1.6.0", "setuptools_scm"]

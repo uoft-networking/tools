@@ -13,6 +13,7 @@ import typer
 
 logger = logging.getLogger(__name__)
 
+DEBUG_MODE = False
 
 def _version_callback(value: bool):
     if not value:
@@ -48,9 +49,14 @@ def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
+    global DEBUG_MODE
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
+        DEBUG_MODE = True
+    if trace:
+        log_level = "TRACE"
+        DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
 class DeviceType(str, Enum):
@@ -140,6 +146,11 @@ def cli():
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
+    except Exception as e:
+        if DEBUG_MODE:
+            raise
+        logger.error(e)
+        sys.exit(1)
 
 
 def deprecated():
