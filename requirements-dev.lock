@@ -192,7 +192,7 @@ pluggy==1.2.0
 plumbum==1.8.2
 prometheus-client==0.20.0
 promise==2.3
-prompt-toolkit==3.0.36
+prompt-toolkit==3.0.47
 psutil==5.9.5
 psycopg2-binary==2.9.9
 ptpython==3.0.23

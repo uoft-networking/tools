@@ -27,7 +27,7 @@ dev-dependencies = [
     "cogapp>=3.3",
     "copier>=7",
     "invoke>=1.7",
-    "ptpython[ptipython]>=3.0",
+    "ptpython[ptipython]>=3.0.29",
     "pylint",
     "pytest>=7.0",
     "pytest-cov",

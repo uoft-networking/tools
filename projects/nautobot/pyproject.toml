@@ -19,7 +19,7 @@ dependencies = [
   "nautobot-device-onboarding >= 3.0",
   "debugpy",
   "django-debug-toolbar",
-  "bpython", # for nbshell
+  "ptpython >= 3.0.29", # for nbshell
   "html-table-parser-python3 >=0.2.0",
   "django-environ",
   "napalm",
