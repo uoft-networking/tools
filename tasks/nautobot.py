@@ -5,13 +5,11 @@ from typing import Annotated, List
 import logging
 import time
 from subprocess import CalledProcessError
+from pathlib import Path
 
 import typer
 from task_runner import REPO_ROOT, run, sudo
-from task_runner import macros, lazy_imports  # noqa: F401
 from . import pipx_install
-
-
 
 PROD_SERVICES = ["nautobot", "nautobot-scheduler", "nautobot-worker"]
 DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
@@ -51,10 +49,9 @@ def server(args: Annotated[List[str] | None, typer.Argument()] = None):
         args = []
     
     os.environ["NAUTOBOT_ROOT"] = str(REPO_ROOT / "projects/nautobot/.dev_data")
-    from nautobot.core.runner import runner
-    from nautobot.core.cli import main
     from unittest.mock import patch
-    with patch("nautobot.core.runner.runner.sys.argv", ["nautobot-server", *args]):
+    with patch("sys.argv", ["nautobot-server", *args]):
+        from nautobot.core.cli import main
         main()
 
 
@@ -122,6 +119,11 @@ def prod_shell():
     sudo("bash", user="nautobot", login=True, cwd="/opt/nautobot")
 
 
+def prod_nbshell():
+    """start a nautobot shell as the prod app user"""
+    prod_server(["nbshell", "--bpython"])
+
+
 def deploy_to_prod():
     """build and deploy the current code to prod"""
     systemd("stop", prod=True)
@@ -172,15 +174,18 @@ def db_refresh():
     server(["post_upgrade"])
 
 
-def refresh_graphql_schema():
+def refresh_graphql_schema(repo: str | None = None):
     """
     Rebuild local graphql schema file from running models.
     Should be done after every nautobot update, and every
     time a custom field is created or modified
     """
-    templates_repo = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
+    if repo:
+        repo = Path(repo)
+    else:
+        repo = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
     server(
-        f"graphql_schema --out {templates_repo}/graphql/_schema.graphql".split()  # type: ignore
+        f"graphql_schema --out {repo}/graphql/_schema.graphql".split()  # type: ignore
     )
 
 

@@ -62,10 +62,10 @@ def _hash(s: str) -> str:
 
 
 class Prompt:
-    def __init__(self, history_cache: Path):
+    def __init__(self, history_cache: Path | None):
+        if history_cache and not history_cache.exists():
+            history_cache.mkdir(parents=True)
         self.history_cache = history_cache
-        if not self.history_cache.exists():
-            self.history_cache.mkdir(parents=True)
 
     def get_string(
         self,
@@ -87,17 +87,18 @@ class Prompt:
         if description:
             opts["bottom_toolbar"] = HTML(f"<b>{description}</b>")
 
+        history = None
         if is_password:
-            history = None
             opts["is_password"] = True
         else:
-            history = FileHistory(f"{self.history_cache}/{_hash(var)}")
-            opts["auto_suggest"] = AutoSuggestFromHistory()
-            if default_from_history:
-                try:
-                    opts["default"] = next(history.load_history_strings())  # type: ignore
-                except StopIteration:
-                    pass
+            if self.history_cache:
+                history = FileHistory(f"{self.history_cache}/{_hash(var)}")
+                opts["auto_suggest"] = AutoSuggestFromHistory()
+                if default_from_history:
+                    try:
+                        opts["default"] = next(history.load_history_strings())  # type: ignore
+                    except StopIteration:
+                        pass
 
         opts.update(kwargs)
         return PromptSession(history=history, output=output).prompt(**opts)
@@ -279,6 +280,24 @@ class Prompt:
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
+
+    def get_cidr(
+        self,
+        var: str,
+        description: str | None,
+        **kwargs,
+    ):
+        class CIDRValidator(Validator):
+            def validate(self, document) -> None:
+                try:
+                    ip, _, mask = document.text.partition("/")
+                    if not 0 <= int(mask) <= 32:
+                        raise ValueError
+                except ValueError:
+                    raise ValidationError(
+                        message="Value must be a valid CIDR notation, ex: 192.168.0.1/24"\
+                    )
+        return self.get_string(var, description, validator=CIDRValidator(), **kwargs)
 
     def from_model(self, model: type[BaseModel], prefix: str | None = None):
         res = {}

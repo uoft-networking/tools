@@ -1,19 +1,9 @@
 {
   "python.defaultInterpreterPath": ".venv/bin/python",
-  "python.linting.flake8Enabled": false,
-  "python.linting.mypyEnabled": false,
-  "python.linting.enabled": false,
-  "python.linting.prospectorEnabled": false,
-  "python.linting.prospectorPath": ".venv/bin/prospector",
   "python.testing.pytestEnabled": true,
-  "python.linting.lintOnSave": false,
-  "pylint.args": [
-    "--max-line-length=120",
-    "--disable=I,C,no-name-in-module,unspecified-encoding,unused-argument,redefined-outer-name"
-  ],
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "ansible.python.interpreterPath": ".venv/bin/python",
-  "pylsp.plugins.jedi.environment": ".venv/bin/python",
+  "ruff.lineLength": 120,
 }

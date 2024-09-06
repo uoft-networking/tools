@@ -1,8 +1,9 @@
 import re
 import logging
+from typing import no_type_check
 
 from task_runner import run, REPO_ROOT
-from task_runner import macros, coco_compile  # noqa: F401
+from ._macros import macros, zxpy  # noqa: F401, type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +68,13 @@ def last_pr():
     assert m
     return m.group(1)
 
-@coco_compile
+@no_type_check
 def add_changes_from_main():
-    """
     "use git rebase to splice in any changes from main branch into current branch"
     _make_git_safe()
-    "git fetch origin main:main" |> run
-    "git rebase main" |> run
-    """
+    with zxpy:
+        ~"git fetch origin main:main"
+        ~"git rebase main"
 
 
 def latest_tag():

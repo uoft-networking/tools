@@ -364,6 +364,7 @@ class PassPath(PosixPath):
 
     _pass_installed: bool
     _contents: str | None
+    pass_cmd = os.environ.get("PASS_CMD", "pass")
 
     def __new__(cls, *args):
         self = super().__new__(cls, *args)
@@ -373,7 +374,7 @@ class PassPath(PosixPath):
 
     @property
     def command_name(self) -> str:
-        return f"pass show {self}"
+        return f"{self.pass_cmd} show {self}"
 
     @property
     def contents(self) -> str:
@@ -389,7 +390,7 @@ class PassPath(PosixPath):
                         logger.debug(f"Password-store entry {self} does not exist, skipping")
                     self._contents = ""
             return self._contents
-        logger.debug(f"pass is not installed, skipping {self}")
+        logger.debug(f"{self.pass_cmd} is not installed, skipping {self}")
         return ""
 
     def exists(self) -> bool:
@@ -421,6 +422,17 @@ class PassPath(PosixPath):
                 )
             )
 
+
+def bitwarden_get(secret_name: str) -> str:
+    # for interactive use, e.g. for use in scripts & CLI tools, prefer the `rbw` command line tool
+    # for non-interative use, e.g. in a web server, use the `bw` command line tool
+    raise NotImplementedError("bitwarden_get is not yet implemented")
+    if sys.stdout.isatty():
+        # look for rbw, fall back to bw
+        pass
+    else:
+        # look for bw, raise an error if it's not found
+        pass
 
 class Timeit:
     """
@@ -1116,6 +1128,24 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             )
         super().__init_subclass__(**kwargs)
 
+    #@pydantic.validator("*", pre=True)
+    def _validate_ref_fields(cls, value):
+        # if any field has a value that looks like "ref[prefix:field]", 
+        # verify that prefix is either `pass` (for the linux password-store) or `bw` (for bitwarden)
+        # look up 'field' in the password store or bitwarden and replace the value with the result
+        if isinstance(value, str) and value.startswith("ref[") and value.endswith(']'):
+            ref = value[4:-1]
+            if not ref:
+                raise ValueError("Reference field cannot be empty")
+            if ref.startswith("pass:"):
+                lookup_name = ref[5:]
+                return shell(f"pass show {lookup_name}").strip()
+            if ref.startswith("bw:"):
+                lookup_name = ref[3:]
+                return bitwarden_get(lookup_name)
+            raise ValueError(f"Invalid reference field: {value}")
+
+
     @classmethod
     def _util(cls) -> "Util":
         return Util(cls.__config__.app_name)
@@ -1256,8 +1286,8 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             f"[password-store] uoft-{cls.__config__.app_name}",
             f"[password-store] shared/uoft-{cls.__config__.app_name}",
         ]
-        for file_path, file in cls._util().config.files:
-            if file in {File.writable, File.creatable}:
+        for file_path, file_state in cls._util().config.files:
+            if file_state in {File.writable, File.creatable}:
                 save_targets.append(str(file_path))
         logger.debug(f"Settings(app_name={cls.__config__.app_name}): Save targets: {save_targets}")
 

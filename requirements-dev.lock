@@ -6,7 +6,6 @@
 #   features: []
 #   all-features: false
 
--e file:custom-forks/macropy
 -e file:.
 -e file:projects/aruba
 -e file:projects/bluecat
@@ -110,8 +109,8 @@ graphene-django==2.16.0
 graphene-django-optimizer==0.8.0
 graphql-core==2.3.2
 graphql-relay==2.0.1
-h11==0.14.0
 grist-api==0.1.0
+h11==0.14.0
 hatchling==1.18.0
 hier-config==2.2.3
 html-table-parser-python3==0.3.1
@@ -144,6 +143,7 @@ markupsafe==2.1.5
 matplotlib==3.7.2
 matplotlib-inline==0.1.6
 mccabe==0.7.0
+mcpyrate==3.6.0
 mdurl==0.1.2
 multidict==6.0.4
 mypy==1.6.1
@@ -233,7 +233,7 @@ rich==13.5.2
 rsa==4.9
 ruamel-yaml==0.17.32
 ruamel-yaml-clib==0.2.7
-ruff==0.0.285
+ruff==0.5.1
 rx==1.6.3
 scalene==1.5.38
 scp==0.14.5
@@ -260,6 +260,7 @@ transitions==0.9.0
 trove-classifiers==2023.8.7
 ttp==0.9.5
 ttp-templates==0.3.5
+tuna==0.5.11
 typer==0.9.0
 typing-extensions==4.7.1
 tzdata==2023.3

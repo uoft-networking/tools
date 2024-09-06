@@ -33,7 +33,7 @@ dev-dependencies = [
     "pytest-cov",
     "pytest-mock>=3.6",
     "pytest-recording",
-    "ruff>=0.0.149",
+    "ruff>=0.5.0",
     "setuptools_scm>=7",
     "tomlkit>=0.11",
     "typer >= 0.9",
@@ -48,6 +48,8 @@ dev-dependencies = [
     "lazy-imports>=0.3.1",
     "pip>=23.3.1",
     "pipdeptree>=2.13.1",
+    "mcpyrate>=3.6.0",
+    "tuna>=0.5"
 ]
 
 [tool.rye.workspace]
