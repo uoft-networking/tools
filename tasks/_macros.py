@@ -85,7 +85,7 @@ def zxpy(stmts, **kw):
         run('echo hello')
         run(f'git fetch origin {my_branch}')
         stdout = run('git rev-parse --abbrev-ref HEAD', cap=True)
-        _result = run('git rev-parse --abbrev-ref HEAD')
+        _result = run('git rev-parse --abbrev-ref HEAD', capture_output=True)
         stdout, stderr, return_code = _result.stdout, _result.stderr, _result.returncode
         ```
     """

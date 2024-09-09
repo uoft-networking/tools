@@ -117,7 +117,7 @@ def prod_shell():
 
 def prod_nbshell():
     """start a nautobot shell as the prod app user"""
-    prod_server(["nbshell", "--bpython"])
+    prod_server(["nbshell", "--ptipython"])
 
 
 def deploy_to_prod():

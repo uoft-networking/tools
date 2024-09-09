@@ -28,7 +28,7 @@ import nautobot.core.models.managers
 
 def _register_manager_classes():
     # nautobot's Interface model contains a few dynamically-generated Manager classes
-    # through they seem to be subclasses of django.db.models.Manager, glom doesn't
+    # though they seem to be subclasses of django.db.models.Manager, glom doesn't
     # recognize them as such. We need to register them manually.
     # since these classes are dynamically generated at runtime, we can't just import them,
     # we need to dynamically aquire references to them.
@@ -57,10 +57,8 @@ class ExcelContext:
         self.vlan_modes = InterfaceModeChoices.values()
 
         # 
-        for assoc in self.device_obj.associations:
-            if assoc.relationship.label == 'VLAN Group Switch Association':
-                self.vlan_group = assoc.source
-                break
+        if self.device_obj.vlan_group:
+            self.vlan_group = self.device_obj.vlan_group
         else:
             vlan_group_name = self.device_obj.name.partition("-")[2][:2]  # type: ignore
             self.vlan_group = VLANGroup.objects.get(name=vlan_group_name)
@@ -247,7 +245,7 @@ def import_from_excel(pk, file):
             return None
         group, name = vlan.split("/")
         name = name.partition("(")[0]
-        return VLAN.objects.get(group__=group, name=name)
+        return VLAN.objects.get(vlan_group__name=group, name=name)
 
     def _parse_vlan_list(vlans: str):
         if not vlans:

@@ -1,15 +1,15 @@
 """
 so it goes like this:
 
-this module has three main classes: 
+this module has three main classes:
 
-the base SyncManager class contains the main synchronization logic, 
+the base SyncManager class contains the main synchronization logic,
 and contains a source and destination instance of Target subclasses.
 
-each subclass is responsible for loading data from the respective systems, 
+each subclass is responsible for loading data from the respective systems,
 and for creating, updating, and deleting objects in the respective systems.
 
-the core approach to synchronization is to initialize one instance of each subclass, 
+the core approach to synchronization is to initialize one instance of each subclass,
 and then call the synchronize method on the sync manager instance.
 
 Full two-way synchronization is done by loading data from both systems,
@@ -17,7 +17,6 @@ calling the synchronize method on the destination manager instance,
 and then calling the synchronize method on the source manager instance.
 """
 
-import logging
 import typing
 import threading
 import re
@@ -26,6 +25,7 @@ import concurrent.futures as cf
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
 from uoft_core import BaseSettings, Field, Prompt
 from uoft_bluecat import Settings as BluecatSettings
+from uoft_core import logging
 
 import pynautobot
 import pynautobot.core.endpoint
@@ -35,15 +35,7 @@ import deepdiff
 import deepdiff.model
 import typer
 
-
-class NautobotCLISettings(BaseSettings):
-    """Settings for the nautobot_cli application."""
-
-    url: str = Field(..., title="Nautobot server URL")
-    token: SecretStr = Field(..., title="Nautobot API Token")
-
-    class Config(BaseSettings.Config):
-        app_name = "nautobot-cli"
+from .nautobot import get_settings
 
 
 logger = logging.getLogger(__name__)
@@ -61,9 +53,7 @@ Status: typing.TypeAlias = typing.Literal["Active", "Reserved", "Deprecated"]
 PrefixType: typing.TypeAlias = typing.Literal["container", "network", "pool"]
 
 
-OnOrphanAction: typing.TypeAlias = typing.Literal[
-    "prompt", "delete", "backport", "skip"
-]
+OnOrphanAction: typing.TypeAlias = typing.Literal["prompt", "delete", "backport", "skip"]
 
 
 class IPAddressModel(BaseModel):
@@ -102,9 +92,7 @@ class Changes(BaseModel):
     # model comes from source
     create: dict[DatasetName, dict[CommonID, BaseModel]] = Field(default_factory=dict)
 
-    update: dict[DatasetName, dict[CommonID, DatasetUpdate]] = Field(
-        default_factory=dict
-    )
+    update: dict[DatasetName, dict[CommonID, DatasetUpdate]] = Field(default_factory=dict)
 
     # model comes from dest
     delete: dict[DatasetName, dict[CommonID, BaseModel]] = Field(default_factory=dict)
@@ -190,9 +178,7 @@ class SyncManager:
             for common_id, source_record in source_data.items():
                 dest_record = dest_data.get(common_id)
                 if dest_record is None:
-                    self.changes.create.setdefault(dataset, {})[
-                        common_id
-                    ] = source_record
+                    self.changes.create.setdefault(dataset, {})[common_id] = source_record
                 elif source_record != dest_record:
                     self.changes.update.setdefault(dataset, {})[common_id] = dict(  # type: ignore
                         source=source_record,
@@ -203,41 +189,20 @@ class SyncManager:
                     self.changes.delete.setdefault(dataset, {})[common_id] = dest_record
         logger.info("Data comparison complete")
 
-        records_to_create = ", ".join(
-            [
-                f"{len(records)} {dataset}"
-                for dataset, records in self.changes.create.items()
-            ]
-        )
-        records_to_update = ", ".join(
-            [
-                f"{len(records)} {dataset}"
-                for dataset, records in self.changes.update.items()
-            ]
-        )
+        records_to_create = ", ".join([f"{len(records)} {dataset}" for dataset, records in self.changes.create.items()])
+        records_to_update = ", ".join([f"{len(records)} {dataset}" for dataset, records in self.changes.update.items()])
         orphaned_records = ", ".join(
-            [
-                f"{len(records)} orphaned {dataset}"
-                for dataset, records in self.changes.delete.items()
-            ]
+            [f"{len(records)} orphaned {dataset}" for dataset, records in self.changes.delete.items()]
         )
-        records_to_create = (
-            f"{records_to_create} to create, " if records_to_create else ""
-        )
-        records_to_update = (
-            f"{records_to_update} to update, " if records_to_update else ""
-        )
+        records_to_create = f"{records_to_create} to create, " if records_to_create else ""
+        records_to_update = f"{records_to_update} to update, " if records_to_update else ""
         orphaned_records = (
             f"{orphaned_records} (records that exist in the destination system, but not in the source system)"
             if orphaned_records
             else ""
         )
         total_records = records_to_create + records_to_update + orphaned_records
-        msg = (
-            f"Found {total_records}"
-            if total_records
-            else "No records to synchronize, everything is in sync!"
-        )
+        msg = f"Found {total_records}" if total_records else "No records to synchronize, everything is in sync!"
         logger.info(msg)
 
     def commit(self):
@@ -249,11 +214,7 @@ class SyncManager:
             self._handle_orphaned_records()
 
     def _handle_orphaned_records(self):
-        orphaned_records = [
-            f"{len(records)} {dataset}"
-            for dataset, records in self.changes.delete.items()
-            if records
-        ]
+        orphaned_records = [f"{len(records)} {dataset}" for dataset, records in self.changes.delete.items() if records]
         print(
             f"{', '.join(orphaned_records)} records were found in the destination system "
             f"({self.dest.name}), but not in the source system ({self.source.name})"
@@ -290,9 +251,7 @@ class NautobotTarget(Target):
     name = "nautobot"
 
     def __init__(self, dev=False) -> None:
-        if dev:
-            NautobotCLISettings.Config.app_name = "nautobot-cli-dev"
-        settings = NautobotCLISettings().from_cache()
+        settings = get_settings(dev)
         self.url = settings.url
         self.token = settings.token
 
@@ -310,9 +269,7 @@ class NautobotTarget(Target):
     def api(self):
         # get a thread-local copy of the api object
         if not hasattr(self._local_ns, "api"):
-            self._local_ns.api = pynautobot.api(
-                self.url, token=self.token.get_secret_value()
-            )
+            self._local_ns.api = pynautobot.api(self.url, token=self.token.get_secret_value())
         return self._local_ns.api
 
     def load_data(self, datasets: set[DatasetName]):
@@ -328,9 +285,7 @@ class NautobotTarget(Target):
             local_ids[status] = status_id
 
         for nb_prefix in raw_data.prefixes:
-            if nb_prefix["tags"] and raw_data.soft_delete_tag_id in [
-                t["id"] for t in nb_prefix["tags"]
-            ]:
+            if nb_prefix["tags"] and raw_data.soft_delete_tag_id in [t["id"] for t in nb_prefix["tags"]]:
                 continue
             pfx = str(IPNetwork(nb_prefix["prefix"])).lower()
             status_id = nb_prefix["status"]["id"]
@@ -343,9 +298,7 @@ class NautobotTarget(Target):
             )
 
         for nb_address in raw_data.addresses:
-            if nb_address["tags"] and raw_data.soft_delete_tag_id in [
-                t["id"] for t in nb_address["tags"]
-            ]:
+            if nb_address["tags"] and raw_data.soft_delete_tag_id in [t["id"] for t in nb_address["tags"]]:
                 continue
             obj = IPNetwork(nb_address["address"])
             addr = str(obj.ip).lower()
@@ -368,9 +321,7 @@ class NautobotTarget(Target):
             else:
                 raise Exception(f"Device {nb_device['name']} has no primary IP address")
             ip_address = self.api.ipam.ip_addresses.get(ip_addr_id)["address"]  # type: ignore
-            devices[nb_device["name"]] = dict(
-                hostname=nb_device["name"], ip_address=ip_address
-            )
+            devices[nb_device["name"]] = dict(hostname=nb_device["name"], ip_address=ip_address)
 
         self.syncdata = SyncData(
             prefixes=prefixes or None,
@@ -380,27 +331,20 @@ class NautobotTarget(Target):
         )
 
     def load_data_raw(self, datasets: set[DatasetName]):
-        with cf.ThreadPoolExecutor(
-            thread_name_prefix="nautobot_fetch_data"
-        ) as executor:
-
+        with cf.ThreadPoolExecutor(thread_name_prefix="nautobot_fetch_data") as executor:
             if "prefixes" in datasets:
                 logger.info("Nautobot: Fetching all Prefixes")
                 prefixes_task = executor.submit(lambda: self.api.ipam.prefixes.all())
 
             if "addresses" in datasets:
                 logger.info("Nautobot: Fetching all IP Addresses")
-                addresses_task = executor.submit(
-                    lambda: self.api.ipam.ip_addresses.all()
-                )
+                addresses_task = executor.submit(lambda: self.api.ipam.ip_addresses.all())
 
             if "devices" in datasets:
                 logger.info("Nautobot: Fetching all Devices")
                 devices_task = executor.submit(lambda: self.api.dcim.devices.all())
 
-            logger.info(
-                "Nautobot: Fetching additional metadata (statuses, namespaces, tags)"
-            )
+            logger.info("Nautobot: Fetching additional metadata (statuses, namespaces, tags)")
             statuses_task = executor.submit(lambda: self.api.extras.statuses.all())
             global_namespace_task = executor.submit(
                 lambda: self.api.ipam.namespaces.get(name="Global")["id"]  # type: ignore
@@ -525,9 +469,7 @@ class NautobotTarget(Target):
     def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         for dataset, records in recordset.items():
             logger.info(f"Nautobot: Deleting {len(records)} {dataset}")
-            with cf.ThreadPoolExecutor(
-                thread_name_prefix="nautobot_delete"
-            ) as executor:
+            with cf.ThreadPoolExecutor(thread_name_prefix="nautobot_delete") as executor:
                 for record_id in records:
                     executor.submit(self.delete_one, dataset, record_id)
 
@@ -542,9 +484,7 @@ class NautobotTarget(Target):
         try:
             r = api_endpoint.get(id_)
         except pynautobot.RequestError as e:
-            logger.warning(
-                f"Attempted to delete record {record}, but its id was not found in Nautobot, skipping..."
-            )
+            logger.warning(f"Attempted to delete record {record}, but its id was not found in Nautobot, skipping...")
             logger.debug(f"Error message: {e}")
             return
         assert isinstance(r, Record), f"Expected a single record, but got a list: {r}"
@@ -571,163 +511,136 @@ class NautobotDataRaw(BaseModel):
 
 
 class BluecatRawData(BaseModel):
-    configuration_id: int
-    dns_view_id: int
-    ip_objects: list[dict]
-    dns_objects: list[dict]
+    blocks: list[dict]
+    nets: list[dict]
+    addrs: list[dict]
 
 
 class BluecatTarget(Target):
     name = "bluecat"
 
     def __init__(self) -> None:
-        self.api = BluecatSettings.from_cache().get_api_connection(multi_threaded=True)
+        self.api = BluecatSettings.from_cache().alt_api_connection()
+        self.api.login()
 
     def load_data(self, datasets: set[DatasetName]):
         raw_data = self.load_data_raw(datasets)
         objects_by_id = {}
         objects_by_ip = {}
-        dns_by_ip = {}
         local_ids = {}
-        # construct id lookup table for cross-references
-        for ip_object in raw_data.ip_objects:
-            objects_by_id[ip_object["id"]] = ip_object
-            if ip_object["type"] in ["IP4Address", "IP6Address"]:
-                address = ip_object["properties"]["address"]
-                objects_by_ip[address] = ip_object
-                local_ids[address] = ip_object["id"]
 
-        for dns_object in raw_data.dns_objects:
-            objects_by_id[dns_object["id"]] = dns_object
-            if dns_object["type"] == "HostRecord":
-                _fqdn = dns_object["properties"]["absoluteName"]
-                local_ids[_fqdn] = dns_object["id"]
-                for ip in dns_object["properties"]["addresses"].split(","):
-                    if ip in dns_by_ip:
-                        other_fqdn = dns_by_ip[ip]["properties"]["absoluteName"]
-                        # In the case of multiple DNS records for the same IP,
-                        # we don't really care which DNS record wins and gets incorporated into the syncdata,
-                        # so long as the one we choose is consistent.
-                        # We'll choose the one with the lexicographically smaller FQDN,
-                        # but any consistent choice would work.
-                        if other_fqdn < _fqdn:
-                            continue
-                    dns_by_ip[ip] = dns_object
+        if "prefixes" in datasets:
+            prefixes = self._load_prefixes(raw_data, objects_by_id, objects_by_ip, local_ids)
+        else:
+            prefixes = {}
 
+        if "addresses" in datasets:
+            addresses = self._load_addresses(raw_data, objects_by_id, objects_by_ip, local_ids)
+        else:
+            addresses = {}
+
+        self.syncdata = SyncData(prefixes=prefixes, addresses=addresses, local_ids=local_ids, devices=None)
+
+    def _load_prefixes(self, raw_data, objects_by_id, objects_by_ip, local_ids):
         prefixes = {}
-        addresses = {}
-
-        # Prefixes
-        for ip_object in raw_data.ip_objects:
-            if ip_object["type"] in ["IP4Block", "IP6Block"]:
+        for raw_net in raw_data.blocks + raw_data.nets:
+            raw_id = raw_net["id"]
+            objects_by_id[raw_id] = raw_net
+            if raw_net["type"] in ["IPv4Block", "IPv6Block"]:
                 type_ = "container"
-            elif ip_object["type"] in ["IP4Network", "IP6Network"]:
+            elif raw_net["type"] in ["IPv4Network", "IPv6Network"]:
                 type_ = "network"
-            elif ip_object["type"] in ["IP4Address", "IP6Address"]:
-                type_ = "address"
             else:
-                raise Exception(f"Unexpected object type {ip_object['type']}")
-
-            if prefix := self._get_prefix(ip_object):
-                local_ids[prefix] = ip_object["id"]
-            elif type_ == "address":
-                address = ip_object["properties"]["address"].lower()
-            else:
-                raise Exception(f"Prefix not found for object {ip_object['id']}")
-
-            # Infer status from name
-            _name = ip_object["name"] or ""
-
-            # groups: reserved, deprecated
-            pattern = re.compile(
-                r"""
-                (reserve[d]?|tbd|do-not-use|cannot-use|avoid\ this) # reserved
-                |(to-be-moved|remove[d]?|deprecated|old-|unused|replaced|decommissioned|legacy|reclaimed) # deprecated
-            """,
-                re.VERBOSE | re.IGNORECASE,
+                raise Exception(f"Unexpected object type {raw_net['type']}")
+            name = raw_net["name"] or ""
+            status = self._infer_status(name)
+            prefix: str = raw_net["range"]  # type: ignore
+            objects_by_ip[prefix] = raw_net
+            local_ids[prefix] = raw_net["id"]
+            prefixes[prefix] = PrefixModel(
+                prefix=prefix,
+                description=name,
+                type=type_,
+                status=status,
             )
+        return prefixes
 
-            match = pattern.search(_name)
-            if match and match.group(1):
-                status = "Reserved"
-            elif match and match.group(2):
-                status = "Deprecated"
-            else:
-                status = "Active"
+    def _load_addresses(self, raw_data, objects_by_id, objects_by_ip, local_ids):
+        addresses = {}
+        for raw_net in raw_data.blocks + raw_data.nets:
+            # make sure all prefixes are indexable by id, even if "prefixes" is not in datasets
+            objects_by_id[raw_net["id"]] = raw_net
 
-            if type_ == "address":
-                if "addresses" not in datasets:
-                    continue
-                if ip_object["properties"]["state"].startswith("DHCP_"):
-                    continue  # skip DHCP addresses
-                if ip_object["properties"]["state"] == "GATEWAY" and not _name:
-                    continue  # skip gateway addresses without a name
-                if ip_object["properties"]["state"] not in ["STATIC", "GATEWAY"]:
-                    raise Exception(
-                        f"Unexpected state {ip_object['properties']['state']} for address {ip_object['id']}"
-                    )
+        for raw_addr in raw_data.addrs:
+            name = raw_addr["name"] or ""
+            if raw_addr["type"] == "GATEWAY" and not name:
+                # skip gateway addresses without a name, they're an artifact of Bluecat,
+                # not actual records we want to track
+                continue
+            raw_id = raw_addr["id"]
+            objects_by_id[raw_id] = raw_addr
+            address = raw_addr["address"]
+            objects_by_ip[address] = raw_addr
+            local_ids[address] = raw_addr["id"]
 
-                dns_name = dns_by_ip.get(address)
-                if dns_name:
-                    dns_name = dns_name["properties"]["absoluteName"]
-                else:
-                    dns_name = ""
+            parent_id = raw_addr["_links"]["up"]["href"].split("/")[-1]
+            parent_prefix = objects_by_id[int(parent_id)]["range"]
+            pfx_len = parent_prefix.partition("/")[2]
 
-                parent = objects_by_id[ip_object["parent_id"]]
-                prefix: str | None = self._get_prefix(parent)
-                if prefix is None:
-                    raise Exception(
-                        f"Parent prefix not found for object {ip_object['id']}"
-                    )
-                pfx_len = prefix.partition("/")[2]
-                addresses[address] = IPAddressModel(
-                    address=address,
-                    prefixlen=pfx_len,
-                    name=_name,
-                    status=status,
-                    dns_name=dns_name,
-                )
+            rrs = raw_addr["_embedded"]["resourceRecords"]
+            dns_name = rrs[0]["absoluteName"] if rrs else ""
 
-            else:
-                if "prefixes" not in datasets:
-                    continue
-                pfx = str(IPNetwork(prefix)).lower()
-                prefixes[pfx] = PrefixModel(
-                    prefix=pfx,
-                    description=_name,
-                    type=type_,
-                    status=status,
-                )
+            status = self._infer_status(name)
 
-        self.syncdata = SyncData(
-            prefixes=prefixes, addresses=addresses, local_ids=local_ids, devices=None
+            addresses[address] = IPAddressModel(
+                address=address,
+                prefixlen=pfx_len,
+                name=name,
+                status=status,
+                dns_name=dns_name,
+            )
+        return addresses
+
+    def _infer_status(self, name):
+        # groups: reserved, deprecated
+        pattern = re.compile(
+            r"""
+            (reserve[d]?|tbd|do-not-use|cannot-use|avoid\ this) # reserved
+            |(to-be-moved|remove[d]?|deprecated|old-|unused|replaced|decommissioned|legacy|reclaimed) # deprecated
+        """,
+            re.VERBOSE | re.IGNORECASE,
         )
+
+        match = pattern.search(name)
+        if match and match.group(1):
+            status = "Reserved"
+        elif match and match.group(2):
+            status = "Deprecated"
+        else:
+            status = "Active"
+        return status
 
     def load_data_raw(self, datasets: set[DatasetName]):
-        bc = self.api
-        configuration_id = bc.configuration_id
-        dns_view_id = bc.get_view()["id"]
-        ip_objects, dns_objects = bc.multithread_jobs(
-            bc.get_ip_objects, bc.get_dns_objects
-        )
+        with logging.Context("Bluecat"):
+            if "prefixes" in datasets or "addresses" in datasets:
+                # prefix data is needed to find parent prefixes for addresses
+                blocks = self.api.get_all("/blocks")
+                nets = self.api.get_all("/networks")
+            else:
+                blocks = []
+                nets = []
+            if "addresses" in datasets:
+                # skip DHCP addresses, cuts the resulting data from >130k records down to ~6k records
+                addrs = self.api.get_all(
+                    "/addresses", params=dict(filter="state:in('GATEWAY', 'STATIC')", fields="embed(resourceRecords)")
+                )
+            else:
+                addrs = []
         return BluecatRawData(
-            configuration_id=configuration_id,
-            dns_view_id=dns_view_id,
-            ip_objects=ip_objects,
-            dns_objects=dns_objects,
+            blocks=blocks,
+            nets=nets,
+            addrs=addrs,
         )
-
-    @staticmethod
-    def _get_prefix(ip_object):
-        if "properties" not in ip_object:
-            raise Exception(f"Missing properties for object {ip_object['id']}")
-        props = ip_object["properties"]
-        if "CIDR" in props:
-            return props["CIDR"]
-        elif "prefix" in props:
-            return props["prefix"]
-        else:
-            return None
 
     def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         created_ids = []
@@ -745,9 +658,7 @@ class BluecatTarget(Target):
 
         # create prefixes in order from largest to smallest,
         # so that the parent prefix is created before the child prefix
-        prefixes_to_create = sorted(
-            [IPNetwork(p) for p in prefixes.keys()], key=lambda x: x.prefixlen
-        )
+        prefixes_to_create = sorted([IPNetwork(p) for p in prefixes.keys()], key=lambda x: x.prefixlen)
         for net in prefixes_to_create:
             data = prefixes[str(net)]
             new_id = self.create_prefix(net, data)
@@ -767,12 +678,22 @@ class BluecatTarget(Target):
             name += "-DEPRECATED"
         elif data.status == "Reserved":
             name += "-RESERVED"
-        return self.api.create_prefix(
-            net=net,
-            name=name,
-            type=data.type,
-            parent_id=parent_id,
-        )
+        if data.type == "container":
+            return self.api.create_block(
+                net=net,
+                name=name,
+                type=data.type,
+                parent_id=parent_id,
+            )
+        elif data.type == "network":
+            return self.api.create_network(
+                net=net,
+                name=name,
+                type=data.type,
+                parent_id=parent_id,
+            )
+        else:
+            raise NotImplementedError("TODO: add support for pools / ip ranges")
 
     def create_addresses(self, addresses: dict[ip_address_as_str, IPAddressModel]):
         return []

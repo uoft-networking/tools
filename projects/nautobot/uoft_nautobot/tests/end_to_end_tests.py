@@ -4,7 +4,7 @@ import pickle
 from pathlib import Path
 
 import pytest
-from nautobot.core.cli import _load_settings, execute_from_command_line
+from nautobot.core.cli import load_settings, execute_from_command_line
 import django
 from django.test.client import RequestFactory
 
@@ -19,7 +19,7 @@ fixtures_dir = Path(__file__).parent / "fixtures"
 
 @pytest.fixture(scope="session")
 def _nautobot_initialized():
-    _load_settings("projects/nautobot/.dev_data/nautobot_config.py")
+    load_settings("projects/nautobot/.dev_data/nautobot_config.py")
     django.setup()
     from django.conf import settings
 
@@ -152,5 +152,4 @@ class NautobotTests:
         job.calculate_diff()
         job.sync_data(memory_profiling=False)
         print(job.diff.summary())
-
 

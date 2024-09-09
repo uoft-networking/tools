@@ -2,12 +2,17 @@
 A collection of tools to interact with a phpIPAM instance, and to feed data into ansible.
 """
 from typing import Annotated, Optional
+import sys
 
 import typer
 from uoft_core import logging
 from . import Settings
 from .ansible_lookup import phpipam_ansible_lookup
 from .serial_lookup import phpipam_serial_lookup
+
+logger = logging.getLogger(__name__)
+
+DEBUG_MODE = False
 
 
 def _version_callback(value: bool):
@@ -41,22 +46,41 @@ def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
+    global DEBUG_MODE
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
+        DEBUG_MODE = True
+    if trace:
+        log_level = "TRACE"
+        DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
 
-@app.command(help="From a serial, returns a dictionary object of a given device.", no_args_is_help=True)
+@app.command()
 def serial_lookup(serial):
+    "From a serial, returns a dictionary object of a given device."
     print(phpipam_serial_lookup(serial))
 
 
-@app.command(
-    help="From a serial, returns a dictionary configuration object to be used in Ansible.", no_args_is_help=True
-)
+@app.command()
 def ansible_lookup(serial):
+    "From a serial, returns a dictionary configuration object to be used in Ansible."
     print(phpipam_ansible_lookup(serial))
+
+
+def cli():
+    try:
+        # CLI code goes here
+        app()
+    except KeyboardInterrupt:
+        print("Aborted!")
+        sys.exit()
+    except Exception as e:
+        if DEBUG_MODE:
+            raise
+        logger.error(e)
+        sys.exit(1)
 
 
 def _debug():

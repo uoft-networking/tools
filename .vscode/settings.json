@@ -6,4 +6,5 @@
   },
   "ansible.python.interpreterPath": ".venv/bin/python",
   "ruff.lineLength": 120,
+  "ruff.nativeServer": "on",
 }

@@ -93,8 +93,19 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import tasks.codegen as c; c.gen_conf_table('uoft_grist')
+import _cog as c; c.gen_conf_table('uoft_grist')
 ]]] -->
+| Option | Type | Title | Description | Default |
+| ------ | ---- | ----- | ----------- | ------- |
+| grist_api_key | SecretStr | Grist API Authentication Key | A key used to authenticate to the Grist API. |  |
+| grist_server | str | Grist server IP/PORT | grist server 'http://<hostname>:8484'. |  |
+| aruba_svc_account | str | Aruba API Authentication Account | Account used to log into the API of Aruba 'Managed Devices'. |  |
+| aruba_svc_password | SecretStr | Aruba API Authentication Password | Password used to log into the API of Aruba 'Managed Devices'. |  |
+| aruba_md_hostnames | str | Aruba Controller (Managed Device) IP Adresses / Hostnames | A list of Aruba MD names to query. |  |
+| aruba_default_config_path | str | Aruba API Default Config Path | Default config path used for API requests of Aruba 'Managed Devices'. |  |
+| global_ranges | str | Global column ranges | List used in conjunction with unique users. |  |
+| filter_ranges | dict | Global filter ranges | Used to count unique users. |  |
+| departments | Department | Departmental Models | Any number of departmental models can be created as long as they follow the class format defined. |  |
 <!--[[[end]]] -->
 
 ## License

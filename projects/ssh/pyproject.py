@@ -1,6 +1,9 @@
 from hatchling.metadata.plugin.interface import MetadataHookInterface
 from setuptools_scm import get_version
 import os
+import re
+from shutil import which
+import subprocess
 from pathlib import Path
 
 V = get_version(root="../..", relative_to=__file__, version_scheme="post-release")
@@ -22,6 +25,26 @@ class CustomMetadataHook(MetadataHookInterface):
     def monorepo_root(self):
         return Path(self.root).parent.parent
 
+    def ensure_submodules_initialized(self):
+        """
+        If this package is being installed through rye, submodules
+        (including all packages in the 'custom-forks' directory),
+        will already be initialized. If it's being installed from source,
+        (either from a downloaaded zip or from a git clone), we need to
+        initialize the submodules ourselves.
+        """
+        if which("git") and self.monorepo_root().joinpath(".git").exists():
+            # no point even attempting to initialize submodules if git isn't installed
+
+            # check to see if submodules are already initialized, by checking to see if any
+            # folder in the 'custom-forks' directory is empty
+            test_package = next(self.monorepo_root().joinpath("custom-forks").iterdir())
+            if next(test_package.iterdir(), None) is None:
+                # all subfolders of the 'custom-forks' directory should be installable packages.
+                # none should be empty. If any are empty, that's a sign that submodules
+                # haven't been initialized
+                subprocess.run(["git", "submodule", "update", "--init", "--recursive"], cwd=self.monorepo_root())
+
     def local_dependencies(self, metadata: dict):
         """
         Returns a list of all uoft_* dependencies specified in this project's metadata
@@ -33,6 +56,16 @@ class CustomMetadataHook(MetadataHookInterface):
                 proj_dir = self.monorepo_root() / "projects" / proj_name
                 if proj_dir.exists():
                     yield dep, proj_dir
+            dep_name = re.split(r" |<|>|!|=|~|@|\[", dep)[0]
+            local_dep = self.monorepo_root() / "custom-forks" / dep_name
+            if local_dep.exists():
+                # dep_name split strips out any extras that may exist in the dependency string
+                # ie 'nautobot[dev]' becomes 'nautobot'
+                # we need to add the extras back in to the dependency string if they exist
+                extras = re.search(r"\[.*\]", dep)
+                if extras:
+                    dep = f"{dep_name}{extras.group()}"
+                yield dep, self.monorepo_root() / "custom-forks" / dep_name
 
     def update_local_dependency_specifications(self, metadata: dict):
         """
@@ -69,5 +102,7 @@ class CustomMetadataHook(MetadataHookInterface):
         """
 
         metadata["version"] = V
+
+        self.ensure_submodules_initialized()
 
         self.update_local_dependency_specifications(metadata)

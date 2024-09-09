@@ -12,13 +12,14 @@ dependencies = [
   "uoft_aruba",
   "uoft_ssh",
   "uoft_bluecat",
-  "nautobot >= 2.2.0",
+  "nautobot >= 2.3.1", #"nautobot @ git+https://github.com/utsc-networking/nautobot@utsc-custom",
   "python-jose >= 3.0.0",
-  "nautobot_ssot >= 2.3",
-  "nautobot_golden_config >= 2.0",
+  "nautobot_ssot >= 2.7",
+  "nautobot_golden_config >= 2.1",
   "nautobot-device-onboarding >= 3.0",
   "debugpy",
   "django-debug-toolbar",
+  "ptpython >= 3.0.29", # for nbshell
   "html-table-parser-python3 >=0.2.0",
   "django-environ",
   "napalm",
@@ -27,8 +28,9 @@ dependencies = [
   "python-box",
   "glom",
   "openpyxl",
-  "pynautobot",
+  "pynautobot >= 2.2",
   "deepdiff",
+  "pytz",
 ]
 dynamic = ["version"]
 

@@ -12,6 +12,7 @@ dependencies = [
   "uoft_core",
   "uoft_bluecat",
   "uoft_ssh",
+  "uoft_librenms",
   "pynautobot >= 2.1.1",
   "jinja2",
   "deepdiff",

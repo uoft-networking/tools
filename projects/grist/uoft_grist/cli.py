@@ -12,6 +12,8 @@ from uoft_core import logging
 
 logger = logging.getLogger(__name__)
 
+DEBUG_MODE = False
+
 
 def _version_callback(value: bool):
     if not value:
@@ -32,18 +34,6 @@ app = typer.Typer(
     help=__doc__,  # Use this module's docstring as the main program help text
 )
 
-
-def version_callback(value: bool):
-    if value:
-        from . import __version__
-        from sys import version_info as v, platform, executable
-
-        print(
-            f"uoft-grist v{__version__} \nPython {v.major}.{v.minor} ({executable}) on {platform}"
-        )
-        raise typer.Exit()
-
-
 @app.callback()
 def callback(
     version: Annotated[
@@ -53,18 +43,29 @@ def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
+    global DEBUG_MODE
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
+        DEBUG_MODE = True
+    if trace:
+        log_level = "TRACE"
+        DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
 
 def cli():
     try:
+        # CLI code goes here
         app()
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
+    except Exception as e:
+        if DEBUG_MODE:
+            raise
+        logger.error(e)
+        sys.exit(1)
 
 
 @app.command()

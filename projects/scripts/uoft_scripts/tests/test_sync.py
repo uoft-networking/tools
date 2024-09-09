@@ -1,7 +1,6 @@
 from uoft_scripts import _sync
 import pickle
 from pathlib import Path
-import time
 
 import pytest
 from pytest_mock import MockerFixture
@@ -19,9 +18,11 @@ def mock_sync_data(mocker: MockerFixture):
             fixtures / f"bluecat_{'-'.join(sorted(list(datasets)))}_raw.pkl"
         )
         if target_data_file.exists():
+            print('loading from file')
             with open(target_data_file, "rb") as f:
                 return pickle.load(f)
         else:
+            print('loading from bluecat')
             data = bluecat_orig(self, datasets)
             with open(target_data_file, "wb") as f:
                 pickle.dump(data, f)
@@ -50,12 +51,22 @@ def mock_sync_data(mocker: MockerFixture):
     mocker.patch("uoft_scripts._sync.NautobotTarget.delete_one", return_value=None)
 
 
+def test_bluecat_load_data(mock_sync_data):
+    datasets = {"prefixes", "addresses"}
+    bc = _sync.BluecatTarget()
+    bc.load_data(datasets) # type: ignore
+    assert bc.syncdata.prefixes
+    assert len(bc.syncdata.prefixes) > 0
+    assert bc.syncdata.addresses
+    assert len(bc.syncdata.addresses) > 0
+
+
 def test_sync_data(mock_sync_data, mocker):
 
     datasets = {"prefixes", "addresses"}
     bc = _sync.BluecatTarget()
     nb = _sync.NautobotTarget(dev=True)
-    sm = _sync.SyncManager(bc, nb, datasets, on_orphan="delete")  # type: ignore
+    sm = _sync.SyncManager(bc, nb, datasets, on_orphan="skip")  # type: ignore
 
     sm.load()
     sm.synchronize()

@@ -1,0 +1,4 @@
+[submodule "custom-forks/nautobot"]
+	path = custom-forks/nautobot
+	url = https://github.com/utsc-networking/nautobot/
+	branch = utsc-custom
