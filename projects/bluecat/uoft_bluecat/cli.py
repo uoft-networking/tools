@@ -1,13 +1,30 @@
 """
 CLI and API to manage a Bluecat instance
 """
+
 import sys
 from pathlib import Path
 from csv import DictReader, Sniffer
+from typing import Annotated, Optional
 
 import typer
+from uoft_core import logging
 
 from . import Settings
+
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
+
 
 app = typer.Typer(
     name="bluecat",
@@ -19,8 +36,18 @@ app = typer.Typer(
 
 @app.callback()
 @Settings.wrap_typer_command
-def callback():
-    s = Settings.from_cache()
+def callback(
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 
 @app.command()
@@ -33,27 +60,25 @@ def register_ips_from_file(
         readable=True,
         resolve_path=True,
         allow_dash=True,
-    )
+    ),
 ):
     if filename.name == "-":
         file = sys.stdin.readlines()
     else:
         file = filename.open().readlines()
-    dialect = Sniffer().sniff(
-        file[0]
-    )  # figure out if the file is a csv, or a tsv, or whatever
+    dialect = Sniffer().sniff(file[0])  # figure out if the file is a csv, or a tsv, or whatever
     reader = DictReader(file, dialect=dialect)
 
     api = Settings.from_cache().get_api_connection()
     conf_id = api.configuration_id
     for row in reader:
-        mac = row['mac-address']
-        ip = row['ipv4']
+        mac = row["mac-address"]
+        ip = row["ipv4"]
         res = api.get_ipv4_address(ip, configuration_id=conf_id)
         if res:
             print(f"IP {ip} already registered to Bluecat Object ID: {res['id']}")
             continue
-        res = api.assign_ipv4_address(ip, mac, row['hostname'], configuration_id=conf_id)
+        res = api.assign_ipv4_address(ip, mac, row["hostname"], configuration_id=conf_id)
         print(f"Successfully registered MAC {mac} with address {ip} to Bluecat Object ID: {res}")
 
 

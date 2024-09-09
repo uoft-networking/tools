@@ -9,11 +9,10 @@ from shutil import which
 from . import Util
 
 import typer
-from loguru import logger
 
-app = typer.Typer(name=__package__)
+app = typer.Typer(name=__package__) # type: ignore
 
-util = Util(__package__)
+util = Util(__package__) # type: ignore
 
 
 def version_callback(value: bool):
@@ -150,7 +149,6 @@ def handle_external_subcommand_completion(external: set[str]):
             )
 
 
-@logger.catch
 def cli():
     try:
         internal, external = _add_subcommands()
@@ -159,6 +157,11 @@ def cli():
     except KeyboardInterrupt:
         print("Aborted!")
         sys.exit()
+    except Exception as e:
+        if os.environ.get("PYDEBUG"):
+            raise
+        print(f"Error: {e}")
+        sys.exit(1)
         
 
 

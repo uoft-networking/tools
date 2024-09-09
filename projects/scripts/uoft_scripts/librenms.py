@@ -4,13 +4,16 @@ import logging
 import typer
 import uoft_librenms
 
-from .nautobot import SyncManager, SyncData, DeviceModel, NautobotManager
+from ._sync import Target, SyncData, DeviceModel, NautobotTarget
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(name='librenms')
+app = typer.Typer(name="librenms")
 
-class LibreNMSManager(SyncManager):
+
+class LibreNMSTarget(Target):
+    name = "librenms"
+
     def __init__(self) -> None:
         super().__init__()
         settings = uoft_librenms.Settings.from_cache()
@@ -24,24 +27,22 @@ class LibreNMSManager(SyncManager):
     def api(self):
         # get a thread-local copy of the api object
         if not hasattr(self._local_ns, "api"):
-            self._local_ns.api = uoft_librenms.LibreNMSRESTAPIClient(
-                self.url, token=self.token.get_secret_value()
-            )
+            self._local_ns.api = uoft_librenms.LibreNMSRESTAPIClient(self.url, token=self.token.get_secret_value())
         return self._local_ns.api
-    
+
     def load_data(self, datasets: set):
-        assert datasets == {'devices'}, "Only devices are supported"
+        assert datasets == {"devices"}, "Only devices are supported"
         logger.info("Loading data from LibreNMS")
-        raw_devices = self.api.devices.list_devices(order_type='all')['devices']
+        raw_devices = self.api.devices.list_devices(order_type="all")["devices"]
         devices = {}
         local_ids = {}
 
         logger.info("Processing devices")
         for d in raw_devices:
             # hostnames in librenms are FQDNs, we only care about the actual hostname, the first segment of the FQDN
-            hostname = d['hostname'].split('.')[0]
-            local_ids[hostname] = d['device_id']
-            devices[hostname] = DeviceModel(hostname=hostname, ip_address=d['ip'])
+            hostname = d["hostname"].split(".")[0]
+            local_ids[hostname] = d["device_id"]
+            devices[hostname] = DeviceModel(hostname=hostname, ip_address=d["ip"])
 
         self.syncdata = SyncData(
             local_ids=local_ids,
@@ -50,8 +51,9 @@ class LibreNMSManager(SyncManager):
             addresses=None,
         )
 
+
 @app.command()
-def get_devices(dev: bool=False):
+def get_devices(dev: bool = False):
     import concurrent.futures as cf
 
     with cf.ThreadPoolExecutor(thread_name_prefix="test") as executor:
@@ -60,8 +62,8 @@ def get_devices(dev: bool=False):
         t = Timeit()
 
         # decrypt secrets and initialize managers
-        nb = executor.submit(lambda: NautobotManager(dev))
-        ln = executor.submit(lambda: LibreNMSManager())
+        nb = executor.submit(lambda: NautobotTarget(dev))
+        ln = executor.submit(lambda: LibreNMSTarget())
         nb = nb.result()
         ln = ln.result()
 
@@ -74,7 +76,7 @@ def get_devices(dev: bool=False):
     ln.synchronize(nb.syncdata)
 
     # save data
-    #ln.save_data()
+    # ln.save_data()
 
     runtime = t.stop().str
     print(runtime)

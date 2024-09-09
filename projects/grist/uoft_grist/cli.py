@@ -1,16 +1,29 @@
 """
 UofT Grist - Utilization Reporting
 """
-from grist_api import GristDocAPI
-import typer
-from typing import Optional
-from . import Settings, Department
+from typing import Annotated, Optional
 from collections import defaultdict
 import datetime
 import sys
-import logging
+from grist_api import GristDocAPI
+import typer
+from . import Settings, Department
+from uoft_core import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
 
 app = typer.Typer(
     name="grist",
@@ -33,25 +46,17 @@ def version_callback(value: bool):
 
 @app.callback()
 def callback(
-    debug: bool = typer.Option(False, help="Turn on debug logging"),
-    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
-    version: Optional[bool] = typer.Option(  # pylint: disable=unused-argument
-        None,
-        "--version",
-        callback=version_callback,
-        help="Show version information and exit",
-    ),
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
-    if trace:
-        log_level = "TRACE"
-
-    logging.basicConfig(
-        level=log_level, format="%(levelname)s: %(message)s", stream=sys.stderr
-    )
-    s = Settings.from_cache()
+    logging.basicConfig(level=log_level)
 
 
 def cli():

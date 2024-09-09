@@ -1,12 +1,9 @@
 # flake8: noqa
 
 import inspect
-import logging
-import logging.handlers
 import os
 import pickle
 import platform
-import logging
 import sys
 import time
 from shutil import which
@@ -41,31 +38,21 @@ import pydantic.types
 from pydantic.main import ModelMetaclass
 from rich.console import Console
 
+from . import logging
 from .types import StrEnum, SecretStr
 from . import toml
 from ._vendor.decorator import decorate
 from ._vendor.platformdirs import PlatformDirs
 
 if TYPE_CHECKING:
-    from loguru import Message
     from pydantic import BaseModel
 
-__version__ = version(__package__)
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
-class CoreLogger(logging.Logger):
-    def trace(self, msg, *args, **kwargs):
-        self.log(5, msg, *args, **kwargs)
-
-def get_logger(name):
-    orig_logger_class = logging.getLoggerClass()
-    logging.setLoggerClass(CoreLogger)
-    logger: CoreLogger = logging.getLogger(name) # type: ignore
-    logging.setLoggerClass(orig_logger_class)
-    return logger
-
-
-logging.addLevelName(5, "TRACE")
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
+assert isinstance(logger, logging.UofTCoreLogger)
 
 # region SECTION util functions & classes
 
@@ -255,6 +242,7 @@ def shell(cmd: str, input_: str | bytes | None = None, cwd: str | Path | None = 
     """
     if input_ is not None and isinstance(input_, bytes):
         input_ = input_.decode()
+    logger.trace(f"Running shell command: {cmd}")
     return (
         run(cmd, shell=True, capture_output=True, check=True, text=True, input=input_, cwd=cwd)
         .stdout
@@ -358,43 +346,48 @@ def create_or_update_config_file(
         logger.debug(f"Creating new config file {file}")
     write_config_file(file, obj, write_as=write_as)
 
+_pass_cmd = os.environ.get("PASS_CMD", "pass")
+_pass_installed = None
+def _is_pass_installed():
+    global _pass_installed
+    if _pass_installed is None:
+        _pass_installed = bool(which("pass"))
+    return _pass_installed
 
 class PassPath(PosixPath):
     """An abstract path representing an entry in the `pass` password store"""
 
-    _pass_installed: bool
     _contents: str | None
-    pass_cmd = os.environ.get("PASS_CMD", "pass")
 
     def __new__(cls, *args):
         self = super().__new__(cls, *args)
-        self._pass_installed = bool(which("pass"))
         self._contents = None
         return self
 
     @property
     def command_name(self) -> str:
-        return f"{self.pass_cmd} show {self}"
+        return f"{_pass_cmd} show {self}"
 
     @property
     def contents(self) -> str:
-        if self._pass_installed:
-            if self._contents is None:
-                try:
-                    logger.debug(f"Running pass command: `{self.command_name}`")
-                    self._contents = shell(self.command_name)
-                except CalledProcessError as e:
-                    if 'gpg: decryption failed:' in e.stderr:
-                        raise e
-                    if e.returncode == 1:
-                        logger.debug(f"Password-store entry {self} does not exist, skipping")
-                    self._contents = ""
-            return self._contents
-        logger.debug(f"{self.pass_cmd} is not installed, skipping {self}")
-        return ""
+        if not _is_pass_installed():
+            logger.debug(f"{_pass_cmd} is not installed, skipping {self}")
+            return ""
+        if self._contents is None:
+            try:
+                logger.debug(f"Running pass command: `{self.command_name}`")
+                self._contents = shell(self.command_name)
+            except CalledProcessError as e:
+                if 'gpg: decryption failed:' in e.stderr:
+                    logger.error(e.stderr)
+                    raise UofTCoreError("Failed to decrypt password-store entry. Check your GPG keys") from e
+                if e.returncode == 1:
+                    logger.debug(f"Password-store entry {self} does not exist, skipping")
+                self._contents = ""
+        return self._contents
 
     def exists(self) -> bool:
-        if not self._pass_installed:
+        if not _is_pass_installed():
             return False
         return bool(self.contents)
 
@@ -411,8 +404,8 @@ class PassPath(PosixPath):
     def write_text(
         self, data: str, encoding: str | None = None, errors: str | None = None
     ) -> None:
-        if self._pass_installed:
-            shell(f"pass insert -m {self}", input_=data)
+        if _is_pass_installed():
+            shell(f"{_pass_cmd} insert -m {self}", input_=data)
             self._contents = data
         else:
             raise UofTCoreError(
@@ -423,16 +416,35 @@ class PassPath(PosixPath):
             )
 
 
-def bitwarden_get(secret_name: str) -> str:
-    # for interactive use, e.g. for use in scripts & CLI tools, prefer the `rbw` command line tool
-    # for non-interative use, e.g. in a web server, use the `bw` command line tool
-    raise NotImplementedError("bitwarden_get is not yet implemented")
-    if sys.stdout.isatty():
-        # look for rbw, fall back to bw
-        pass
+def bitwarden_unlock(password_file: Path | None = None):
+    if os.environ.get("BW_SESSION"):
+        # vault is already unlocked, nothing to see here
+        return
+    cmd = "bw unlock --raw"
+    if not password_file:
+        password_file = Path.home() / ".bw_pass"
+    # raise a warning if password file access mode is not 600
+    if password_file.exists():
+        # fancy bitwise AND to pull out just the permission bits and compare
+        if password_file.stat().st_mode & 0o777 != 0o600:
+            logger.warning(
+                f"Password file {password_file} has insecure permissions. Please set it to 600"
+            )
     else:
-        # look for bw, raise an error if it's not found
-        pass
+        logger.info(f"Password file {password_file} not found, skipping")
+    if password_file:
+        cmd += f" --password-file {password_file}"
+    session = shell(cmd)
+
+    # inject the session into the environment
+    os.environ["BW_SESSION"] = session
+
+
+def bitwarden_get(secret_name: str) -> str:
+    # this function may get called once or many times, depending on how many secrets are referenced in other config files
+    # when called, this function needs to unlock the bitwarden vault if it hasn't already been unlocked, and then fetch the secret
+    bitwarden_unlock()
+    return shell(f"bw get item {secret_name} --raw")
 
 class Timeit:
     """
@@ -535,29 +547,6 @@ def compile_source_code(source_code, globals_=None):
 class UofTCoreError(Exception):
     pass
 
-
-class InterceptHandler(logging.Handler):
-    "This handler, when attached to the root logger of the python logging module, will forward all logs to Loguru's logger"
-
-    def emit(self, record):
-        # Get corresponding Loguru level if it exists
-        from loguru import logger
-        try:
-            level = logger.level(record.levelname).name
-        except ValueError:
-            level = record.levelno
-
-        # Find caller from where originated the logged message
-        frame, depth = logging.currentframe(), 2
-        while frame and frame.f_code.co_filename == logging.__file__:
-            frame = frame.f_back
-            depth += 1
-
-        logger.opt(depth=depth, exception=record.exc_info).log(
-            level, record.getMessage()
-        )
-
-
 # endregion !SECTION util functions & classes
 
 # region types
@@ -610,8 +599,6 @@ class Util:
     """
 
     app_name: str
-    console: Console
-    logging: "Util.Logging"
     config: "Util.Config"
 
     class Config:
@@ -841,154 +828,12 @@ class Util:
                     conf[field] = env_var
             return conf
 
-    class Logging:
-        """
-        Core class for CLI apps to simplify access to config files, cache directories, and logging configuration
-        """
-
-        parent: "Util"
-        stderr_format: str
-        syslog_format: str
-
-        def __init__(self, parent: "Util") -> None:
-            self.parent = parent
-
-            self.stderr_format = f"<blue>{self.parent.app_name}</> | <level>{{level.name:8}}</>| <bold>{{message}}</>"
-            self.syslog_format = f"{self.parent.app_name} | {{name}}:{{function}}:{{line}} - {{level.name: ^8}} | {{message}} | Data: {{extra}}"
-
-        def add_stderr_sink(self, level="INFO", **kwargs):
-            from loguru import logger
-            options = dict(
-                backtrace=False,
-                level=level,
-                colorize=True,
-                format=self.stderr_format,
-            )
-            options.update(kwargs)
-            logger.add(sys.stderr, **options)  # type: ignore
-
-        def add_stderr_rich_sink(self, level="INFO", **kwargs):
-            from loguru import logger
-            options = dict(
-                backtrace=False,
-                level=level,
-                format=self.stderr_format,
-            )
-            options.update(kwargs)
-            logger.add(self.parent.console.print, **options)  # type: ignore
-
-        def add_json_logfile_sink(self, filename=None, level="DEBUG", **kwargs):
-            from loguru import logger
-            filename = filename or f"{self.parent.app_name}.log"
-            options = dict(
-                level=level,
-                format="{message}",
-                serialize=True,  # Convert {message} to a json string of the Message object
-                rotation="5MB",  # How big should the log file get before it's rolled?
-                retention=4,  # How many compressed copies to keep?
-                compression="zip",
-            )
-            options.update(kwargs)
-            logger.add(filename, **options)  # type: ignore
-
-        def add_syslog_sink(self, level="DEBUG", syslog_address=None, **kwargs):
-            from loguru import logger
-            if platform.system() == "Windows":
-                # syslog configs like level and facility don't apply in windows,
-                # so we set up a basic event log handler instead
-                handler = logging.handlers.NTEventLogHandler(
-                    appname=self.parent.app_name
-                )
-            else:
-                # should handle ~90% of unixes
-                if syslog_address:
-                    pass
-                elif Path("/var/run/syslog").exists():
-                    syslog_address = "/var/run/syslog"  # MacOS syslog
-                elif Path("/dev/log").exists():
-                    syslog_address = "/dev/log"  # Most Unixes?
-                else:
-                    syslog_address = ("localhost", 514)  # Syslog daemon
-                handler = logging.handlers.SysLogHandler(address=syslog_address)
-                handler.ident = "uoft-tools: "
-
-            options = dict(level=level, format=self.syslog_format)
-            options.update(kwargs)
-            logger.add(handler, **options)  # type: ignore
-
-        def add_sentry_sink(self, level="ERROR", **kwargs):
-            from loguru import logger
-            try:
-                sentry_dsn = self.parent.config.get_key_or_fail("sentry_dsn")
-            except KeyError:
-                logger.debug(
-                    "`sentry_dsn` option not found in any config file. Sentry logging disabled"
-                )
-                return None
-
-            try:
-                import sentry_sdk  # type: ignore
-            except ImportError:
-                logger.debug(
-                    "the sentry_sdk package is not installed. Sentry logging disabled."
-                )
-                return None
-            # the way we set up sentry logging assumes you have one sentry
-            # project for all your apps, and want to group all your alerts
-            # into issues by app name
-
-            def before_send(event, hint):  # pylint: disable=unused-argument
-                # group all sentry events by app name
-                if event.get("exception"):
-                    exc_type = event["exception"]["values"][0]["type"]
-                    event["exception"]["values"][0][
-                        "type"
-                    ] = f"{self.parent.app_name}: {exc_type}"
-                if event.get("message"):
-                    event["message"] = f'{self.parent.app_name}: {event["message"]}'
-                return event
-
-            sentry_sdk.init(
-                sentry_dsn,
-                with_locals=True,
-                request_bodies="small",
-                before_send=before_send,
-            )
-            user = {"username": getuser()}
-            email = os.environ.get("MY_EMAIL")
-            if email:
-                user["email"] = email
-            sentry_sdk.set_user(user)
-
-            def sentry_sink(msg: "Message"):
-                data = msg.record
-                level = data["level"].name.lower()
-                exception = data["exception"]
-                message = data["message"]
-                sentry_sdk.set_context("log_data", dict(data))
-                if exception:
-                    sentry_sdk.capture_exception()
-                else:
-                    sentry_sdk.capture_message(message, level)
-
-            logger.add(sentry_sink, level=level, **kwargs)
-
-        def enable(self):
-            from loguru import logger
-            logger.remove()  # remove default handler, if it exists
-            logger.enable("")  # enable all logs from all modules
-
-            # setup python logger to forward all logs to loguru
-            logging.basicConfig(handlers=[InterceptHandler()], level=0)
-
     def __init__(self, app_name: str) -> None:
         self.app_name = app_name
         self.dirs: PlatformDirs = PlatformDirs("uoft-tools")
-        self.console: Console = Console(stderr=True)
-        self.logging: "Util.Logging" = self.Logging(self)
         self.config: "Util.Config" = self.Config(self)
         # there should be one config path which is common to all OS platforms,
-        # so that users who sync configs betweeen multiple computers can sync
+        # so that users who sync configs between multiple computers can sync
         # those configs to the same directory across machines and have it *just work*
         # By convention, this path is ~/.config/uoft-tools
 
@@ -1108,13 +953,14 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @classmethod
     def from_cache(cls: Type[S]) -> S:
         # For each subclass of BaseSettings, this method should return an instance of that subclass
-        if cls._instance is None:
-            logger.debug(f"Settings(app_name={cls.Config.app_name}): Loading settings")
-            cls._instance = cls()
-        else:
-            logger.debug(f"Settings(app_name={cls.Config.app_name}): Settings already loaded")
-        cls._instance: S
-        return cls._instance
+        with logging.Context(f'Settings(app_name={cls.Config.app_name})'):
+            if cls._instance is None:
+                    logger.debug("Loading settings")
+                    cls._instance = cls()
+            else:
+                logger.debug("Settings already loaded")
+            cls._instance: S
+            return cls._instance
 
     def __init_subclass__(cls, **kwargs):
         app_name = getattr(cls.Config, "app_name", None)
@@ -1128,22 +974,24 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             )
         super().__init_subclass__(**kwargs)
 
-    #@pydantic.validator("*", pre=True)
+    @pydantic.validator("*", pre=True)
     def _validate_ref_fields(cls, value):
         # if any field has a value that looks like "ref[prefix:field]", 
         # verify that prefix is either `pass` (for the linux password-store) or `bw` (for bitwarden)
         # look up 'field' in the password store or bitwarden and replace the value with the result
         if isinstance(value, str) and value.startswith("ref[") and value.endswith(']'):
+            logger.debug(f"Found reference field: {value}")
             ref = value[4:-1]
             if not ref:
                 raise ValueError("Reference field cannot be empty")
             if ref.startswith("pass:"):
                 lookup_name = ref[5:]
-                return shell(f"pass show {lookup_name}").strip()
+                return PassPath(lookup_name).contents
             if ref.startswith("bw:"):
                 lookup_name = ref[3:]
                 return bitwarden_get(lookup_name)
             raise ValueError(f"Invalid reference field: {value}")
+        return value
 
 
     @classmethod
@@ -1227,7 +1075,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
     @classmethod
     def prompt_for_missing_values(cls, values):
         missing_keys = [key for key in cls.__fields__ if key not in values]
-        logger.debug(f"Settings(app_name={cls.Config.app_name}): Missing keys: {missing_keys}")
+        logger.debug(f"Missing keys: {missing_keys}")
 
         # If a BaseSettings subclass appears in the missing_keys list, and that field is marked prompt=False,
         # Then we should source the value from the subclass's from_cache method, and remove the subclass from the missing_keys list
@@ -1242,7 +1090,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             except TypeError:
                 is_model = False
             if field.field_info.extra.get("prompt", True) is False:
-                logger.debug(f"Settings(app_name={cls.Config.app_name}): Prompting disabled for field {key}")
+                logger.debug(f"Prompting disabled for field {key}")
                 if is_model:
                     values[key] = type_.from_cache()
                 
@@ -1253,19 +1101,19 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
         if not missing_keys:
             # Everything's present and accounted for. nothing to do here
-            logger.debug(f"Settings(app_name={cls.Config.app_name}): No missing keys remaining to prompt for")
+            logger.debug("No missing keys remaining to prompt for")
             return values
 
         if not cls.Config.prompt_on_missing_values:
             # interactively prompting for values is disabled on this subclass
             # Return values as is and let pydantic report validation errors on missing fields
-            logger.debug(f"Settings(app_name={cls.Config.app_name}): Prompting disabled for missing values")
+            logger.debug("Prompting disabled for missing values")
             return values
 
         if not sys.stdout.isatty():
             # We're not in a terminal.  We can't prompt for input.
             # Return values as is and let pydantic report validation errors on missing fields
-            logger.debug(f"Settings(app_name={cls.Config.app_name}): Not in a terminal. Skipping interactive prompt for missing values")
+            logger.debug("Not in a terminal. Skipping interactive prompt for missing values")
             return values
 
         # We're in a terminal and we're missing some values.
@@ -1289,7 +1137,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         for file_path, file_state in cls._util().config.files:
             if file_state in {File.writable, File.creatable}:
                 save_targets.append(str(file_path))
-        logger.debug(f"Settings(app_name={cls.__config__.app_name}): Save targets: {save_targets}")
+        logger.debug(f"Save targets: {save_targets}")
 
         # prompt user to select a save target
         p = cls._prompt()
@@ -1342,16 +1190,16 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                         if not text:
                             # if pass is not installed, or if the pass entry doesn't exist, that's not necessarily an error.
                             continue
-                        logger.debug(f"Attempting to parse TOML data from {path}")
+                        logger.debug(f"Successfully decrypted and loaded content from {path}, attempting to parse as TOML data")
                         res.update(toml.loads(text))
-                        logger.info(f"Loaded settings from {path}")
+                        logger.debug(f"TOML data parse OK from {path}")
                     except toml.TOMLDecodeError as e:
                         # at this point, we can be sure that pass is installed, and the user did create a pass entry,
                         # but the entry is not valid TOML. This case IS an error and should be bubbled up to the user.
                         raise UofTCoreError(
                             f"Error parsing data returned from `{path.command_name}`. expected a TOML document, but failed parsing as TOML: {e.args}"
                         ) from e
-                    logger.debug(f"Successfully loaded settings from {path}")
+                    logger.info(f"Successfully loaded settings from {path}")
                 return res
 
             return settings_from_pass

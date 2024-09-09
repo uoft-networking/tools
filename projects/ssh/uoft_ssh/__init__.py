@@ -1,5 +1,10 @@
+from importlib.metadata import version
 from uoft_core import BaseSettings, Field
 from uoft_core.types import BaseModel, SecretStr
+
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
 
 class Credentials(BaseModel):

@@ -2,10 +2,11 @@
 import os
 import sys
 import traceback
-from typing import Optional
+from typing import Annotated, Optional
 from pathlib import Path
 import json
 
+from uoft_core import logging
 from . import Settings, settings
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
@@ -19,10 +20,25 @@ from uoft_core import (
     txt,
     write_config_file,
 )
+from uoft_core.console import console
 from uoft_core.other import Prompt
 
 import typer
-from loguru import logger
+
+logger = logging.getLogger(__name__)
+
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
 
 app = typer.Typer(
     name="switchdeploy",
@@ -39,17 +55,6 @@ app.add_typer(generate)
 
 util = Settings._util()
 prompt = Prompt(util)
-
-
-def version_callback(value: bool):
-    if value:
-        from . import __version__
-        from sys import version_info as v, platform, executable
-
-        print(
-            f"Switchdeploy v{__version__} \nPython {v.major}.{v.minor} ({executable}) on {platform}"
-        )
-        raise typer.Exit()
 
 
 def initialize_config(value: bool):
@@ -95,7 +100,7 @@ def initialize_templates(value: bool):
     logger.debug(f"copying content from {example_templates.resolve()}")
     for file in example_templates.iterdir():
         templates.joinpath(file.name).write_text(file.read_text())
-    util.console.print(
+    console().print(
         chomptxt(
             """
             [green]Done![/green] you may now start adding templates to the 
@@ -109,7 +114,7 @@ def initialize_templates(value: bool):
 def show_paths(value: bool):
     if not value:
         return
-    con = util.console
+    con = console()
     states = {
         File.readable: "[green]readable[/]",
         File.writable: "[bright_green]writable[/]",
@@ -136,14 +141,12 @@ def show_paths(value: bool):
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
 )
 def callback(
-    debug: bool = typer.Option(False, help="Turn on debug logging"),
-    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
-    version: Optional[bool] = typer.Option(
-        None,
-        "--version",
-        callback=version_callback,
-        help="Show version information and exit",
-    ),
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True),
+    ] = None,
     init_config: Optional[bool] = typer.Option(
         None,
         "--init-config",
@@ -166,15 +169,12 @@ def callback(
     """
     UofT NetMgmt Switch Deploy tool
     """
-
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
     if trace:
         log_level = "TRACE"
-    util.logging.enable()
-    util.logging.add_stderr_rich_sink(log_level)
-    util.logging.add_syslog_sink()
+    logging.basicConfig(level=log_level)
 
 
 def get_cache_dir(cache_dir: Optional[Path] = None):
@@ -332,6 +332,61 @@ def deprecated():
     )
     app()
 
+def _debug():
+    # Debug code goes here
+    # noqa
+    from .util import construct_model_instance_interactively
+    from uoft_switchconfig.types import *
+
+    class SubModel(BaseModel):
+        id: int = Field(description="The VLAN ID of this VLAN, Example: 100")
+        description: str = Field(
+            description="The description of this VLAN, Example: PUBLIC"
+        )
+        ip: IPv4Network = Field(
+            description="The IP address of this VLAN, in CIDR notation, Example: 10.14.1.33/24"
+        )
+
+    class MyEnum(StrEnum):
+        opt_a = object()
+        opt_b = object()
+        opt_c = object()
+
+    class ChoiceA(Choice):
+        kind: Literal["choicea"]
+
+    class ChoiceB(Choice):
+        kind: Literal["choiceb"]
+
+    class Model(BaseModel):
+        a: str
+        aa: bool
+        b: int
+        bb: float
+        c: Optional[str]
+        cc: str | None
+        d: Union[str, int, None]
+        e: MyEnum
+        f: Path
+        g: DirectoryPath
+        h: Literal["one", "two"]
+        i: IPv4Address
+        j: SubModel
+        k: Union[ChoiceA, ChoiceB]
+        l: list
+        ll: List
+        ids: List[int]
+        names: List[str]
+        ips: List[IPv4Address]
+        objects: List[SubModel]
+        z: dict
+        za: Dict
+        zb: Dict[str, str]
+        zc: Dict[int, str]
+        xd: Dict[str, int]
+
+    r = construct_model_instance_interactively(Model)
+    print(r)
 
 if __name__ == "__main__":
 
@@ -339,56 +394,6 @@ if __name__ == "__main__":
         # Debug code goes here
         # noqa
 
-        from .util import construct_model_instance_interactively
-        from uoft_switchconfig.types import *
-
-        class SubModel(BaseModel):
-            id: int = Field(description="The VLAN ID of this VLAN, Example: 100")
-            description: str = Field(
-                description="The description of this VLAN, Example: PUBLIC"
-            )
-            ip: IPv4Network = Field(
-                description="The IP address of this VLAN, in CIDR notation, Example: 10.14.1.33/24"
-            )
-
-        class MyEnum(StrEnum):
-            opt_a = object()
-            opt_b = object()
-            opt_c = object()
-
-        class ChoiceA(Choice):
-            kind: Literal["choicea"]
-
-        class ChoiceB(Choice):
-            kind: Literal["choiceb"]
-
-        class Model(BaseModel):
-            a: str
-            aa: bool
-            b: int
-            bb: float
-            c: Optional[str]
-            cc: str | None
-            d: Union[str, int, None]
-            e: MyEnum
-            f: Path
-            g: DirectoryPath
-            h: Literal["one", "two"]
-            i: IPv4Address
-            j: SubModel
-            k: Union[ChoiceA, ChoiceB]
-            l: list
-            ll: List
-            ids: List[int]
-            names: List[str]
-            ips: List[IPv4Address]
-            objects: List[SubModel]
-            z: dict
-            za: Dict
-            zb: Dict[str, str]
-            zc: Dict[int, str]
-            xd: Dict[str, int]
-
-        r = construct_model_instance_interactively(Model)
+        _debug()
         sys.exit()
     cli()

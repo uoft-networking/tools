@@ -5,6 +5,9 @@ Collection of tools to interact with SnipeIT, currently focused around Access Po
 from pathlib import Path
 import sys
 import typer
+from typing import Annotated, Optional
+
+from uoft_core import logging
 from . import Settings
 from .create import snipe_create_asset
 from .checkout import snipe_checkout_asset
@@ -13,6 +16,19 @@ from .print import system_print_label
 from .batch import snipe_batch_provision
 from .serial_lookup import snipe_serial_lookup
 from .location_lookup import snipe_location_lookup
+
+
+def _version_callback(value: bool):
+    if not value:
+        return
+    from . import __version__
+    import sys
+
+    print(
+        f"uoft-{Settings.Config.app_name} v{__version__} \nPython {sys.version_info.major}."
+        f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
+    )
+    raise typer.Exit()
 
 app = typer.Typer(
     name="snipeit",
@@ -24,8 +40,18 @@ app = typer.Typer(
 
 @app.callback()
 @Settings.wrap_typer_command
-def callback():
-    pass
+def callback(
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
+    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+):
+    log_level = "INFO"
+    if debug:
+        log_level = "DEBUG"
+    logging.basicConfig(level=log_level)
 
 
 @app.command(help="Create an asset.", no_args_is_help=True)

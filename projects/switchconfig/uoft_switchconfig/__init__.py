@@ -5,12 +5,12 @@ from pathlib import Path
 
 from uoft_core import Util, UofTCoreError, chomptxt, BaseSettings
 
-from loguru import logger
 from pydantic import BaseModel, Field
 
-__version__ = version(__package__)
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
-logger.disable(__name__)
 
 APP_NAME = "switchconfig"
 

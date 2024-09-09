@@ -10,17 +10,13 @@ from typing import TYPE_CHECKING
 import logging
 from pathlib import Path
 import os
-import sys
-
 from uoft_core.tests import MockFolders
+from uoft_core import logging
 
 import pytest
-from _pytest.logging import caplog as _caplog  # noqa
-from loguru import logger
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
-    from _pytest.logging import LogCaptureFixture
     from _pytest.fixtures import FixtureRequest
 
 if os.getenv("VSCODE_DEBUGGER"):
@@ -33,6 +29,7 @@ if os.getenv("VSCODE_DEBUGGER"):
     def pytest_internalerror(excinfo):
         raise excinfo.value
     
+    # enable logging to stderr when running tests in the debugger
     import logging
     configured = False
     for handler in logging.root.handlers:
@@ -41,28 +38,7 @@ if os.getenv("VSCODE_DEBUGGER"):
                 configured = True
                 break
     if not configured:
-        logging.root.setLevel(logging.INFO)
-        logging.root.addHandler(logging.StreamHandler())
-
-
-@pytest.fixture
-def caplog(caplog: "LogCaptureFixture"):
-    """
-    override and wrap the caplog fixture with one of our own
-    """
-    logger.remove()  # remove default handler, if it exists
-    logger.enable("")  # enable all logs from all modules
-    logging.addLevelName(5, "TRACE")  # tell python logging how to interpret TRACE logs
-
-    class PropogateHandler(logging.Handler):
-        def emit(self, record):
-            logging.getLogger(record.name).handle(record)
-
-    # shunt logs into the standard python logging machinery
-    logger.add(PropogateHandler(), format="{message} {extra}", level="TRACE")
-    caplog.set_level(0)  # Tell logging to handle all log levels
-    yield caplog
-
+        logging.basicConfig(level=logging.DEBUG)
 
 @pytest.fixture()
 def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"):

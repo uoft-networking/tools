@@ -12,9 +12,9 @@ from .util import (
     normalize_extension_name
 )
 
-from uoft_core.prompt import Prompt
+from uoft_core import logging
 
-from loguru import logger
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 from jinja2 import Environment, StrictUndefined, FileSystemLoader
 

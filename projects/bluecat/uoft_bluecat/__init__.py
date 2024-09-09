@@ -4,6 +4,7 @@ import concurrent.futures
 import threading
 from functools import cached_property
 import asyncio
+from importlib.metadata import version
 
 from uoft_core import BaseSettings, Field
 from uoft_core.types import SecretStr, IPNetwork, IPAddress
@@ -12,6 +13,10 @@ from uoft_core._vendor.bluecat_libraries.address_manager import constants
 from uoft_core._vendor.bluecat_libraries.http_client.exceptions import ErrorResponse
 
 logger = getLogger(__name__)
+
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
 CONTAINER_TYPES = [
     constants.ObjectType.IP4_BLOCK,
@@ -46,6 +51,9 @@ class Network(APIEntity, total=False):
 class Address(APIEntity):
     address: str
 
+
+#TODO: replace all this garbage with a mult-threaded API wrapper on the V2 rest api, 
+# delete vendored bluecat libraries from uoft_core
 
 class API:
     """This class is a wrapper around the bluecat_libraries.address_manager.api.Client class"""
@@ -352,9 +360,9 @@ class API:
 
         try:
             if address.version == 4:
-                return self.assign_ipv4_address(**params)
+                return self.assign_ipv4_address(**params) # type: ignore
             else:
-                return self.assign_ipv6_address(**params)
+                return self.assign_ipv6_address(**params) # type: ignore
         except ErrorResponse as e:
             if 'Duplicate of another item' in e.message:
                 # TODO: reassign address

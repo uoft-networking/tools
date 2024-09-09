@@ -4,12 +4,12 @@ from importlib.metadata import version
 
 from uoft_core import Util, shell
 
-from loguru import logger
 from pydantic import BaseModel
 
-__version__ = version(__package__)
+# All of our projects are distributed as packages, so we can use the importlib.metadata 
+# module to get the version of the package.
+__version__ = version(__package__) # type: ignore
 
-logger.disable(__name__)
 
 APP_NAME = "scripts"
 
