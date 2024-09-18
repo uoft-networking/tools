@@ -4,10 +4,29 @@ version = "0.1.0"
 readme = "README.md"
 requires-python = ">= 3.10"
 authors = [
-  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" }, 
-  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" }
+    { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
 license = { text = "MIT" }
+dependencies = [
+# [[[cog
+# import _cog as c; c.all_projects_as_dependencies()
+# ]]]
+"uoft-grist",
+"uoft-snipeit",
+"uoft-phpipam",
+"uoft-librenms",
+"uoft-aruba",
+"uoft-nautobot",
+"uoft-paloalto",
+"uoft-bluecat",
+"uoft-ssh",
+"uoft-scripts",
+"uoft-switchconfig",
+"uoft-core",
+"nautobot",
+# [[[end]]]
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -17,9 +36,11 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build]
-include = ['conftest.py'] # This is a meta-package, it doesn't need to package ANY files, but hatch requires a file selection -_-
+include = [
+    'conftest.py',
+] # This is a meta-package, it doesn't need to package ANY files, but hatch requires a file selection -_-
 
-[tool.rye]
+[tool.uv]
 managed = true
 dev-dependencies = [
     "black>=22.3.0",
@@ -52,8 +73,27 @@ dev-dependencies = [
     "tuna>=0.5"
 ]
 
-[tool.rye.workspace]
+[tool.uv.workspace]
 members = ["projects/*", "custom-forks/*"]
+
+[tool.uv.sources]
+# [[[cog
+# import _cog as c; c.all_projects_as_uv_sources()
+# ]]]
+uoft-grist = { workspace = true }
+uoft-snipeit = { workspace = true }
+uoft-phpipam = { workspace = true }
+uoft-librenms = { workspace = true }
+uoft-aruba = { workspace = true }
+uoft-nautobot = { workspace = true }
+uoft-paloalto = { workspace = true }
+uoft-bluecat = { workspace = true }
+uoft-ssh = { workspace = true }
+uoft-scripts = { workspace = true }
+uoft-switchconfig = { workspace = true }
+uoft-core = { workspace = true }
+nautobot = { workspace = true }
+# [[[end]]]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -87,7 +127,7 @@ overrides = [
     ".venv/bin/python",
     # putting a true here tells pylsp-mypy to include all the 
     # default command line args, instead of replacing them
-    true
+    true,
 ]
 
 
@@ -116,7 +156,6 @@ exclude = [
     "node_modules",
     "venv",
 ]
-
 
 
 # Assume Python 3.10.

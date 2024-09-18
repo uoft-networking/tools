@@ -5,6 +5,7 @@ from typing import Annotated, Optional, no_type_check
 from textwrap import dedent
 from tempfile import TemporaryDirectory
 from pathlib import Path
+from shutil import rmtree
 
 from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
 from task_runner import run, REPO_ROOT
@@ -30,23 +31,17 @@ def list_projects():
 def build(project: str):
     """build sdist and wheel packages for a given project"""
     print(f"building {project} from projects/{project}")
-    # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
-    # the pyproject.py build hook doesn't get included in the sdist, and the subsequent
-    # wheel build fails. So we build the sdist and wheel separately.
-    with zxpy:
-        ~f"rye build -p uoft_{project} --sdist"
-        ~f"rye build -p uoft_{project} --wheel"
+    run(f"uv build --package uoft_{project} --out-dir {REPO_ROOT}/dist")
+    rmtree(REPO_ROOT / "projects" / project / ".pdm-build")
 
 
 @no_type_check
-def build_all():
+def build_all(clean: bool = False):
     """build sdist and wheel packages for all projects"""
-    # by default, rye builds an sdist first, and a wheel from the sdist. For some reason,
-    # the pyproject.py build hook doesn't get included in the sdist, and the subsequent
-    # wheel build fails. So we build the sdist and wheel separately.
-    with zxpy:
-        ~"rye build --all --clean --sdist"
-        ~"rye build --all --wheel"
+    if clean:
+        rmtree(REPO_ROOT / "dist")
+    for project in all_projects_by_name():
+        build(project)
 
 
 def test(project: str):
@@ -78,7 +73,9 @@ def new_project(name: str):
     if not return_code == 0:
         raise Exception("copier failed")
     # add the new project to the lock file and install in editable mode
-    run("rye sync")
+    from .repo import lock
+    lock()
+    run("uv sync --frozen")
 
 
 def repl(project: Annotated[Optional[str], typer.Argument()] = None):

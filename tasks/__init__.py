@@ -6,21 +6,12 @@ GLOBAL_PIPX = "PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx"
 
 
 def pipx_raw(command: str):
-    requirements = []
-
-    with open("requirements.lock", "r") as f:
-        for line in f.readlines():
-            if line.startswith("-e"):
-                continue
-            else:
-                requirements.append(line)
-
     with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
-        req_file.writelines(requirements)
-        req_file.flush()
-        with_constraints = f'--pip-args "--constraint {req_file.name}"'
+        run(f"uv export --no-hashes --no-emit-workspace --output-file {req_file.name}", cap=True)
+        print(f"Using constraints file: {req_file.name}")
+        with_pipargs = f'--pip-args "--constraint {req_file.name} --config-settings dependencies=local"'
         sudo(
-            f"{GLOBAL_PIPX} {command} {with_constraints}",
+            f"{GLOBAL_PIPX} {command} {with_pipargs}",
         )
 
 

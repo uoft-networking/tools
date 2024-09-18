@@ -2,6 +2,7 @@
 from textwrap import dedent
 import logging
 from ast import parse
+from typing import no_type_check, no_type_check_decorator # to be re-exported, but not used here. # noqa: F401 # type: ignore
 
 import task_runner
 
@@ -65,6 +66,7 @@ def lazy_imports(stmts, **kw):
     logger.debug(dump(stmts))
     raise NotImplementedError("lazy_imports is not implemented yet")
 
+
 def zxpy(stmts, **kw):
     """[syntax, block] Run python code in a shell
 
@@ -105,8 +107,9 @@ def zxpy(stmts, **kw):
             and isinstance(node.operand, (ast.Constant, ast.JoinedStr))
         )
     
+    #TODO: add automatic `run` import to statements that use it
     def run_call(value, cap=False, cap_all=False):
-        return q[run(a[value], cap=u[cap], capture_output=u[cap_all])]
+        return q[run(a[value], cap=u[cap], capture_output=u[cap_all])] # type: ignore
 
     new_stmts = []
 

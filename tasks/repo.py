@@ -1,14 +1,16 @@
 from pathlib import Path
+from typing import no_type_check
 
 from task_runner import run, REPO_ROOT
 
 from . import all_projects_by_name
 
+from ._macros import macros, zxpy  # noqa: F401 # type: ignore
 
 
 def cog_files():
     "Run cog against all cog files in the repo"
-    run(f"cog -r -I {REPO_ROOT}/tasks/ projects/*/README.md projects/core/uoft_core/__main__.py")
+    run(f"cog -r -I {REPO_ROOT}/tasks/ projects/*/README.md projects/core/uoft_core/__main__.py pyproject.toml")
 
 
 
@@ -31,3 +33,9 @@ def debug_pydantic(undo: bool = False):
         for ext in Path(".venv").glob("lib/python*/site-packages/pydantic/*.so"):
             print(f"renaming {ext.name} to {ext.with_suffix('.so.disabled').name}")
             ext.rename(ext.with_suffix(".so.disabled"))
+
+
+
+def lock():
+    """update the monorepo uv lock file"""
+    run("uv lock --refresh --config-setting dependencies=lock")
