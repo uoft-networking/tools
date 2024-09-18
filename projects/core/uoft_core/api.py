@@ -3,8 +3,8 @@ General abstractions for working with REST APIs
 """
 
 from typing import Any, TYPE_CHECKING
+from concurrent.futures import ThreadPoolExecutor, Future, as_completed, wait
 
-from .typing import params_of
 from requests import Session, Response, HTTPError
 from typing_extensions import Self
 from yarl import URL
@@ -112,6 +112,21 @@ class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block b
         # convert URL to string before passing it on to the super class
         url = str(url)
         return super().request(method, url, **kwargs)
+
+    def threadpool(self, *args, **kwargs):
+        return ThreadedAPIPool(*args, **kwargs)
+
+
+class ThreadedAPIPool(ThreadPoolExecutor):
+    # Attach common threadpool primitives to the pool itself so they don't need to be re-imported
+    # every where they are needed
+    Future = Future
+    as_completed = as_completed
+    wait = wait
+
+    def __init__(self, api: APIBase, *args, **kwargs):
+        thread_name_prefix = kwargs.pop("thread_name_prefix", None) or f"{api.__class__.__name__}-thread"
+        super().__init__(*args, thread_name_prefix=thread_name_prefix, **kwargs)
 
 
 if TYPE_CHECKING:
