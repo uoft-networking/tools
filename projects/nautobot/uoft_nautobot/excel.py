@@ -4,10 +4,11 @@ from nautobot.apps.ui import TemplateExtension
 from django.views.generic import View
 from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import render
+from django.contrib.contenttypes.models import ContentType
 from tempfile import NamedTemporaryFile
 
 from nautobot.dcim.models import Interface, Device
-from nautobot.extras.models import Status, Tag
+from nautobot.extras.models import Status, Tag, Role
 from nautobot.ipam.models import VLAN, VLANGroup, IPAddress
 from nautobot.dcim.models.device_components import (
     InterfaceModeChoices,
@@ -55,8 +56,10 @@ class ExcelContext:
         self.interface_types_inverse = {v: k for k, v in self.interface_types.items()}
         self.statuses = InterfaceStatusChoices.as_dict().values()
         self.vlan_modes = InterfaceModeChoices.values()
+        _roles_ct = ContentType.objects.get(app_label="dcim", model="interface")
+        self.valid_roles = list(Role.objects.filter(content_types=_roles_ct))
 
-        # 
+        #
         if self.device_obj.vlan_group:
             self.vlan_group = self.device_obj.vlan_group
         else:
@@ -82,6 +85,7 @@ def export_to_excel(pk):
         {
             "Name": "name",
             "Status": "status.name",
+            "Role": Coalesce("role.name", default=""),
             "Label": "label",
             "Type": ("type", lambda t: ctx.interface_types[t]),
             "Enabled": "enabled",
@@ -99,7 +103,6 @@ def export_to_excel(pk):
                 "ip_addresses",
                 ([("address", str)], lambda lst: "\n".join(lst)),
             ),
-            # intf["IP Addresses"] = "\n".join([str(ip) for ip in intf["ip_addresses"]])
             "Custom Fields": (
                 "cf",
                 (
@@ -156,6 +159,9 @@ def export_to_excel(pk):
     dvws["D1"] = "valid vlans"
     for i, v in enumerate(ctx.valid_vlans):
         dvws[f"D{i+2}"] = _vlan_to_string(v)
+    dvws["E1"] = "roles"
+    for i, r in enumerate(ctx.valid_roles):
+        dvws[f"E{i+2}"] = r.name
 
     # boolean columns
     bool_dv = DataValidation(type="list", formula1='"TRUE,FALSE"')
@@ -166,18 +172,14 @@ def export_to_excel(pk):
         bool_dv.add(f"{col_letter}2:{col_letter}{length}")
 
     # LAG column
-    lag_dv = DataValidation(
-        type="list", formula1=f"'Interfaces'!$A$2:$A${length}", allow_blank=True
-    )
+    lag_dv = DataValidation(type="list", formula1=f"'Interfaces'!$A$2:$A${length}", allow_blank=True)
     lag_dv.hide_drop_down = False
     ws.add_data_validation(lag_dv)
     col_letter = get_column_letter(columns_by_name["LAG"])
     lag_dv.add(f"{col_letter}2:{col_letter}{length}")
 
     # status
-    status_dv = DataValidation(
-        type="list", formula1=f"'_data_validation_lists'!$A$2:$A${len(ctx.statuses)+1}"
-    )
+    status_dv = DataValidation(type="list", formula1=f"'_data_validation_lists'!$A$2:$A${len(ctx.statuses)+1}")
     status_dv.hide_drop_down = False
     ws.add_data_validation(status_dv)
     col_letter = get_column_letter(columns_by_name["Status"])
@@ -214,6 +216,17 @@ def export_to_excel(pk):
     ws.add_data_validation(vlans_dv)
     col_letter = get_column_letter(columns_by_name["Untagged VLAN"])
     vlans_dv.add(f"{col_letter}2:{col_letter}{length}")
+
+    # roles
+    roles_dv = DataValidation(
+        type="list",
+        formula1=f"'_data_validation_lists'!$E$2:$E${len(ctx.valid_roles)+1}",
+        allow_blank=True,
+    )
+    roles_dv.hide_drop_down = False
+    ws.add_data_validation(roles_dv)
+    col_letter = get_column_letter(columns_by_name["Role"])
+    roles_dv.add(f"{col_letter}2:{col_letter}{length}")
 
     with NamedTemporaryFile() as tmp:
         wb.save(tmp.name)
@@ -256,9 +269,7 @@ def import_from_excel(pk, file):
         if not ips:
             return []
         return [
-            IPAddress.objects.get_or_create(
-                address=ip, defaults=dict(status=Status.objects.get(name="Active"))
-            )[0]
+            IPAddress.objects.get_or_create(address=ip, defaults=dict(status=Status.objects.get(name="Active")))[0]
             for ip in ips.split("\n")
         ]
 
@@ -283,12 +294,11 @@ def import_from_excel(pk, file):
                             ),
                             "label": ("Label", lambda l: l if l else ""),
                             "type": ("Type", lambda t: ctx.interface_types_inverse[t]),
+                            "role": ("Role", lambda r: Role.objects.get(name=r) if r else None),
                             "enabled": "Enabled",
                             "lag": (
                                 "LAG",
-                                lambda l: Interface.objects.get(name=l, device_id=pk)
-                                if l
-                                else None,
+                                lambda l: Interface.objects.get(name=l, device_id=pk) if l else None,
                             ),
                             "mgmt_only": "Management Only",
                             "description": ("Description", lambda d: d if d else ""),
@@ -366,9 +376,7 @@ class DeviceInterfacesExcel(View):
             # We've been sent here by the widget on the device page
             # but the data we've been sent here with failed server-side validation.
             # We need to render the form again, but with the errors from the form included
-            form_html = render(
-                request, "device_interfaces_excel.html", {"form": form, "pk": pk}
-            )
+            form_html = render(request, "device_interfaces_excel.html", {"form": form, "pk": pk})
             return form_html
             # return HttpResponse(f"<div class='alert alert-danger'>Invalid file format. Please try again and make sure you're uploading a .xlsx file</div>{form_html.content}")
 
