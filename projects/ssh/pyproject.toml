@@ -11,11 +11,11 @@ license = { text = "MIT" }
 dynamic = ["version"]
 dependencies = [
     "uoft_core",
-    "nornir_napalm"
-]
-dynamic = ["version"]
+    "nornir_napalm",
 
-license = { text = "MIT" }
+    # the pexpect project is still active but no longer seems to be making pypi releases
+    # install from git instead
+    "pexpect @ git+https://github.com/pexpect/pexpect@eb2820cec514c3ed5482e80ad3438cd31f2fa1ef",
 ]
 
 [project.urls]

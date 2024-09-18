@@ -2,7 +2,6 @@
 
 import importlib
 from pathlib import Path
-from uoft_core import BaseSettings
 
 try:
     import cog
@@ -18,6 +17,10 @@ def gen_conf_table(module_path: str, class_name: str = "Settings"):
         | Option | Type | Title | Description | Default |
         | ------ | ---- | ----- | ----------- | ------- |""")
     module = importlib.import_module(module_path)
+    try:
+        from uoft_core import BaseSettings
+    except ImportError:
+        from typing import Any as BaseSettings
     settings: BaseSettings = getattr(module, class_name)
     for name, field in settings.__fields__.items():
         title = field.field_info.title or ''
@@ -35,3 +38,27 @@ def all_projects_as_python_list():
             continue
         cog.outl(f'    "{p.name}",')
     cog.outl("]")
+
+
+def all_projects_as_dependencies():
+    "Generate a list of all projects in the uoft-* namespace as dependencies."
+    for p in Path('projects').iterdir():
+        if not p.is_dir():
+            continue
+        cog.outl(f'    "uoft-{p.name}",')
+    for p in Path('custom-forks').iterdir():
+        if not p.is_dir():
+            continue
+        cog.outl(f'    "{p.name}",')
+
+
+def all_projects_as_uv_sources():
+    "Generate a list of all projects in the uoft-* namespace as uv sources."
+    for p in Path('projects').iterdir():
+        if not p.is_dir():
+            continue
+        cog.outl(f'uoft-{p.name} = {{ workspace = true }}')
+    for p in Path('custom-forks').iterdir():
+        if not p.is_dir():
+            continue
+        cog.outl(f'{p.name} = {{ workspace = true }}')

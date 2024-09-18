@@ -15,7 +15,10 @@ dependencies = [
   "pydantic >= 1.9.0",
   "arrow >= 1.1.1",
   "paramiko >= 2.7.2",
-  "pexpect >= 4.8.0",
+
+  # the pexpect project is still active but no longer seems to be making pypi releases
+  # install from git instead
+  "pexpect @ git+https://github.com/pexpect/pexpect@eb2820cec514c3ed5482e80ad3438cd31f2fa1ef",
   "rich >= 10.7.0",
 ]
 

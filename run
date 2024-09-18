@@ -22,6 +22,7 @@
 HERE=$(realpath $(dirname "${BASH_SOURCE[0]}"))
 
 run_script() {
+    export PATH="$HERE/.venv/bin:$PATH"
     exec "$HERE/.venv/bin/python" -s "$@"
 }
 
@@ -29,32 +30,36 @@ if [ -d "$HERE/.venv" ]; then
     run_script "$0" "$@"
 fi
 
-# If not, try to find a rye installation
-rye_bin=""
-find_rye() {
-    for rye in rye $HOME/.rye/shims/rye $RYE_HOME/shims/rye; do
-        if command -v "$rye" >/dev/null 2>&1; then
-            rye_bin="$rye"
+# If not, try to find a uv installation
+uv_bin=""
+find_uv() {
+    for uv in uv $CARGO_HOME/bin/uv $HOME/.cargo/bin/uv; do
+        if command -v "$uv" >/dev/null 2>&1; then
+            uv_bin="$uv"
             return
         fi
     done
-    echo "This script requires rye to be installed"
-    echo "Would you like to have it installed into ~/.rye? It does not need to be linked into your PATH. [Y/n]"
+    echo "This script requires uv to be installed"
+    echo "Would you like to have it installed into ~/.cargo/bin (or $CARGO_HOME/bin if set)? [Y/n]"
     read -r yn
     case $yn in
         [Nn]* ) exit 1;;
-        * ) curl -sSfL https://rye-up.com/get | /usr/bin/env bash;;
+        * ) curl -sSfL https://astral.sh/uv/install.sh | sh;;
     esac
-    find_rye
+    find_uv
 }
-find_rye
+find_uv
 
 # Install monorepo virtualenv
-echo "using rye to install monorepo virtualenv..."
+echo "using uv to install monorepo virtualenv..."
 git submodule update --init
-"$rye_bin" sync --no-lock
+"$uv_bin" sync --frozen
+
+# This symlink is not necessary for the task runner to work, but it is necessary for type checking
+# and autocomplete to work in the task modules
 ln -s "$HERE/run" $HERE/.venv/lib/python3.10/site-packages/task_runner.py
-$HERE/run --install-completion-in-virtualenv
+
+run_script "$0" --install-completion-in-virtualenv
 
 run_script "$0" "$@"
 """
@@ -319,9 +324,9 @@ def _create_root_app():
                 f.write("\n")
                 f.write(line)
             logger.info("Completion installed in .venv/bin/activate")
+            logger.info("Completion will take effect once you re-activate the virtualenv")
         else:
             logger.info("Completion already installed in .venv/bin/activate")
-        logger.info("Completion will take effect once you re-activate the virtualenv")
         raise typer.Exit(0)
 
     _tasks_module = import_module("tasks.tasks")
