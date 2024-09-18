@@ -47,9 +47,8 @@ dev-dependencies = [
     "build",
     "cogapp>=3.3",
     "copier>=7",
-    "invoke>=1.7",
+    "copier-templates-extensions>=0.3.0",
     "ptpython[ptipython]>=3.0.29",
-    "pylint",
     "pytest>=7.0",
     "pytest-cov",
     "pytest-mock>=3.6",
@@ -58,19 +57,15 @@ dev-dependencies = [
     "setuptools_scm>=7",
     "tomlkit>=0.11",
     "typer >= 0.9",
-    "copier-templates-extensions>=0.3.0",
-    "hatchling>=1.18.0",
     "scalene>=1.5.38",
     "mypy>=1.6",
     "coconut>=3.0.3",
     "shellingham>=1.5.4",
-    "pexpect @ git+https://github.com/pexpect/pexpect",
+    "pexpect @ git+https://github.com/pexpect/pexpect@eb2820cec514c3ed5482e80ad3438cd31f2fa1ef",
     "lazyasd>=0.1.4",
-    "lazy-imports>=0.3.1",
     "pip>=23.3.1",
-    "pipdeptree>=2.13.1",
     "mcpyrate>=3.6.0",
-    "tuna>=0.5"
+    "tuna>=0.5",
 ]
 
 [tool.uv.workspace]
