@@ -7,6 +7,8 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
 dependencies = [
     "uoft_core",
     "nornir_napalm"
@@ -14,6 +16,7 @@ dependencies = [
 dynamic = ["version"]
 
 license = { text = "MIT" }
+]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/ssh"
@@ -22,15 +25,13 @@ Repository = "https://github.com/uoft-networking/tools/tree/main/projects/ssh"
 uoft-ssh = "uoft_ssh.cli:cli"
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
-
-[tool.hatch.build]
-packages = ["uoft_ssh"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_ssh"]
+excludes = ["**/tests", "**/__pycache__"]

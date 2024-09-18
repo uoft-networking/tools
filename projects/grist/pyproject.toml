@@ -1,6 +1,5 @@
 [project]
 name = "uoft_grist"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "UofT Grist - Utilization Reporting"
 authors = [
     { name = "Kyle-Fozo", email = "kyle.fozo@utoronto.ca" },
@@ -8,13 +7,9 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = [
-    "uoft_core",
-    "uoft_aruba",
-    "grist_api",
-]
-
 license = { text = "MIT" }
+dynamic = ["version"]
+dependencies = ["uoft_core", "uoft_aruba", "grist_api"]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/grist"
@@ -23,12 +18,13 @@ Repository = "https://github.com/uoft-networking/tools/tree/main/projects/grist"
 uoft-grist = "uoft_grist.cli:cli"
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.build]
-packages = ["uoft_grist"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_grist"]
+excludes = ["**/tests", "**/__pycache__"]
