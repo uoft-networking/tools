@@ -3876,6 +3876,7 @@ dev = [
     { name = "cogapp" },
     { name = "copier" },
     { name = "copier-templates-extensions" },
+    { name = "debugpy" },
     { name = "lazyasd" },
     { name = "mcpyrate" },
     { name = "mypy" },
@@ -3920,6 +3921,7 @@ dev = [
     { name = "cogapp", specifier = ">=3.3" },
     { name = "copier", specifier = ">=7" },
     { name = "copier-templates-extensions", specifier = ">=0.3.0" },
+    { name = "debugpy", specifier = ">=1.5.0" },
     { name = "lazyasd", specifier = ">=0.1.4" },
     { name = "mcpyrate", specifier = ">=3.6.0" },
     { name = "mypy", specifier = ">=1.6" },
@@ -3941,7 +3943,7 @@ dev = [
 
 [[package]]
 name = "uoft-aruba"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/aruba" }
 dependencies = [
     { name = "typer" },
@@ -3956,7 +3958,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-bluecat"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/bluecat" }
 dependencies = [
     { name = "uoft-core" },
@@ -3967,7 +3969,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-core"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/core" }
 dependencies = [
     { name = "prompt-toolkit" },
@@ -4004,7 +4006,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-grist"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/grist" }
 dependencies = [
     { name = "grist-api" },
@@ -4021,7 +4023,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-librenms"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/librenms" }
 dependencies = [
     { name = "uoft-core" },
@@ -4032,7 +4034,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-nautobot"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/nautobot" }
 dependencies = [
     { name = "debugpy" },
@@ -4089,7 +4091,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-paloalto"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/paloalto" }
 dependencies = [
     { name = "uoft-core" },
@@ -4100,7 +4102,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-phpipam"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/phpipam" }
 dependencies = [
     { name = "uoft-core" },
@@ -4111,7 +4113,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
@@ -4150,7 +4152,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-snipeit"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/snipeit" }
 dependencies = [
     { name = "pillow" },
@@ -4169,7 +4171,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-ssh"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/ssh" }
 dependencies = [
     { name = "nornir-napalm" },
@@ -4190,7 +4192,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-switchconfig"
-version = "0.1.dev473+g0f85ea9.d20240919"
+version = "0.1.dev473+g9f92e84.d20240919"
 source = { editable = "projects/switchconfig" }
 dependencies = [
     { name = "arrow" },

@@ -66,6 +66,7 @@ dev-dependencies = [
     "pip>=23.3.1",
     "mcpyrate>=3.6.0",
     "tuna>=0.5",
+    "debugpy>=1.5.0",
 ]
 
 [tool.uv.workspace]
