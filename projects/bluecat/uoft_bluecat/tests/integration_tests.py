@@ -106,13 +106,13 @@ def _create_network(s: API, parent_block_id: int, addr: str, pfx_len: int, ver: 
     else:
         # Bluecat requires that IPv6 networks have a prefix length minimum of 64
         target_range = f"{addr}/{max(pfx_len+2, 64)}"
-    r = s.post(
-        f"/blocks/{parent_block_id}/networks",
+    network = s.create_network(
+        parent_id=parent_block_id,
+        range=target_range,
+        type_=f"{ver}Network", # type: ignore
+        name="Test Network 1",
         comment="Testing",
-        json=dict(type=f"{ver}Network", range=target_range, name="Test Network 1"),
     )
-    assert r.status_code == 201
-    network = r.json()
     assert network["name"] == "Test Network 1"
     return network, target_range
 
@@ -130,13 +130,15 @@ def test_create_block_network_address(bluecat_test_data_cleared, api_instance, p
     parent = s.find_parent_block(addr)
     assert parent["range"] == f"{addr}/{pfx_len}".lower()
     assert "documentation" in parent["name"].lower()
-    r = s.post(
-        f"/blocks/{parent['id']}/blocks",
+    type_ = f"{ver}Block"
+    assert type_ in ["IPv4Block", "IPv6Block"]
+    block = s.create_block(
+        parent_id=parent["id"],
         comment="Testing",
-        json=dict(type=f"{ver}Block", range=f"{addr}/{pfx_len+1}", name="Test Block 1"),
+        type_=type_,  # type: ignore
+        range=f"{addr}/{pfx_len+1}",
+        name="Test Block 1",
     )
-    assert r.status_code == 201  # 201 => Created
-    block = r.json()
     assert block["name"] == "Test Block 1"
 
     with pytest.raises(RESTAPIError):

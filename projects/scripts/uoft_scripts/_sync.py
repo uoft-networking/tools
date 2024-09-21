@@ -680,16 +680,14 @@ class BluecatTarget(Target):
             name += "-RESERVED"
         if data.type == "container":
             return self.api.create_block(
-                net=net,
+                range=net,
                 name=name,
-                type=data.type,
                 parent_id=parent_id,
             )
         elif data.type == "network":
             return self.api.create_network(
-                net=net,
+                range=net,
                 name=name,
-                type=data.type,
                 parent_id=parent_id,
             )
         else:

@@ -1,4 +1,5 @@
 from typing import Any, Literal, overload
+from functools import cached_property
 
 from uoft_core.api import APIBase
 from uoft_core import logging
@@ -84,6 +85,10 @@ class API(APIBase):
             res = self.get(res["_links"]["next"]["href"]).json()
             data.extend(res["data"])
         return data
+
+    @cached_property
+    def configuration_id(self) -> int:
+        return self.get(self.api_url / "configurations").json()["data"][0]["id"]    
 
     def find_parent_container(
         self, container_type: Literal["blocks", "networks", "any"], addr: str | IPAddress
@@ -212,21 +217,55 @@ class API(APIBase):
     def create_network(
         self,
         parent_id: str | int,
-        address: str | IPNetwork,
+        range: str | IPNetwork,
         type_: Literal["IPv4Network", "IPv6Network"] | None = None,
         prefix_length: int | None = None,
         name: str | None = None,
         comment: str = "Network created by uoft_bluecat tool",
+        **kwargs,
     ):
-        raise NotImplementedError("TODO: implement create_network")
+        json = kwargs.setdefault("json", {})
+        if isinstance(range, IPNetwork):
+            # If we're given an IPAddress object, we can derive type_ from it
+            type_ = "IPv6Network" if range.version == 6 else "IPv4Network"
+            range = str(range)
+        else:
+            if prefix_length is not None:
+                range = f"{range}/{prefix_length}"
+            assert type_ in ["IPv4Network", "IPv6Network"]
+        json["type"] = type_
+        json["range"] = range
+        if name:
+            json["name"] = name
+        assert parent_id != self.configuration_id, "Networks must be assigned to blocks, not configurations"
+        url = f"/blocks/{parent_id}/networks"
+        return self.post(url, comment=comment, **kwargs).json()
 
     def create_block(
         self,
         parent_id: str | int,
-        address: str | IPNetwork,
+        range: str | IPNetwork,
         type_: Literal["IPv4Block", "IPv6Block"] | None = None,
         prefix_length: int | None = None,
         name: str | None = None,
         comment: str = "Block created by uoft_bluecat tool",
+        **kwargs,
     ):
-        raise NotImplementedError("TODO: implement create_block")
+        json = kwargs.setdefault("json", {})
+        if isinstance(range, IPNetwork):
+            # If we're given an IPAddress object, we can derive type_ from it
+            type_ = "IPv6Block" if range.version == 6 else "IPv4Block"
+            range = str(range)
+        else:
+            if prefix_length is not None:
+                range = f"{range}/{prefix_length}"
+            assert type_ in ["IPv4Block", "IPv6Block"]
+        json["type"] = type_
+        json["range"] = range
+        if name:
+            json["name"] = name
+        if parent_id == self.configuration_id:
+            url = f"/configurations/{parent_id}/blocks"
+        else:
+            url = f"/blocks/{parent_id}/blocks"
+        return self.post(url, comment=comment, **kwargs).json()
