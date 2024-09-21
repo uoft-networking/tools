@@ -1,5 +1,6 @@
 from typing import Annotated, Optional
 import sys
+from enum import Enum
 
 import typer
 
@@ -58,6 +59,48 @@ def callback(
         log_level = "TRACE"
         DEBUG_MODE = True
     logging.basicConfig(level=log_level)
+
+
+class OutputFormat(str, Enum):
+    csv = "csv"
+    json = "json"
+
+
+@app.command()
+def list_clients(output_format: OutputFormat = OutputFormat.csv, output_file: str = "-"):
+    mds = Settings.from_cache().md_api_connections
+
+    res = {}
+    for md in mds:
+        with md:
+            logger.info(f"Fetching clients from {md.host}")
+            users = md.showcommand("show user-table")[
+                "Users"
+            ]  # tried show user-table, got 12.9k results with only 7.4k active clients
+        logger.info(f"Found {len(users)} clients, deduplicating...")
+        for user in users:
+            res[user["MAC"]] = user
+
+    logger.info(f"Found {len(res)} unique clients")
+
+    if output_file == "-":
+        f = sys.stdout
+    else:
+        f = open(output_file, "w")
+
+    if output_format == OutputFormat.csv:
+        logger.info("Writing to CSV")
+        import csv
+
+        writer = csv.DictWriter(f, fieldnames=users[0].keys())
+        writer.writeheader()
+        writer.writerows(res.values())
+
+    elif output_format == OutputFormat.json:
+        logger.info("Writing to JSON")
+        import json
+
+        json.dump(res, f, indent=2)
 
 
 def deprecated():
