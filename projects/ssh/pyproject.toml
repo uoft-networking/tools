@@ -11,9 +11,6 @@ license = { text = "MIT" }
 dynamic = ["version"]
 dependencies = [
     "uoft_core",
-    "nornir_napalm",
-    "nornir_netmiko",
-    "nornir_nautobot",
 
     # the pexpect project is still active but no longer seems to be making pypi releases
     # install from git instead

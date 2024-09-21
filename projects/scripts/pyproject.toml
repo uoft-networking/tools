@@ -24,6 +24,9 @@ dependencies = [
   "rich >= 10.7.0",
   "pyquery >= 1.4.0",
   "ldap3",
+  "nornir_napalm",
+  "nornir_netmiko",
+  "nornir_nautobot",
 ]
 
 [project.scripts]

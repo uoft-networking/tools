@@ -32,13 +32,18 @@ def _version_callback(value: bool):
 
 app = typer.Typer(
     name="ssh",
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
+    context_settings={
+        "max_content_width": 120,
+        "help_option_names": ["-h", "--help"],
+        "ignore_unknown_options": True,
+        "allow_extra_args": True,
+    },
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
 )
 
 
-@app.callback()
+@app.command()
 # @Settings.wrap_typer_command
 # TODO: implement support for exploding submodels in Settings.wrap_typer_command
 def ssh(
@@ -58,9 +63,31 @@ def ssh(
         Optional[bool],
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
     ] = None,
-    debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
-    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+    debug: Annotated[bool, typer.Option("--debug", help="Turn on debug logging", envvar="DEBUG")] = False,
+    trace: Annotated[
+        bool, typer.Option("--trace", help="Turn on trace logging. implies --debug", envvar="TRACE")
+    ] = False,
 ):
+    """
+    SSH into a remote host, automatically authenticating you using encrypted credentials.
+
+    If no command is specified, an interactive shell will be launched.
+
+    This command wraps the `ssh` command, and accepts all the same arguments.
+
+    by default, this command will use the username and password defined in the "personal" section of the settings file.
+
+    If you want to use a different username, you can specify it with the `-l` flag.
+
+    If you want to use the admin credentials instead of the personal credentials, you can specify the 
+    `--login-as-admin` flag.
+
+    Additionally, you can at any point in time hit the escape character (default is ^]) to inject the enable password 
+    into the running SSH session.
+
+    """
+    import pexpect
+
     global DEBUG_MODE
     log_level = "INFO"
     if debug:
@@ -70,22 +97,6 @@ def ssh(
         log_level = "TRACE"
         DEBUG_MODE = True
     logging.basicConfig(level=log_level)
-
-
-@app.command(context_settings={"ignore_unknown_options": True, "allow_extra_args": True})
-def wrapper(
-    ctx: typer.Context,
-    host: Annotated[str, typer.Argument(help="The hostname or IP address of the remote server")],
-    command: Annotated[
-        str | None,
-        typer.Option(
-            help="The command to run on the remote server. "
-            "Interactive shell will be launched if no command specified"
-        ),
-    ] = None,
-    login_as_admin: Annotated[bool, typer.Option(help="Login as admin user")] = False,
-):
-    import pexpect
     s = Settings.from_cache()
     creds = s.admin if login_as_admin else s.personal
     extra_args = ctx.args
@@ -97,10 +108,10 @@ def wrapper(
         logger.error(f"Could not resolve {host}: \n{e}")
         sys.exit(1)
 
-    if '-l' in extra_args:
-        l_index = extra_args.index('-l')
+    if "-l" in extra_args:
+        l_index = extra_args.index("-l")
         username = extra_args[l_index + 1]
-        extra_args.pop(l_index+1)
+        extra_args.pop(l_index + 1)
         extra_args.pop(l_index)
     else:
         username = creds.username
@@ -111,19 +122,17 @@ def wrapper(
 
     logger.debug(f"Running command: {ssh_command}")
 
-
     child = pexpect.spawn(ssh_command)
     logger.info("Waiting for password prompt")
 
     # TODO: on timeout, check for host key errors and handle them
-    match = child.expect(["[pP]assword:", 'has changed and you have requested strict checking'])
+    match = child.expect(["[pP]assword:", "has changed and you have requested strict checking"])
     if match == 1:
         logger.error(f"Host key for {host} has changed")
         logger.warning("If this is expected, run the following command to remove the old key:")
         logger.warning(f"[bold]ssh-keygen -R {host}[/]")
         logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]")
         sys.exit(1)
-
 
     console().set_window_title(f"uoft-ssh {host}")
     child.sendline(creds.password.get_secret_value())
@@ -139,12 +148,6 @@ def wrapper(
             break
     child.close()
     sys.exit(child.exitstatus)
-
-
-@app.command()
-def nornir():
-    # TODO: nornir! with napalm!
-    pass
 
 
 def cli():
