@@ -11,7 +11,7 @@ from enum import Enum
 from functools import cached_property
 from getpass import getuser
 from importlib.metadata import version
-from pathlib import Path, PosixPath
+from pathlib import Path
 from subprocess import CalledProcessError, run
 from textwrap import dedent
 from types import GenericAlias
@@ -354,7 +354,12 @@ def _is_pass_installed():
         _pass_installed = bool(which("pass"))
     return _pass_installed
 
-class PassPath(PosixPath):
+# dynamically inheriting from the cls of Path is an unfortunate necessity
+# otherwise we would have to manually create *two* PassPath classes, one for
+# linux/mac and one for windows, and then dynamically set which one would be 
+# *the* PassPath class at runtime. inheriting from `type(Path())` seems like 
+# the lesser of two evils
+class PassPath(type(Path())):
     """An abstract path representing an entry in the `pass` password store"""
 
     _contents: str | None
