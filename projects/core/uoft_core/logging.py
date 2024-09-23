@@ -26,10 +26,10 @@ BaseLogger = logging.getLoggerClass()
 
 class UofTCoreLogger(BaseLogger):
     def trace(self, msg, *args, **kwargs):
-        self.log(TRACE, msg, *args, **kwargs)
+        self._log(TRACE, msg, args, **kwargs)
 
     def success(self, msg, *args, **kwargs):
-        self.log(SUCCESS, msg, *args, **kwargs)
+        self._log(SUCCESS, msg, args, **kwargs)
 
 
 logging.setLoggerClass(UofTCoreLogger)
