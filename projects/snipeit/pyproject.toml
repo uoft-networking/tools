@@ -7,10 +7,9 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = ["uoft_core", "pystache", "qrcode", "pillow"]
-dynamic = ["version"]
-
 license = { text = "MIT" }
+dynamic = ["version"]
+dependencies = ["uoft_core", "pystache", "qrcode", "pillow"]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/snipeit"
@@ -19,15 +18,13 @@ Repository = "https://github.com/uoft-networking/tools/tree/main/projects/snipei
 uoft-snipeit = "uoft_snipeit.cli:cli"
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
-
-[tool.hatch.build]
-packages = ["uoft_snipeit"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_snipeit"]
+excludes = ["**/tests", "**/__pycache__"]

@@ -10,7 +10,7 @@ Getting Started
 
 1. `git clone https://github.com/uoft-networking/tools uoft-tools`
 2. `cd uoft-tools`
-3. `./run` (this will install [rye](https://rye-up.com/guide/installation/) if you don't already have it, and create a python3.10 virtual environment in `.venv/` with all the projects installed in "editable mode")
+3. `./run` (this will install [uv](https://docs.astral.sh/uv/) if you don't already have it, and create a python3.10 virtual environment in `.venv/` with all the projects installed in "editable mode")
 
 ## Optional steps
 
@@ -28,7 +28,7 @@ You can also run tests from the command line using `./run test-all` or `./run te
 
 ## Installing packages
 
-To install a project into your regular pipx installation, run `pipx install ./projects/<project>`. 
+To install a project into your regular pipx installation, run `pipx install --pip-args "--config-settings 'dependencies=local'" ./projects/<project>`.
 
 To install a package globally on your machine, (ex. when installing onto a shared tool server), run `./run global-install <project>`
 

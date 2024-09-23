@@ -2,24 +2,26 @@
 name = "uoft_nautobot"
 description = "A collection of UofT-specific modifications and extensions to Nautobot"
 authors = [
-    { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
-    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
+  { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
+  { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
 requires-python = ">=3.10"
 readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
 dependencies = [
   "uoft_core",
   "uoft_aruba",
   "uoft_ssh",
   "uoft_bluecat",
-  "nautobot >= 2.3.1", #"nautobot @ git+https://github.com/utsc-networking/nautobot@utsc-custom",
+  "nautobot @ git+https://github.com/utsc-networking/nautobot@utsc-custom",
   "python-jose >= 3.0.0",
   "nautobot_ssot >= 2.7",
   "nautobot_golden_config >= 2.1",
   "nautobot-device-onboarding >= 3.0",
   "debugpy",
   "django-debug-toolbar",
-  "ptpython >= 3.0.29", # for nbshell
+  "ptpython >= 3.0.29",                # for nbshell
   "html-table-parser-python3 >=0.2.0",
   "django-environ",
   "napalm",
@@ -32,9 +34,6 @@ dependencies = [
   "deepdiff",
   "pytz",
 ]
-dynamic = ["version"]
-
-license = { text = "MIT" }
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/nautobot"
@@ -43,15 +42,13 @@ Repository = "https://github.com/uoft-networking/tools/tree/main/projects/nautob
 nautobot-server = "nautobot.core.cli:main" # re-export nautobot's CLI
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend", "debugpy"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
-
-[tool.hatch.build]
-packages = ["uoft_nautobot"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_nautobot"]
+excludes = ["**/tests", "**/__pycache__"]

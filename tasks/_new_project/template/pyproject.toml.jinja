@@ -1,6 +1,5 @@
 [project]
 name = "uoft_{{name}}"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "{{description}}"
 authors = [
     { name = "{{author_name}}", email = "{{author_email}}" },
@@ -8,11 +7,11 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
 dependencies = [
     "uoft_core"
 ]
-
-license = { text = "MIT" }
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/{{name}}"
@@ -21,12 +20,13 @@ Repository = "https://github.com/uoft-networking/tools/tree/main/projects/{{name
 uoft-{{name}} = "uoft_{{name}}.cli:cli"
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.build]
-packages = ["uoft_{{name}}"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_{{name}}"]
+excludes = ["**/tests", "**/__pycache__"]

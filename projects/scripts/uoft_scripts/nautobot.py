@@ -27,17 +27,26 @@ import typing
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
 from uoft_core import logging
 from uoft_core import BaseSettings, Field, StrEnum
+from uoft_core import txt
+from uoft_core.console import console
+from uoft_ssh import Settings as SSHSettings
 
 import pynautobot
 import pynautobot.core.endpoint
+import pynautobot.models
+import pynautobot.models.dcim
 from pynautobot.core.response import Record
 import deepdiff
 import deepdiff.model
 import typer
 import jinja2
-from uoft_core.console import console
+import nornir.core.inventory as nornir_inventory
 
 
+# NOTE: this really aught to live in a uoft-nautobot package, dedicated to code surrounding the nautobot rest api,
+# but there happens to already be a uoft_nautobot package, which is actually a uoft-centric nautobot plugin and
+# should actually be called nautobot-uoft,
+# TODO: move/rename uoft_nautobot to nautobot-uoft and create a uoft_nautobot project for this code.
 class Settings(BaseSettings):
     """Settings for the nautobot_cli application."""
 
@@ -48,19 +57,181 @@ class Settings(BaseSettings):
         app_name = "nautobot-cli"
 
     def api_connection(self):
-        return pynautobot.api(url=self.url, token=self.token.get_secret_value())
+        return pynautobot.api(url=self.url, token=self.token.get_secret_value(), threading=True)
 
 
 class DevSettings(Settings):
     class Config(BaseSettings.Config):
         app_name = "nautobot-cli-dev"
 
+
 def get_settings(dev: bool = False):
     if dev:
         return DevSettings.from_cache()
     return Settings.from_cache()
 
+
 logger = logging.getLogger(__name__)
+
+##!SECTION Nornir
+
+class NautobotInventory:
+    def __init__(self) -> None:
+        self.api = Settings.from_cache().api_connection()
+
+    def devices_with_platforms(self):
+        query = txt("""
+        query {
+            devices (platform__isnull: false) {
+                id
+                hostname: name
+                device_type {
+                    model
+                    manufacturer { name }
+                    family: device_family {
+                        name
+                    }
+                }
+                platform {
+                    name
+                    network_driver
+                }
+                primary_ip4 {
+                    cidr: address
+                    address: host
+                }
+                primary_ip6 {
+                    cidr: address
+                    address: host
+                }
+                status {
+                    name
+                }
+                tags {
+                    name
+                }
+                location {
+                    name
+                    cf_room_number
+                    parent {
+                        name
+                        cf_building_code
+                    }
+                }
+                role {
+                    name
+                }
+                vlan_group {
+                    name
+                }
+            }
+        }
+        """)
+        return self.api.graphql.query(query).json["data"]["devices"]
+
+    def load(self) -> nornir_inventory.Inventory:
+        """Load of Nornir inventory.
+
+        Returns:
+            Inventory: Nornir Inventory
+        """
+        hosts = nornir_inventory.Hosts()
+        groups = nornir_inventory.Groups()
+        defaults = nornir_inventory.Defaults()
+
+        ssh_s = SSHSettings.from_cache()
+
+        for device in self.devices_with_platforms():  # type: ignore
+            data = device
+            data["get_nautobot_obj"] = lambda: self.api.dcim.devices.get(device["id"])  # type: ignore
+
+            name = device["hostname"] or str(device["id"])
+            # Add Primary IP address, if found. Otherwise add hostname as the device name
+            if device["primary_ip4"]:
+                hostname = device["primary_ip4"]["address"]
+            elif device["primary_ip6"]:
+                hostname = device["primary_ip6"]["address"]
+            else:
+                hostname: str = device["hostname"]
+
+            # squash nested fields
+            device["device_family"] = (
+                device["device_type"]["family"]["name"] if device["device_type"]["family"] else None
+            )
+            device["manufacturer"] = (
+                device["device_type"]["manufacturer"]["name"] if device["device_type"]["manufacturer"] else None
+            )
+            device["device_type"] = device["device_type"]["model"]
+            device["network_driver"] = device["platform"]["network_driver"]
+            device["platform"] = device["platform"]["name"]
+            device["ipv4_cidr"] = device["primary_ip4"]["cidr"] if device["primary_ip4"] else None
+            device["ipv4_address"] = device["primary_ip4"]["address"] if device["primary_ip4"] else None
+            device["ipv6_cidr"] = device["primary_ip6"]["cidr"] if device["primary_ip6"] else None
+            device["ipv6_address"] = device["primary_ip6"]["address"] if device["primary_ip6"] else None
+            device["status"] = device["status"]["name"]
+            device["tags"] = [tag["name"] for tag in device["tags"]]
+            device["room_number"] = (
+                device["location"]["cf_room_number"]
+                if device["location"] and device["location"]["cf_room_number"]
+                else None
+            )
+            device["building_name"] = (
+                device["location"]["parent"]["name"] if device["location"] and device["location"]["parent"] else None
+            )
+            device["building_code"] = (
+                device["location"]["parent"]["cf_building_code"]
+                if device["location"]
+                and device["location"]["parent"]
+                and device["location"]["parent"]["cf_building_code"]
+                else None
+            )
+            device["location"] = device["location"]["name"] if device["location"] else None
+            device["role"] = device["role"]["name"] if device["role"] else None
+            device["vlan_group"] = device["vlan_group"]["name"] if device["vlan_group"] else None
+
+            # Add host to hosts by name first, ID otherwise - to string
+            host_platform = device["network_driver"]
+
+            connection_options = {}
+
+            username = data.get("connection_options", {}).get("username")
+            if not username:
+                if name.startswith("m1-"):
+                    username = ssh_s.admin.username
+                else:
+                    username = ssh_s.personal.username
+            password = data.get("connection_options", {}).get("password")
+            if not password:
+                if name.startswith("m1-"):
+                    password = ssh_s.admin.password.get_secret_value()
+                else:
+                    password = ssh_s.personal.password.get_secret_value()
+            extras = data.get("connection_options", {}).get("extras", {})
+            extras['secret'] = ssh_s.enable_secret.get_secret_value()
+            connection_options['netmiko'] = nornir_inventory.ConnectionOptions(
+                hostname=hostname,
+                port=data.get("connection_options", {}).get("port"),
+                username=username,
+                password=password,
+                platform=host_platform,
+                extras=extras,
+            )
+
+            host = nornir_inventory.Host(
+                name=name,
+                hostname=hostname,
+                platform=host_platform,
+                data=data,
+                # groups=None, # TODO: add support for nautobot dynamic groups
+                defaults=defaults,
+                connection_options=connection_options,
+            )
+            hosts[name] = host
+
+        return nornir_inventory.Inventory(hosts=hosts, groups=groups, defaults=defaults)
+
+
+##!SECTION Nautobot / CLI
 
 app = typer.Typer(name="nautobot")
 
@@ -381,7 +552,7 @@ def test_golden_config_templates(
     print_output: bool = True,
 ):
     nb = get_settings(dev).api_connection()
-    device: Record|None = nb.dcim.devices.get(name=device_name)  # type: ignore
+    device: Record | None = nb.dcim.devices.get(name=device_name)  # type: ignore
     if not device:
         logger.error(f"Device {device_name} not found in Nautobot")
         raise typer.Exit(1)
@@ -768,10 +939,10 @@ def new_switch(
     vlan_groups = nb.ipam.vlan_groups.all()
     vlan_group_name = prompt.get_from_choices(
         "vlan_group",
-        [vg.name for vg in vlan_groups],
+        [vg.name for vg in vlan_groups],  # type: ignore
         "Select a VLAN Group for this switch",
     )
-    vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)
+    vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)  # type: ignore
     logger.info(f"Assigning VLAN Group {vlan_group_name} to {name}...")
 
     # Tags
@@ -829,7 +1000,7 @@ def new_switch(
                 role=role_id,
                 status="Planned",
                 location=location_id,
-                vlan_group=vlan_group.id,
+                vlan_group=vlan_group.id,  # type: ignore
                 manufacturer=manufacturer_id,
                 tags=tags,
                 local_config_context_data=config_context,
@@ -844,7 +1015,7 @@ def new_switch(
             role=role_id,
             status="Planned",
             location=location_id,
-            vlan_group=vlan_group.id,
+            vlan_group=vlan_group.id,  # type: ignore
             manufacturer=manufacturer_id,
             tags=tags,
         )
@@ -955,6 +1126,7 @@ def regen_interfaces(
     logger.success("Done")
 
 
+@typing.no_type_check
 @app.command()
 def rebuild_switch(
     device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
@@ -993,18 +1165,18 @@ def rebuild_switch(
     old_interfaces = [i.name for i in nb.dcim.interface_templates.filter(device_type=device.device_type.id)]
     logger.warning(f"This script will delete the following interfaces:")
     logger.info(old_interfaces)
-    if not prompt.get_bool('delete_interfaces', 'Do you want to continue?'):
+    if not prompt.get_bool("delete_interfaces", "Do you want to continue?"):
         return
     for interface in nb.dcim.interfaces.filter(device_id=device.id):
         if interface.name in old_interfaces:
             interface.delete()
-    
+
     logger.info("Deleting old console ports...")
     old_console_ports = [c.name for c in nb.dcim.console_port_templates.filter(device_type=device.device_type.id)]
     for console_port in nb.dcim.console_ports.filter(device=device.id):
         if console_port.name in old_console_ports:
             console_port.delete()
-    
+
     logger.info("Deleting old power ports...")
     old_power_ports = [p.name for p in nb.dcim.power_port_templates.filter(device_type=device.device_type.id)]
     for power_port in nb.dcim.power_ports.filter(device=device.id):

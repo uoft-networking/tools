@@ -1,13 +1,14 @@
 [project]
 name = "uoft_scripts"
 description = "a collection of scripts and one-off tools"
-readme = "README.md"
 authors = [
   { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
   { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
 ]
-license = "MIT"
 requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
 dependencies = [
   "uoft_core",
   "uoft_bluecat",
@@ -23,23 +24,22 @@ dependencies = [
   "rich >= 10.7.0",
   "pyquery >= 1.4.0",
   "ldap3",
+  "nornir_napalm",
+  "nornir_netmiko",
+  "nornir_nautobot",
 ]
-dynamic = ["version"]
 
 [project.scripts]
 uoft-scripts = "uoft_scripts.cli:cli"
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend", "debugpy"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata]
-allow-direct-references = true
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
-
-[tool.hatch.build]
-only-packages = true
-packages = ["uoft_scripts"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_scripts"]
+excludes = ["**/tests", "**/__pycache__"]

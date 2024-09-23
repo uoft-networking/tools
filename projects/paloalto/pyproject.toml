@@ -1,6 +1,5 @@
 [project]
 name = "uoft_paloalto"
-version = "0.0" # This field will be auto-populated by pyproject.py
 description = "CLI and API to work with Paloalto products (NSM, etc)"
 authors = [
     { name = "Alex Tremblay", email = "alex.tremblay@utoronto.ca" },
@@ -8,11 +7,9 @@ authors = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-dependencies = [
-    "uoft_core"
-]
-
 license = { text = "MIT" }
+dynamic = ["version"]
+dependencies = ["uoft_core"]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/paloalto"
@@ -21,12 +18,13 @@ Repository = "https://github.com/uoft-networking/tools/tree/main/projects/paloal
 uoft-paloalto = "uoft_paloalto.cli:cli"
 
 [build-system]
-requires = ["hatchling >= 1.6.0", "setuptools_scm"]
-build-backend = "hatchling.build"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
-[tool.hatch.metadata.hooks.custom]
-path = "pyproject.py"
+[tool.pdm.version]
+source = "scm"
 
-[tool.hatch.build]
-packages = ["uoft_paloalto"]
-exclude = ["**/tests"]
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_paloalto"]
+excludes = ["**/tests", "**/__pycache__"]

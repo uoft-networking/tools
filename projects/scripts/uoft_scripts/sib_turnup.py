@@ -56,12 +56,13 @@ conf = {
         """),
 }
 
+
 def is_port_unconfigured(confs: str) -> bool:
     # strip all lines preceding the interface config
-    confs = confs.partition('interface')[2]
+    confs = confs.partition("interface")[2]
 
     # strip all lines following the interface config
-    confs = confs.partition('end')[0]
+    confs = confs.partition("end")[0]
 
     # convert to list
     conf = confs.splitlines()
@@ -78,8 +79,9 @@ def is_port_unconfigured(confs: str) -> bool:
         load-interval 30
         spanning-tree portfast
         """)
-    
+
     return conf == unconfigured
+
 
 @app.callback()
 def callback():
@@ -93,8 +95,10 @@ def go(
     room: Annotated[str, Argument(help="What room is this port in?")],
     label: Annotated[str, Argument(help="The label on the port.")],
     role: Annotated[Role, Argument(help="what will this port be used for?")],
-    dry_run: Annotated[bool, Option(help="Run preflight checks, print the config the WOULD have been applied, then exit")] = False,
-    hw: Annotated[bool, Option(help='This is a Health & Wellness port')] = False,
+    dry_run: Annotated[
+        bool, Option(help="Run preflight checks, print the config the WOULD have been applied, then exit")
+    ] = False,
+    hw: Annotated[bool, Option(help="This is a Health & Wellness port")] = False,
     lab: Annotated[bool, Option(help="This is a CMS lab port")] = False,
     pos: Annotated[bool, Option(help="This is a POS / Debit machine port")] = False,
     passthrough: Annotated[bool, Option(help="This VOIP port will have passthrough configured")] = False,
@@ -110,8 +114,8 @@ def go(
             password=s.personal.password.get_secret_value(),
         )
     logger.info(f"Running command: show run int {intf}")
-    current_conf =ssh.send_command(f"show run int {intf}")
-    current_conf = current_conf.partition('!')[2]
+    current_conf = ssh.send_command(f"show run int {intf}")
+    current_conf = current_conf.partition("!")[2]
     print(current_conf)
     logger.info(f"Running comand: show lldp neighbors {intf}")
     print(ssh.send_command(f"show lldp neighbors {intf}"))
@@ -162,6 +166,39 @@ def go(
 
 @app.command()
 def parse(msg: str | None = None):
+    """This parse scrip expects a message from teams roughly in the form of:
+
+    Port Activation
+    ==========
+    Device: Windows Desktop
+    Port Label: IA-B01
+    MAC: <mac address>
+    Switch Name: <switch>.NETMGMT.UTSC.UTORONTO.CA
+    Port Identifier: TenGigabitEthernet2/0/25
+    VLAN: 666
+    Switch IP: <ip address>
+
+    or:
+
+    Port Activation:
+    - Room: <room number>
+    - Device: VOIP
+    - Port: 4W-C27
+
+    TimeToLive        : 120
+    Model             : C9300X-48HX
+    VLAN              : 666
+    SystemDescription : Cisco IOS Software [Cupertino], Catalyst L3 Switch Software (CAT9K_IOSXE), V...
+    Port              : Te4/0/27
+    Device            : <switch>.netmgmt.utsc.utoronto.ca
+    PortDescription   : TenGigabitEthernet4/0/27
+    IPAddress         : {<switch ip>}
+    ChassisId         : ...
+    Computer          : <computer's fqdn>
+    Connection        : Ethernet
+    Interface         : Realtek USB GbE Family Controller
+    Type              : LLDP
+    """
     import re
     import sys
 
@@ -183,8 +220,8 @@ def parse(msg: str | None = None):
         room = room.group(2)
     else:
         room = p.get_string("room", None)
-    if label := re.search(r"Port: ?(\S+)", msg):
-        label = label.group(1)
+    if label := re.search(r"(Port|Label|Port Label): ?(\S+)", msg):
+        label = label.group(2)
     else:
         label = p.get_string("label", None)
     if role_str := re.search(r"Device: ?(.*)", msg):
@@ -204,7 +241,7 @@ def parse(msg: str | None = None):
         hw = " --hw"
     else:
         hw = ""
-    if re.search(r"((CMS ?)?LAB)", msg, re.I):
+    if re.search(r"((CMS ?)?LAB)", label, re.I):
         lab = " --lab"
     else:
         lab = ""
