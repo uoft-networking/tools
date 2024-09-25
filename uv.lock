@@ -4113,13 +4113,16 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev483+ge62bc47.d20240924"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
     { name = "glom" },
     { name = "jinja2" },
     { name = "ldap3" },
+    { name = "nornir-napalm" },
+    { name = "nornir-nautobot" },
+    { name = "nornir-netmiko" },
     { name = "prompt-toolkit" },
     { name = "pydantic" },
     { name = "pynautobot" },
@@ -4138,6 +4141,9 @@ requires-dist = [
     { name = "glom" },
     { name = "jinja2" },
     { name = "ldap3" },
+    { name = "nornir-napalm" },
+    { name = "nornir-nautobot" },
+    { name = "nornir-netmiko" },
     { name = "prompt-toolkit", specifier = ">=3.0.19" },
     { name = "pydantic", specifier = ">=1.9.0" },
     { name = "pynautobot", specifier = ">=2.1.1" },
@@ -4171,21 +4177,15 @@ requires-dist = [
 
 [[package]]
 name = "uoft-ssh"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev483+ge62bc47.d20240924"
 source = { editable = "projects/ssh" }
 dependencies = [
-    { name = "nornir-napalm" },
-    { name = "nornir-nautobot" },
-    { name = "nornir-netmiko" },
     { name = "pexpect" },
     { name = "uoft-core" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "nornir-napalm" },
-    { name = "nornir-nautobot" },
-    { name = "nornir-netmiko" },
     { name = "pexpect", git = "https://github.com/pexpect/pexpect?rev=eb2820cec514c3ed5482e80ad3438cd31f2fa1ef#eb2820cec514c3ed5482e80ad3438cd31f2fa1ef" },
     { name = "uoft-core", editable = "projects/core" },
 ]
