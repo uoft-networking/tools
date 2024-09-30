@@ -26,10 +26,27 @@ BaseLogger = logging.getLoggerClass()
 
 class UofTCoreLogger(BaseLogger):
     def trace(self, msg, *args, **kwargs):
-        self._log(TRACE, msg, args, **kwargs)
+        """
+        Log 'msg % args' with severity 'TRACE'.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.trace("Executing function %s with args %s", fn, args, exc_info=1)
+        """
+        if self.isEnabledFor(TRACE):
+            self._log(TRACE, msg, args, **kwargs)
 
     def success(self, msg, *args, **kwargs):
-        self._log(SUCCESS, msg, args, **kwargs)
+        """
+        Log 'msg % args' with severity 'SUCCESS'.
+
+        e.g.
+
+        logger.success("Database record updated")
+        """
+        if self.isEnabledFor(SUCCESS):
+            self._log(SUCCESS, msg, args, **kwargs)
 
 
 logging.setLoggerClass(UofTCoreLogger)

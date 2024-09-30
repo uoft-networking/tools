@@ -79,10 +79,10 @@ def ssh(
 
     If you want to use a different username, you can specify it with the `-l` flag.
 
-    If you want to use the admin credentials instead of the personal credentials, you can specify the 
+    If you want to use the admin credentials instead of the personal credentials, you can specify the
     `--login-as-admin` flag.
 
-    Additionally, you can at any point in time hit the escape character (default is ^]) to inject the enable password 
+    Additionally, you can at any point in time hit the escape character (default is ^]) to inject the enable password
     into the running SSH session.
 
     """
@@ -126,12 +126,29 @@ def ssh(
     logger.info("Waiting for password prompt")
 
     # TODO: on timeout, check for host key errors and handle them
-    match = child.expect(["[pP]assword:", "has changed and you have requested strict checking"])
+    match = child.expect(
+        [
+            "[pP]assword:",
+            "has changed and you have requested strict checking",
+            r"no matching (host key type|key exchange method) found. Their offer: (.*)",
+        ]
+    )
     if match == 1:
         logger.error(f"Host key for {host} has changed")
         logger.warning("If this is expected, run the following command to remove the old key:")
         logger.warning(f"[bold]ssh-keygen -R {host}[/]")
         logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]")
+        sys.exit(1)
+    elif match == 2:
+        logger.error(child.after.decode().strip())
+        mismatch_type = child.match.group(1).decode().strip()
+        value = child.match.group(2).decode().strip()
+        if mismatch_type == "host key type":
+            opt = "HostKeyAlgorithms"
+        elif mismatch_type == "key exchange method":
+            opt = "KexAlgorithms"
+        logger.warning("If this is expected, run this command again with the following flag:")
+        logger.warning(f"-o {opt}=+{value}")
         sys.exit(1)
 
     console().set_window_title(f"uoft-ssh {host}")
