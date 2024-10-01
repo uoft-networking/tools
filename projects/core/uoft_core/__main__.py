@@ -180,6 +180,8 @@ if __name__ == "__main__":
     from prompt_toolkit.completion import Completer, Completion
     import jedi
 
+    from . import logging
+
     class JediCompleter(Completer):
         """
         Autocompleter that uses the Jedi library.
@@ -234,6 +236,16 @@ if __name__ == "__main__":
         only_directories=True,
     )
     os.chdir(cd)
+
+    if '--debug' in sys.argv:
+        level = logging.DEBUG
+    elif '--trace' in sys.argv:
+        level = logging.TRACE
+    else:
+        level = logging.INFO
+    
+    logging.basicConfig(level=level)
+    
     mod = import_module(mod_name)
     if hasattr(mod, "_debug"):
         mod._debug()  # pylint: disable=protected-access
