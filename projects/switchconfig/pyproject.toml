@@ -11,7 +11,7 @@ license = { text = "MIT" }
 dynamic = ["version"]
 dependencies = [
   "uoft_core",
-  "Jinja2 >= 3.0.1",
+  "Jinja2 >= 3.0",
   "pydantic >= 1.9.0",
   "arrow >= 1.1.1",
   "paramiko >= 2.7.2",

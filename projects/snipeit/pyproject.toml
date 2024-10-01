@@ -9,7 +9,7 @@ requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 dynamic = ["version"]
-dependencies = ["uoft_core", "pystache", "qrcode", "pillow"]
+dependencies = ["uoft_core", "pystache >= 0.6", "qrcode >= 7.4", "pillow >= 10.3"]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/snipeit"

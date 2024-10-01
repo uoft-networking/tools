@@ -222,22 +222,6 @@ wheels = [
 ]
 
 [[package]]
-name = "build"
-version = "1.2.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "os_name == 'nt'" },
-    { name = "importlib-metadata", marker = "python_full_version < '3.10.2'" },
-    { name = "packaging" },
-    { name = "pyproject-hooks" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/bb/4a1b7e3a7520e310cf7bfece43788071604e1ccf693a7f0c4638c59068d6/build-1.2.2.tar.gz", hash = "sha256:119b2fb462adef986483438377a13b2f42064a2a3a4161f24a0cca698a07ac8c", size = 46516 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/fd/e4bda6228637ecae5732162b5ac2a5a822e2ba8e546eb4997cde51b231a3/build-1.2.2-py3-none-any.whl", hash = "sha256:277ccc71619d98afdd841a0e96ac9fe1593b823af481d3b0cea748e8894e0613", size = 22823 },
-]
-
-[[package]]
 name = "celery"
 version = "5.3.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1467,18 +1451,6 @@ wheels = [
 ]
 
 [[package]]
-name = "importlib-metadata"
-version = "8.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "zipp" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/12/33e59336dca5be0c398a7482335911a33aa0e20776128f038019f1a95f1b/importlib_metadata-8.5.0.tar.gz", hash = "sha256:71522656f0abace1d072b9e5481a48f07c138e00f079c38c8f883823f9c26bd7", size = 55304 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/d9/a1e041c5e7caa9a05c925f4bdbdfb7f006d1f74996af53467bc394c97be7/importlib_metadata-8.5.0-py3-none-any.whl", hash = "sha256:45e54197d28b7a7f1559e60b95e7c567032b602131fbd588f1497f47880aa68b", size = 26514 },
-]
-
-[[package]]
 name = "inflection"
 version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1710,18 +1682,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/43/ac/96bd5464e3edbc61595d0d69989f5d9969ae411866427b2500a8e5b812c0/ldap3-2.9.1.tar.gz", hash = "sha256:f3e7fc4718e3f09dda568b57100095e0ce58633bcabbed8667ce3f8fbaa4229f", size = 398830 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4e/f6/71d6ec9f18da0b2201287ce9db6afb1a1f637dedb3f0703409558981c723/ldap3-2.9.1-py2.py3-none-any.whl", hash = "sha256:5869596fc4948797020d3f03b7939da938778a0f9e2009f7a072ccf92b8e8d70", size = 432192 },
-]
-
-[[package]]
-name = "librenms-handler"
-version = "0.4.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/a2/99af6bb60151098b90d9b9baa69266ed9fd840c98b991d2605defd31121c/librenms_handler-0.4.3.tar.gz", hash = "sha256:37c609ed5928af5030a6bd996c127077dfba49b03afc4e7c43d669de44b3a468", size = 13947 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/c6/9c9639f8f461bb6933e1f8309fc17bdc1e1e79434783a416729c37ce412c/librenms_handler-0.4.3-py3-none-any.whl", hash = "sha256:e1db802c6909a7821896c3ae6890c886e9bdca5328e8edb08375c9aa5c5b6fc6", size = 17139 },
 ]
 
 [[package]]
@@ -2934,15 +2894,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyproject-hooks"
-version = "1.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c7/07/6f63dda440d4abb191b91dc383b472dae3dd9f37e4c1e4a5c3db150531c6/pyproject_hooks-1.1.0.tar.gz", hash = "sha256:4b37730834edbd6bd37f26ece6b44802fb1c1ee2ece0e54ddff8bfc06db86965", size = 7838 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/f3/431b9d5fe7d14af7a32340792ef43b8a714e7726f1d7b69cc4e8e7a3f1d7/pyproject_hooks-1.1.0-py3-none-any.whl", hash = "sha256:7ceeefe9aec63a1064c18d939bdc3adf2d8aa1988a510afec15151578b232aa2", size = 9184 },
-]
-
-[[package]]
 name = "pyquery"
 version = "2.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3871,7 +3822,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "black" },
-    { name = "build" },
     { name = "coconut" },
     { name = "cogapp" },
     { name = "copier" },
@@ -3916,7 +3866,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=22.3.0" },
-    { name = "build" },
     { name = "coconut", specifier = ">=3.0.3" },
     { name = "cogapp", specifier = ">=3.3" },
     { name = "copier", specifier = ">=7" },
@@ -3929,21 +3878,21 @@ dev = [
     { name = "pip", specifier = ">=23.3.1" },
     { name = "ptpython", extras = ["ptipython"], specifier = ">=3.0.29" },
     { name = "pytest", specifier = ">=7.0" },
-    { name = "pytest-cov" },
+    { name = "pytest-cov", specifier = ">=5.0" },
     { name = "pytest-mock", specifier = ">=3.6" },
-    { name = "pytest-recording" },
+    { name = "pytest-recording", specifier = ">=0.13" },
     { name = "ruff", specifier = ">=0.5.0" },
     { name = "scalene", specifier = ">=1.5.38" },
     { name = "setuptools-scm", specifier = ">=7" },
     { name = "shellingham", specifier = ">=1.5.4" },
     { name = "tomlkit", specifier = ">=0.11" },
     { name = "tuna", specifier = ">=0.5" },
-    { name = "typer", specifier = ">=0.9" },
+    { name = "typer", specifier = ">=0.12" },
 ]
 
 [[package]]
 name = "uoft-aruba"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/aruba" }
 dependencies = [
     { name = "typer" },
@@ -3952,13 +3901,13 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "typer" },
+    { name = "typer", specifier = ">=0.12" },
     { name = "uoft-core", editable = "projects/core" },
 ]
 
 [[package]]
 name = "uoft-bluecat"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/bluecat" }
 dependencies = [
     { name = "uoft-core" },
@@ -3969,7 +3918,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-core"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/core" }
 dependencies = [
     { name = "prompt-toolkit" },
@@ -3997,16 +3946,16 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'all'", specifier = ">=6.0" },
     { name = "requests", specifier = ">=2.20" },
     { name = "rich", specifier = ">=12.2" },
-    { name = "semver", marker = "extra == 'all'" },
+    { name = "semver", marker = "extra == 'all'", specifier = ">=3.0" },
     { name = "sentry-sdk", marker = "extra == 'all'", specifier = ">=1.4" },
-    { name = "typer", specifier = ">=0.4" },
+    { name = "typer", specifier = ">=0.12" },
     { name = "typing-extensions", specifier = ">=4.9" },
     { name = "yarl", specifier = ">=1.9" },
 ]
 
 [[package]]
 name = "uoft-grist"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/grist" }
 dependencies = [
     { name = "grist-api" },
@@ -4016,14 +3965,14 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "grist-api" },
+    { name = "grist-api", specifier = ">=0.1" },
     { name = "uoft-aruba", editable = "projects/aruba" },
     { name = "uoft-core", editable = "projects/core" },
 ]
 
 [[package]]
 name = "uoft-librenms"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/librenms" }
 dependencies = [
     { name = "uoft-core" },
@@ -4034,7 +3983,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-nautobot"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/nautobot" }
 dependencies = [
     { name = "debugpy" },
@@ -4043,7 +3992,6 @@ dependencies = [
     { name = "django-environ" },
     { name = "glom" },
     { name = "html-table-parser-python3" },
-    { name = "librenms-handler" },
     { name = "napalm" },
     { name = "napalm-aruba-cx" },
     { name = "nautobot" },
@@ -4064,25 +4012,24 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "debugpy" },
-    { name = "deepdiff" },
-    { name = "django-debug-toolbar" },
-    { name = "django-environ" },
-    { name = "glom" },
+    { name = "debugpy", specifier = ">=1.8" },
+    { name = "deepdiff", specifier = ">=7.0" },
+    { name = "django-debug-toolbar", specifier = ">=4.4" },
+    { name = "django-environ", specifier = ">=0.11" },
+    { name = "glom", specifier = ">=23.5" },
     { name = "html-table-parser-python3", specifier = ">=0.2.0" },
-    { name = "librenms-handler" },
-    { name = "napalm" },
-    { name = "napalm-aruba-cx" },
+    { name = "napalm", specifier = ">=4.1" },
+    { name = "napalm-aruba-cx", specifier = ">=0.1" },
     { name = "nautobot", editable = "custom-forks/nautobot" },
     { name = "nautobot-device-onboarding", specifier = ">=3.0" },
     { name = "nautobot-golden-config", specifier = ">=2.1" },
     { name = "nautobot-ssot", specifier = ">=2.7" },
-    { name = "openpyxl" },
+    { name = "openpyxl", specifier = ">=3.1" },
     { name = "ptpython", specifier = ">=3.0.29" },
     { name = "pynautobot", specifier = ">=2.2" },
-    { name = "python-box" },
+    { name = "python-box", specifier = ">=7.2" },
     { name = "python-jose", specifier = ">=3.0.0" },
-    { name = "pytz" },
+    { name = "pytz", specifier = ">=2024" },
     { name = "uoft-aruba", editable = "projects/aruba" },
     { name = "uoft-bluecat", editable = "projects/bluecat" },
     { name = "uoft-core", editable = "projects/core" },
@@ -4091,7 +4038,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-paloalto"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/paloalto" }
 dependencies = [
     { name = "uoft-core" },
@@ -4102,7 +4049,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-phpipam"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/phpipam" }
 dependencies = [
     { name = "uoft-core" },
@@ -4113,7 +4060,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev483+ge62bc47.d20240924"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
@@ -4137,18 +4084,18 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "deepdiff" },
-    { name = "glom" },
-    { name = "jinja2" },
-    { name = "ldap3" },
-    { name = "nornir-napalm" },
-    { name = "nornir-nautobot" },
-    { name = "nornir-netmiko" },
+    { name = "deepdiff", specifier = ">=7.0" },
+    { name = "glom", specifier = ">=23.5" },
+    { name = "jinja2", specifier = ">=3.0" },
+    { name = "ldap3", specifier = ">=2.9" },
+    { name = "nornir-napalm", specifier = ">=0.4" },
+    { name = "nornir-nautobot", specifier = ">=3.2" },
+    { name = "nornir-netmiko", specifier = ">=1.0" },
     { name = "prompt-toolkit", specifier = ">=3.0.19" },
     { name = "pydantic", specifier = ">=1.9.0" },
     { name = "pynautobot", specifier = ">=2.1.1" },
     { name = "pyquery", specifier = ">=1.4.0" },
-    { name = "python-box" },
+    { name = "python-box", specifier = ">=7.2" },
     { name = "rich", specifier = ">=10.7.0" },
     { name = "uoft-bluecat", editable = "projects/bluecat" },
     { name = "uoft-core", editable = "projects/core" },
@@ -4158,7 +4105,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-snipeit"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/snipeit" }
 dependencies = [
     { name = "pillow" },
@@ -4169,15 +4116,15 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "pillow" },
-    { name = "pystache" },
-    { name = "qrcode" },
+    { name = "pillow", specifier = ">=10.3" },
+    { name = "pystache", specifier = ">=0.6" },
+    { name = "qrcode", specifier = ">=7.4" },
     { name = "uoft-core", editable = "projects/core" },
 ]
 
 [[package]]
 name = "uoft-ssh"
-version = "0.1.dev483+ge62bc47.d20240924"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/ssh" }
 dependencies = [
     { name = "pexpect" },
@@ -4192,7 +4139,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-switchconfig"
-version = "0.1.dev473+g9f92e84.d20240919"
+version = "0.1.dev487+g3520ef8.d20241001"
 source = { editable = "projects/switchconfig" }
 dependencies = [
     { name = "arrow" },
@@ -4207,7 +4154,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "arrow", specifier = ">=1.1.1" },
-    { name = "jinja2", specifier = ">=3.0.1" },
+    { name = "jinja2", specifier = ">=3.0" },
     { name = "paramiko", specifier = ">=2.7.2" },
     { name = "pexpect", git = "https://github.com/pexpect/pexpect?rev=eb2820cec514c3ed5482e80ad3438cd31f2fa1ef#eb2820cec514c3ed5482e80ad3438cd31f2fa1ef" },
     { name = "pydantic", specifier = ">=1.9.0" },

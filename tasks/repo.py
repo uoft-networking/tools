@@ -38,4 +38,4 @@ def debug_pydantic(undo: bool = False):
 
 def lock():
     """update the monorepo uv lock file"""
-    run("uv lock --refresh --config-setting dependencies=lock")
+    run("uv lock --refresh")

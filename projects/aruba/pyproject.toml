@@ -9,7 +9,7 @@ requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 dynamic = ["version"]
-dependencies = ["uoft_core", "typer"]
+dependencies = ["uoft_core", "typer >= 0.12"]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/aruba"
