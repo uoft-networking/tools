@@ -75,6 +75,7 @@ logger = logging.getLogger(__name__)
 
 ##!SECTION Nornir
 
+
 class NautobotInventory:
     def __init__(self) -> None:
         self.api = Settings.from_cache().api_connection()
@@ -207,8 +208,8 @@ class NautobotInventory:
                 else:
                     password = ssh_s.personal.password.get_secret_value()
             extras = data.get("connection_options", {}).get("extras", {})
-            extras['secret'] = ssh_s.enable_secret.get_secret_value()
-            connection_options['netmiko'] = nornir_inventory.ConnectionOptions(
+            extras["secret"] = ssh_s.enable_secret.get_secret_value()
+            connection_options["netmiko"] = nornir_inventory.ConnectionOptions(
                 hostname=hostname,
                 port=data.get("connection_options", {}).get("port"),
                 username=username,
@@ -1032,15 +1033,21 @@ def new_switch(
         )
 
     logger.info(f"Checking to see if {primary_ip4} already exists in Nautobot...")
-    if ipv4 := nb.ipam.ip_addresses.get(address=primary_ip4):
+    host, _, prefix_length = primary_ip4.partition("/")
+    if ipv4 := nb.ipam.ip_addresses.get(q=host):
         logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
+        if ipv4.mask_length != int(prefix_length):
+            logger.error(
+                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "
+                "Please rerun script with this CIDR or update the IP address prefix manually in Nautobot."
+            )
+            return
         nb.ipam.ip_addresses.update(
             id=ipv4.id,  # type: ignore
             data=dict(
                 status="Active",
                 description=name,
                 dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
-                address=primary_ip4,
             ),
         )
     else:
