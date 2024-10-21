@@ -79,6 +79,24 @@ def network_list():
     for n in networks:
         print(f"{n['@name']:30} => {n['ip-netmask']}")
 
+@app.command()
+def network_create(name: str, netmask: str, description: str | None = None, tags: list[str] | None = None):
+    """Create a network object in the Palo Alto API"""
+    tags_set = set(tags) or None
+    s = Settings.from_cache()
+    api = s.get_api_connection()
+    api.login()
+    api.network_create(name, netmask, description, tags=tags_set)
+
+
+@app.command()
+def network_delete(name: str):
+    """Delete a network object in the Palo Alto API"""
+    s = Settings.from_cache()
+    api = s.get_api_connection()
+    api.login()
+    api.network_delete(name)
+    
 
 def cli():
     try:

@@ -143,12 +143,10 @@ class API(APIBase):
             json={"entry": [payload]},
         ).json()
 
-    def network_delete(self, name: str, netmask: str, tags: set[str] | None = None):
-        logger.info(f"Deleting network '{name}' with netmask {netmask}")
+    def network_delete(self, name: str):
+        logger.info(f"Deleting network '{name}'")
         params = self.default_params() | {"name": name}
-        payload: dict = self.default_payload() | {"@name": name, "ip-netmask": netmask}
-        if tags:
-            payload["tag"] = {"member": sorted(tags)}
+        payload: dict = self.default_payload() | {"@name": name}
         return self.delete(
             "/Objects/Addresses",
             params=params,
