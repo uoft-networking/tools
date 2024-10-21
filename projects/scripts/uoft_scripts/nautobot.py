@@ -914,7 +914,7 @@ def new_switch(
             generate_rprompt=False,
         )
         location_name = prompt.get_string("room_name", "Enter the name of the location")
-        logger.info(f"Creating new location '{name}'...")
+        logger.info(f"Creating new location '{location_name}'...")
         location_record = nb.dcim.locations.create(
             name=location_name,
             location_type={"name": "Room"},
@@ -1036,9 +1036,9 @@ def new_switch(
     host, _, prefix_length = primary_ip4.partition("/")
     if ipv4 := nb.ipam.ip_addresses.get(q=host):
         logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
-        if ipv4.mask_length != int(prefix_length):
+        if ipv4.mask_length != int(prefix_length):  # type: ignore
             logger.error(
-                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "
+                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "  # type: ignore
                 "Please rerun script with this CIDR or update the IP address prefix manually in Nautobot."
             )
             return
@@ -1139,6 +1139,7 @@ def rebuild_switch(
     device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
     manufacturer: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_manufacturers)],
     device_type: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_device_types)],
+    set_status_to_planned: bool = False,
     dev: bool = False,
 ):
     """
@@ -1195,6 +1196,9 @@ def rebuild_switch(
     device.device_type = device_type
     if platform:
         device.platform = platform
+
+    if set_status_to_planned:
+        device.status = "Planned"
 
     device.save()
     # create new interfaces / console ports / power ports based on the new device type
