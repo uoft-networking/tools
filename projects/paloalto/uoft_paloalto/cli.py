@@ -96,7 +96,16 @@ def network_delete(name: str):
     api = s.get_api_connection()
     api.login()
     api.network_delete(name)
-    
+    logger.success(f"Deleted network '{name}'")
+
+@app.command()
+def commit():
+    """Commit changes to the Palo Alto API"""
+    s = Settings.from_cache()
+    api = s.get_api_connection()
+    api.login()
+    api.commit()
+    logger.success("Changes committed")
 
 def cli():
     try:
