@@ -17,18 +17,11 @@ class RESTAPIError(HTTPError):
     The error message is extracted from the JSON response.
     """
 
-    data: dict[str, Any]
+    data: dict[str, Any] | None
 
-    def __init__(self, response: Response):
-        try:
-            error = response.json()
-        except ValueError:
-            # If the response is not JSON, just raise the original exception
-            super().__init__(response=response)
-        else:
-            # If the response is JSON, raise a new exception with the JSON error message
-            self.data = error
-            super().__init__(response=response)
+    def __init__(self, data, *args, **kwargs):
+        self.data = data
+        super().__init__(*args, **kwargs)
 
     def __repr__(self) -> str:
         return f"RESTAPIError({self.data})"
@@ -36,8 +29,18 @@ class RESTAPIError(HTTPError):
     def __str__(self) -> str:
         return (
             f"{self.response.status_code}: {self.response.reason} - "
-            f"{self.data.get('message', self.data.get('error', self.data))}"
+            f"{self.data}"
         )
+    
+    @classmethod
+    def from_http_error(cls, e: HTTPError) -> "RESTAPIError | HTTPError":
+        try:
+            data = e.response.json()
+        except Exception:
+            return e
+        e.__class__ = cls
+        e.data = data # type: ignore
+        return e
 
 
 class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block below #type: ignore
@@ -74,14 +77,25 @@ class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block b
         if not url.scheme:
             url = url.with_scheme("https")
         self.url = url
-        self.api_url = url / api_root
+        self.api_url = self.safe_append_path(url, api_root)
         self.hooks["response"].append(self.handle_errors)
+
+    def safe_append_path(self, url: URL, path: str) -> URL: 
+        # paths with leading slashes are treated by most of the computing world as absolute paths
+        # yarl.URL explicitly disallows joining an absolute path to a URL, since by convention, 
+        # doing so would *replace* the URL's path with the absolute path, which can often times violate
+        # the principal of least surprise
+        # This is rather unfortunate for us, since most REST APIs document relative paths (relative to the API root)
+        # with leading slashes. We want the users of our APIs to be able to use the documented paths as-is,
+        # so we need to strip the leading slash from the path before joining it to the URL
+        path = path.lstrip("/")
+        return url / path
 
     def handle_errors(self, response: Response, *args, **kwargs):
         try:
             response.raise_for_status()
         except HTTPError as e:
-            raise RESTAPIError(response) from e
+            raise RESTAPIError.from_http_error(e)
         return response
 
     def login(self):
@@ -106,8 +120,7 @@ class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block b
     def request(self, method: str, url: URL | str, **kwargs) -> Any:
         # If the URL is a string, join it with the api URL
         if isinstance(url, str):
-            url = url.lstrip("/")
-            url = self.api_url / url
+            url = self.safe_append_path(self.api_url, url)
 
         # convert URL to string before passing it on to the super class
         url = str(url)
