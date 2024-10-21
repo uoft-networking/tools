@@ -14,6 +14,7 @@ dependencies = [
   "uoft_bluecat",
   "uoft_ssh",
   "uoft_librenms",
+  "uoft_paloalto",
   "pynautobot >= 2.1.1",
   "jinja2 >= 3.0",
   "deepdiff >= 7.0",
@@ -27,6 +28,8 @@ dependencies = [
   "nornir_napalm >= 0.4",
   "nornir_netmiko >= 1.0",
   "nornir_nautobot >= 3.2",
+  "sqlmodel >= 0.0.22",
+  "psycopg >= 3.2",
 ]
 
 [project.scripts]

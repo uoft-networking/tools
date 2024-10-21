@@ -6,6 +6,7 @@ from . import ldap
 from . import nautobot
 from . import librenms
 from . import sib_turnup
+from . import stg_ipam_dev
 
 from uoft_core import logging
 
@@ -38,6 +39,7 @@ app.add_typer(ldap.app)
 app.add_typer(nautobot.app)
 app.add_typer(librenms.app)
 app.add_typer(sib_turnup.app)
+app.add_typer(stg_ipam_dev.app)
 
 
 @app.callback()
