@@ -326,8 +326,10 @@ class Resolver:
         if kind is ScalarNode and implicit[0]:
             if value == "":
                 resolvers = self.versioned_resolver.get("", [])
-            else:
+            elif isinstance(value, str):
                 resolvers = self.versioned_resolver.get(value[0], [])
+            else:
+                resolvers = self.versioned_resolver.get(value, [])
             resolvers += self.versioned_resolver.get(None, [])
             for tag, regexp in resolvers:
                 if regexp.match(value):

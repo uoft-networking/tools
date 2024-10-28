@@ -1129,7 +1129,7 @@ class Emitter:
         space_break = False
 
         # Check document indicators.
-        if scalar.startswith("---") or scalar.startswith("..."):
+        if isinstance(scalar, str) and (scalar.startswith("---") or scalar.startswith("...")):
             block_indicators = True
             flow_indicators = True
 
