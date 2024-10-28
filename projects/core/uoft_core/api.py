@@ -6,6 +6,7 @@ from typing import Any, TYPE_CHECKING
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed, wait
 
 from requests import Session, Response, HTTPError
+import urllib3
 from typing_extensions import Self
 from yarl import URL
 
@@ -17,7 +18,7 @@ class RESTAPIError(HTTPError):
     The error message is extracted from the JSON response.
     """
 
-    data: dict[str, Any] | None
+    data: dict[str, Any]
 
     def __init__(self, data, *args, **kwargs):
         self.data = data
@@ -67,10 +68,14 @@ class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block b
         ...     s.get('/records')
         <Response [200]>
     """
+    # Convenience feature: attach common error types to the class, so that operations which only have a handle to 
+    # an APIBase instance can still access these error types without having to import them from uoft_core.api
+    RESTAPIError = RESTAPIError
+    HTTPError = HTTPError
 
     # At its core, an API wrapper is just a requests Session where all requests operate relative to a base URL,
     # and where some form of authentication needs to happen before requests can be made.
-    def __init__(self, base_url: str, api_root: str = ""):
+    def __init__(self, base_url: str, api_root: str = "", verify: bool | str = True):
         super().__init__()
         # base_url may be a bare hostname, or a full URL (ie 'https://hostname')
         url = URL(base_url)
@@ -79,6 +84,9 @@ class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block b
         self.url = url
         self.api_url = self.safe_append_path(url, api_root)
         self.hooks["response"].append(self.handle_errors)
+        self.verify = verify
+        if not self.verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def safe_append_path(self, url: URL, path: str) -> URL: 
         # paths with leading slashes are treated by most of the computing world as absolute paths

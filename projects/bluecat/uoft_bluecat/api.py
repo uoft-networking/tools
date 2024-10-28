@@ -24,8 +24,8 @@ IPAddressState = Literal[
 
 
 class API(APIBase):
-    def __init__(self, base_url: str, username: str, password: str):
-        super().__init__(base_url, api_root="api/v2")
+    def __init__(self, base_url: str, username: str, password: str, verify: bool | str = True):
+        super().__init__(base_url, api_root="api/v2", verify=verify)
         self.username = username
         self.password = password
         self.headers.update(
@@ -38,7 +38,9 @@ class API(APIBase):
     def login(self):
         # /sessions is perhaps the only endpoint that doesn't require a change control comment to POST to,
         # so we call `super().post` instead of `self.post`
-        token_response = super().post(self.api_url / "sessions", json={"username": self.username, "password": self.password}).json()
+        token_response = (
+            super().post(self.api_url / "sessions", json={"username": self.username, "password": self.password}).json()
+        )
         # tok_data contains an apiToken field
         # you would think that the api token would be a valid Bearer token, but it's not
         # using it as such produces a 401 error
@@ -88,7 +90,7 @@ class API(APIBase):
 
     @cached_property
     def configuration_id(self) -> int:
-        return self.get(self.api_url / "configurations").json()["data"][0]["id"]    
+        return self.get(self.api_url / "configurations").json()["data"][0]["id"]
 
     def find_parent_container(
         self, container_type: Literal["blocks", "networks", "any"], addr: str | IPAddress
@@ -113,7 +115,9 @@ class API(APIBase):
             except ValueError:
                 return self.find_parent_container("blocks", addr)
         assert container_type in ["blocks", "networks"]
-        containers = self.get(self.api_url / container_type, params=dict(filter=f"range:contains('{addr}')")).json()["data"]
+        containers = self.get(self.api_url / container_type, params=dict(filter=f"range:contains('{addr}')")).json()[
+            "data"
+        ]
         if not containers:
             raise ValueError(f"No {container_type} found containing {addr}")
         # blocks returned from api are sorted from largest prefix (ie /8) to smallest (ie /24)
