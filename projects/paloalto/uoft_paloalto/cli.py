@@ -82,7 +82,7 @@ def network_list():
 @app.command()
 def network_create(name: str, netmask: str, description: str | None = None, tags: list[str] | None = None):
     """Create a network object in the Palo Alto API"""
-    tags_set = set(tags) or None
+    tags_set = set(tags) if tags else None
     s = Settings.from_cache()
     api = s.get_api_connection()
     api.login()

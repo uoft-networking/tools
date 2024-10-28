@@ -19,13 +19,12 @@ class API(APIBase):
         create_missing_tags: bool = False,
         verify: bool | str = True,
     ):
-        super().__init__(base_url, api_root="/restapi/v10.2")
+        super().__init__(base_url, api_root="/restapi/v10.2", verify=verify)
         self.username = username
         self.password = password
         self.api_key = api_key
         self.device_group = device_group
         self.create_missing_tags = create_missing_tags
-        self.verify = verify
 
     def login(self):
         # PA NSM REST API supports basic authentication, so the login process is actually quite simple
@@ -98,6 +97,14 @@ class API(APIBase):
     def network_list(self) -> list[dict]:
         return [n for n in self.all_addresses() if "ip-netmask" in n]
 
+    def _tag_sort_fn(self, tag: str):
+        # For our purposes here in UofT, not only do we want the tags to be consistently sorted, we also want to ensure
+        # that the "net_type" tag is always first, if it exists
+        if "net_type" in tag:
+            return 0
+        # for all other tags, we sort alpabetically by turning the first character into its ASCII value
+        return ord(tag[0])
+
     def network_create(self, name: str, netmask: str, description: str | None = None, tags: set[str] | None = None):
         logger.info(f"Creating network '{name}' with netmask {netmask}")
         params = self.default_params() | {"name": name}
@@ -110,7 +117,7 @@ class API(APIBase):
                     self.tag_create(tag)
                 else:
                     raise ValueError(f"Tag '{tag}' does not exist")
-            payload["tag"] = {"member": sorted(tags)}
+            payload["tag"] = {"member": sorted(tags, key=self._tag_sort_fn)}
         return self.post(
             "/Objects/Addresses",
             params=params,
@@ -136,7 +143,7 @@ class API(APIBase):
                     self.tag_create(tag)
                 else:
                     raise ValueError(f"Tag '{tag}' does not exist")
-            payload["tag"] = {"member": sorted(tags)}
+            payload["tag"] = {"member": sorted(tags, key=self._tag_sort_fn)}
         return self.put(
             "/Objects/Addresses",
             params=params,
