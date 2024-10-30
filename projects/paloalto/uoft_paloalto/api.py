@@ -87,7 +87,6 @@ class API(APIBase):
         return res.json()
 
     def all_addresses(self) -> list[dict]:
-        logger.info("Fetching networks")
         res = self.get("/Objects/Addresses", params=self.default_params()).json()["result"]
         if int(res["@total-count"]) > 0:
             return res["entry"]
@@ -95,6 +94,7 @@ class API(APIBase):
             return []
         
     def network_list(self) -> list[dict]:
+        logger.info("Fetching networks from Palo Alto")
         return [n for n in self.all_addresses() if "ip-netmask" in n]
 
     def _tag_sort_fn(self, tag: str):
@@ -159,3 +159,13 @@ class API(APIBase):
             params=params,
             json={"entry": [payload]},
         ).json()
+
+    def network_soft_delete(self, name: str, netmask: str, description: str | None = None, tags: set[str] | None = None):
+        logger.info(f"Adding 'net_type:deleted' tag to network '{name}'")
+        tags = tags or set()
+        for tag in list(tags):
+            if "net_type" in tag:
+                tags.remove(tag)
+        tags.add("net_type:deleted")
+        return self.network_update(name, netmask, description, tags)
+        

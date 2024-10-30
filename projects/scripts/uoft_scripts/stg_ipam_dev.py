@@ -460,8 +460,13 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
     data = get_data()
 
     pa.login()
-    logger.info("Fetching existing addresses from Palo Alto...")
-    pa_networks = pa.network_list()
+    pa_networks = [
+        n
+        for n in pa.network_list()
+        if n.get("tag")
+        and ("source:ipam.utoronto.ca" in n["tag"]["member"])
+        and ("net_type:deleted" not in n["tag"]["member"])
+    ]
     pa_networks_by_name = {n["@name"]: n for n in pa_networks}
     pa_networks_by_prefix = {n["ip-netmask"]: n for n in pa_networks}
 
@@ -503,11 +508,8 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
         assert "\t" not in name, f"ipam DB record {name} contains a backslash"
         return name.replace(" ", "-").replace("/", "-").lower()
 
-    def create_or_update(net: Network, v: t.Literal[4, 6]):
+    def create_or_update(name: str, net: Network, v: t.Literal[4, 6]):
         ip = str(net.ip4) if v == 4 else str(net.ip6)
-        name = normalize_name(net.name)
-        if v == 6:
-            name = f"{name}-ip6"
         tags = derive_tags(net, v)
         if ip in pa_networks_by_prefix or name in pa_networks_by_name:
             if ip in pa_networks_by_prefix:
@@ -535,12 +537,35 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
         else:
             pa.network_create(name, ip, description=net.description, tags=tags)
 
+    ipam_networks_by_name = set()
     for net in data.networks.values():
+        name = normalize_name(net.name)
+        ipam_networks_by_name.add(name)
         if net.ip4:
-            create_or_update(net=net, v=4)
+            create_or_update(name, net=net, v=4)
 
         if net.ip6:
-            create_or_update(net=net, v=6)
+            name = f"{name}-ip6"
+            ipam_networks_by_name.add(name)
+            create_or_update(name, net=net, v=6)
+
+    deleted_msg_printed = False
+    def deleted_msg():
+        nonlocal deleted_msg_printed
+        if not deleted_msg_printed:
+            logger.info("The following networks no longer exist in IPAM:")
+            deleted_msg_printed = True
+    for existing_network in pa_networks:
+        if existing_network["@name"] not in ipam_networks_by_name:
+            deleted_msg()
+            logger.info(f"Soft-Deleting {existing_network['@name']} from Palo Alto")
+            name = existing_network["@name"]
+            netmask = existing_network["ip-netmask"]
+            description = existing_network.get("description", "")
+            tags = set(existing_network.get("tag", {}).get("member", []))
+            pa.network_soft_delete(name=name, netmask=netmask, description=description, tags=tags)
+    if not deleted_msg_printed:
+        logger.info("No ipam-sourced networks to delete from Palo Alto")
 
     if commit:
         pa.commit()
