@@ -33,7 +33,13 @@ class Settings(BaseSettings):
         default_factory=dict,
         title="Tags by Network",
         description="A mapping of network prefixes to tags. "
-        "keys are networks in CIDR notation, values are the tag names",
+        "The key is the network prefix, and the value is the tag to apply to networks that fall within that prefix.",
+    )
+    tags_by_network_exact: dict[IPv4Network | IPv6Network, str] = Field(
+        default_factory=dict,
+        title="Tags by Network",
+        description="A mapping of network prefixes to tags. "
+        "The key is the network prefix, and the value is the tag to apply to the network that exactly matches that prefix.",
     )
 
     class Config(BaseSettings.Config):
@@ -457,12 +463,29 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
     s = Settings.from_cache()
     pa = PaloAltoSettings.from_cache().get_api_connection()
 
+    # PaloAlto tech support claims that making API requests one at a time to a single rest api server
+    # may be "causing too much load", and ask us to split the requests across multiple servers
+    # so we're going to do that here temporarily, in order to demonstrate no performance difference
+    from uoft_paloalto.api import API
+
+    pas = PaloAltoSettings.from_cache()
+    pa2 = API(
+        "https://pa-nsm-2.is.utoronto.ca",
+        pas.username,
+        pas.password,
+        pas.api_key,
+        pas.device_group,
+        pas.create_missing_tags,
+        False,
+    )
+
     data = get_data()
 
     pa.login()
+    pa2.login()
     pa_networks = [
         n
-        for n in pa.network_list()
+        for n in pa2.network_list()
         if n.get("tag")
         and ("source:ipam.utoronto.ca" in n["tag"]["member"])
         and ("net_type:deleted" not in n["tag"]["member"])
@@ -489,6 +512,10 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
             if prefix.version == ip.version and ip.subnet_of(prefix):  # type: ignore
                 tags.add(tag)
 
+        for prefix, tag in s.tags_by_network_exact.items():
+            if prefix.version == ip.version and ip == prefix:
+                tags.add(tag)
+
         if not ip.is_private and "address_space:cgnat" not in tags:
             tags.add("address_space:public")
 
@@ -501,6 +528,9 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
                 tags.add("campus:utsc")
             elif net.name.startswith("utm-"):
                 tags.add("campus:utm")
+
+        if len([t for t in tags if t.startswith("assigned_by:")]) == 0:
+            tags.add("assigned_by:UofT")
 
         return tags
 
@@ -550,11 +580,13 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
             create_or_update(name, net=net, v=6)
 
     deleted_msg_printed = False
+
     def deleted_msg():
         nonlocal deleted_msg_printed
         if not deleted_msg_printed:
             logger.info("The following networks no longer exist in IPAM:")
             deleted_msg_printed = True
+
     for existing_network in pa_networks:
         if existing_network["@name"] not in ipam_networks_by_name:
             deleted_msg()
