@@ -485,7 +485,7 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
     pa2.login()
     pa_networks = [
         n
-        for n in pa2.network_list()
+        for n in pa.network_list()
         if n.get("tag")
         and ("source:ipam.utoronto.ca" in n["tag"]["member"])
         and ("net_type:deleted" not in n["tag"]["member"])
