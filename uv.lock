@@ -1006,6 +1006,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1a/b2/a52adecee4c7d4f728f47df96f6149cdcf9425154e2efee8c9c3664b6a18/django_structlog-8.1.0-py3-none-any.whl", hash = "sha256:1072564bd6f36e8d3ba9893e7b31c1c46e94301189fedaecc0fb8a46525a3214", size = 16091 },
 ]
 
+[package.optional-dependencies]
+celery = [
+    { name = "celery" },
+]
+
 [[package]]
 name = "django-tables2"
 version = "2.7.0"
@@ -1706,15 +1711,16 @@ wheels = [
 
 [[package]]
 name = "kombu"
-version = "5.4.1"
+version = "5.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "amqp" },
+    { name = "tzdata" },
     { name = "vine" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/2c/079a5d59a167543205fbf54d663bbdc171e2a29f4d45fa6a8bc315e57192/kombu-5.4.1.tar.gz", hash = "sha256:1c05178826dab811f8cab5b0a154d42a7a33d8bcdde9fa3d7b4582e43c3c03db", size = 442786 }
+sdist = { url = "https://files.pythonhosted.org/packages/38/4d/b93fcb353d279839cc35d0012bee805ed0cf61c07587916bfc35dbfddaf1/kombu-5.4.2.tar.gz", hash = "sha256:eef572dd2fd9fc614b37580e3caeafdd5af46c1eff31e7fba89138cdb406f2cf", size = 442858 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/78/c556bf2954bd36f166959ac33d23cde4a8967e61cdb74678585a66edbae0/kombu-5.4.1-py3-none-any.whl", hash = "sha256:621d365f234e4c089596f3a2510f1ade07026efc28caca426161d8f458786cab", size = 201338 },
+    { url = "https://files.pythonhosted.org/packages/87/ec/7811a3cf9fdfee3ee88e54d08fcbc3fabe7c1b6e4059826c59d7b795651c/kombu-5.4.2-py3-none-any.whl", hash = "sha256:14212f5ccf022fc0a70453bb025a1dcc32782a588c49ea866884047d66e14763", size = 201349 },
 ]
 
 [[package]]
@@ -2108,7 +2114,7 @@ wheels = [
 
 [[package]]
 name = "nautobot"
-version = "2.3.1"
+version = "2.3.8"
 source = { editable = "custom-forks/nautobot" }
 dependencies = [
     { name = "celery" },
@@ -2126,7 +2132,7 @@ dependencies = [
     { name = "django-prometheus" },
     { name = "django-redis" },
     { name = "django-silk" },
-    { name = "django-structlog" },
+    { name = "django-structlog", extra = ["celery"] },
     { name = "django-tables2" },
     { name = "django-taggit" },
     { name = "django-timezone-field" },
@@ -2141,6 +2147,7 @@ dependencies = [
     { name = "graphene-django-optimizer" },
     { name = "jinja2" },
     { name = "jsonschema" },
+    { name = "kombu" },
     { name = "markdown" },
     { name = "markupsafe" },
     { name = "netaddr" },
@@ -2160,7 +2167,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "celery", specifier = ">=5.3.6,<5.4.0" },
-    { name = "django", specifier = ">=4.2.15,<4.3.0" },
+    { name = "django", specifier = ">=4.2.16,<4.3.0" },
     { name = "django-ajax-tables", specifier = ">=1.1.1,<1.2.0" },
     { name = "django-auth-ldap", marker = "extra == 'all' or extra == 'ldap'", specifier = ">=4.8.0,<4.9.0" },
     { name = "django-celery-beat", specifier = ">=2.6.0,<2.7.0" },
@@ -2176,7 +2183,7 @@ requires-dist = [
     { name = "django-redis", specifier = ">=5.4.0,<5.5.0" },
     { name = "django-silk", specifier = ">=5.1.0,<5.2.0" },
     { name = "django-storages", marker = "extra == 'all' or extra == 'remote-storage'", specifier = "==1.14.3" },
-    { name = "django-structlog", extras = ["all"], specifier = ">=8.1.0,<9.0.0" },
+    { name = "django-structlog", extras = ["celery"], specifier = ">=8.1.0,<9.0.0" },
     { name = "django-tables2", specifier = ">=2.7.0,<2.8.0" },
     { name = "django-taggit", specifier = ">=5.0.0,<5.1.0" },
     { name = "django-timezone-field", specifier = ">=7.0,<7.1" },
@@ -2191,6 +2198,7 @@ requires-dist = [
     { name = "graphene-django-optimizer", specifier = ">=0.8.0,<0.9.0" },
     { name = "jinja2", specifier = ">=3.1.4,<3.2.0" },
     { name = "jsonschema", specifier = ">=4.7.0,<5.0.0" },
+    { name = "kombu", specifier = ">=5.4.2,<5.5.0" },
     { name = "markdown", specifier = ">=3.6,<3.7" },
     { name = "markupsafe", specifier = ">=2.1.5,<2.2.0" },
     { name = "mysqlclient", marker = "extra == 'all' or extra == 'mysql'", specifier = ">=2.2.3,<2.3.0" },
@@ -2203,8 +2211,8 @@ requires-dist = [
     { name = "prometheus-client", specifier = ">=0.20.0,<0.21.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.9,<2.10.0" },
     { name = "python-slugify", specifier = ">=8.0.3,<8.1.0" },
-    { name = "pyuwsgi", specifier = ">=2.0.23,<2.1.0" },
-    { name = "pyyaml", specifier = ">=6.0,<6.1" },
+    { name = "pyuwsgi", specifier = ">=2.0.26,<2.1.0" },
+    { name = "pyyaml", specifier = ">=6.0.2,<6.1.0" },
     { name = "social-auth-app-django", specifier = ">=5.4.2,<5.5.0" },
     { name = "social-auth-core", extras = ["saml"], marker = "extra == 'all' or extra == 'sso'", specifier = ">=4.5.3,<4.6.0" },
     { name = "svgwrite", specifier = ">=1.4.2,<1.5.0" },
@@ -4174,7 +4182,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev492+gbdf2dfd.d20241015"
+version = "0.1.dev504+g9a3a409.d20241101"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
