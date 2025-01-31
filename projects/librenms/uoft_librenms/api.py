@@ -1,7 +1,6 @@
-from typing import Literal, List
-import json
-from requests import Session, Response
-import urllib3
+from typing import Literal, List, Any
+
+from uoft_core.api import APIBase
 from . import typing as t
 
 
@@ -9,9 +8,14 @@ class LibreNMSRESTAPIError(Exception):
     pass
 
 
-class MySession(Session):
-    def __init__(self, token, *args, ssl_verify=False, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+class LibreNMSRESTAPI(APIBase):
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        verify: bool | str = True,
+    ) -> None:
+        super().__init__(base_url, api_root="/api/v0", verify=verify)
         self.headers.update(
             {
                 "Content-Type": "application/json",
@@ -20,56 +24,11 @@ class MySession(Session):
             }
         )
 
-        # pylint: disable=no-member
-        # LibreNMS installation may have a self-signed cert, and cannot be verified
-        if not ssl_verify:
-            self.verify = False
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # type: ignore
-
-    def request(self, method, url, **kwargs):
-        response = super().request(method, url, **kwargs)
-        if response.status_code != 200:
-            raise LibreNMSRESTAPIError(
-                f"Request to {url} failed with status code {response.status_code} and message {response.text}"
-            )
-        return response
-
-    def _to_json(self, response: Response) -> dict:
-        try:
-            return response.json()
-        except json.JSONDecodeError as e:
-            raise LibreNMSRESTAPIError(
-                f"Request to {response.url} returned invalid JSON: {response.text}"
-            ) from e
-
-    def get(self, url, **kwargs) -> dict:
-        return self._to_json(super().get(url, **kwargs))
-
-    def put(self, url, **kwargs) -> dict:
-        return self._to_json(super().put(url, **kwargs))
-
-    def post(self, url, **kwargs) -> dict:
-        return self._to_json(super().post(url, **kwargs))
-
-    def delete(self, url, **kwargs) -> dict:
-        return self._to_json(super().delete(url, **kwargs))
-
-    def patch(self, url, **kwargs) -> dict:
-        return self._to_json(super().patch(url, **kwargs))
-
-
-class LibreNMSRESTAPIClient:
-    def __init__(self, host, token, ssl_verify=False) -> None:
-        self.host = host
-        self.session = MySession(token, ssl_verify=ssl_verify)
-
     @property
     def alerts(self):
-        url_ = f"{self.host}/api/v0/alerts"
+        url = self.api_url / "alerts"
 
         class Alerts:
-
-            url = url_
 
             @staticmethod
             def get_alert(alert: int):
@@ -78,7 +37,7 @@ class LibreNMSRESTAPIClient:
 
                 :param alert: Alert id, you can obtain a list of alert ids from `list_alerts`
                 """
-                return self.session.get(f"{url_}/{alert}")
+                return self.get(url / f"{alert}").json()
 
             @staticmethod
             def ack_alert(alert: int, note: str, until_clear: bool = True):
@@ -90,9 +49,7 @@ class LibreNMSRESTAPIClient:
                 :param until_clear: Whether to acknowledge until the alert is cleared.
                     If set to false, the alert will re-alert if it worsens/improves.
                 """
-                return self.session.put(
-                    f"{url_}/{alert}", params=dict(note=note, until_clear=until_clear)
-                )
+                return self.put(url / f"{alert}", params=dict(note=note, until_clear=until_clear)).json()
 
             @staticmethod
             def unmute_alert(alert: int):
@@ -101,15 +58,14 @@ class LibreNMSRESTAPIClient:
 
                 :param alert: Alert id, you can obtain a list of alert ids from `list_alerts`
                 """
-                return self.session.put(f"{url_}/unmute/{alert}")
+                return self.put(url / f"unmute/{alert}").json()
 
             @staticmethod
             def list_alerts(
                 state: Literal["ok", "alert", "ack"] | None = None,
                 severity: Literal["ok", "warning", "critical"] | None = None,
                 alert_rule: int | None = None,
-                order: str
-                | None = None,  # TODO: change this to a literal enum of the alert fields
+                order: str | None = None,  # TODO: change this to a literal enum of the alert fields
                 sort: Literal["asc", "desc"] = "desc",
             ):
                 """
@@ -130,17 +86,15 @@ class LibreNMSRESTAPIClient:
                     params["alert_rule"] = alert_rule
                 if order:
                     params["order"] = f"{order} {sort}"
-                return self.session.get(url_, params=params)
+                return self.get(url, params=params).json()
 
         return Alerts
 
     @property
     def alert_rules(self):
-        url_ = f"{self.host}/api/v0/rules"
+        url = self.api_url / "rules"
 
         class AlertRules:
-
-            url = url_
 
             @staticmethod
             def get_alert_rule(rule: int):
@@ -149,7 +103,7 @@ class LibreNMSRESTAPIClient:
 
                 :param rule: Rule ID
                 """
-                return self.session.get(f"{url_}/{rule}")
+                return self.get(url / f"{rule}").json()
 
             @staticmethod
             def delete_rule(rule: int):
@@ -158,14 +112,14 @@ class LibreNMSRESTAPIClient:
 
                 :param rule_id: You must specify the rule_id to delete an existing rule.
                 """
-                return self.session.delete(f"{url_}/{rule}")
+                return self.delete(url / f"{rule}").json()
 
             @staticmethod
             def list_alert_rules():
                 """
                 Get a list of alert rules.
                 """
-                return self.session.get(url_)
+                return self.get(url).json()
 
             @staticmethod
             def add_rule(
@@ -185,13 +139,20 @@ class LibreNMSRESTAPIClient:
 
                 :param name: This is the name of the rule and is mandatory.
                 :param devices: This is either an array of device ids or -1 for a global rule
-                :param builder: The rule which should be in the format entity.condition value (i.e devices.status != 0 for devices marked as down). It must be json encoded in the format rules are currently stored.
+                :param builder: The rule which should be in the format entity.condition value 
+                    (i.e devices.status != 0 for devices marked as down). It must be json encoded 
+                    in the format rules are currently stored.
                 :param severity: The severity level the alert will be raised against, Ok, Warning, Critical.
                 :param disabled: Whether the rule will be disabled or not, 0 = enabled, 1 = disabled
                 :param count: This is how many polling runs before an alert will trigger and the frequency.
-                :param delay: Delay is when to start alerting and how frequently. The value is stored in seconds but you can specify minutes, hours or days by doing 5 m, 5 h, 5 d for each one.
-                :param interval: How often to re-issue notifications while this alert is active,0 means notify once.The value is stored in seconds but you can specify minutes, hours or days by doing 5 m, 5 h, 5 d for each one.
-                :param mute: If mute is enabled then an alert will never be sent but will show up in the Web UI (true or false).
+                :param delay: Delay is when to start alerting and how frequently. 
+                    The value is stored in seconds but you can specify minutes, hours or days 
+                    by doing 5 m, 5 h, 5 d for each one.
+                :param interval: How often to re-issue notifications while this alert is active,0 means notify once.
+                    The value is stored in seconds but you can specify minutes, hours or days 
+                    by doing 5 m, 5 h, 5 d for each one.
+                :param mute: If mute is enabled then an alert will never be sent but will 
+                    show up in the Web UI (true or false).
                 :param invert: This would invert the rules check.
                 """
                 data = {
@@ -206,7 +167,7 @@ class LibreNMSRESTAPIClient:
                     "mute": mute,
                     "invert": invert,
                 }
-                return self.session.post(url_, json=data)
+                return self.post(url, json=data).json()
 
             @staticmethod
             def edit_rule(
@@ -224,15 +185,23 @@ class LibreNMSRESTAPIClient:
                 """
                 Edit an existing alert rule
 
-                :param rule_id: You must specify the rule_id to edit an existing rule, if this is absent then a new rule will be created.
+                :param rule_id: You must specify the rule_id to edit an existing rule, 
+                    if this is absent then a new rule will be created.
                 :param devices: This is either an array of device ids or -1 for a global rule
-                :param builder: The rule which should be in the format entity.condition value (i.e devices.status != 0 for devices marked as down). It must be json encoded in the format rules are currently stored.
+                :param builder: The rule which should be in the format entity.condition value 
+                    (i.e devices.status != 0 for devices marked as down). It must be json encoded 
+                    in the format rules are currently stored.
                 :param severity: The severity level the alert will be raised against, Ok, Warning, Critical.
                 :param disabled: Whether the rule will be disabled or not, 0 = enabled, 1 = disabled
                 :param count: This is how many polling runs before an alert will trigger and the frequency.
-                :param delay: Delay is when to start alerting and how frequently. The value is stored in seconds but you can specify minutes, hours or days by doing 5 m, 5 h, 5 d for each one.
-                :param interval: How often to re-issue notifications while this alert is active,0 means notify once.The value is stored in seconds but you can specify minutes, hours or days by doing 5 m, 5 h, 5 d for each one.
-                :param mute: If mute is enabled then an alert will never be sent but will show up in the Web UI (true or false).
+                :param delay: Delay is when to start alerting and how frequently. 
+                    The value is stored in seconds but you can specify minutes, hours or days 
+                    by doing 5 m, 5 h, 5 d for each one.
+                :param interval: How often to re-issue notifications while this alert is active,0 means notify once.
+                    The value is stored in seconds but you can specify minutes, hours or days 
+                    by doing 5 m, 5 h, 5 d for each one.
+                :param mute: If mute is enabled then an alert will never be sent but will show up 
+                    in the Web UI (true or false).
                 :param invert: This would invert the rules check.
                 """
                 data = {
@@ -247,17 +216,15 @@ class LibreNMSRESTAPIClient:
                     "mute": mute,
                     "invert": invert,
                 }
-                return self.session.post(url_, json=data)
+                return self.post(url, json=data).json()
 
         return AlertRules
 
     @property
     def devices(self):
-        url = f"{self.host}/api/v0/devices"
+        url = self.api_url / "devices"
 
         class Devices:
-
-            url_ = url
 
             @staticmethod
             def del_device(device: str):
@@ -266,7 +233,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.delete(f"{url}/{device}")
+                return self.delete(url / f"{device}").json()
 
             @staticmethod
             def get_device(device: str):
@@ -275,7 +242,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}")
+                return self.get(url / f"{device}").json()
 
             @staticmethod
             def discover_device(device: str):
@@ -284,7 +251,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/discover")
+                return self.get(url / f"{device}/discover").json()
 
             @staticmethod
             def availability(device: str):
@@ -293,7 +260,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/availability")
+                return self.get(url / f"{device}/availability").json()
 
             @staticmethod
             def outages(device: str):
@@ -302,7 +269,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/outages")
+                return self.get(url / f"{device}/outages").json()
 
             @staticmethod
             def get_graphs(device: str):
@@ -311,7 +278,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device:  Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/graphs")
+                return self.get(url / f"{device}/graphs").json()
 
             @staticmethod
             def list_available_health_graphs(
@@ -331,11 +298,9 @@ class LibreNMSRESTAPIClient:
                 """
                 if health_type:
                     if sensor_id:
-                        return self.session.get(
-                            f"{url}/{device}/health/{health_type}/{sensor_id}"
-                        )
-                    return self.session.get(f"{url}/{device}/health/{health_type}")
-                return self.session.get(f"{url}/{device}/health")
+                        return self.get(url / f"{device}/health/{health_type}/{sensor_id}").json()
+                    return self.get(url / f"{device}/health/{health_type}").json()
+                return self.get(url / f"{device}/health").json()
 
             @staticmethod
             def list_available_wireless_graphs(
@@ -355,16 +320,12 @@ class LibreNMSRESTAPIClient:
                 """
                 if wireless_type:
                     if sensor_id:
-                        return self.session.get(
-                            f"{url}/{device}/wireless/{wireless_type}/{sensor_id}"
-                        )
-                    return self.session.get(f"{url}/{device}/wireless/{wireless_type}")
-                return self.session.get(f"{url}/{device}/wireless")
+                        return self.get(url / f"{device}/wireless/{wireless_type}/{sensor_id}").json()
+                    return self.get(url / f"{device}/wireless/{wireless_type}").json()
+                return self.get(url / f"{device}/wireless").json()
 
             @staticmethod
-            def get_health_graph(
-                device: str, health_type: str, sensor_id: int | None = None
-            ):
+            def get_health_graph(device: str, health_type: str, sensor_id: int | None = None):
                 """
                 Get a particular health class graph for a device.
                 If you provide a sensor_id as well then a single sensor graph will be provided.
@@ -375,15 +336,11 @@ class LibreNMSRESTAPIClient:
                 :param sensor_id: Optional sensor ID graph to return from health graph
                 """
                 if sensor_id:
-                    return self.session.get(
-                        f"{url}/{device}/graphs/health/{health_type}/{sensor_id}"
-                    )
-                return self.session.get(f"{url}/{device}/graphs/health/{health_type}")
+                    return self.get(url / f"{device}/graphs/health/{health_type}/{sensor_id}").json()
+                return self.get(url / f"{device}/graphs/health/{health_type}").json()
 
             @staticmethod
-            def get_wireless_graph(
-                device: str, graph_type: str, senor_id: int | None = None
-            ):
+            def get_wireless_graph(device: str, graph_type: str, senor_id: int | None = None):
                 """
                 Get a particular wireless class graph for a device.
                 If you provide a sensor_id as well then a single sensor graph will be provided.
@@ -394,12 +351,8 @@ class LibreNMSRESTAPIClient:
                 :param senor_id: Optional sensor ID graph to return from wireless sensor graph
                 """
                 if senor_id:
-                    return self.session.get(
-                        f"{url}/{device}/graphs/wireless/{graph_type}"
-                    )
-                return self.session.get(
-                    f"{url}/{device}/graphs/wireless/{graph_type}/{senor_id}"
-                )
+                    return self.get(url / f"{device}/graphs/wireless/{graph_type}").json()
+                return self.get(url / f"{device}/graphs/wireless/{graph_type}/{senor_id}").json()
 
             @staticmethod
             def get_graph_generic_by_hostname(  # pylint: disable=R0913
@@ -431,9 +384,7 @@ class LibreNMSRESTAPIClient:
                         "output": output,
                     }
                 )
-                return self.session.get(
-                    f"{url}/{device}/{graph_type}", params=parameters
-                )
+                return self.get(url / f"{device}/{graph_type}", params=parameters).json()
 
             @staticmethod
             def get_port_graphs(device: str, columns: str | None = None):
@@ -444,7 +395,7 @@ class LibreNMSRESTAPIClient:
                 :param columns: Comma separated list of columns you want returned.
                 """
                 parameters = dict({"columns": columns})
-                return self.session.get(f"{url}/{device}/ports", params=parameters)
+                return self.get(url / f"{device}/ports", params=parameters).json()
 
             @staticmethod
             def get_device_fdb(device: str):
@@ -453,7 +404,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/fdb")
+                return self.get(url / f"{device}/fdb").json()
 
             @staticmethod
             def get_device_ip_addresses(device: str):
@@ -462,7 +413,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/ip")
+                return self.get(url / f"{device}/ip").json()
 
             @staticmethod
             def get_port_stack(device: str):
@@ -472,7 +423,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/port_stack")
+                return self.get(url / f"{device}/port_stack").json()
 
             @staticmethod
             def get_components(  # pylint: disable=R0913
@@ -505,7 +456,7 @@ class LibreNMSRESTAPIClient:
                         "ignore": ignore,
                     }
                 )
-                return self.session.get(f"{url}/{device}/components", params=parameters)
+                return self.get(url / f"{device}/components", params=parameters).json()
 
             @staticmethod
             def add_components(device: str, component_type: str):
@@ -515,7 +466,7 @@ class LibreNMSRESTAPIClient:
                 :param device: Can be either the device hostname or ID
                 :param component_type: Type of component to add
                 """
-                return self.session.post(f"{url}/{device}/components/{component_type}")
+                return self.post(url / f"{device}/components/{component_type}").json()
 
             @staticmethod
             def edit_components(  # pylint: disable=R0913
@@ -552,7 +503,7 @@ class LibreNMSRESTAPIClient:
                         }
                     }
                 )
-                return self.session.put(f"{url}/{device}/components", json=data)
+                return self.put(url / f"{device}/components", json=data).json()
 
             @staticmethod
             def delete_components(device: str, component: int):
@@ -562,27 +513,24 @@ class LibreNMSRESTAPIClient:
                 :param device: Can be either the device hostname or ID
                 :param component: Component ID to be deleted
                 """
-                return self.session.delete(
-                    f"{url}/{device}/components/{component}",
-                )
+                return self.delete(
+                    url / f"{device}/components/{component}",
+                ).json()
 
             @staticmethod
-            def get_port_stats_by_port_hostname(
-                device: str, interface_name: str, columns: str | None = None
-            ):
+            def get_port_stats_by_port_hostname(device: str, interface_name: str, columns: str | None = None):
                 """
                 Get information about a particular port for a device.
 
                 :param device: Can be either the device hostname or ID
-                :param interface_name: Any of the interface names for the device which can be obtained using get_port_graphs.
+                :param interface_name: Any of the interface names for the 
+                    device which can be obtained using get_port_graphs.
                 Please ensure that the ifname is urlencoded if it needs to be (i.e Gi0/1/0 would need to be urlencoded.
                 :param columns: Comma separated list of columns you want returned
                 """
                 parameters = dict({"columns": columns})
                 interface_name = interface_name.replace("/", "%2F")
-                return self.session.get(
-                    f"{url}/{device}/ports/{interface_name}", params=parameters
-                )
+                return self.get(url / f"{device}/ports/{interface_name}", params=parameters).json()
 
             @staticmethod
             def get_graph_by_port_hostname(  # pylint: disable=R0913
@@ -621,20 +569,20 @@ class LibreNMSRESTAPIClient:
                     }
                 )
                 interface_name = interface_name.replace("/", "%2F")
-                return self.session.get(
-                    f"{url}/{device}/ports/{interface_name}/{port_type}",
+                return self.get(
+                    url / f"{device}/ports/{interface_name}/{port_type}",
                     params=parameters,
-                )
+                ).json()
 
             @staticmethod
             def list_locations():
                 """Return a list of locations."""
-                return self.session.get(f"{self.host}/api/v0/resources/locations")
+                return self.get(self.api_url / "resources/locations").json()
 
             @staticmethod
             def list_sensors():
                 """Get a list of all Sensors."""
-                return self.session.get(f"{self.host}/api/v0/resources/sensors")
+                return self.get(self.api_url / "resources/sensors").json()
 
             @staticmethod
             def list_devices(
@@ -665,7 +613,7 @@ class LibreNMSRESTAPIClient:
                 :param query: If searching by, then this will be used as the input
                 """
                 parameters = dict({"order": order, "type": order_type, "query": query})
-                return self.session.get(url, params=parameters)  # type: ignore
+                return self.get(url, params=parameters).json()
 
             @staticmethod
             def add_device(  # pylint: disable=C0103, R0913, R0914
@@ -729,7 +677,7 @@ class LibreNMSRESTAPIClient:
                         "hardware": hardware,
                     }
                 )
-                return self.session.post(url, json=data)
+                return self.post(url, json=data).json()
 
             @staticmethod
             def list_oxidized(device: str | None = None):
@@ -740,10 +688,10 @@ class LibreNMSRESTAPIClient:
                 :param device: Can be either the device hostname or ID
                 """
                 if device:
-                    return self.session.get(
-                        f"{self.host}/api/v0/oxidized/{device}",
-                    )
-                return self.session.get(f"{self.host}/api/v0/oxidized")
+                    return self.get(
+                        self.api_url / f"oxidized/{device}",
+                    ).json()
+                return self.get(self.api_url / "oxidized").json()
 
             @staticmethod
             def update_device_field(device: str, field=None, data=None):
@@ -760,7 +708,7 @@ class LibreNMSRESTAPIClient:
                         "data": data,
                     }
                 )
-                return self.session.patch(f"{url}/{device}", json=data)
+                return self.patch(url / device, json=data).json()
 
             @staticmethod
             def rename_device(device: str, new_hostname: str):
@@ -770,7 +718,7 @@ class LibreNMSRESTAPIClient:
                 :param device: Can be either the device hostname or ID
                 :param new_hostname: New hostname for the device
                 """
-                return self.session.patch(f"{url}/{device}/rename/{new_hostname}")
+                return self.patch(url / device / "rename" / new_hostname).json()
 
             @staticmethod
             def get_device_groups(device: str):
@@ -779,7 +727,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{url}/{device}/groups")
+                return self.get(url / device / "groups").json()
 
             @staticmethod
             def search_oxidized(search_string: str):
@@ -788,9 +736,7 @@ class LibreNMSRESTAPIClient:
 
                 :param search_string: The Specific string you would like to search for
                 """
-                return self.session.get(
-                    f"{self.host}/api/v0/oxidized/config/search/{search_string}"
-                )
+                return self.get(self.api_url / f"oxidized/config/search/{search_string}").json()
 
             @staticmethod
             def get_oxidized_config(device_name: str):
@@ -799,9 +745,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device_name: The full DNS name of the device used when adding the device to LibreNMS
                 """
-                return self.session.get(
-                    f"{self.host}/api/v0/oxidized/config/{device_name}"
-                )
+                return self.get(self.api_url / f"oxidized/config/{device_name}").json()
 
             @staticmethod
             def add_parents_to_host(device: str, parent_ids):
@@ -816,7 +760,7 @@ class LibreNMSRESTAPIClient:
                         "parent_ids": parent_ids,
                     }
                 )
-                return self.session.post(f"{url}/{device}/parents", json=data)
+                return self.post(url / device / "parents", json=data).json()
 
             @staticmethod
             def delete_parents_from_host(device: str, parent_ids=None):
@@ -832,7 +776,7 @@ class LibreNMSRESTAPIClient:
                         "parent_ids": parent_ids,
                     }
                 )
-                return self.session.delete(f"{url}/{device}/parents", data=data)
+                return self.delete(url / device / "parents", data=data).json()
 
             @staticmethod
             def maintenance_device(device: str, notes: str, duration: str):
@@ -844,22 +788,21 @@ class LibreNMSRESTAPIClient:
                 :param duration: Duration of Maintenance in format H:m
                 """
                 data = dict({"notes": notes, "duration": duration})
-                return self.session.post(f"{url}/{device}/maintenance", json=data)
+                return self.post(url / device / "maintenance", json=data).json()
 
         return Devices
 
     @property
     def device_groups(self):
-        url = f"{self.host}/api/v0/devicegroups"
+        url = self.api_url / "devicegroups"
 
         class DeviceGroups:
-
             url_ = url
 
             @staticmethod
             def get_devicegroups() -> t.DeviceGroups:
                 """List all device groups."""
-                return self.session.get(url)
+                return self.get(url).json()
 
             @staticmethod
             def add_devicegroups(
@@ -882,7 +825,7 @@ class LibreNMSRESTAPIClient:
                 :param devices: required if type == static.
                 A list of devices that should be included in this group. This is a static list of devices
                 """
-                data = dict(
+                data: dict[str, Any] = dict(
                     {
                         "name": name,
                         "type": group_type,
@@ -890,11 +833,11 @@ class LibreNMSRESTAPIClient:
                     }
                 )
                 if group_type == "static":
-                    data.update({"devices": devices})  # type: ignore
+                    data.update({"devices": devices})
                 elif group_type == "dynamic":
                     data.update({"rules": rules})
 
-                return self.session.post(url, json=data)
+                return self.post(url, json=data).json()
 
             @staticmethod
             def get_devices_by_group(name: str):
@@ -902,9 +845,8 @@ class LibreNMSRESTAPIClient:
                 List all devices matching the group provided.
 
                 :param name: name of the device group which can be obtained using get_devicegroups.
-                Please ensure that the name is urlencoded if it needs to be (i.e Linux Servers would need to be urlencoded.
                 """
-                return self.session.get(f"{url}/{name}")
+                return self.get(url / name).json()
 
             @staticmethod
             def maintenance_devicegroup(
@@ -922,16 +864,15 @@ class LibreNMSRESTAPIClient:
                 :param duration: Duration of Maintenance in format H:m
                 """
                 data = dict(title=title, notes=notes, start=start, duration=duration)
-                return self.session.post(f"{url}/maintenance", json=data)
+                return self.post(url / "maintenance", json=data).json()
 
         return DeviceGroups
 
     @property
     def inventory(self):
-        url = f"{self.host}/api/v0/inventory"
+        url = self.api_url / "inventory"
 
         class Inventory:
-
             url_ = url
 
             @staticmethod
@@ -954,8 +895,10 @@ class LibreNMSRESTAPIClient:
                 :param device: Can be either the device hostname or ID
                 :param ent_physical_class: Used to restrict the class of the inventory.
                 For example you can specify chassis to only return items in the inventory that are labelled as chassis.
-                :param ent_physical_contained_in: Used to retrieve items within the inventory assigned to a previous component.
-                For example specifying the chassis (entPhysicalIndex) will retrieve all items where the chassis is the parent.
+                :param ent_physical_contained_in: Used to retrieve items 
+                    within the inventory assigned to a previous component.
+                For example specifying the chassis (entPhysicalIndex) will retrieve 
+                    all items where the chassis is the parent.
                 """
                 parameters = dict(
                     {
@@ -963,7 +906,7 @@ class LibreNMSRESTAPIClient:
                         "entPhysicalContainedIn": ent_physical_contained_in,
                     }
                 )
-                return self.session.get(f"{url}/{device}", params=parameters)
+                return self.get(url / device, params=parameters).json()
 
             @staticmethod
             def get_inventory_for_device(
@@ -979,8 +922,10 @@ class LibreNMSRESTAPIClient:
                 :param device: Can be either the device hostname or ID
                 :param ent_physical_class: Used to restrict the class of the inventory.
                 For example you can specify chassis to only return items in the inventory that are labelled as chassis.
-                :param ent_physical_contained_in: Used to retrieve items within the inventory assigned to a previous component.
-                For example specifying the chassis (entPhysicalIndex) will retrieve all items where the chassis is the parent.
+                :param ent_physical_contained_in: 
+                    Used to retrieve items within the inventory assigned to a previous component.
+                For example specifying the chassis (entPhysicalIndex) will 
+                    retrieve all items where the chassis is the parent.
                 """
                 parameters = dict(
                     {
@@ -988,16 +933,15 @@ class LibreNMSRESTAPIClient:
                         "entPhysicalContainedIn": ent_physical_contained_in,
                     }
                 )
-                return self.session.get(f"{url}/{device}/all", params=parameters)
+                return self.get(url / device / "all", params=parameters).json()
 
         return Inventory
 
     @property
     def locations(self):
-        url = f"{self.host}/api/v0/locations"
+        url = self.api_url / "locations"
 
         class Locations:
-
             url_ = url
 
             @staticmethod
@@ -1016,7 +960,7 @@ class LibreNMSRESTAPIClient:
                         "lng": lng,
                     }
                 )
-                return self.session.post(url, json=data)
+                return self.post(url, json=data).json()
 
             @staticmethod
             def delete_location(location: str):
@@ -1025,7 +969,7 @@ class LibreNMSRESTAPIClient:
 
                 :param location: Name of the location to delete
                 """
-                return self.session.delete(f"{url}/{location}")
+                return self.delete(url / location).json()
 
             @staticmethod
             def edit_location(location: str, lat=None, lng=None):
@@ -1042,16 +986,15 @@ class LibreNMSRESTAPIClient:
                         "lng": lng,
                     }
                 )
-                return self.session.patch(f"{url}/{location}", json=data)
+                return self.patch(url / location, json=data).json()
 
         return Locations
 
     @property
     def ports(self):
-        url = f"{self.host}/api/v0/ports"
+        url = self.api_url / "ports"
 
         class Ports:
-
             url_ = url
 
             @staticmethod
@@ -1064,8 +1007,8 @@ class LibreNMSRESTAPIClient:
                 """
                 if columns is None:
                     columns = ["ifName", "port_id"]
-                parameters = dict({"columns": ','.join(columns)})
-                return self.session.get(url, params=parameters)  # type: ignore
+                parameters = dict({"columns": ",".join(columns)})
+                return self.get(url, params=parameters).json()
 
             @staticmethod
             def search_ports(search_for: str, columns: list[str] | None = None) -> t.Ports:
@@ -1077,8 +1020,8 @@ class LibreNMSRESTAPIClient:
                 """
                 if columns is None:
                     columns = ["ifName", "port_id"]
-                parameters = dict({"columns": ','.join(columns)})
-                return self.session.get(f"{url}/search/{search_for}", params=parameters)  # type: ignore
+                parameters = dict({"columns": ",".join(columns)})
+                return self.get(url / "search" / search_for, params=parameters).json()
 
             @staticmethod
             def search_ports_by(
@@ -1098,11 +1041,9 @@ class LibreNMSRESTAPIClient:
                     columns = ["ifName", "port_id"]
                 if search_in is None:
                     search_in = ["ifName"]
-                search = ','.join(search_in)
-                parameters = dict({"columns": ','.join(columns)})
-                return self.session.get(
-                    f"{url}/search/{search}/{search_for}", params=parameters
-                )  # type: ignore
+                search_in_ = ",".join(search_in)
+                parameters = dict({"columns": ",".join(columns)})
+                return self.get(url / "search" / search_in_ / search_for, params=parameters).json()  
 
             @staticmethod
             def ports_with_associated_mac(mac: str) -> t.Ports:
@@ -1111,7 +1052,7 @@ class LibreNMSRESTAPIClient:
 
                 :param mac: MAC address to search for
                 """
-                return self.session.get(f"{url}/mac/{mac}")  # type: ignore
+                return self.get(url / "mac" / mac).json()  
 
             @staticmethod
             def get_port_info(port_id: int) -> t.Ports:
@@ -1120,7 +1061,7 @@ class LibreNMSRESTAPIClient:
 
                 :param port_id: ID of the port to retrieve
                 """
-                return self.session.get(f"{url}/{port_id}")  # type: ignore
+                return self.get(url / f"{port_id}").json()  
 
             @staticmethod
             def get_port_ip_info(port_id: int):
@@ -1129,7 +1070,7 @@ class LibreNMSRESTAPIClient:
 
                 :param port_id: ID of the port to retrieve
                 """
-                return self.session.get(f"{url}/{port_id}/ip")
+                return self.get(url / f"{port_id}/ip").json()
 
         return Ports
 
@@ -1143,7 +1084,7 @@ class LibreNMSRESTAPIClient:
                 """
                 List all VLANs
                 """
-                return self.session.get(f"{self.host}/api/v0/resources/vlans") # type: ignore
+                return self.get(self.api_url / "resources/vlans").json()  
 
             @staticmethod
             def get_vlans(device: str) -> t.Vlans:
@@ -1152,14 +1093,14 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{self.host}/api/v0/devices/{device}/vlans") # type: ignore
+                return self.get(self.api_url / f"devices/{device}/vlans").json()  
 
             @staticmethod
             def list_links() -> t.Links:
                 """
                 List all links
                 """
-                return self.session.get(f"{self.host}/api/v0/resources/links")  # type: ignore
+                return self.get(self.api_url / "resources/links").json()  
 
             @staticmethod
             def get_links(device: str) -> t.Links:
@@ -1168,7 +1109,7 @@ class LibreNMSRESTAPIClient:
 
                 :param device: Can be either the device hostname or ID
                 """
-                return self.session.get(f"{self.host}/api/v0/devices/{device}/links") # type: ignore
+                return self.get(self.api_url / f"devices/{device}/links").json()  
 
             @staticmethod
             def get_link(link_id: int) -> t.Links:
@@ -1177,6 +1118,6 @@ class LibreNMSRESTAPIClient:
 
                 :param link_id: ID of the link to retrieve
                 """
-                return self.session.get(f"{self.host}/api/v0/resources/links/{link_id}")
+                return self.get(self.api_url / f"resources/links/{link_id}").json()
 
         return Switching

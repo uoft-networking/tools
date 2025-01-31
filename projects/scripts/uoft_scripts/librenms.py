@@ -27,7 +27,7 @@ class LibreNMSTarget(Target):
     def api(self):
         # get a thread-local copy of the api object
         if not hasattr(self._local_ns, "api"):
-            self._local_ns.api = uoft_librenms.LibreNMSRESTAPIClient(self.url, token=self.token.get_secret_value())
+            self._local_ns.api = uoft_librenms.LibreNMSRESTAPI(self.url, token=self.token.get_secret_value())
         return self._local_ns.api
 
     def load_data(self, datasets: set):
