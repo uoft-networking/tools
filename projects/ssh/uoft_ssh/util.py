@@ -4,7 +4,11 @@ from typing import TYPE_CHECKING, TypeVar
 from netmiko.cisco_base_connection import CiscoBaseConnection
 from netmiko.ssh_autodetect import SSH_MAPPER_BASE, SSH_MAPPER_DICT
 
+if TYPE_CHECKING:
+    from pexpect import spawn
+
 T = TypeVar("T")
+
 
 
 def register_netmiko_class(cls: T, name: str) -> T:
