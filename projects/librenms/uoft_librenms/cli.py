@@ -55,6 +55,17 @@ def callback(
     logging.basicConfig(level=log_level)
 
 
+@app.command()
+def re_discover(device_name: str):
+    """
+    Triggers discovery on an existing device in LibreNMS
+    """
+
+    api = Settings.from_cache().api_connection()
+    res = api.devices.discover_device(device_name)
+    logger.info(res)
+
+
 def cli():
     try:
         # CLI code goes here

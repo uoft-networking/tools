@@ -3,7 +3,6 @@
 import inspect
 import os
 import pickle
-import platform
 import sys
 import time
 from shutil import which
@@ -36,7 +35,6 @@ from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
 from pydantic.fields import Field
 import pydantic.types
 from pydantic.main import ModelMetaclass
-from rich.console import Console
 
 from . import logging
 from .types import StrEnum, SecretStr
@@ -928,6 +926,7 @@ class Util:
 
 
 S = TypeVar("S", bound="BaseSettings")
+F = TypeVar("F", bound=Callable)
 
 
 class BaseSettingsMeta(ModelMetaclass):
@@ -998,7 +997,6 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             raise ValueError(f"Invalid reference field: {value}")
         return value
 
-
     @classmethod
     def _util(cls) -> "Util":
         return Util(cls.__config__.app_name)
@@ -1008,23 +1006,40 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         return self._util()
 
     @classmethod
-    def wrap_typer_command(cls, func):
+    def wrap_typer_command(cls, func: F) -> F:
         # Here we import typer outside top-level scope because it only makes sense to import it
         # when we're running in a typer app, which is the only situation where this method is used.
         import typer  # pylint: disable=import-outside-toplevel
-
         sig = inspect.signature(func)
         settings_parameters = []
         for field_name, field in cls.__fields__.items():
-            help_ = field.field_info.title or field.field_info.description
-            option = typer.Option(default=None, help=help_)
+            finfo = field.field_info
+            if finfo.title and finfo.description:
+                help_ = f"{finfo.title}: {finfo.description}"
+            elif finfo.title:
+                help_ = finfo.title
+            elif finfo.description:
+                help_ = finfo.description
+            else:
+                help_ = None
+
+            parser=None
             if field.outer_type_ in [SecretStr, pydantic.types.SecretStr]:
-                # typer doesn't support SecretStr, there's not any realistic way to add such support to typer,
-                # and it's not really necessary anyway, so we just use str instead and let pydantic handle the
-                # conversion to SecretStr
-                type_ = str
+                type_ = SecretStr
+                parser = SecretStr
+            elif get_origin(field.outer_type_) is dict:
+                type_ = List[str]
+                help_ += " (key value pairs separated by =)"
+                def parse_key_value(value):
+                    try:
+                        k, v = value.split("=", 1)
+                    except ValueError:
+                        raise ValueError("Key value pairs must be separated by =")
+                    return k, v
+                parser = parse_key_value
             else:
                 type_ = field.outer_type_
+            option = typer.Option(default=None, help=help_, parser=parser)
             param = inspect.Parameter(
                 field_name,
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
@@ -1166,6 +1181,30 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         except (KeyboardInterrupt, EOFError):
             pass
 
+    def interactive_save_config(self):
+        # _interactive_save_config is a class method, but we want to call it on an instance
+        # after instance values have been updated. 
+        # One unfortunate side-effect of triggering _interactive_save_config from an instance method
+        # as opposed to a pydantic validator, is that `SecretStr` fields cannot be directly serialized. 
+        # they get treated as strings, serialized as "*************", and then the original actual value is lost.
+
+        from collections.abc import Mapping, Iterable
+
+        # to prevent this, we-ll need to recursively walk the model and replace SecretStr fields with their actual values
+        values = self.dict()
+        def _walk(d):
+            if isinstance(d, Mapping):
+                for k, v in d.items():
+                    if isinstance(v, SecretStr):
+                        d[k] = v.get_secret_value()
+                    elif isinstance(v, (Mapping, Iterable)):
+                        _walk(v)
+            elif isinstance(d, Iterable) and not isinstance(d, str):
+                for i in d:
+                    _walk(i)
+        _walk(values)
+        self.__class__._interactive_save_config(values)
+
     class Config(PydanticBaseSettings.Config):
         env_file = ".env"
         app_name: str = None  # type: ignore
@@ -1224,4 +1263,5 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
 # These imports are placed down here to avoid circular imports
 from .nested_data import *  # noqa
+
 from .prompt import Prompt

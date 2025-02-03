@@ -9,7 +9,7 @@ requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 dynamic = ["version"]
-dependencies = ["uoft_core", "uoft_aruba", "grist_api"]
+dependencies = ["uoft_core", "uoft_aruba", "grist_api >= 0.1"]
 
 [project.urls]
 Repository = "https://github.com/uoft-networking/tools/tree/main/projects/grist"

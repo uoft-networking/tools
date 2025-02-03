@@ -44,7 +44,15 @@ class ArubaRESTAPIClient:
         self.session.params.update({"UIDARUBA": token, "config_path": self.default_config_path})  # type: ignore
 
     def logout(self):
-        self.session.delete(self.endpoint.logout)
+        self.session.post(self.endpoint.logout)
+        
+        # At some undocumented point, aruba changed the logout procedure.
+        # in such a way as to cause logout to silently fail.
+        # logging out the old way does not produce an error, but the session is not actually logged out.
+        # I can find no documentation about WHEN this change was made, so for compatability, 
+        # We're going to do both methods
+        self.session.delete(self.endpoint.old_logout)
+
 
     def show_raw(self, cmd, **params):
         return self.session.get(
@@ -94,7 +102,8 @@ class ArubaRESTAPIClient:
             # the namespace's parent class, which is the ArubaRESTAPIClient class
             nonlocal self
             login = f"https://{self.host}/v1/api/login"
-            logout = f"https://{self.host}/rest/v1/login-sessions"
+            logout = f"https://{self.host}/v1/api/logout"
+            old_logout = f"https://{self.host}/rest/v1/login-sessions"
             showcommand = f"https://{self.host}/v1/configuration/showcommand"
             object = f"https://{self.host}/v1/configuration/object"
             container = f"https://{self.host}/v1/configuration/container"

@@ -23,8 +23,9 @@ import re
 import concurrent.futures as cf
 
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
-from uoft_core import BaseSettings, Field, Prompt
+from uoft_core import Field, Prompt
 from uoft_bluecat import Settings as BluecatSettings
+from uoft_librenms import Settings as LibrenmsSettings
 from uoft_core import logging
 
 import pynautobot
@@ -49,7 +50,9 @@ network_prefix_as_str: typing.TypeAlias = str
 CommonID: typing.TypeAlias = ip_address_as_str | network_prefix_as_str
 "common id used to identify objects in both systems"
 
-Status: typing.TypeAlias = typing.Literal["Active", "Reserved", "Deprecated"]
+# The `| str` here is a catchall for any undefined status pulled from nautobot
+Status: typing.TypeAlias = typing.Literal["Active", "Reserved", "Deprecated", "Planned"] | str
+
 PrefixType: typing.TypeAlias = typing.Literal["container", "network", "pool"]
 
 
@@ -74,6 +77,8 @@ class PrefixModel(BaseModel):
 class DeviceModel(BaseModel):
     hostname: str
     ip_address: ip_address_as_str
+    status: Status | None = None
+
 
 
 Prefixes: typing.TypeAlias = dict[network_prefix_as_str, PrefixModel]
@@ -123,6 +128,9 @@ class Target:
 
     def load_data(self, datasets: set[DatasetName]):
         raise NotImplementedError
+    
+    def preprocess(self, source: str|None=None, dest: str|None=None):
+        pass
 
     def create(self, records: dict[DatasetName, dict[CommonID, BaseModel]]):
         raise NotImplementedError
@@ -164,8 +172,18 @@ class SyncManager:
             dest_task.result()
         self.loaded = True
 
+    def preprocess(self):
+        """
+        Pre-process / transform the data before synchronization.
+        This method dispatches out to the preprocess methods of the source and destination systems.
+        """
+        logger.info("Giving each side of the sync a chance to preprocess the data it will present")
+        self.source.preprocess(dest=self.dest.name)
+        self.dest.preprocess(source=self.source.name)
+
     def synchronize(self):
         assert self.loaded, "Data must be loaded before synchronization can occur"
+        self.preprocess()
 
         logger.info("Comparing data between source and destination systems")
         for dataset in self.datasets:
@@ -314,14 +332,18 @@ class NautobotTarget(Target):
 
         for nb_device in raw_data.devices:
             local_ids[nb_device["name"]] = nb_device["id"]
+            device_status = raw_data.statuses[nb_device["status"]["id"]]
             if ip4 := nb_device.get("primary_ip4"):
                 ip_addr_id = ip4["id"]
             elif ip6 := nb_device.get("primary_ip6"):
                 ip_addr_id = ip6["id"]
+            elif device_status != "Active":
+                logger.warning(f"Nautobot: Device {nb_device['name']} is not active and does not have an IP address, skipping...")
+                continue
             else:
                 raise Exception(f"Device {nb_device['name']} has no primary IP address")
             ip_address = self.api.ipam.ip_addresses.get(ip_addr_id)["address"]  # type: ignore
-            devices[nb_device["name"]] = dict(hostname=nb_device["name"], ip_address=ip_address)
+            devices[nb_device["name"]] = dict(hostname=nb_device["name"], ip_address=ip_address, status=device_status)
 
         self.syncdata = SyncData(
             prefixes=prefixes or None,
@@ -371,8 +393,7 @@ class NautobotTarget(Target):
 
             statuses: dict[str, Status] = {
                 s["id"]: s["name"]  # type: ignore
-                for s in statuses_task.result()
-                if s["name"] in ["Active", "Reserved", "Deprecated"]  # type: ignore
+                for s in statuses_task.result() # type: ignore
             }  # type: ignore
             global_namespace_id: str = global_namespace_task.result()  # type: ignore
             soft_delete_tag_id: str = soft_delete_tag_id_task.result()  # type: ignore
@@ -385,6 +406,26 @@ class NautobotTarget(Target):
             global_namespace_id=global_namespace_id,
             soft_delete_tag_id=soft_delete_tag_id,
         )
+
+    def preprocess(self, source: str | None = None, dest: str | None = None):
+        if source is None:
+            if dest == "librenms":
+                # strip the netmask from all device ip addresses
+                assert self.syncdata.devices
+                filtered_devices = {}
+                for device_name, device in self.syncdata.devices.items():
+                    if device.status and device.status != "Active":
+                        continue
+                    device.ip_address = device.ip_address.split("/")[0]
+                    # strip the status from all devices. we no longer need it
+                    device.status = None
+                    filtered_devices[device_name] = device
+                self.syncdata.devices = filtered_devices
+            else:
+                # strip the status from all devices. we no longer need it
+                assert self.syncdata.devices
+                for device in self.syncdata.devices.values():
+                    device.status = None
 
     def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         for dataset, records in recordset.items():
@@ -723,3 +764,61 @@ class BluecatTarget(Target):
         self._ipv4_nets.sort(key=lambda x: x.prefixlen, reverse=True)
         self._ipv6_nets.sort(key=lambda x: x.prefixlen, reverse=True)
         return self._ipv4_nets, self._ipv6_nets
+
+
+class LibreNMSTarget(Target):
+    name = "librenms"
+
+    def __init__(self) -> None:
+        self.api = LibrenmsSettings.from_cache().api_connection()
+
+    def load_data(self, datasets: set[DatasetName]):
+        raw_data = self.load_data_raw()
+
+
+        local_ids = {}
+        devices = {}
+
+        logger.info("LibreNMS: Processing devices")
+        for raw_device in raw_data:
+            # we only care about switches. ignore everything else
+            # TODO: add PDUs and UPSes to nautobot, sync to/from librenms
+            if raw_device["type"] not in ["network"]:
+                continue
+            hostname = raw_device["hostname"].split(".")[0]
+            local_ids[hostname] = raw_device["device_id"]
+            ip_address = raw_device["ip"]
+            devices[hostname] = DeviceModel(hostname=hostname, ip_address=ip_address)
+
+        self.syncdata = SyncData(
+            prefixes=None,
+            addresses=None,
+            devices=devices,
+            local_ids=local_ids,
+        )
+
+    def load_data_raw(self):
+        logger.info("LibreNMS: Loading all devices")
+        return self.api.devices.list_devices(order_type="all")["devices"]
+    
+    def create(self, records: dict[DatasetName, dict[CommonID, BaseModel]]):
+        devices = records["devices"]
+        logger.info(f"LibreNMS: Creating {len(devices)} devices")
+        for device in devices.values():
+            self.create_device(device)
+
+    def create_device(self, device: DeviceModel):
+        self.api.devices.add_device(
+            hostname=f"{device.hostname}.netmgmt.utsc.utoronto.ca", 
+            overwrite_ip=device.ip_address
+        )
+
+def _debug():
+    sm = SyncManager(source=NautobotTarget(), dest=LibreNMSTarget(), datasets={"devices"})
+    sm.load()
+    # TODO: devices from nautobot have address + netmask, devices in librenms have ip
+    # can't just strip the netmask, as its needed for syncing to bluecat.
+    # need to find a way to customize the datasets to be synchronized based on the target destination...
+    sm.synchronize()
+    print()
+    sm.commit()

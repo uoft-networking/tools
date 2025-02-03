@@ -11,6 +11,7 @@ import typer
 from uoft_core import logging
 from uoft_core.console import console
 from . import Settings
+from .pexpect_utils import UofTPexpectSpawn
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +33,82 @@ def _version_callback(value: bool):
 
 app = typer.Typer(
     name="ssh",
+    no_args_is_help=True,
+    help=__doc__,  # Use this module's docstring as the main program help text
+)
+
+
+class HostKeyChanged(Exception):
+    pass
+
+
+class UnknownHostKey(Exception):
+    pass
+
+
+class HostKeyAlgorithmMismatch(Exception):
+    def __init__(self, theirs: str, *args: object) -> None:
+        self.theirs = theirs
+        super().__init__(*args)
+
+
+class KeyExchangeMethodMismatch(HostKeyAlgorithmMismatch):
+    pass
+
+
+def get_ssh_session(
+    host: str,
+    username: str,
+    password: str,
+    command: Optional[str] = None,
+    accept_unknown_host=False,
+    extra_args: list[str] = [""],
+):
+    command_line = f"ssh {' '.join(extra_args)} {username}@{host}"
+    if command:
+        command_line += f" {command}"
+    logger.debug(f"Running command: {command_line}")
+
+    child = UofTPexpectSpawn(command_line, encoding="utf-8")
+    logger.info("Waiting for password prompt")
+
+    match = child.expect(
+        [
+            "[pP]assword:",
+            "has changed and you have requested strict checking",
+            r"no matching (host key type|key exchange method) found. Their offer: (.*)",
+            r"The authenticity of host '[^']*' can't be established",
+        ]
+    )
+    if match == 1:
+        raise HostKeyChanged("Host key has changed")
+    elif match == 2:
+        logger.error(child.after.strip())  # type: ignore
+        mismatch_type = child.match.group(1).strip()  # type: ignore
+        value = child.match.group(2).strip()  # type: ignore
+        if mismatch_type == "host key type":
+            raise HostKeyAlgorithmMismatch(value)
+        elif mismatch_type == "key exchange method":
+            raise KeyExchangeMethodMismatch(value)
+    elif match == 3:
+        if accept_unknown_host:
+            logger.info(f"Adding host key for {host} to known_hosts")
+            child.sendline("yes")
+        else:
+            raise UnknownHostKey("Host key is unknown")
+
+    child.sendline(password)
+    return child
+
+
+@app.command(
     context_settings={
         "max_content_width": 120,
         "help_option_names": ["-h", "--help"],
         "ignore_unknown_options": True,
         "allow_extra_args": True,
     },
-    no_args_is_help=True,
-    help=__doc__,  # Use this module's docstring as the main program help text
 )
-
-
-@app.command()
 # @Settings.wrap_typer_command
 # TODO: implement support for exploding submodels in Settings.wrap_typer_command
 def ssh(
@@ -51,7 +116,7 @@ def ssh(
     host: Annotated[str, typer.Argument(help="The hostname or IP address of the remote server")],
     command: Annotated[
         str | None,
-        typer.Argument(
+        typer.Option(
             help="The command to run on the remote server. "
             "Interactive shell will be launched if no command specified",
         ),
@@ -59,14 +124,14 @@ def ssh(
     login_as_admin: Annotated[
         bool, typer.Option("--login-as-admin", help="Login as admin user (instead of using your utorid)")
     ] = False,
-    version: Annotated[
-        Optional[bool],
-        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
-    ] = None,
     debug: Annotated[bool, typer.Option("--debug", help="Turn on debug logging", envvar="DEBUG")] = False,
     trace: Annotated[
         bool, typer.Option("--trace", help="Turn on trace logging. implies --debug", envvar="TRACE")
     ] = False,
+    _: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
 ):
     """
     SSH into a remote host, automatically authenticating you using encrypted credentials.
@@ -85,8 +150,12 @@ def ssh(
     Additionally, you can at any point in time hit the escape character (default is ^]) to inject the enable password
     into the running SSH session.
 
+    Note:
+        This command accepts all the same arguments as the `ssh` command, with one exception:
+        due to the complexities of combining CLI parsers, to run a command on the target machine instead of a shell,
+        the command must be supplied as an option instead of an argument. ie, instead of `ssh host 'cat /some/file'`,
+        you would run `ssh --command 'cat /some/file' host`
     """
-    import pexpect
 
     global DEBUG_MODE
     log_level = "INFO"
@@ -116,43 +185,32 @@ def ssh(
     else:
         username = creds.username
 
-    ssh_command = f"ssh {' '.join(extra_args)} {username}@{ip_addr}"
-    if command:
-        ssh_command += f" {command}"
-
-    logger.debug(f"Running command: {ssh_command}")
-
-    child = pexpect.spawn(ssh_command)
-    logger.info("Waiting for password prompt")
-
-    # TODO: on timeout, check for host key errors and handle them
-    match = child.expect(
-        [
-            "[pP]assword:",
-            "has changed and you have requested strict checking",
-            r"no matching (host key type|key exchange method) found. Their offer: (.*)",
-        ]
-    )
-    if match == 1:
+    try:
+        child = get_ssh_session(host, username, password=creds.password.get_secret_value(), extra_args=extra_args)
+    except HostKeyChanged:
         logger.error(f"Host key for {host} has changed")
         logger.warning("If this is expected, run the following command to remove the old key:")
         logger.warning(f"[bold]ssh-keygen -R {host}[/]")
         logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]")
         sys.exit(1)
-    elif match == 2:
-        logger.error(child.after.decode().strip())
-        mismatch_type = child.match.group(1).decode().strip()
-        value = child.match.group(2).decode().strip()
-        if mismatch_type == "host key type":
-            opt = "HostKeyAlgorithms"
-        elif mismatch_type == "key exchange method":
-            opt = "KexAlgorithms"
+    except KeyExchangeMethodMismatch as e:
+        logger.error(f"Key exchange method mismatch: {e.theirs}")
         logger.warning("If this is expected, run this command again with the following flag:")
-        logger.warning(f"-o {opt}=+{value}")
+        logger.warning(f"-o KexAlgorithms=+{e.theirs}")
         sys.exit(1)
+    except HostKeyAlgorithmMismatch as e:
+        logger.error(f"Host key algorithm mismatch: {e.theirs}")
+        logger.warning("If this is expected, run this command again with the following flag:")
+        logger.warning(f"-o HostKeyAlgorithms=+{e.theirs}")
+        sys.exit(1)
+    except UnknownHostKey:
+        logger.error(f"Host key for {host} is unknown")
+        logger.warning("If this is not your first time connecting to this host, this may be a security risk.")
+        logger.warning(" hit Ctrl-C to abort, or hit Enter to continue connecting")
+        input()
+        child = get_ssh_session(host, username, password=creds.password.get_secret_value(), accept_unknown_host=True)
 
     console().set_window_title(f"uoft-ssh {host}")
-    child.sendline(creds.password.get_secret_value())
     while True:
         child.interact()
         if child.isalive():

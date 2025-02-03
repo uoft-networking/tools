@@ -739,6 +739,5 @@ class Command(BaseCommand):
     help = "Create or update DeviceType entries in the database, from a 'netbox-community/devicetype-library' compatible git repo"
 
     def handle(self, *args, **options):
-        
 
         update_device_types()

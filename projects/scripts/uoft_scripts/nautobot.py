@@ -23,6 +23,7 @@ and then calling the synchronize method on the source manager instance.
 import json
 from pathlib import Path
 import typing
+import time
 
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
 from uoft_core import logging
@@ -74,6 +75,7 @@ def get_settings(dev: bool = False):
 logger = logging.getLogger(__name__)
 
 ##!SECTION Nornir
+
 
 class NautobotInventory:
     def __init__(self) -> None:
@@ -207,8 +209,8 @@ class NautobotInventory:
                 else:
                     password = ssh_s.personal.password.get_secret_value()
             extras = data.get("connection_options", {}).get("extras", {})
-            extras['secret'] = ssh_s.enable_secret.get_secret_value()
-            connection_options['netmiko'] = nornir_inventory.ConnectionOptions(
+            extras["secret"] = ssh_s.enable_secret.get_secret_value()
+            connection_options["netmiko"] = nornir_inventory.ConnectionOptions(
                 hostname=hostname,
                 port=data.get("connection_options", {}).get("port"),
                 username=username,
@@ -547,6 +549,7 @@ def template_filter_info(
 @app.command()
 def test_golden_config_templates(
     device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    override_status: str|None = None,
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
     print_output: bool = True,
@@ -558,6 +561,10 @@ def test_golden_config_templates(
         raise typer.Exit(1)
     gql_query = templates_dir.joinpath("graphql/golden_config.graphql").read_text()
     data = nb.graphql.query(gql_query, {"device_id": device.id}).json["data"]["device"]
+
+    if override_status:
+        assert override_status in ["Active", "Planned"], "Status must be either 'Active' or 'Planned'"
+        data["status"]['name'] = override_status
 
     # we need to copy the behaviour of the transposer function without actually importing it
     data["data"] = data.copy()
@@ -579,6 +586,7 @@ def push_changes_to_nautobot(
     dev: bool = False,
 ):
     import subprocess
+    con = console()
 
     # make sure git status is clean
     git_status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, cwd=templates_dir)
@@ -592,9 +600,55 @@ def push_changes_to_nautobot(
     gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
     job = nb.extras.jobs.get(name="Git Repository: Sync")
     job_result = nb.extras.jobs.run(job_id=job.id, data={"repository": gitrepo.id}).job_result
-    print("A new `GitRepository: Sync` job run has been triggered. Job status / results can be found here:")
-    print(job_result.url.replace("/api/", "/"))
+    con.print("A new `GitRepository: Sync` job run has been triggered. Job status / results can be found here:")
+    url = job_result.url.replace("/api/", "/")
+    con.print(f"[link={url}]{url}[/link]")
+    return job_result
 
+@typing.no_type_check
+@app.command()
+def test_templates_in_nautobot(
+    templates_dir: TemplatesPath = Path("."),
+    dev: bool = False,
+):
+    job_result = push_changes_to_nautobot(templates_dir, dev)
+    nb = get_settings(dev).api_connection()
+    con = console()
+    con.print("Waiting for job to complete...")
+    while True:
+        new_result = nb.extras.job_results.get(job_result.id)
+        if new_result.status.value not in ['STARTED', 'PENDING']:
+            con.print(' ')
+            break
+        con.print(".", end="")
+        time.sleep(1)
+    logger.success('Job completed with status: ' + new_result.status.value)
+    if new_result.status.value != 'SUCCESS':
+        logger.error("Job failed")
+        logger.error(new_result)
+        return new_result
+    job = nb.extras.jobs.get(name="Generate Intended Configurations")
+    all_platform_uuids = [p.id for p in nb.dcim.platforms.all()]
+    job_result = nb.extras.jobs.run(job_id=job.id, data={'platform': all_platform_uuids}).job_result
+    con.print("A new `Generate Intended Configurations` job run has been triggered")
+    con.print('Details can be found here:')
+    url = job_result.url.replace("/api/", "/")
+    con.print(f"[link={url}]{url}[/link]")
+    con.print("Waiting for job to complete...")
+    while True:
+        new_result = nb.extras.job_results.get(job_result.id)
+        if new_result.status.value not in ['STARTED', 'PENDING']:
+            con.print(' ')
+            break
+        con.print(".", end="")
+        time.sleep(2)
+    if new_result.status.value != 'SUCCESS':
+        logger.error("Job failed")
+        logger.error(new_result)
+        return new_result
+    logger.success('Job completed with status: ' + new_result.status.value)
+    return new_result
+    
 
 def _assert_cwd_is_devicetype_library():
     if not (Path(".git").exists() and Path("device-types").exists()):
@@ -833,6 +887,32 @@ def device_type_add_or_update(
     logger.info("Done!")
 
 
+def _select_from_queryset(
+    prompt,
+    nb,
+    queryset,
+    name,
+    msg,
+    key="name",
+    create_new_callback: typing.Callable | None = None,
+    **kwargs,
+):
+    mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
+    choices = list(mapping.keys())
+    if create_new_callback:
+        choices = ["Create a new one...", *choices]
+    choice = prompt.get_from_choices(
+        name,
+        list(mapping.keys()),
+        msg,
+        completer_opts=dict(ignore_case=True),
+        **kwargs,
+    )
+    if create_new_callback and choice == "Create a new one...":
+        return create_new_callback()
+    return choice, mapping[choice]
+
+
 @app.command()
 def new_switch(
     dev: bool = False,
@@ -845,33 +925,12 @@ def new_switch(
     prompt = Settings._prompt()
     nb = get_settings(dev).api_connection()
 
-    def _select_from_queryset(
-        queryset,
-        name,
-        msg,
-        key="name",
-        create_new_callback: typing.Callable | None = None,
-        **kwargs,
-    ):
-        mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
-        choices = list(mapping.keys())
-        if create_new_callback:
-            choices = ["Create a new one...", *choices]
-        choice = prompt.get_from_choices(
-            name,
-            list(mapping.keys()),
-            msg,
-            completer_opts=dict(ignore_case=True),
-            **kwargs,
-        )
-        if create_new_callback and choice == "Create a new one...":
-            return create_new_callback()
-        return choice, mapping[choice]
-
     name = prompt.get_string("name", "Enter the name of the switch")
 
     logger.info("Loading list of available Manufacturers from Nautobot...")
     manufacturer, manufacturer_id = _select_from_queryset(
+        prompt,
+        nb,
         nb.dcim.manufacturers.all(),
         "manufacturer",
         "Select a manufacturer for this switch",
@@ -879,6 +938,8 @@ def new_switch(
 
     logger.info(f"Loading list of available {manufacturer} Device Types from Nautobot...")
     dt, dt_id = _select_from_queryset(
+        prompt,
+        nb,
         nb.dcim.device_types.filter(manufacturer=manufacturer_id),
         "device_type",
         "Select a device type for this switch",
@@ -886,7 +947,18 @@ def new_switch(
         fuzzy_search=True,
     )
 
+    logger.info("Checking to see if this device type has been deployed before...")
+    if nb.dcim.devices.count(device_type=dt_id) == 0:
+        if not prompt.get_bool(
+            var="confirm_device_type",
+            description=f"There are currently 0 switches in Nautobot with device type '{dt}'. "
+            "Are you sure you want to use this device type?",
+        ):
+            return
+
     platform, platform_id = _select_from_queryset(
+        prompt,
+        nb,
         nb.dcim.platforms.filter(manufacturer=manufacturer_id),
         "platform",
         "Select a platform for this switch",
@@ -895,6 +967,8 @@ def new_switch(
 
     logger.info("Loading list of Device Roles from Nautobot...")
     role, role_id = _select_from_queryset(
+        prompt,
+        nb,
         nb.extras.roles.filter(content_types="dcim.device"),
         "role",
         "What kind of switch are you creating?",
@@ -913,7 +987,7 @@ def new_switch(
             generate_rprompt=False,
         )
         location_name = prompt.get_string("room_name", "Enter the name of the location")
-        logger.info(f"Creating new location '{name}'...")
+        logger.info(f"Creating new location '{location_name}'...")
         location_record = nb.dcim.locations.create(
             name=location_name,
             location_type={"name": "Room"},
@@ -1032,15 +1106,21 @@ def new_switch(
         )
 
     logger.info(f"Checking to see if {primary_ip4} already exists in Nautobot...")
-    if ipv4 := nb.ipam.ip_addresses.get(address=primary_ip4):
+    host, _, prefix_length = primary_ip4.partition("/")
+    if ipv4 := nb.ipam.ip_addresses.get(q=host):
         logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
+        if ipv4.mask_length != int(prefix_length):  # type: ignore
+            logger.error(
+                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "  # type: ignore
+                "Please rerun script with this CIDR or update the IP address prefix manually in Nautobot."
+            )
+            return
         nb.ipam.ip_addresses.update(
             id=ipv4.id,  # type: ignore
             data=dict(
                 status="Active",
                 description=name,
                 dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
-                address=primary_ip4,
             ),
         )
     else:
@@ -1096,15 +1176,21 @@ def regen_interfaces(
     logger.info(f"Regenerating entries for {device_name} based on device type {device_type.model}")
     logger.info("Regenerating interfaces...")
     for i_t in nb.dcim.interface_templates.filter(device_type=device_type.id):
-        nb.dcim.interfaces.create(
-            device=device.id,
-            name=i_t.name,  # type: ignore
-            label=i_t.label,  # type: ignore
-            type=i_t.type.value,  # type: ignore
-            mgmt_only=i_t.mgmt_only,  # type: ignore
-            description=i_t.description,  # type: ignore
-            status="Active",
-        )
+        try:
+            nb.dcim.interfaces.create(
+                device=device.id,
+                name=i_t.name,  # type: ignore
+                label=i_t.label,  # type: ignore
+                type=i_t.type.value,  # type: ignore
+                mgmt_only=i_t.mgmt_only,  # type: ignore
+                description=i_t.description,  # type: ignore
+                status="Active",
+            )
+        except pynautobot.RequestError as e:
+            if "must make a unique set" in e.args[0]:
+                logger.info(f"Interface {i_t.name} already exists")
+            else:
+                raise e
     logger.info("Regenerating console ports...")
     for c_t in nb.dcim.console_port_templates.filter(device_type=device_type.id):
         nb.dcim.console_ports.create(
@@ -1129,9 +1215,7 @@ def regen_interfaces(
 @typing.no_type_check
 @app.command()
 def rebuild_switch(
-    device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
-    manufacturer: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_manufacturers)],
-    device_type: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_device_types)],
+    set_status_to_planned: bool = False,
     dev: bool = False,
 ):
     """
@@ -1142,13 +1226,44 @@ def rebuild_switch(
     """
     prompt = Settings._prompt()
     nb = get_settings(dev).api_connection()
-    device = nb.dcim.devices.get(name=device_name)
+
+    name = prompt.get_string("name", "Enter the name of the switch")
+
+    device = nb.dcim.devices.get(name=name)
     if not device:
-        logger.error(f"Device {device_name} not found in Nautobot")
+        logger.error(f"Device {name} not found in Nautobot")
         return
-    manufacturer = nb.dcim.manufacturers.get(name=manufacturer)
-    device_type = nb.dcim.device_types.get(model=device_type, manufacturer=manufacturer.id)
-    platforms = nb.dcim.platforms.filter(manufacturer=manufacturer.id)
+
+    logger.info("Loading list of available Manufacturers from Nautobot...")
+    manufacturer, manufacturer_id = _select_from_queryset(
+        prompt,
+        nb,
+        nb.dcim.manufacturers.all(),
+        "manufacturer",
+        "Select a manufacturer for this switch",
+    )
+
+    logger.info(f"Loading list of available {manufacturer} Device Types from Nautobot...")
+    device_type, dt_id = _select_from_queryset(
+        prompt,
+        nb,
+        nb.dcim.device_types.filter(manufacturer=manufacturer_id),
+        "device_type",
+        "Select a device type for this switch",
+        key="model",
+        fuzzy_search=True,
+    )
+
+    logger.info("Checking to see if this device type has been deployed before...")
+    if nb.dcim.devices.count(device_type=dt_id) == 0:
+        if not prompt.get_bool(
+            var="confirm_device_type",
+            description=f"There are currently 0 switches in Nautobot with device type '{device_type}'. "
+            "Are you sure you want to use this device type?",
+        ):
+            return
+
+    platforms = nb.dcim.platforms.filter(manufacturer=manufacturer_id)
     if len(platforms) > 1:
         platform = prompt.get_from_choices(
             "platform",
@@ -1185,10 +1300,28 @@ def rebuild_switch(
 
     logger.info("Updating device type...")
     device.manufacturer = manufacturer
-    device.device_type = device_type
+    device.device_type = dt_id
     if platform:
         device.platform = platform
 
+    if set_status_to_planned:
+        device.status = "Planned"
+
     device.save()
     # create new interfaces / console ports / power ports based on the new device type
-    regen_interfaces(device_name, dev)
+    regen_interfaces(name, dev)
+
+
+def _group_config(snippet: str) -> list[str|list[str]]:
+    # Break up the config snippet into a list of lines. 
+    # Group lines that start with an indent in with the non-indented line above them
+    lst = snippet.splitlines()
+    for i, line in reversed(list(enumerate(lst))):
+        if line.startswith(" "):
+            lst.pop(i)
+            if isinstance(lst[i - 1], str):
+                # convert the parent config line to a list
+                lst[i - 1] = [lst[i - 1]]  # type: ignore
+            lst[i - 1].append(line)  # type: ignore
+    return lst  # type: ignore
+

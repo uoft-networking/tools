@@ -1,6 +1,6 @@
 """
 This module stores a random assortment of functions and utilities which require 
-additinal dependencies not included in uoft_core by default.
+additional dependencies not included in uoft_core by default.
 """
 
 import re
@@ -106,6 +106,8 @@ def add_comments_to_yaml_doc(doc: str, model: "BaseModel", indent=0):
             submodel = model.__getattribute__(field.name)
             doc = add_comments_to_yaml_doc(doc, submodel, indent + 2)
     return doc
+
+
 
 # deprecated, use `uoft_core.prompt.Prompt` instead
 class Prompt:

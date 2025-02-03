@@ -205,9 +205,18 @@ def sudo(cmd: str, user: str = "root", login=False, capture_output=True, **kwarg
         **kwargs: passed to pexpect.spawn
     """
     import pexpect
+    from getpass import getpass
 
     kwargs: dict[str, Any] = dict(cwd=REPO_ROOT, timeout=5) | kwargs
-    passwd = run("pass sudo", cap=True)
+    try:
+        passcmd = os.environ.get('PASS_CMD', 'pass')
+        passwd = run(f"{passcmd} sudo", cap=True)
+    except subprocess.CalledProcessError:
+        logger.warning(
+            "to avoid being prompted for sudo every time, consider installing pass "
+            "(https://www.passwordstore.org/) and adding your sudo password to it (`pass edit sudo`)"
+        )
+        passwd = getpass(f"Enter sudo password for {user}: ")
     login_flag = "-i" if login else ""
     logger.info(f"[orange3]sudo({user}):[/] " + cmd)
     cmd = f"sudo {login_flag} -u {user} {cmd}"
@@ -232,6 +241,7 @@ def cd(path: Path | str):
         yield
     finally:
         os.chdir(old_cwd)
+
 
 def _create_root_app():
     def prettyprinter_result_callback(result, *args, **kwargs):

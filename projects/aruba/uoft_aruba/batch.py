@@ -101,6 +101,23 @@ class Provisioner:
                 else:
                     raise e
 
+    def deprovision_aps(self, inputs: Sequence[tuple[str, str, str]]):
+        return list(self.deprovision_aps_iter(inputs))
+    
+    def deprovision_aps_iter(self, inputs: Iterable[tuple[str, str, str]]):
+        for ap in inputs:
+            try:
+                ap_dict = {"AP-Name": ap[0], "MAC-Address": ap[2]}
+                yield self.delete_existing_ap(ap_dict)
+            except ProvisionError as e:
+                if self.error_policy == "skip":
+                    console().print(
+                        f"[red]ERROR[/] {e.args[0]} [red]SKIPPING[/] {e.ap}"
+                    )
+                    yield e
+                else:
+                    raise e
+
     def force_provision_ap(self, ap: AP, old_ap: dict[str, str]):
         self.delete_existing_ap(old_ap)
         return self.provision_ap(ap.name, group=ap.group, mac_address=ap.mac_address)
