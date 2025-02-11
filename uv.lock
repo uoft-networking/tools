@@ -2286,22 +2286,24 @@ wheels = [
 
 [[package]]
 name = "nautobot-golden-config"
-version = "2.1.2"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "deepdiff" },
     { name = "django-pivot" },
     { name = "hier-config" },
     { name = "matplotlib" },
+    { name = "nautobot" },
     { name = "nautobot-capacity-metrics" },
     { name = "nautobot-plugin-nornir" },
     { name = "netutils" },
+    { name = "numpy" },
     { name = "toml" },
     { name = "xmldiff" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/95/b5/508d424fdb82819214be9382ea1b533a14f8faf6c82ef968de5ea6e291f0/nautobot_golden_config-2.1.2.tar.gz", hash = "sha256:62b7ebcc92e573d4518fe17a0bee3e00cb2363682bed053ad89efcb648a185a9", size = 7370100 }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/f8/5c3e1f2fa6aecd4c13e556c87160e39d8183b1d155c0d55c3ac02308f477/nautobot_golden_config-2.3.0.tar.gz", hash = "sha256:af64e21bf807fef60cc8299f2342c1d195e54f089db7896b78e9b0dfd98e4f2f", size = 7512470 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ca/62/18783573285a8d2a913408c403e634174ec80d3cbae1f95c50c3666bf1cc/nautobot_golden_config-2.1.2-py3-none-any.whl", hash = "sha256:2b86c331148f080ecbc26d74a4b5ab9ee78e86eb8ab85ad8fd73bd105f9be2df", size = 7536411 },
+    { url = "https://files.pythonhosted.org/packages/1c/77/f98f0bfc57911b9258fc2b5cbb58f7b060f83bbadaf2c575764f41c6daf3/nautobot_golden_config-2.3.0-py3-none-any.whl", hash = "sha256:74237fc6159ba6a8c9083a3aa32ff3dcf1680233bbcce55102b05def556dacef", size = 187666 },
 ]
 
 [[package]]
@@ -4104,7 +4106,7 @@ dev = [
 
 [[package]]
 name = "uoft-aruba"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/aruba" }
 dependencies = [
     { name = "typer" },
@@ -4119,7 +4121,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-bluecat"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/bluecat" }
 dependencies = [
     { name = "uoft-core" },
@@ -4130,7 +4132,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-core"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/core" }
 dependencies = [
     { name = "prompt-toolkit" },
@@ -4167,7 +4169,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-grist"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/grist" }
 dependencies = [
     { name = "grist-api" },
@@ -4184,7 +4186,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-librenms"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/librenms" }
 dependencies = [
     { name = "uoft-core" },
@@ -4195,7 +4197,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-nautobot"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/nautobot" }
 dependencies = [
     { name = "debugpy" },
@@ -4234,7 +4236,7 @@ requires-dist = [
     { name = "napalm-aruba-cx", specifier = ">=0.1" },
     { name = "nautobot", editable = "custom-forks/nautobot" },
     { name = "nautobot-device-onboarding", specifier = ">=3.0" },
-    { name = "nautobot-golden-config", specifier = ">=2.1" },
+    { name = "nautobot-golden-config", specifier = ">=2.3" },
     { name = "nautobot-ssot", specifier = ">=2.7" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "ptpython", specifier = ">=3.0.29" },
@@ -4250,7 +4252,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-paloalto"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/paloalto" }
 dependencies = [
     { name = "uoft-core" },
@@ -4261,7 +4263,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-phpipam"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/phpipam" }
 dependencies = [
     { name = "uoft-core" },
@@ -4272,7 +4274,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
@@ -4323,7 +4325,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-snipeit"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/snipeit" }
 dependencies = [
     { name = "pillow" },
@@ -4342,7 +4344,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-ssh"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/ssh" }
 dependencies = [
     { name = "pexpect" },
@@ -4357,7 +4359,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-switchconfig"
-version = "0.1.dev514+g6bbc116.d20250210"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/switchconfig" }
 dependencies = [
     { name = "arrow" },
