@@ -195,7 +195,7 @@ class NautobotInventory:
             device["location"] = device["location"]["name"] if device["location"] else None
             device["role"] = device["role"]["name"] if device["role"] else None
             device["vlan_group"] = device["vlan_group"]["name"] if device["vlan_group"] else None
-            device['software_version'] = device['software_version']['version'] if device['software_version'] else None
+            device["software_version"] = device["software_version"]["version"] if device["software_version"] else None
 
             # Add host to hosts by name first, ID otherwise - to string
             host_platform = device["network_driver"]
@@ -1190,7 +1190,7 @@ def regen_interfaces(
             )
         except pynautobot.RequestError as e:
             if "must make a unique set" in e.args[0]:
-                logger.info(f"Interface {i_t.name} already exists")
+                logger.info(f"Interface {i_t.name} already exists") # type: ignore
             else:
                 raise e
     logger.info("Regenerating console ports...")
@@ -1313,30 +1313,32 @@ def rebuild_switch(
     # create new interfaces / console ports / power ports based on the new device type
     regen_interfaces(name, dev)
 
+
 class ComplianceReportGoal(StrEnum):
     add = "add"
     remove = "remove"
 
+
 @app.command()
 def generate_compliance_commands(
-    feature: str = 'base',
+    feature: str = "base",
     goal: ComplianceReportGoal = ComplianceReportGoal.add,
-    filters: list[str]|None = None,
-    sub_filters: list[str]|None = None,
+    filters: list[str] | None = None,
+    sub_filters: list[str] | None = None,
 ):
     filters = filters or []
     sub_filters = sub_filters or []
     res = {}
     for report in get_compliance_data(feature):
         if goal == ComplianceReportGoal.add:
-            config = report.missing # missing config to add
+            config = report.missing  # missing config to add
             prefix = ""
         elif goal == ComplianceReportGoal.remove:
-            config = report.extra # extra config to remove
+            config = report.extra  # extra config to remove
             prefix = "no "
         matched_commands = filter_config(config=config, filters=filters, sub_filters=sub_filters)
         if matched_commands:
-            res[report.device.name] = [prefix+cmd for cmd in matched_commands]
+            res[report.device.name] = [prefix + cmd for cmd in matched_commands]
     print(json.dumps(res, indent=2))
 
 
@@ -1446,7 +1448,11 @@ def _sort_config_snippet(snippet: str):
     return "\n".join(sorted(lst))
 
 
-def _devices_with_matching_line(line: str, compliance_data: list[ComplianceReport], config_type: Literal["actual", "intended"] = "actual"):
+def _devices_with_matching_line(
+    line: str, 
+    compliance_data: list[ComplianceReport], 
+    config_type: typing.Literal["actual", "intended"] = "actual"
+):
     logger.info(f"Please wait, searching for devices with matching line: '{line}'")
     matching_devices = [c.device for c in compliance_data if line in getattr(c, config_type)]
     tab = Table(title=f"Devices with matching line: {line}")
@@ -1455,9 +1461,7 @@ def _devices_with_matching_line(line: str, compliance_data: list[ComplianceRepor
     tab.add_column("Platform Version")
     tab.add_column("Device Type")
     for device in matching_devices:
-        tab.add_row(
-            device.name, device.status, device.software_version, device.device_type
-        )
+        tab.add_row(device.name, device.status, device.software_version, device.device_type)
     return tab
 
 
@@ -1489,21 +1493,24 @@ def _generate_report_comparison_table(report: ComplianceReport):
     return tab, extra_config, missing_config
 
 
-def _generate_statistics_summary(compliance_data: list[ComplianceReport], report: ComplianceReport, line: str, config_type: Literal["actual", "intended"] = "actual"):
-    if config_type == 'actual':
+def _generate_statistics_summary(
+    compliance_data: list[ComplianceReport],
+    report: ComplianceReport,
+    line: str,
+    config_type: typing.Literal["actual", "intended"] = "actual",
+):
+    if config_type == "actual":
         have_column = "Have This Line"
     else:
         have_column = "Don't Have this line (but should)"
-    
+
     tab = Table(title="Statistics")
     tab.add_column("Statistic")
     tab.add_column("Out of Total")
     tab.add_column(have_column)
-    
+
     def row(title, key):
-        out_of_total = [
-            r for r in compliance_data if getattr(r.device, key) == getattr(report.device, key)
-        ]
+        out_of_total = [r for r in compliance_data if getattr(r.device, key) == getattr(report.device, key)]
         out_of_total_str = (
             f"{len(out_of_total)}/{len(compliance_data)}({len(out_of_total) / len(compliance_data) * 100:.2f}%)"
         )
@@ -1542,16 +1549,20 @@ def explore_compliance(feature: str):
             continue
         report_config_table, extra_config, missing_config = _generate_report_comparison_table(report)
         con.print(report_config_table)
-        side = Prompt.ask("Do you want to explore the left or right (l/r) side of this report? Press enter to skip to next report", console=con, choices=['l', 'r', ''])
+        side = Prompt.ask(
+            "Do you want to explore the left or right (l/r) side of this report? Press enter to skip to next report",
+            console=con,
+            choices=["l", "r", ""],
+        )
         if side:
             line_number = IntPrompt.ask("Enter the line number you want to explore")
-            if side == 'l':
-                config_type = 'actual'
-                line = extra_config[line_number-1]
+            if side == "l":
+                config_type = "actual"
+                line = extra_config[line_number - 1]
             else:
-                config_type = 'intended'
-                line = missing_config[line_number-1]
-        
+                config_type = "intended"
+                line = missing_config[line_number - 1]
+
             stats_table = _generate_statistics_summary(compliance_data, report, line, config_type=config_type)
             con.print(stats_table)
 
