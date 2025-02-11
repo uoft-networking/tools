@@ -14,7 +14,7 @@ def pdm_build_initialize(context):
         # if so, this call won't be necessary
         subprocess.run(["git", "submodule", "init"], cwd=monorepo_root)
         forks_dir = monorepo_root / "custom-forks"
-        forks = {fork.name: fork for fork in forks_dir.iterdir() if fork.is_dir()}
+        forks = {fork.name: fork for fork in forks_dir.iterdir() if fork.is_dir() and not fork.name.startswith("_")}
 
         if target == "local":
 
