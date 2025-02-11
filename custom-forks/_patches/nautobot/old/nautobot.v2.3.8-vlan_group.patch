@@ -1,0 +1,481 @@
+From eb246e7dc9eca8ed7678638aa61ce10568b87985 Mon Sep 17 00:00:00 2001
+From: Alex Tremblay <alex.tremblay@utoronto.ca>
+Date: Mon, 19 Aug 2024 23:46:31 -0400
+Subject: [PATCH] add vlan_group foreign key to Device model
+
+---
+ nautobot/dcim/api/serializers.py              |  8 +--
+ nautobot/dcim/api/views.py                    |  1 +
+ nautobot/dcim/factory.py                      |  2 +
+ nautobot/dcim/filters/__init__.py             |  7 +++
+ nautobot/dcim/forms.py                        | 57 ++++++++++++-------
+ .../dcim/migrations/0063_device_vlan_group.py | 25 ++++++++
+ nautobot/dcim/models/device_components.py     | 14 +++++
+ nautobot/dcim/models/devices.py               | 16 ++++--
+ nautobot/dcim/tables/devices.py               |  5 ++
+ nautobot/dcim/templates/dcim/device.html      |  6 ++
+ nautobot/dcim/templates/dcim/device_edit.html |  1 +
+ nautobot/dcim/utils.py                        | 15 ++---
+ nautobot/dcim/views.py                        |  1 +
+ nautobot/ipam/filters.py                      |  8 +--
+ 14 files changed, 124 insertions(+), 42 deletions(-)
+ create mode 100644 nautobot/dcim/migrations/0063_device_vlan_group.py
+
+diff --git a/nautobot/dcim/api/serializers.py b/nautobot/dcim/api/serializers.py
+index 180240c5d..02f605e17 100644
+--- a/nautobot/dcim/api/serializers.py
++++ b/nautobot/dcim/api/serializers.py
+@@ -606,7 +606,7 @@ class DeviceSerializer(TaggedModelSerializerMixin, NautobotModelSerializer):
+     class Meta:
+         model = Device
+         fields = "__all__"
+-        list_display_fields = ["name", "status", "tenant", "location", "rack", "role", "device_type", "primary_ip"]
++        list_display_fields = ["name", "status", "tenant", "location", "vlan_group", "rack", "role", "device_type", "primary_ip"]
+         validators = []
+         extra_kwargs = {
+             "parent_bay": {"required": False, "allow_null": True},
+@@ -621,6 +621,7 @@ class DeviceSerializer(TaggedModelSerializerMixin, NautobotModelSerializer):
+                         "fields": [
+                             "name",
+                             "location",
++                            "vlan_group",
+                             "rack",
+                             "face",
+                             "position",
+@@ -806,11 +807,10 @@ class InterfaceSerializer(
+         else:
+             location_ids = []
+         for vlan in data.get("tagged_vlans", []):
+-            if vlan.locations.exists() and not vlan.locations.filter(pk__in=location_ids).exists():
++            if vlan.vlan_group != device.vlan_group:
+                 raise serializers.ValidationError(
+                     {
+-                        "tagged_vlans": f"VLAN {vlan} must have the same location as the interface's parent device, "
+-                        f"or is in one of the parents of the interface's parent device's location, or it must be global."
++                        "tagged_vlans": f"VLAN {vlan} must belong to the same VLAN group as the device ({device.vlan_group})"
+                     }
+                 )
+ 
+diff --git a/nautobot/dcim/api/views.py b/nautobot/dcim/api/views.py
+index 5b9faa4e8..671ddebf9 100644
+--- a/nautobot/dcim/api/views.py
++++ b/nautobot/dcim/api/views.py
+@@ -390,6 +390,7 @@ class DeviceViewSet(ConfigContextQuerySetMixin, NautobotModelViewSet):
+         "platform",
+         "rack",
+         "location",
++        "vlan_group",
+         "parent_bay",
+         "primary_ip4",
+         "primary_ip6",
+diff --git a/nautobot/dcim/factory.py b/nautobot/dcim/factory.py
+index 78116677f..83a6d5693 100644
+--- a/nautobot/dcim/factory.py
++++ b/nautobot/dcim/factory.py
+@@ -157,6 +157,8 @@ class DeviceFactory(PrimaryModelFactory):
+         lambda: Location.objects.filter(location_type__content_types=ContentType.objects.get_for_model(Device)),
+         allow_null=False,
+     )
++    vlan_group = random_instance(
++        lambda: VLANGroup.objects.filter(location=Location.objects.filter(location_type__content_types=ContentType.objects.get_for_model(Device))), allow_null=False)
+     name = factory.LazyAttributeSequence(lambda o, n: f"{o.device_type.model}-{n + 1}")
+ 
+     has_tenant = NautobotBoolIterator()
+diff --git a/nautobot/dcim/filters/__init__.py b/nautobot/dcim/filters/__init__.py
+index 409ab3da2..1067630ec 100644
+--- a/nautobot/dcim/filters/__init__.py
++++ b/nautobot/dcim/filters/__init__.py
+@@ -799,6 +799,7 @@ class DeviceFilterSet(
+                 "lookup_expr": "icontains",
+                 "preprocessor": str.strip,
+             },
++            "vlan_group__name": "icontains",
+             "comments": "icontains",
+         },
+     )
+@@ -822,6 +823,12 @@ class DeviceFilterSet(
+     platform = NaturalKeyOrPKMultipleChoiceFilter(
+         queryset=Platform.objects.all(), to_field_name="name", label="Platform (name or ID)"
+     )
++    vlan_group = NaturalKeyOrPKMultipleChoiceFilter(
++        prefers_id=True,
++        queryset=VLANGroup.objects.all(),
++        to_field_name="name",
++        label="VLAN Group (name or ID)",
++    )
+     rack_group = TreeNodeMultipleChoiceFilter(
+         prefers_id=True,
+         queryset=RackGroup.objects.all(),
+diff --git a/nautobot/dcim/forms.py b/nautobot/dcim/forms.py
+index 59941707d..c77366f00 100644
+--- a/nautobot/dcim/forms.py
++++ b/nautobot/dcim/forms.py
+@@ -65,7 +65,7 @@ from nautobot.extras.models import (
+     Team,
+ )
+ from nautobot.ipam.constants import BGP_ASN_MAX, BGP_ASN_MIN
+-from nautobot.ipam.models import IPAddress, IPAddressToInterface, VLAN, VLANLocationAssignment, VRF
++from nautobot.ipam.models import IPAddress, IPAddressToInterface, VLAN, VLANGroup, VLANLocationAssignment, VRF
+ from nautobot.tenancy.forms import TenancyFilterForm, TenancyForm
+ from nautobot.tenancy.models import Tenant, TenantGroup
+ from nautobot.virtualization.models import Cluster, ClusterGroup, VirtualMachine
+@@ -216,26 +216,37 @@ class InterfaceCommonForm(forms.Form):
+         # Validate tagged VLANs; must be a global VLAN or in the same location as the
+         # parent device/VM or any of that location's parent locations
+         elif mode == InterfaceModeChoices.MODE_TAGGED:
+-            location = self.cleaned_data[parent_field].location
+-            if location:
+-                location_ids = location.ancestors(include_self=True).values_list("id", flat=True)
++            if parent_field == "device":
++                vlan_group = self.cleaned_data[parent_field].vlan_group
++                invalid_vlans = [
++                    str(v)
++                    for v in tagged_vlans
++                    if v.vlan_group is not None and v.vlan_group != vlan_group
++                ]
++
++                if invalid_vlans:
++                    raise forms.ValidationError(
++                        {
++                            "tagged_vlans": f"The tagged VLANs ({', '.join(invalid_vlans)}) must belong to the same VLAN Group as "
++                            f"the interface's parent device"
++                        }
++                    )
+             else:
+-                location_ids = []
+-            invalid_vlans = [
+-                str(v)
+-                for v in tagged_vlans
+-                if v.locations.without_tree_fields().exists()
+-                and not VLANLocationAssignment.objects.filter(location__in=location_ids, vlan=v).exists()
+-            ]
+-
+-            if invalid_vlans:
+-                raise forms.ValidationError(
+-                    {
+-                        "tagged_vlans": f"The tagged VLANs ({', '.join(invalid_vlans)}) must have the same location as the "
+-                        "interface's parent device, or is in one of the parents of the interface's parent device's location, "
+-                        "or it must be global."
+-                    }
+-                )
++                valid_location = self.cleaned_data[parent_field].location
++                invalid_vlans = [
++                    str(v)
++                    for v in tagged_vlans
++                    if v.locations.without_tree_fields().exists()
++                    and not VLANLocationAssignment.objects.filter(location=valid_location, vlan=v).exists()
++                ]
++
++                if invalid_vlans:
++                    raise forms.ValidationError(
++                        {
++                            "tagged_vlans": f"The tagged VLANs ({', '.join(invalid_vlans)}) must belong to the same location as "
++                            f"the interface's parent device/VM, or they must be global"
++                        }
++                    )
+ 
+ 
+ class ComponentForm(BootstrapMixin, forms.Form):
+@@ -1894,6 +1905,7 @@ class DeviceForm(LocatableModelFormMixin, NautobotModelForm, TenancyForm, LocalC
+             "rack_group": "$rack_group",
+         },
+     )
++    vlan_group = DynamicModelChoiceField(queryset=VLANGroup.objects.all())
+     device_redundancy_group = DynamicModelChoiceField(queryset=DeviceRedundancyGroup.objects.all(), required=False)
+     controller_managed_device_group = DynamicModelChoiceField(
+         queryset=ControllerManagedDeviceGroup.objects.all(), required=False
+@@ -1964,6 +1976,7 @@ class DeviceForm(LocatableModelFormMixin, NautobotModelForm, TenancyForm, LocalC
+             "software_image_files",
+             "software_version",
+             "location",
++            "vlan_group",
+             "rack",
+             "device_redundancy_group",
+             "device_redundancy_group_priority",
+@@ -2113,6 +2126,7 @@ class DeviceBulkEditForm(
+         required=False,
+         query_params={"location": "$location", "rack_group": "$rack_group"},
+     )
++    vlan_group = DynamicModelChoiceField(required=False, queryset=VLANGroup.objects.all())
+     position = forms.IntegerField(required=False)
+     face = forms.ChoiceField(
+         required=False,
+@@ -2145,6 +2159,7 @@ class DeviceBulkEditForm(
+             "position",
+             "face",
+             "rack_group",
++            "vlan_group",
+             "secrets_group",
+             "device_redundancy_group",
+             "device_redundancy_group_priority",
+@@ -2172,6 +2187,7 @@ class DeviceFilterForm(
+     field_order = [
+         "q",
+         "location",
++        "vlan_group",
+         "rack_group",
+         "rack",
+         "status",
+@@ -2202,6 +2218,7 @@ class DeviceFilterForm(
+             "rack_group": "$rack_group",
+         },
+     )
++    vlan_group = DynamicModelMultipleChoiceField(queryset=VLANGroup.objects.all(), required=False, label="VLAN Group")
+     manufacturer = DynamicModelMultipleChoiceField(
+         queryset=Manufacturer.objects.all(),
+         to_field_name="name",
+diff --git a/nautobot/dcim/migrations/0063_device_vlan_group.py b/nautobot/dcim/migrations/0063_device_vlan_group.py
+new file mode 100644
+index 000000000..e69eaa804
+--- /dev/null
++++ b/nautobot/dcim/migrations/0063_device_vlan_group.py
+@@ -0,0 +1,25 @@
++# Generated by Django 4.2.15 on 2024-08-20 02:58
++
++from django.db import migrations, models
++import django.db.models.deletion
++
++
++class Migration(migrations.Migration):
++    dependencies = [
++        ("ipam", "0047_alter_ipaddress_role_alter_ipaddress_status_and_more"),
++        ("dcim", "0062_module_data_migration"),
++    ]
++
++    operations = [
++        migrations.AddField(
++            model_name="device",
++            name="vlan_group",
++            field=models.ForeignKey(
++                blank=True,
++                null=True,
++                on_delete=django.db.models.deletion.RESTRICT,
++                related_name="devices",
++                to="ipam.vlangroup",
++            ),
++        ),
++    ]
+diff --git a/nautobot/dcim/models/device_components.py b/nautobot/dcim/models/device_components.py
+index 2026ae51c..aad833e68 100644
+--- a/nautobot/dcim/models/device_components.py
++++ b/nautobot/dcim/models/device_components.py
+@@ -734,6 +734,7 @@ class Interface(ModularComponentModel, CableTermination, PathEndpoint, BaseInter
+             location_ids = []
+         if (
+             self.untagged_vlan
++            and not hasattr(self.parent, "vlan_group") # Location-based validation is not applicable to Devices, which have vlan_group associations
+             and self.untagged_vlan.locations.exists()
+             and self.parent
+             and not self.untagged_vlan.locations.filter(pk__in=location_ids).exists()
+@@ -746,6 +747,19 @@ class Interface(ModularComponentModel, CableTermination, PathEndpoint, BaseInter
+                     )
+                 }
+             )
++        
++        if (
++            self.untagged_vlan
++            and hasattr(self.parent, 'vlan_group') # True for Device, False for VM
++            and self.untagged_vlan.vlan_group != self.parent.vlan_group
++        ):
++            raise ValidationError(
++                {
++                    "untagged_vlan": (
++                        f"The untagged VLAN ({self.untagged_vlan}) must belong to the same VLAN Group as the interface's parent device"
++                    )
++                }
++            )
+ 
+         # Bridge validation
+         if self.bridge is not None:
+diff --git a/nautobot/dcim/models/devices.py b/nautobot/dcim/models/devices.py
+index 90c0d762f..2bf325415 100644
+--- a/nautobot/dcim/models/devices.py
++++ b/nautobot/dcim/models/devices.py
+@@ -529,6 +529,13 @@ class Device(PrimaryModel, ConfigContextModel):
+     )
+     # todoindex:
+     face = models.CharField(max_length=50, blank=True, choices=DeviceFaceChoices, verbose_name="Rack face")
++    vlan_group = models.ForeignKey(
++        to="ipam.VLANGroup",
++        on_delete=models.RESTRICT,
++        related_name="devices",
++        null=True,
++        blank=True,
++    )
+     primary_ip4 = models.ForeignKey(
+         to="ipam.IPAddress",
+         on_delete=models.SET_NULL,
+@@ -620,6 +627,7 @@ class Device(PrimaryModel, ConfigContextModel):
+         "tenant",
+         "platform",
+         "location",
++        "vlan_group",
+         "rack",
+         "status",
+         "cluster",
+@@ -666,11 +674,10 @@ class Device(PrimaryModel, ConfigContextModel):
+ 
+         # Validate location
+         if self.location is not None:
+-            # TODO: after Location model replaced Site, which was not a hierarchical model, should we allow users to assign a Rack belongs to
+-            # the parent Location or the child location of `self.location`?
++            valid_locations = [*self.location.ancestors(), self.location]
+ 
+-            if self.rack is not None and self.rack.location != self.location:
+-                raise ValidationError({"rack": f'Rack "{self.rack}" does not belong to location "{self.location}".'})
++            if self.rack is not None and self.rack.location not in valid_locations:
++                raise ValidationError({"rack": f'Rack "{self.rack}" does not belong to location "{self.location}" or any of its parents.'})
+ 
+             # self.cluster is validated somewhat later, see below
+ 
+@@ -679,6 +686,7 @@ class Device(PrimaryModel, ConfigContextModel):
+                     {"location": f'Devices may not associate to locations of type "{self.location.location_type}".'}
+                 )
+ 
++
+         if self.rack is None:
+             if self.face:
+                 raise ValidationError(
+diff --git a/nautobot/dcim/tables/devices.py b/nautobot/dcim/tables/devices.py
+index 6786523c7..90a1a1567 100644
+--- a/nautobot/dcim/tables/devices.py
++++ b/nautobot/dcim/tables/devices.py
+@@ -154,6 +154,7 @@ class DeviceTable(StatusTableMixin, RoleTableMixin, BaseTable):
+     name = tables.TemplateColumn(order_by=("_name",), template_code=DEVICE_LINK)
+     tenant = TenantColumn()
+     location = tables.Column(linkify=True)
++    vlan_group = tables.Column(linkify=True, verbose_name="VLAN Group")
+     rack = tables.Column(linkify=True)
+     device_type = tables.LinkColumn(
+         viewname="dcim:devicetype",
+@@ -189,6 +190,7 @@ class DeviceTable(StatusTableMixin, RoleTableMixin, BaseTable):
+             "serial",
+             "asset_tag",
+             "location",
++            "vlan_group",
+             "rack",
+             "position",
+             "face",
+@@ -211,6 +213,7 @@ class DeviceTable(StatusTableMixin, RoleTableMixin, BaseTable):
+             "status",
+             "tenant",
+             "location",
++            "vlan_group",
+             "rack",
+             "role",
+             "device_type",
+@@ -223,6 +226,7 @@ class DeviceImportTable(BaseTable):
+     status = ColoredLabelColumn()
+     tenant = TenantColumn()
+     location = tables.Column(linkify=True)
++    vlan_group = tables.Column(linkify=True, verbose_name="VLAN Group")
+     rack = tables.Column(linkify=True)
+     role = tables.Column(verbose_name="Role")
+     device_type = tables.Column(verbose_name="Type")
+@@ -234,6 +238,7 @@ class DeviceImportTable(BaseTable):
+             "status",
+             "tenant",
+             "location",
++            "vlan_group",
+             "rack",
+             "position",
+             "role",
+diff --git a/nautobot/dcim/templates/dcim/device.html b/nautobot/dcim/templates/dcim/device.html
+index 853cd0467..0c196c7e1 100644
+--- a/nautobot/dcim/templates/dcim/device.html
++++ b/nautobot/dcim/templates/dcim/device.html
+@@ -23,6 +23,12 @@
+                                             {% include 'dcim/inc/location_hierarchy.html' with location=object.location %}
+                                         </td>
+                                     </tr>
++                                    <tr>
++                                        <td>VLAN Group</td>
++                                        <td>
++                                            {{ object.vlan_group|hyperlinked_object }}
++                                        </td>
++                                    </tr>
+                                     <tr>
+                                         <td>Rack</td>
+                                         <td>
+diff --git a/nautobot/dcim/templates/dcim/device_edit.html b/nautobot/dcim/templates/dcim/device_edit.html
+index 29310d4ce..d5f05688f 100644
+--- a/nautobot/dcim/templates/dcim/device_edit.html
++++ b/nautobot/dcim/templates/dcim/device_edit.html
+@@ -9,6 +9,7 @@
+         <div class="panel-body">
+             {% render_field form.name %}
+             {% render_field form.role %}
++            {% render_field form.vlan_group %}
+         </div>
+     </div>
+     <div class="panel panel-default">
+diff --git a/nautobot/dcim/utils.py b/nautobot/dcim/utils.py
+index f3281de60..6c1210a67 100644
+--- a/nautobot/dcim/utils.py
++++ b/nautobot/dcim/utils.py
+@@ -139,14 +139,12 @@ def validate_interface_tagged_vlans(instance, model, pk_set):
+         )
+ 
+     # Filter the model objects based on the primary keys passed in kwargs and exclude the ones that have
+-    # a location that is not the parent's location, or parent's location's ancestors, or None
+-    location = getattr(instance.parent, "location", None)
+-    if location:
+-        location_ids = location.ancestors(include_self=True).values_list("id", flat=True)
+-    else:
+-        location_ids = []
++    # a location that is not the parent's location or None
++    # TODO: after Location model replaced Site, which was not a hierarchical model, should we allow users to add a VLAN
++    # belongs to the parent Location or the child location of the parent device to the `tagged_vlan` field of the interface?
++    device_vlan_group = getattr(instance.parent, "vlan_group", None)
+     tagged_vlans = (
+-        model.objects.filter(pk__in=pk_set).exclude(locations__isnull=True).exclude(locations__in=location_ids)
++        model.objects.filter(pk__in=pk_set).exclude(vlan_group__isnull=True).exclude(vlan_group__in=[device_vlan_group])
+     )
+ 
+     if tagged_vlans.count():
+@@ -154,8 +152,7 @@ def validate_interface_tagged_vlans(instance, model, pk_set):
+             {
+                 "tagged_vlans": (
+                     f"Tagged VLAN with names {list(tagged_vlans.values_list('name', flat=True))} must all belong to the "
+-                    "same location as the interface's parent device, "
+-                    "one of the parent locations of the interface's parent device's location, or it must be global."
++                    f"same VLAN Group as the interface's parent device."
+                 )
+             }
+         )
+diff --git a/nautobot/dcim/views.py b/nautobot/dcim/views.py
+index 4c053cf95..df71212ad 100644
+--- a/nautobot/dcim/views.py
++++ b/nautobot/dcim/views.py
+@@ -1761,6 +1761,7 @@ class DeviceListView(generic.ObjectListView):
+ class DeviceView(generic.ObjectView):
+     queryset = Device.objects.select_related(
+         "location",
++        "vlan_group",
+         "rack__rack_group",
+         "tenant__tenant_group",
+         "role",
+diff --git a/nautobot/ipam/filters.py b/nautobot/ipam/filters.py
+index 0c5c74077..876bb17f8 100644
+--- a/nautobot/ipam/filters.py
++++ b/nautobot/ipam/filters.py
+@@ -587,13 +587,11 @@ class VLANFilterSet(
+ 
+     def get_for_device(self, queryset, name, value):
+         """Return all VLANs available to the specified Device(value)."""
+-        devices = Device.objects.select_related("location").filter(**{f"{name}__in": value})
++        devices = Device.objects.select_related("vlan_group").filter(**{f"{name}__in": value})
+         if not devices.exists():
+             return queryset.none()
+-        location_ids = list(devices.values_list("location__id", flat=True))
+-        for location in Location.objects.filter(pk__in=location_ids):
+-            location_ids.extend([ancestor.id for ancestor in location.ancestors()])
+-        return queryset.filter(Q(locations__isnull=True) | Q(locations__in=location_ids))
++        vlan_group_ids = list(devices.values_list("vlan_group__id", flat=True))
++        return queryset.filter(Q(vlan_group__in=vlan_group_ids))
+ 
+ 
+ class VLANLocationAssignmentFilterSet(NautobotFilterSet):
+-- 
+2.34.1
+

@@ -24,6 +24,8 @@ import json
 from pathlib import Path
 import typing
 import time
+import re
+from difflib import Differ
 
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
 from uoft_core import logging
@@ -42,6 +44,8 @@ import deepdiff.model
 import typer
 import jinja2
 import nornir.core.inventory as nornir_inventory
+from rich.table import Table
+from rich.prompt import Prompt, IntPrompt, Confirm
 
 
 # NOTE: this really aught to live in a uoft-nautobot package, dedicated to code surrounding the nautobot rest api,
@@ -94,6 +98,7 @@ class NautobotInventory:
                         name
                     }
                 }
+                software_version { version }
                 platform {
                     name
                     network_driver
@@ -190,6 +195,7 @@ class NautobotInventory:
             device["location"] = device["location"]["name"] if device["location"] else None
             device["role"] = device["role"]["name"] if device["role"] else None
             device["vlan_group"] = device["vlan_group"]["name"] if device["vlan_group"] else None
+            device["software_version"] = device["software_version"]["version"] if device["software_version"] else None
 
             # Add host to hosts by name first, ID otherwise - to string
             host_platform = device["network_driver"]
@@ -198,16 +204,10 @@ class NautobotInventory:
 
             username = data.get("connection_options", {}).get("username")
             if not username:
-                if name.startswith("m1-"):
-                    username = ssh_s.admin.username
-                else:
-                    username = ssh_s.personal.username
+                username = ssh_s.personal.username
             password = data.get("connection_options", {}).get("password")
             if not password:
-                if name.startswith("m1-"):
-                    password = ssh_s.admin.password.get_secret_value()
-                else:
-                    password = ssh_s.personal.password.get_secret_value()
+                password = ssh_s.personal.password.get_secret_value()
             extras = data.get("connection_options", {}).get("extras", {})
             extras["secret"] = ssh_s.enable_secret.get_secret_value()
             connection_options["netmiko"] = nornir_inventory.ConnectionOptions(
@@ -549,7 +549,7 @@ def template_filter_info(
 @app.command()
 def test_golden_config_templates(
     device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
-    override_status: str|None = None,
+    override_status: str | None = None,
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
     print_output: bool = True,
@@ -564,7 +564,7 @@ def test_golden_config_templates(
 
     if override_status:
         assert override_status in ["Active", "Planned"], "Status must be either 'Active' or 'Planned'"
-        data["status"]['name'] = override_status
+        data["status"]["name"] = override_status
 
     # we need to copy the behaviour of the transposer function without actually importing it
     data["data"] = data.copy()
@@ -586,6 +586,7 @@ def push_changes_to_nautobot(
     dev: bool = False,
 ):
     import subprocess
+
     con = console()
 
     # make sure git status is clean
@@ -605,6 +606,7 @@ def push_changes_to_nautobot(
     con.print(f"[link={url}]{url}[/link]")
     return job_result
 
+
 @typing.no_type_check
 @app.command()
 def test_templates_in_nautobot(
@@ -617,38 +619,38 @@ def test_templates_in_nautobot(
     con.print("Waiting for job to complete...")
     while True:
         new_result = nb.extras.job_results.get(job_result.id)
-        if new_result.status.value not in ['STARTED', 'PENDING']:
-            con.print(' ')
+        if new_result.status.value not in ["STARTED", "PENDING"]:
+            con.print(" ")
             break
         con.print(".", end="")
         time.sleep(1)
-    logger.success('Job completed with status: ' + new_result.status.value)
-    if new_result.status.value != 'SUCCESS':
+    logger.success("Job completed with status: " + new_result.status.value)
+    if new_result.status.value != "SUCCESS":
         logger.error("Job failed")
         logger.error(new_result)
         return new_result
     job = nb.extras.jobs.get(name="Generate Intended Configurations")
     all_platform_uuids = [p.id for p in nb.dcim.platforms.all()]
-    job_result = nb.extras.jobs.run(job_id=job.id, data={'platform': all_platform_uuids}).job_result
+    job_result = nb.extras.jobs.run(job_id=job.id, data={"platform": all_platform_uuids}).job_result
     con.print("A new `Generate Intended Configurations` job run has been triggered")
-    con.print('Details can be found here:')
+    con.print("Details can be found here:")
     url = job_result.url.replace("/api/", "/")
     con.print(f"[link={url}]{url}[/link]")
     con.print("Waiting for job to complete...")
     while True:
         new_result = nb.extras.job_results.get(job_result.id)
-        if new_result.status.value not in ['STARTED', 'PENDING']:
-            con.print(' ')
+        if new_result.status.value not in ["STARTED", "PENDING"]:
+            con.print(" ")
             break
         con.print(".", end="")
         time.sleep(2)
-    if new_result.status.value != 'SUCCESS':
+    if new_result.status.value != "SUCCESS":
         logger.error("Job failed")
         logger.error(new_result)
         return new_result
-    logger.success('Job completed with status: ' + new_result.status.value)
+    logger.success("Job completed with status: " + new_result.status.value)
     return new_result
-    
+
 
 def _assert_cwd_is_devicetype_library():
     if not (Path(".git").exists() and Path("device-types").exists()):
@@ -1188,7 +1190,7 @@ def regen_interfaces(
             )
         except pynautobot.RequestError as e:
             if "must make a unique set" in e.args[0]:
-                logger.info(f"Interface {i_t.name} already exists")
+                logger.info(f"Interface {i_t.name} already exists") # type: ignore
             else:
                 raise e
     logger.info("Regenerating console ports...")
@@ -1312,10 +1314,105 @@ def rebuild_switch(
     regen_interfaces(name, dev)
 
 
-def _group_config(snippet: str) -> list[str|list[str]]:
-    # Break up the config snippet into a list of lines. 
+class ComplianceReportGoal(StrEnum):
+    add = "add"
+    remove = "remove"
+
+
+@app.command()
+def generate_compliance_commands(
+    feature: str = "base",
+    goal: ComplianceReportGoal = ComplianceReportGoal.add,
+    filters: list[str] | None = None,
+    sub_filters: list[str] | None = None,
+):
+    filters = filters or []
+    sub_filters = sub_filters or []
+    res = {}
+    for report in get_compliance_data(feature):
+        if goal == ComplianceReportGoal.add:
+            config = report.missing  # missing config to add
+            prefix = ""
+        elif goal == ComplianceReportGoal.remove:
+            config = report.extra  # extra config to remove
+            prefix = "no "
+        matched_commands = filter_config(config=config, filters=filters, sub_filters=sub_filters)
+        if matched_commands:
+            res[report.device.name] = [prefix + cmd for cmd in matched_commands]
+    print(json.dumps(res, indent=2))
+
+
+class ComplianceReportDevice(BaseModel):
+    name: str
+    platform: str
+    status: str
+    software_version: str | None
+    device_type: str
+
+
+class ComplianceReport(BaseModel):
+    device: ComplianceReportDevice
+    feature: str
+    actual: str
+    intended: str
+    missing: str
+    extra: str
+    in_compliance: bool
+
+
+def get_compliance_data(feature) -> list[ComplianceReport]:
+    nb = get_settings(False).api_connection()
+    res = []
+    d = nb.graphql.query(
+        variables={"feature": feature},
+        query="""
+query ($feature: String) {
+  config_compliances (feature: [$feature]) {
+    compliance
+    rule {
+      feature { name }
+    }
+    intended
+    actual
+    missing
+    extra
+    device {
+      name
+      platform { name }
+      status { name }
+      device_type { model }
+      software_version { version }
+    }
+  }
+}
+""",
+    )
+    for r in d.json["data"]["config_compliances"]:
+        report = ComplianceReport(
+            device=ComplianceReportDevice(
+                name=r["device"]["name"],
+                platform=r["device"]["platform"]["name"],
+                status=r["device"]["status"]["name"],
+                software_version=r["device"]["software_version"]["version"]
+                if r["device"]["software_version"]
+                else None,
+                device_type=r["device"]["device_type"]["model"],
+            ),
+            feature=r["rule"]["feature"]["name"],
+            actual=r["actual"],
+            intended=r["intended"],
+            missing=r["missing"],
+            extra=r["extra"],
+            in_compliance=r["compliance"],
+        )
+        res.append(report)
+    return res
+
+
+def _group_config(config: str) -> list[str | list[str]]:
+    # Break up the config snippet into a list of lines.
     # Group lines that start with an indent in with the non-indented line above them
-    lst = snippet.splitlines()
+    lst = config.splitlines()
     for i, line in reversed(list(enumerate(lst))):
         if line.startswith(" "):
             lst.pop(i)
@@ -1325,3 +1422,151 @@ def _group_config(snippet: str) -> list[str|list[str]]:
             lst[i - 1].append(line)  # type: ignore
     return lst  # type: ignore
 
+
+def filter_config(config: str, filters: list[str], sub_filters: list[str] | None = None) -> str:
+    sub_filters = sub_filters or []
+    # Break up the config snippet into a list of lines.
+    # Group lines that start with an indent in with the non-indented line above them
+    lst = config.splitlines(keepends=True)
+    for i, line in reversed(list(enumerate(lst))):
+        if line.startswith(" "):
+            lst.pop(i)
+            if not any([re.search(f, line) for f in sub_filters]):
+                continue
+            lst[i - 1] += line
+        elif not any([re.search(f, line) for f in filters]):
+            lst.pop(i)
+    return lst  # type: ignore
+
+
+def _sort_config_snippet(snippet: str):
+    lst = snippet.splitlines(keepends=True)
+    for i, line in reversed(list(enumerate(lst))):
+        if line.startswith(" "):
+            lst.pop(i)
+            lst[i - 1] += line
+    return "\n".join(sorted(lst))
+
+
+def _devices_with_matching_line(
+    line: str, 
+    compliance_data: list[ComplianceReport], 
+    config_type: typing.Literal["actual", "intended"] = "actual"
+):
+    logger.info(f"Please wait, searching for devices with matching line: '{line}'")
+    matching_devices = [c.device for c in compliance_data if line in getattr(c, config_type)]
+    tab = Table(title=f"Devices with matching line: {line}")
+    tab.add_column("Device")
+    tab.add_column("Status")
+    tab.add_column("Platform Version")
+    tab.add_column("Device Type")
+    for device in matching_devices:
+        tab.add_row(device.name, device.status, device.software_version, device.device_type)
+    return tab
+
+
+def _generate_report_comparison_table(report: ComplianceReport):
+    tab = Table(title=report.device.name)
+    tab.add_column("Actual")
+    tab.add_column("Intended")
+    actual = _sort_config_snippet(report.actual)
+    intended = _sort_config_snippet(report.intended)
+    diff = Differ().compare(actual.splitlines(), intended.splitlines())
+    render_intended = []
+    render_actual = []
+    extra_config = []
+    missing_config = []
+    for line in diff:
+        marker, line = line[:2], line[2:]
+        if not line:
+            continue
+        if marker == "  ":
+            render_actual.append(line + "\n")
+            render_intended.append(line + "\n")
+        if marker == "+ ":
+            render_intended.append(f"[green]{line}[/green]\n")
+            missing_config.append(line)
+        if marker == "- ":
+            render_actual.append(f"[red]{line}[/red]\n")
+            extra_config.append(line)
+    tab.add_row("".join(render_actual), "".join(render_intended))
+    return tab, extra_config, missing_config
+
+
+def _generate_statistics_summary(
+    compliance_data: list[ComplianceReport],
+    report: ComplianceReport,
+    line: str,
+    config_type: typing.Literal["actual", "intended"] = "actual",
+):
+    if config_type == "actual":
+        have_column = "Have This Line"
+    else:
+        have_column = "Don't Have this line (but should)"
+
+    tab = Table(title="Statistics")
+    tab.add_column("Statistic")
+    tab.add_column("Out of Total")
+    tab.add_column(have_column)
+
+    def row(title, key):
+        out_of_total = [r for r in compliance_data if getattr(r.device, key) == getattr(report.device, key)]
+        out_of_total_str = (
+            f"{len(out_of_total)}/{len(compliance_data)}({len(out_of_total) / len(compliance_data) * 100:.2f}%)"
+        )
+        have_this_line = [r for r in out_of_total if line in getattr(r, config_type).splitlines()]
+        have_this_line_str = (
+            f"{len(have_this_line)}/{len(out_of_total)}({len(have_this_line) / len(out_of_total) * 100:.2f}%)"
+        )
+        tab.add_row(
+            f"Devices with matching {title} ({getattr(report.device, key)})",
+            out_of_total_str,
+            have_this_line_str,
+        )
+
+    # calculate percentage of devices with matching status
+    row("status", "status")
+
+    # calculate percentage of devices with matching version
+    if report.device.software_version:
+        row("version", "software_version")
+
+    # calculate percentage of devices with matching device type
+    row("device type", "device_type")
+
+    # calculate percentage of devices with matching platform
+    row("platform", "platform")
+
+    return tab
+
+
+@app.command()
+def explore_compliance(feature: str):
+    compliance_data = get_compliance_data(feature)
+    con = console()
+    for report in compliance_data:
+        if report.in_compliance:
+            continue
+        report_config_table, extra_config, missing_config = _generate_report_comparison_table(report)
+        con.print(report_config_table)
+        side = Prompt.ask(
+            "Do you want to explore the left or right (l/r) side of this report? Press enter to skip to next report",
+            console=con,
+            choices=["l", "r", ""],
+        )
+        if side:
+            line_number = IntPrompt.ask("Enter the line number you want to explore")
+            if side == "l":
+                config_type = "actual"
+                line = extra_config[line_number - 1]
+            else:
+                config_type = "intended"
+                line = missing_config[line_number - 1]
+
+            stats_table = _generate_statistics_summary(compliance_data, report, line, config_type=config_type)
+            con.print(stats_table)
+
+            if Confirm.ask("Do you want to see a list of devices with matching line?"):
+                devices_report = _devices_with_matching_line(line, compliance_data, config_type=config_type)
+                con.print(devices_report)
+            input("Press enter to continue...")
