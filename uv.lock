@@ -1,5 +1,9 @@
 version = 1
 requires-python = ">=3.10"
+resolution-markers = [
+    "platform_python_implementation == 'CPython'",
+    "platform_python_implementation != 'CPython'",
+]
 
 [manifest]
 members = [
@@ -45,10 +49,10 @@ name = "anyio"
 version = "4.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
     { name = "idna" },
     { name = "sniffio" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e6/e3/c4c8d473d6780ef1853d630d581f70d655b4f8d7553c6997958c283039a2/anyio-4.4.0.tar.gz", hash = "sha256:5aadc6a1bbb7cdb0bede386cac5e2940f5e2ff3aa20277e991cf028e0585ce94", size = 163930 }
 wheels = [
@@ -82,7 +86,7 @@ name = "asgiref"
 version = "3.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/29/38/b3395cc9ad1b56d2ddac9970bc8f4141312dbaec28bc7c218b0dfafd0f42/asgiref-3.8.1.tar.gz", hash = "sha256:c343bd80a0bec947a9860adb4c432ffa7db769836c64238fc34bdc3fec84d590", size = 35186 }
 wheels = [
@@ -134,7 +138,7 @@ version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pycodestyle" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6c/52/65556a5f917a4b273fd1b705f98687a6bd721dbc45966f0f6687e90a18b0/autopep8-2.3.1.tar.gz", hash = "sha256:8d6c87eba648fdcfc83e29b788910b8643171c395d9c4bcf115ece035b9c9dda", size = 92064 }
 wheels = [
@@ -192,8 +196,8 @@ dependencies = [
     { name = "packaging" },
     { name = "pathspec" },
     { name = "platformdirs" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/04/b0/46fb0d4e00372f4a86a6f8efa3cb193c9f64863615e39010b1477e010578/black-24.8.0.tar.gz", hash = "sha256:2500945420b6784c38b9ee885af039f5e7471ef284ab03fa35ecdde4688cd83f", size = 644810 }
 wheels = [
@@ -430,19 +434,40 @@ wheels = [
 
 [[package]]
 name = "coconut"
+version = "3.0.3"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_python_implementation == 'CPython'",
+]
+dependencies = [
+    { name = "cpyparsing", marker = "platform_python_implementation == 'CPython'" },
+    { name = "prompt-toolkit", marker = "platform_python_implementation == 'CPython' and python_full_version >= '3.10'" },
+    { name = "psutil", marker = "platform_python_implementation == 'CPython' and python_full_version >= '3.10'" },
+    { name = "pygments", marker = "platform_python_implementation == 'CPython' and python_full_version >= '3.10'" },
+    { name = "typing-extensions", marker = "platform_python_implementation == 'CPython' and python_full_version >= '3.10'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/ab/0d6b1a95bc554d35763451f17315d61c763fb4316bdc9a47129353b90e65/coconut-3.0.3.tar.gz", hash = "sha256:700309695ee247947a3b9b451603dcc36a244d307d04be1841a87afb145810b5", size = 346467 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6e/68/706f404b335de63c559caf7b823f412f9c428cd298a88328576d267f040b/coconut-3.0.3-py2.py3-none-any.whl", hash = "sha256:a303f5b0a4847b71e70ed1493f1fd18999c5657cb89fc34ae163b0693da60e0a", size = 287631 },
+]
+
+[[package]]
+name = "coconut"
 version = "3.1.2"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_python_implementation != 'CPython'",
+]
 dependencies = [
-    { name = "anyio" },
-    { name = "async-generator" },
-    { name = "cpyparsing", marker = "platform_python_implementation == 'CPython'" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
-    { name = "prompt-toolkit" },
-    { name = "psutil" },
-    { name = "pygments" },
+    { name = "anyio", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
+    { name = "async-generator", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11' and platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
+    { name = "prompt-toolkit", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
+    { name = "psutil", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
+    { name = "pygments", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
     { name = "pyparsing", marker = "platform_python_implementation != 'CPython'" },
-    { name = "setuptools" },
-    { name = "typing-extensions" },
+    { name = "setuptools", marker = "platform_python_implementation != 'CPython'" },
+    { name = "typing-extensions", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/93/75/414f33186846444da53b4e834d5ccfb0577d0e09b997819c183fa509f70a/coconut-3.1.2.tar.gz", hash = "sha256:ef0656ee2df4594007f998f4a9c2a1b9bfbc40541a400cbaa00ccbbac50e5414", size = 389774 }
 wheels = [
@@ -627,16 +652,29 @@ wheels = [
 
 [package.optional-dependencies]
 toml = [
-    { name = "tomli", marker = "python_full_version <= '3.11'" },
+    { name = "tomli", marker = "python_full_version <= '3.11' and python_full_version >= '3.10'" },
 ]
 
 [[package]]
 name = "cpyparsing"
-version = "2.4.7.2.4.0"
+version = "2.4.7.2.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/74/fe/7d45fc7fb67dd3cdaef4430c882b0b655e18ca45cf792d5feefb15f18ca2/cpyparsing-2.4.7.2.4.0.tar.gz", hash = "sha256:ee3d2f262712ad252a640131687d1b25985127a5d9ba2e1200f3017165f2ee7d", size = 1228116 }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/36/773c99e612039accd5a29058309d9a837dd97815faba8d54bd5f857fdc50/cPyparsing-2.4.7.2.3.0.tar.gz", hash = "sha256:3b776ba87c388d0bb57e25236ca5f20508aa2b3c57a521ac4db4d7e6983d7545", size = 1219078 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3f/39/4e209ad3d97b7c5f1f96172ab167feb8789e60e3feac4792ed5e384b078a/cPyparsing-2.4.7.2.4.0-cp311-cp311-win_amd64.whl", hash = "sha256:5ed4841617e3d9adb5eceec693032fcafda9b669e53b1c227552ae1fec17d62c", size = 836404 },
+    { url = "https://files.pythonhosted.org/packages/05/07/926b790a60b794bf5a5aa614415f706c44e50576dff69846b94f7705cded/cPyparsing-2.4.7.2.3.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:e963cf0383b95ff87916bce23cd167a543959b792d0a6a08f798656267013eeb", size = 1147256 },
+    { url = "https://files.pythonhosted.org/packages/6f/2a/3d75e19d1b5e54afad1af897b5384eb7999d286c151ca9a68cb69e199db9/cPyparsing-2.4.7.2.3.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:726419d46b39d9e79f70165199d438c7ba223993d3424ba20a15ca0afb25d3f2", size = 5819340 },
+    { url = "https://files.pythonhosted.org/packages/ea/37/7445285f311c233f78458489796501f8014b8aa0f8c3708b44abd70b9544/cPyparsing-2.4.7.2.3.0-cp310-cp310-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:40eb80b45086d15f4eb35106d03e497b8e36f653615cf083025bb579f8140cc2", size = 5520555 },
+    { url = "https://files.pythonhosted.org/packages/20/dd/33a8c28f0de7b1f2a13c0c283a2266965456d082a02a1b15f2c5108089a6/cPyparsing-2.4.7.2.3.0-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:16a5f505d4c48244398929b1a8699688727fe44883529e3d4028cee4eae7c3f9", size = 5395100 },
+    { url = "https://files.pythonhosted.org/packages/6e/be/0cf21e27ee34b33c8dd735784d3a9335a969e8029a9d096544d757241961/cPyparsing-2.4.7.2.3.0-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:789629aeced83e298e7fa65c02bc29ea494b890ae7cebcd56154bd0a7eb04c31", size = 5769681 },
+    { url = "https://files.pythonhosted.org/packages/45/e5/5a753af9385ca70d8fe42ffd592e95af3e1a846b3fe86f520171307654d4/cPyparsing-2.4.7.2.3.0-cp310-cp310-win32.whl", hash = "sha256:fb011e627110db43865dfde29fc7be92ec8a8237f3761adab94a93cbd4ee3ff7", size = 709856 },
+    { url = "https://files.pythonhosted.org/packages/36/af/9bf7d3226269899b8d0fbbe6faa1f455776ff53b744e2eb6937ce465b036/cPyparsing-2.4.7.2.3.0-cp310-cp310-win_amd64.whl", hash = "sha256:884ce9b0e18e0e0a441df16ace0da709d3edd2192c0b91e84c4ceca3b3edae0e", size = 820721 },
+    { url = "https://files.pythonhosted.org/packages/5b/b7/a1a2c82887b1a7aefecf2bcb9db5f36ac9c178d4c0d54e7102f36516de32/cPyparsing-2.4.7.2.3.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:0a900c84f2e0b5e2f1ef2706b2e4cd16407c098f52a4c74ff653628e7daa1fa9", size = 1156313 },
+    { url = "https://files.pythonhosted.org/packages/28/4c/8d9dc73032e60d85e7dda130d6f37a951be6f0dfdfe270e3aa7bb9676f99/cPyparsing-2.4.7.2.3.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e50e59b9223c359767fbf56f834f47ad2cdc035cccc2fb465f40be12a9fb34c5", size = 6515829 },
+    { url = "https://files.pythonhosted.org/packages/99/72/0e96743d0cb86586d4596d1df58b8c38e9fd248b21296ed6f941e2b35729/cPyparsing-2.4.7.2.3.0-cp311-cp311-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:5c3df472cb531818b5be221935f965e734810f3beff2ce1abca734345f422e62", size = 6148455 },
+    { url = "https://files.pythonhosted.org/packages/67/c0/43848e9c2c26d7cec7377dc19f36ea7e88218d4799940e64d6cfef902379/cPyparsing-2.4.7.2.3.0-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:3181dda4e0281d8221e22fd3bb830c66e92dabc3191c9424a4d369d48239c296", size = 6003252 },
+    { url = "https://files.pythonhosted.org/packages/8c/87/9f775e04eddc42ab31b4dd36de673e9b39df11a41e3df88b09210c92fa38/cPyparsing-2.4.7.2.3.0-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:e5be29d4a17b68db820a1bff345d008af69f9827003d5fbeb5f5d7c6cf782d87", size = 6466089 },
+    { url = "https://files.pythonhosted.org/packages/83/c9/7a161e016c614db6ce3505b1c3ab315bb29e1f2dff782eb5c4c08b296279/cPyparsing-2.4.7.2.3.0-cp311-cp311-win32.whl", hash = "sha256:a9a3e842244e60e64c840ceb7639460b9b7f2a4594e6f4e2b36456d354dd012a", size = 710255 },
+    { url = "https://files.pythonhosted.org/packages/f8/d3/7032322955cdb7241ddded66e254eea1b8332c24ed3e6c1f86fd27aa3aac/cPyparsing-2.4.7.2.3.0-cp311-cp311-win_amd64.whl", hash = "sha256:14c798f42a65d54f59c6a8b020c1dc568abd11ede9a5ac3c259c4cc478918816", size = 824739 },
 ]
 
 [[package]]
@@ -759,7 +797,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pydantic" },
     { name = "structlog" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/32/7d/d1e35a05ea048225049c5533e7c7a7423f197190ee0d33aa782199c5d4be/diffsync-1.10.0.tar.gz", hash = "sha256:a9d7cb8e8ce983b446bf858c1c5c82cf473fcf231db73c0855e8c59ee7cd8370", size = 31456 }
 wheels = [
@@ -1551,7 +1589,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "decorator" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
     { name = "jedi" },
     { name = "matplotlib-inline" },
     { name = "pexpect", marker = "sys_platform != 'emscripten' and sys_platform != 'win32'" },
@@ -1559,7 +1597,7 @@ dependencies = [
     { name = "pygments" },
     { name = "stack-data" },
     { name = "traitlets" },
-    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/57/24/d4fabaca03c8804bf0b8d994c8ae3a20e57e9330d277fb43d83e558dec5e/ipython-8.27.0.tar.gz", hash = "sha256:0b99a2dc9f15fd68692e898e5568725c6d49c527d36a9fb5960ffbdeaa82ff7e", size = 5494984 }
 wheels = [
@@ -1735,7 +1773,7 @@ version = "5.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "amqp" },
-    { name = "tzdata" },
+    { name = "tzdata", marker = "python_full_version >= '3.10'" },
     { name = "vine" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/38/4d/b93fcb353d279839cc35d0012bee805ed0cf61c07587916bfc35dbfddaf1/kombu-5.4.2.tar.gz", hash = "sha256:eef572dd2fd9fc614b37580e3caeafdd5af46c1eff31e7fba89138cdb406f2cf", size = 442858 }
@@ -2010,7 +2048,7 @@ name = "multidict"
 version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d6/be/504b89a5e9ca731cd47487e91c469064f8ae5af93b7259758dcfc2b9c848/multidict-6.1.0.tar.gz", hash = "sha256:22ae2ebf9b0c69d206c003e2f6a914ea33f0a932d4aa16f236afc049d9958f4a", size = 64002 }
 wheels = [
@@ -2083,7 +2121,7 @@ version = "1.11.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "mypy-extensions" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5c/86/5d7cbc4974fd564550b80fbb8103c05501ea11aa7835edf3351d90095896/mypy-1.11.2.tar.gz", hash = "sha256:7f9993ad3e0ffdc95c2a14b66dee63729f021968bff8ad911867579c65d13a79", size = 3078806 }
@@ -2791,7 +2829,7 @@ name = "psycopg"
 version = "3.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' and python_full_version >= '3.10'" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d1/ad/7ce016ae63e231575df0498d2395d15f005f05e32d3a2d439038e1bd0851/psycopg-3.2.3.tar.gz", hash = "sha256:a5764f67c27bec8bfac85764d23c534af2c27b893550377e37ce59c12aac47a2", size = 155550 }
@@ -3094,11 +3132,11 @@ version = "8.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
-    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "exceptiongroup", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8b/6c/62bbd536103af674e227c41a8f3dcd022d591f6eed5facb5a0f31ee33bbc/pytest-8.3.3.tar.gz", hash = "sha256:70b98107bd648308a7952b06e6ca9a50bc660be218d53c257cc1fc94fda10181", size = 1442487 }
 wheels = [
@@ -3348,7 +3386,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
     { name = "pyyaml" },
-    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/71/43/49c26a73df62bf39244e58ccbdfa0af073e7f86fec262c70a71515a6d4e2/pyyaml_include-2.1.tar.gz", hash = "sha256:800304da30a3686f2cadbd9888cc46db782ba3712870a723916b193368b5c4da", size = 28623 }
 wheels = [
@@ -3386,7 +3424,7 @@ name = "redis"
 version = "5.0.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "async-timeout", marker = "python_full_version < '3.11.3'" },
+    { name = "async-timeout", marker = "python_full_version < '3.11.3' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/48/10/defc227d65ea9c2ff5244645870859865cba34da7373477c8376629746ec/redis-5.0.8.tar.gz", hash = "sha256:0c5b10d387568dfe0698c6fad6615750c24170e548ca2deac10c649d463e9870", size = 4595651 }
 wheels = [
@@ -3549,7 +3587,7 @@ name = "ruamel-yaml"
 version = "0.18.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ruamel-yaml-clib", marker = "python_full_version < '3.13' and platform_python_implementation == 'CPython'" },
+    { name = "ruamel-yaml-clib", marker = "python_full_version < '3.13' and platform_python_implementation == 'CPython' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/29/81/4dfc17eb6ebb1aac314a3eb863c1325b907863a1b8b1382cdffcb6ac0ed9/ruamel.yaml-0.18.6.tar.gz", hash = "sha256:8b27e6a217e786c6fbe5634d8f3f11bc63e0f80f6a5890f28863d9c45aac311b", size = 143362 }
 wheels = [
@@ -3697,7 +3735,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "setuptools" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11' and python_full_version >= '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4f/a4/00a9ac1b555294710d4a68d2ce8dfdf39d72aa4d769a7395d05218d88a42/setuptools_scm-8.1.0.tar.gz", hash = "sha256:42dea1b65771cba93b7a515d65a65d8246e560768a66b9106a592c8e7f26c8a7", size = 76465 }
 wheels = [
@@ -3785,7 +3823,7 @@ name = "sqlalchemy"
 version = "2.0.35"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "greenlet", marker = "(python_full_version < '3.13' and platform_machine == 'AMD64') or (python_full_version < '3.13' and platform_machine == 'WIN32') or (python_full_version < '3.13' and platform_machine == 'aarch64') or (python_full_version < '3.13' and platform_machine == 'amd64') or (python_full_version < '3.13' and platform_machine == 'ppc64le') or (python_full_version < '3.13' and platform_machine == 'win32') or (python_full_version < '3.13' and platform_machine == 'x86_64')" },
+    { name = "greenlet", marker = "(python_full_version < '3.13' and platform_machine == 'AMD64' and python_full_version >= '3.10') or (python_full_version < '3.13' and platform_machine == 'WIN32' and python_full_version >= '3.10') or (python_full_version < '3.13' and platform_machine == 'aarch64' and python_full_version >= '3.10') or (python_full_version < '3.13' and platform_machine == 'amd64' and python_full_version >= '3.10') or (python_full_version < '3.13' and platform_machine == 'ppc64le' and python_full_version >= '3.10') or (python_full_version < '3.13' and platform_machine == 'win32' and python_full_version >= '3.10') or (python_full_version < '3.13' and platform_machine == 'x86_64' and python_full_version >= '3.10')" },
     { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/36/48/4f190a83525f5cefefa44f6adc9e6386c4de5218d686c27eda92eb1f5424/sqlalchemy-2.0.35.tar.gz", hash = "sha256:e11d7ea4d24f0a262bccf9a7cd6284c976c5369dac21db237cff59586045ab9f", size = 9562798 }
@@ -4036,7 +4074,8 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "black" },
-    { name = "coconut" },
+    { name = "coconut", version = "3.0.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_python_implementation == 'CPython'" },
+    { name = "coconut", version = "3.1.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_python_implementation != 'CPython'" },
     { name = "cogapp" },
     { name = "copier" },
     { name = "copier-templates-extensions" },
@@ -4106,7 +4145,8 @@ dev = [
 
 [[package]]
 name = "uoft-aruba"
-version = "0.1.dev520+gd310467.d20250211"
+
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/aruba" }
 dependencies = [
     { name = "typer" },
@@ -4121,7 +4161,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-bluecat"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/bluecat" }
 dependencies = [
     { name = "uoft-core" },
@@ -4132,7 +4172,8 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-core"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
+
 source = { editable = "projects/core" }
 dependencies = [
     { name = "prompt-toolkit" },
@@ -4169,7 +4210,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-grist"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/grist" }
 dependencies = [
     { name = "grist-api" },
@@ -4186,7 +4227,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-librenms"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/librenms" }
 dependencies = [
     { name = "uoft-core" },
@@ -4197,7 +4238,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-nautobot"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/nautobot" }
 dependencies = [
     { name = "debugpy" },
@@ -4252,7 +4293,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-paloalto"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/paloalto" }
 dependencies = [
     { name = "uoft-core" },
@@ -4263,7 +4304,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-phpipam"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/phpipam" }
 dependencies = [
     { name = "uoft-core" },
@@ -4274,7 +4315,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
@@ -4325,7 +4366,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-snipeit"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/snipeit" }
 dependencies = [
     { name = "pillow" },
@@ -4344,7 +4385,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-ssh"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/ssh" }
 dependencies = [
     { name = "pexpect" },
@@ -4359,7 +4400,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-switchconfig"
-version = "0.1.dev520+gd310467.d20250211"
+version = "0.1.dev516+g7ea6b5c.d20250226"
 source = { editable = "projects/switchconfig" }
 dependencies = [
     { name = "arrow" },
