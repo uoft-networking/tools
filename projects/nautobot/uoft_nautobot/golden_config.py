@@ -39,6 +39,10 @@ def inject_secrets(
         enable_hash=encrypt_type9(s.ssh.enable_secret.get_secret_value()),
         admin_hash=encrypt_type9(s.ssh.admin.password.get_secret_value()),
         netdisco_snmp_pw=s.ssh.other["snmp_netdisco"].get_secret_value(),
+        radius_key_cisco_ciphertext_1=s.ssh.other["radius_key_cisco_ciphertext_1"].get_secret_value(),
+        radius_key_cisco_ciphertext_2=s.ssh.other["radius_key_cisco_ciphertext_2"].get_secret_value(),
+        radius_key_arista_ciphertext_1=s.ssh.other["radius_key_arista_ciphertext_1"].get_secret_value(),
+        radius_key_arista_ciphertext_2=s.ssh.other["radius_key_arista_ciphertext_2"].get_secret_value(),
     )
 
     template = jinja_env.from_string(intended_config)

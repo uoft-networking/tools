@@ -1,0 +1,29 @@
+From b9b166a432f1888702499064e4bfff99616b2d36 Mon Sep 17 00:00:00 2001
+From: Alex Tremblay <alex.tremblay@utoronto.ca>
+Date: Mon, 10 Feb 2025 17:30:34 -0500
+Subject: [PATCH 2/2] make project installable with uv
+
+---
+ pyproject.toml | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/pyproject.toml b/pyproject.toml
+index a72e7c5f9..0c609c12b 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -1,10 +1,10 @@
+-[tool.poetry]
++[project]
+ name = "nautobot"
+ # Primary package version gets set here. This is used for publishing, and once
+ # installed, `nautobot.__version__` will have this version number.
+ version = "2.4.2"
+ description = "Source of truth and network automation platform."
+-authors = ["Network to Code <opensource@networktocode.com>"]
++authors = [{name= "Network to Code", email= "opensource@networktocode.com"}]
+ license = "Apache-2.0"
+ homepage = "https://nautobot.com"
+ repository = "https://github.com/nautobot/nautobot"
+-- 
+2.34.1
+

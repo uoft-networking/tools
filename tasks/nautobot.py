@@ -168,16 +168,16 @@ def db_refresh():
     server(["post_upgrade"])
 
 
-def refresh_graphql_schema(repo: str | None = None):
+def refresh_graphql_schema(repo: str | None = None): # type: ignore
     """
     Rebuild local graphql schema file from running models.
     Should be done after every nautobot update, and every
     time a custom field is created or modified
     """
     if repo:
-        repo = Path(repo)
+        repo: Path = Path(repo)
     else:
-        repo = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
+        repo: Path = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
     server(
         f"graphql_schema --out {repo}/graphql/_schema.graphql".split()  # type: ignore
     )
@@ -197,3 +197,34 @@ def curl_as(endpoint: str, user: str = "me", prod: bool = False, method="GET"):
         f"curl -H 'Authorization: Token {token}' -H 'Accept: application/json;' "
         + f"-H 'Content-Type: application/json' -X {method} {url}/{endpoint}"
     )
+
+
+def rebase_nautobot_custom_fork():
+    # this is way too sketchy to try and automate, so i'm just gonna remind myself how to do it
+    from uoft_core import txt
+    print(txt("""
+        cd custom-forks/nautobot
+        git fetch upstream
+        git checkout v<latest_nautobot_version>
+        git am -3 <../_patches/nautobot/<patches to apply>
+
+        # if you get any errors:
+        # open up the conflicting files, 
+        # resolve them with VS Code merge editor
+        git am --continue      
+
+        # repeat until all patches are applied
+        # If there were any conflicts to resolve, regenerate the patches with conflicts resolved
+        git format-patch -<number of commits you've applied> -o ../_patches/nautobot/ HEAD
+
+        # as a final step, we need to merge in our custom vlan_group migration
+        # into the migration tree
+        code nautobot/dcim/migrations/9999_merge_dvg_with_latest.py
+        # update the first dependency to the latest dcim migration
+
+        # Finally, force-reset the utsc-custom branch to the new nautobot version
+        git branch -D utsc-custom
+        git checkout -b utsc-custom
+        git push --force-with-lease --set-upstream origin utsc-custom      
+        """))
+

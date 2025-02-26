@@ -70,6 +70,7 @@ dev-dependencies = [
 
 [tool.uv.workspace]
 members = ["projects/*", "custom-forks/*"]
+exclude = ["custom-forks/_patches"]
 
 [tool.uv.sources]
 # [[[cog
