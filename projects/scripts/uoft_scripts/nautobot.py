@@ -76,164 +76,24 @@ def get_settings(dev: bool = False):
     return Settings.from_cache()
 
 
+DEV_NB_API = None
+PROD_NB_API = None
+
+
+def get_api(dev: bool = False):
+    global DEV_NB_API, PROD_NB_API
+    if dev:
+        if DEV_NB_API is None:
+            DEV_NB_API = get_settings(dev).api_connection()
+        return DEV_NB_API
+    else:
+        if PROD_NB_API is None:
+            PROD_NB_API = get_settings(dev).api_connection()
+        return PROD_NB_API
+
+
 logger = logging.getLogger(__name__)
 
-##!SECTION Nornir
-
-
-class NautobotInventory:
-    def __init__(self) -> None:
-        self.api = Settings.from_cache().api_connection()
-
-    def devices_with_platforms(self):
-        query = txt("""
-        query {
-            devices (platform__isnull: false) {
-                id
-                hostname: name
-                device_type {
-                    model
-                    manufacturer { name }
-                    family: device_family {
-                        name
-                    }
-                }
-                software_version { version }
-                platform {
-                    name
-                    network_driver
-                }
-                primary_ip4 {
-                    cidr: address
-                    address: host
-                }
-                primary_ip6 {
-                    cidr: address
-                    address: host
-                }
-                status {
-                    name
-                }
-                tags {
-                    name
-                }
-                location {
-                    name
-                    cf_room_number
-                    parent {
-                        name
-                        cf_building_code
-                    }
-                }
-                role {
-                    name
-                }
-                vlan_group {
-                    name
-                }
-            }
-        }
-        """)
-        return self.api.graphql.query(query).json["data"]["devices"]
-
-    def load(self) -> nornir_inventory.Inventory:
-        """Load of Nornir inventory.
-
-        Returns:
-            Inventory: Nornir Inventory
-        """
-        hosts = nornir_inventory.Hosts()
-        groups = nornir_inventory.Groups()
-        defaults = nornir_inventory.Defaults()
-
-        ssh_s = SSHSettings.from_cache()
-
-        for device in self.devices_with_platforms():  # type: ignore
-            data = device
-            data["get_nautobot_obj"] = lambda: self.api.dcim.devices.get(device["id"])  # type: ignore
-
-            name = device["hostname"] or str(device["id"])
-            # Add Primary IP address, if found. Otherwise add hostname as the device name
-            if device["primary_ip4"]:
-                hostname = device["primary_ip4"]["address"]
-            elif device["primary_ip6"]:
-                hostname = device["primary_ip6"]["address"]
-            else:
-                hostname: str = device["hostname"]
-
-            # squash nested fields
-            device["device_family"] = (
-                device["device_type"]["family"]["name"] if device["device_type"]["family"] else None
-            )
-            device["manufacturer"] = (
-                device["device_type"]["manufacturer"]["name"] if device["device_type"]["manufacturer"] else None
-            )
-            device["device_type"] = device["device_type"]["model"]
-            device["network_driver"] = device["platform"]["network_driver"]
-            device["platform"] = device["platform"]["name"]
-            device["ipv4_cidr"] = device["primary_ip4"]["cidr"] if device["primary_ip4"] else None
-            device["ipv4_address"] = device["primary_ip4"]["address"] if device["primary_ip4"] else None
-            device["ipv6_cidr"] = device["primary_ip6"]["cidr"] if device["primary_ip6"] else None
-            device["ipv6_address"] = device["primary_ip6"]["address"] if device["primary_ip6"] else None
-            device["status"] = device["status"]["name"]
-            device["tags"] = [tag["name"] for tag in device["tags"]]
-            device["room_number"] = (
-                device["location"]["cf_room_number"]
-                if device["location"] and device["location"]["cf_room_number"]
-                else None
-            )
-            device["building_name"] = (
-                device["location"]["parent"]["name"] if device["location"] and device["location"]["parent"] else None
-            )
-            device["building_code"] = (
-                device["location"]["parent"]["cf_building_code"]
-                if device["location"]
-                and device["location"]["parent"]
-                and device["location"]["parent"]["cf_building_code"]
-                else None
-            )
-            device["location"] = device["location"]["name"] if device["location"] else None
-            device["role"] = device["role"]["name"] if device["role"] else None
-            device["vlan_group"] = device["vlan_group"]["name"] if device["vlan_group"] else None
-            device["software_version"] = device["software_version"]["version"] if device["software_version"] else None
-
-            # Add host to hosts by name first, ID otherwise - to string
-            host_platform = device["network_driver"]
-
-            connection_options = {}
-
-            username = data.get("connection_options", {}).get("username")
-            if not username:
-                username = ssh_s.personal.username
-            password = data.get("connection_options", {}).get("password")
-            if not password:
-                password = ssh_s.personal.password.get_secret_value()
-            extras = data.get("connection_options", {}).get("extras", {})
-            extras["secret"] = ssh_s.enable_secret.get_secret_value()
-            connection_options["netmiko"] = nornir_inventory.ConnectionOptions(
-                hostname=hostname,
-                port=data.get("connection_options", {}).get("port"),
-                username=username,
-                password=password,
-                platform=host_platform,
-                extras=extras,
-            )
-
-            host = nornir_inventory.Host(
-                name=name,
-                hostname=hostname,
-                platform=host_platform,
-                data=data,
-                # groups=None, # TODO: add support for nautobot dynamic groups
-                defaults=defaults,
-                connection_options=connection_options,
-            )
-            hosts[name] = host
-
-        return nornir_inventory.Inventory(hosts=hosts, groups=groups, defaults=defaults)
-
-
-##!SECTION Nautobot / CLI
 
 app = typer.Typer(name="nautobot")
 
@@ -439,7 +299,7 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
 
 def _autocomplete_hostnames(ctx: typer.Context, partial: str):
     dev = ctx.params.get("dev", False)
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     if partial:
         query = nb.dcim.devices.filter(name__ic=partial)
     else:
@@ -449,7 +309,7 @@ def _autocomplete_hostnames(ctx: typer.Context, partial: str):
 
 def _autocomplete_manufacturers(ctx: typer.Context, partial: str):
     dev = ctx.params.get("dev", False)
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     if partial:
         query = nb.dcim.manufacturers.filter(name__ic=partial)
     else:
@@ -460,7 +320,7 @@ def _autocomplete_manufacturers(ctx: typer.Context, partial: str):
 def _autocomplete_device_types(ctx: typer.Context, partial: str):
     dev = ctx.params.get("dev", False)
     mfg = ctx.params.get("manufacturer", None)
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     if mfg:
         mfg_id = nb.dcim.manufacturers.get(name=mfg).id  # type: ignore
         if partial:
@@ -499,7 +359,7 @@ def show_golden_config_data(
     device_name: str = typer.Argument(..., autocompletion=_autocomplete_hostnames),
     dev: bool = False,
 ):
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
     gql_query: str = nb.extras.graphql_queries.get(name="golden_config").query  # type: ignore
     data = nb.graphql.query(gql_query, {"device_id": device.id})
@@ -512,7 +372,7 @@ def trigger_golden_config_intended(
     device_name: typing.Annotated[str, typer.Argument(..., autocompletion=_autocomplete_hostnames)],
     dev: bool = False,
 ):
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     device: Record = nb.dcim.devices.get(name=device_name)
     job = nb.extras.jobs.get(name="Generate Intended Configurations")
     job_result = nb.extras.jobs.run(job_id=job.id, data={"device": [device.id]}).job_result
@@ -554,7 +414,7 @@ def test_golden_config_templates(
     dev: bool = False,
     print_output: bool = True,
 ):
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     device: Record | None = nb.dcim.devices.get(name=device_name)  # type: ignore
     if not device:
         logger.error(f"Device {device_name} not found in Nautobot")
@@ -579,6 +439,31 @@ def test_golden_config_templates(
     return text
 
 
+def run_job(dev: bool, job_name: str, data: dict):
+    nb = get_api(dev)
+    con = console()
+    job = nb.extras.jobs.get(name=job_name)
+    assert job, f"Job '{job_name}' not found in Nautobot"
+    job_result = nb.extras.jobs.run(job_id=job.id, data=data).job_result  # type: ignore
+    con.print(f"A new '{job_name}' job run has been triggered. Job status / results can be found here:")
+    url = job_result.url.replace("/api/", "/")  # type: ignore
+    con.print(f"[link={url}]{url}[/link]")
+    con.print("Waiting for job to complete...")
+    while True:
+        new_result = nb.extras.job_results.get(job_result.id)  # type: ignore
+        status = new_result.status.value  # type: ignore
+        if status not in ["STARTED", "PENDING"]:
+            con.print(" ")
+            break
+        con.print(".", end="")
+        time.sleep(1)
+    logger.success("Job completed with status: " + status)
+    if status != "SUCCESS":
+        logger.error("Job failed")
+        logger.error(new_result)
+    return new_result
+
+
 @typing.no_type_check
 @app.command()
 def push_changes_to_nautobot(
@@ -586,8 +471,6 @@ def push_changes_to_nautobot(
     dev: bool = False,
 ):
     import subprocess
-
-    con = console()
 
     # make sure git status is clean
     git_status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, cwd=templates_dir)
@@ -597,59 +480,22 @@ def push_changes_to_nautobot(
     subprocess.run(["git", "push"], check=True, cwd=templates_dir)
 
     logger.info("Telling nautobot to pull the changes")
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
-    job = nb.extras.jobs.get(name="Git Repository: Sync")
-    job_result = nb.extras.jobs.run(job_id=job.id, data={"repository": gitrepo.id}).job_result
-    con.print("A new `GitRepository: Sync` job run has been triggered. Job status / results can be found here:")
-    url = job_result.url.replace("/api/", "/")
-    con.print(f"[link={url}]{url}[/link]")
+    job_result = run_job(dev, "Git Repository: Sync", {"repository": gitrepo.id})
     return job_result
 
 
-@typing.no_type_check
 @app.command()
 def test_templates_in_nautobot(
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
 ):
-    job_result = push_changes_to_nautobot(templates_dir, dev)
-    nb = get_settings(dev).api_connection()
-    con = console()
-    con.print("Waiting for job to complete...")
-    while True:
-        new_result = nb.extras.job_results.get(job_result.id)
-        if new_result.status.value not in ["STARTED", "PENDING"]:
-            con.print(" ")
-            break
-        con.print(".", end="")
-        time.sleep(1)
-    logger.success("Job completed with status: " + new_result.status.value)
-    if new_result.status.value != "SUCCESS":
-        logger.error("Job failed")
-        logger.error(new_result)
-        return new_result
-    job = nb.extras.jobs.get(name="Generate Intended Configurations")
-    all_platform_uuids = [p.id for p in nb.dcim.platforms.all()]
-    job_result = nb.extras.jobs.run(job_id=job.id, data={"platform": all_platform_uuids}).job_result
-    con.print("A new `Generate Intended Configurations` job run has been triggered")
-    con.print("Details can be found here:")
-    url = job_result.url.replace("/api/", "/")
-    con.print(f"[link={url}]{url}[/link]")
-    con.print("Waiting for job to complete...")
-    while True:
-        new_result = nb.extras.job_results.get(job_result.id)
-        if new_result.status.value not in ["STARTED", "PENDING"]:
-            con.print(" ")
-            break
-        con.print(".", end="")
-        time.sleep(2)
-    if new_result.status.value != "SUCCESS":
-        logger.error("Job failed")
-        logger.error(new_result)
-        return new_result
-    logger.success("Job completed with status: " + new_result.status.value)
-    return new_result
+    push_changes_to_nautobot(templates_dir, dev)
+    nb = get_api(dev)
+    all_platform_uuids = [p.id for p in nb.dcim.platforms.all()] # type: ignore
+    job_result = run_job(dev, "Generate Intended Configurations", {"platform": all_platform_uuids})
+    return job_result
 
 
 def _assert_cwd_is_devicetype_library():
@@ -657,7 +503,7 @@ def _assert_cwd_is_devicetype_library():
         logger.error(
             "This command is meant to be run from within the device-type-library repository. "
             "Please clone the repository from https://github.com/netbox-community/devicetype-library"
-            "and run this command from within the repository folder."
+            " and run this command from within the repository folder."
         )
         raise typer.Exit(1)
 
@@ -730,8 +576,6 @@ def _manufacturer_id(nb, manufacturer):
 
 @app.command()
 def device_type_add_or_update(
-    manufacturer: typing.Annotated[str, typer.Argument(autocompletion=_complete_mfg)],
-    model: typing.Annotated[str, typer.Argument(autocompletion=_complete_model)],
     dev: bool = False,
 ):
     """
@@ -741,9 +585,23 @@ def device_type_add_or_update(
     # check to make sure this command is being run from within the device-types library repo
     _assert_cwd_is_devicetype_library()
 
+    prompt = Settings._prompt()
+
+    manufacturers = [str(p.stem) for p in Path("device-types").iterdir() if p.is_dir()]
+    manufacturer = prompt.get_from_choices(
+        "manufacturer: ",
+        choices=manufacturers,
+        description="Select a manufacturer for this device type",
+    )
+
+    model = prompt.get_from_choices(
+        "model: ",
+        [f.stem for f in Path("device-types").joinpath(manufacturer).glob("*.yaml")],
+        description="Select a model for this device type",
+        fuzzy_search=True,
+    )
     # make sure the specified manufacturer and model exist in the device-types library
     device_type_file = Path("device-types").joinpath(manufacturer, f"{model}.yaml")
-    assert device_type_file.exists(), f"Device type file not found: {device_type_file}"
 
     # read the device type file
     from uoft_core.yaml import loads
@@ -752,7 +610,7 @@ def device_type_add_or_update(
 
     prompt = Settings._prompt()
 
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
 
     # the device_type dictionary ALMOST perfectly matches the structure expected by the Nautobot API
     # for device_types
@@ -925,7 +783,7 @@ def new_switch(
     This script prompts you for info and creates a new switch entry for you in nautobot
     """
     prompt = Settings._prompt()
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
 
     name = prompt.get_string("name", "Enter the name of the switch")
 
@@ -1172,7 +1030,7 @@ def regen_interfaces(
     When run, this script will generate new interface / console port / power port entries for this switch in nautobot
     based on the interface / console port / power port entries in the device type assigned to this switch
     """
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
     device_type: Record = nb.dcim.device_types.get(id=device.device_type.id)  # type: ignore
     logger.info(f"Regenerating entries for {device_name} based on device type {device_type.model}")
@@ -1190,7 +1048,7 @@ def regen_interfaces(
             )
         except pynautobot.RequestError as e:
             if "must make a unique set" in e.args[0]:
-                logger.info(f"Interface {i_t.name} already exists") # type: ignore
+                logger.info(f"Interface {i_t.name} already exists")  # type: ignore
             else:
                 raise e
     logger.info("Regenerating console ports...")
@@ -1227,7 +1085,7 @@ def rebuild_switch(
     while keeping the hostname and ip address the same.
     """
     prompt = Settings._prompt()
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
 
     name = prompt.get_string("name", "Enter the name of the switch")
 
@@ -1235,6 +1093,8 @@ def rebuild_switch(
     if not device:
         logger.error(f"Device {name} not found in Nautobot")
         return
+    
+    old_device_type = device.device_type.model
 
     logger.info("Loading list of available Manufacturers from Nautobot...")
     manufacturer, manufacturer_id = _select_from_queryset(
@@ -1310,8 +1170,12 @@ def rebuild_switch(
         device.status = "Planned"
 
     device.save()
+
     # create new interfaces / console ports / power ports based on the new device type
     regen_interfaces(name, dev)
+
+    # Add a note to the device object
+    device.notes.create(dict(note=f"Device has been rebuilt from device type {old_device_type} to {device_type}"))
 
 
 class ComplianceReportGoal(StrEnum):
@@ -1367,7 +1231,7 @@ def get_compliance_data(feature) -> list[ComplianceReport]:
         variables={"feature": feature},
         query="""
 query ($feature: String) {
-  config_compliances (feature: [$feature]) {
+  config_compliances (feature: [$feature], device_status: "Active") {
     compliance
     rule {
       feature { name }
@@ -1449,9 +1313,7 @@ def _sort_config_snippet(snippet: str):
 
 
 def _devices_with_matching_line(
-    line: str, 
-    compliance_data: list[ComplianceReport], 
-    config_type: typing.Literal["actual", "intended"] = "actual"
+    line: str, compliance_data: list[ComplianceReport], config_type: typing.Literal["actual", "intended"] = "actual"
 ):
     logger.info(f"Please wait, searching for devices with matching line: '{line}'")
     matching_devices = [c.device for c in compliance_data if line in getattr(c, config_type)]
