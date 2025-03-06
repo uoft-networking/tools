@@ -111,8 +111,6 @@ def split_commit():
         raise Exception("Only run this task when editing a commit in the middle of a rebase")
     run("git reset HEAD~")
 
-# TODO: clean up these tasks
-
 def version():
     """get current version of repository from git tag"""
     from setuptools_scm import get_version
@@ -147,12 +145,26 @@ def version_next(patch: bool = False):
 
 def tag(version: str = "", push=False):  # type: ignore
     """create a new git tag with the given version, or the next version if not specified"""
+    # in order to get the locked versions of our monorepo projects to include the version 
+    # that we are tagging them against, we need to do a little song and dance
     if not version:
         version = version_next()
+
+    # first, create a lightweight tag for setuptools_scm to pick up
+    run(f"git tag {version}")
+
+    # then we re-lock the lock file, causing setuptools_scm to pick up the new tag
+    run("uv lock --no-cache -P uoft-core")
+    run("git add uv.lock")
+    run(f"git commit -m '[dev]: lock version {version}'")
+
+    # then we replace the lightweight tag with a proper one
+    run(f"git tag -d {version}")
     run(f"git tag --sign --message 'Version {version}' {version}")
     if push:
         run("git push --tags")
 
+# TODO: clean up these tasks
 
 def should_bump_version():
     """ "
