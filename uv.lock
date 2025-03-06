@@ -2335,7 +2335,7 @@ dependencies = [
     { name = "nautobot-capacity-metrics" },
     { name = "nautobot-plugin-nornir" },
     { name = "netutils" },
-    { name = "numpy" },
+    { name = "numpy", marker = "python_full_version >= '3.10'" },
     { name = "toml" },
     { name = "xmldiff" },
 ]
@@ -4145,8 +4145,7 @@ dev = [
 
 [[package]]
 name = "uoft-aruba"
-
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/aruba" }
 dependencies = [
     { name = "typer" },
@@ -4161,7 +4160,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-bluecat"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/bluecat" }
 dependencies = [
     { name = "uoft-core" },
@@ -4172,8 +4171,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-core"
-version = "0.1.dev516+g7ea6b5c.d20250226"
-
+version = "2025.1+d20250306"
 source = { editable = "projects/core" }
 dependencies = [
     { name = "prompt-toolkit" },
@@ -4210,7 +4208,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-grist"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/grist" }
 dependencies = [
     { name = "grist-api" },
@@ -4227,7 +4225,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-librenms"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/librenms" }
 dependencies = [
     { name = "uoft-core" },
@@ -4238,7 +4236,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-nautobot"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/nautobot" }
 dependencies = [
     { name = "debugpy" },
@@ -4293,7 +4291,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-paloalto"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/paloalto" }
 dependencies = [
     { name = "uoft-core" },
@@ -4304,7 +4302,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-phpipam"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/phpipam" }
 dependencies = [
     { name = "uoft-core" },
@@ -4315,7 +4313,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-scripts"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/scripts" }
 dependencies = [
     { name = "deepdiff" },
@@ -4366,7 +4364,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-snipeit"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/snipeit" }
 dependencies = [
     { name = "pillow" },
@@ -4385,7 +4383,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-ssh"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/ssh" }
 dependencies = [
     { name = "pexpect" },
@@ -4400,7 +4398,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-switchconfig"
-version = "0.1.dev516+g7ea6b5c.d20250226"
+version = "2025.1+d20250306"
 source = { editable = "projects/switchconfig" }
 dependencies = [
     { name = "arrow" },
