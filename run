@@ -33,14 +33,20 @@ fi
 # If not, try to find a uv installation
 uv_bin=""
 find_uv() {
-    for uv in uv $CARGO_HOME/bin/uv $HOME/.cargo/bin/uv; do
+    # search in $PATH
+    if command -v uv >/dev/null 2>&1; then
+        uv_bin=$(which uv)
+        return
+    fi
+    # search in uv's standard install locations, in case they're not in $PATH
+    for uv in $CARGO_HOME/bin/uv $HOME/.cargo/bin/uv $HOME/.local/bin; do
         if command -v "$uv" >/dev/null 2>&1; then
             uv_bin="$uv"
             return
         fi
     done
     echo "This script requires uv to be installed"
-    echo "Would you like to have it installed into ~/.cargo/bin (or $CARGO_HOME/bin if set)? [Y/n]"
+    echo "Would you like to install it using the official installer? [Y/n]"
     read -r yn
     case $yn in
         [Nn]* ) exit 1;;
