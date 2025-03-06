@@ -93,14 +93,16 @@ def repl(project: Annotated[Optional[str], typer.Argument()] = None):
                 f"""\
                     import sys
                     import os
+                    import json
                     from pathlib import Path
                     from uoft_core import shell, txt, lst, chomptxt
                     from uoft_core.prompt import Prompt
+                    from rich.pretty import pprint
                     import uoft_{project}
                     if hasattr(uoft_{project}, "Settings"):
                         Settings = uoft_{project}.Settings
                     print("The following modules/functions are imported and available:")
-                    print("os, sys, Path, shell, txt, lst, chomptxt, Prompt, uoft_{project}, Settings")
+                    print("os, sys, json, Path, shell, txt, lst, chomptxt, Prompt, pprint, uoft_{project}, Settings")
                 """
             )
         )
