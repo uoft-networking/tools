@@ -1,6 +1,12 @@
 from collections import OrderedDict
 import json
 
+from uoft_core import logging, txt
+from uoft_core.console import console
+from uoft_ssh import Settings as SSHSettings
+
+from .nautobot import get_api
+
 from nornir.core import Nornir
 from nornir.core.configuration import Config
 from nornir.plugins.runners import ThreadedRunner, SerialRunner
@@ -8,13 +14,150 @@ from nornir.core.plugins.connections import ConnectionPluginRegister
 from nornir.core.state import GlobalState
 from nornir.core.filter import F
 from nornir.core.task import Task, Result, MultiResult, AggregatedResult
-from nornir.core.inventory import Host
+from nornir.core.inventory import Host, Hosts, Inventory, Groups, Defaults, ConnectionOptions
 from nornir_netmiko.connections.netmiko import Netmiko
 from netmiko import BaseConnection
-from rich.console import Console
+from netmiko.exceptions import (
+    NetmikoTimeoutException,
+    ConfigInvalidException,
+)  # These are here to be imported by nornir scripts # noqa
 from rich.pretty import pprint
-from .nautobot import NautobotInventory
-from uoft_core import logging
+
+
+
+class NautobotInventory(Inventory):
+
+    @staticmethod
+    def _load_gql_data(api):
+        query = txt("""
+        query {
+            devices (platform__isnull: false) {
+                id
+                hostname: name
+                device_type {
+                    model
+                    manufacturer { name }
+                    family: device_family {
+                        name
+                    }
+                }
+                software_version { version }
+                platform {
+                    name
+                    network_driver
+                }
+                primary_ip4 {
+                    cidr: address
+                    address: host
+                }
+                primary_ip6 {
+                    cidr: address
+                    address: host
+                }
+                status {
+                    name
+                }
+                tags {
+                    name
+                }
+                location {
+                    name
+                    cf_room_number
+                    parent {
+                        name
+                        cf_building_code
+                    }
+                }
+                role {
+                    name
+                }
+                vlan_group {
+                    name
+                }
+            }
+        }
+        """)
+        return api.graphql.query(query).json["data"]["devices"]
+
+    @classmethod
+    def from_nautobot(cls) -> "NautobotInventory":
+        """Load of Nornir inventory.
+
+        Returns:
+            Inventory: Nornir Inventory
+        """
+        api = get_api(dev=False)
+        hosts = Hosts()
+
+        ssh_s = SSHSettings.from_cache()
+        conn_default = ConnectionOptions(extras={"secret": ssh_s.enable_secret.get_secret_value()})
+        defaults = Defaults(
+            username=ssh_s.personal.username,
+            password=ssh_s.personal.password.get_secret_value(),
+            connection_options=dict(netmiko=conn_default, napalm=conn_default, paramiko=conn_default),
+        )
+
+        for device in cls._load_gql_data(api):  # type: ignore
+
+            name = device["hostname"] or str(device["id"])
+            # Add Primary IP address, if found. Otherwise add hostname as the device name
+            if device["primary_ip4"]:
+                hostname = device["primary_ip4"]["address"]
+            elif device["primary_ip6"]:
+                hostname = device["primary_ip6"]["address"]
+            else:
+                hostname: str = device["hostname"]
+
+            # squash nested fields
+            device["device_family"] = (
+                device["device_type"]["family"]["name"] if device["device_type"]["family"] else None
+            )
+            device["manufacturer"] = (
+                device["device_type"]["manufacturer"]["name"] if device["device_type"]["manufacturer"] else None
+            )
+            device["device_type"] = device["device_type"]["model"]
+            device["network_driver"] = device["platform"]["network_driver"]
+            device["platform"] = device["platform"]["name"]
+            device["ipv4_cidr"] = device["primary_ip4"]["cidr"] if device["primary_ip4"] else None
+            device["ipv4_address"] = device["primary_ip4"]["address"] if device["primary_ip4"] else None
+            device["ipv6_cidr"] = device["primary_ip6"]["cidr"] if device["primary_ip6"] else None
+            device["ipv6_address"] = device["primary_ip6"]["address"] if device["primary_ip6"] else None
+            device["status"] = device["status"]["name"]
+            device["tags"] = [tag["name"] for tag in device["tags"]]
+            device["room_number"] = (
+                device["location"]["cf_room_number"]
+                if device["location"] and device["location"]["cf_room_number"]
+                else None
+            )
+            device["building_name"] = (
+                device["location"]["parent"]["name"] if device["location"] and device["location"]["parent"] else None
+            )
+            device["building_code"] = (
+                device["location"]["parent"]["cf_building_code"]
+                if device["location"]
+                and device["location"]["parent"]
+                and device["location"]["parent"]["cf_building_code"]
+                else None
+            )
+            device["location"] = device["location"]["name"] if device["location"] else None
+            device["role"] = device["role"]["name"] if device["role"] else None
+            device["vlan_group"] = device["vlan_group"]["name"] if device["vlan_group"] else None
+            device["software_version"] = device["software_version"]["version"] if device["software_version"] else None
+
+            # Add host to hosts by name first, ID otherwise - to string
+            host_platform = device["network_driver"]
+
+            host = Host(
+                name=name,
+                hostname=hostname,
+                platform=host_platform,
+                data=device,
+                # groups=None, # TODO: add support for nautobot dynamic groups
+                defaults=defaults,
+            )
+            hosts[name] = host
+
+        return cls(hosts=hosts, groups=Groups(), defaults=defaults)
 
 
 def get_nornir(concurrent=True):
@@ -25,18 +168,28 @@ def get_nornir(concurrent=True):
     else:
         runner = SerialRunner()
     state = GlobalState(dry_run=False)
-    nr = Nornir(inventory=NautobotInventory().load(), runner=runner, data=state, config=config)
+    nr = Nornir(inventory=NautobotInventory.from_nautobot(), runner=runner, data=state, config=config)
     return nr
 
 
-_CONSOLE = None
+def sample_by(nr: Nornir, field: str):
+    """
+    Return a new Nornir instance with one host from each unique value of the given field
 
-
-def _get_console():
-    global _CONSOLE
-    if _CONSOLE is None:
-        _CONSOLE = Console()
-    return _CONSOLE
+    Example:
+        nr = get_nornir()
+        nr_sample = sample_by(nr, "role")
+        # nr_sample.inventory.hosts will contain one host for each unique role
+    """
+    hosts = nr.inventory.hosts
+    unique_values = set([host.get(field) for host in hosts.values()])
+    filtered_hosts: Hosts = {}  # type: ignore
+    for value in unique_values:
+        name, host = nr.filter(F(**{field: value})).inventory.hosts.popitem()
+        filtered_hosts[name] = host
+    new_inventory = Inventory(hosts=filtered_hosts)
+    nr_sample = Nornir(inventory=new_inventory, runner=nr.runner, data=nr.data, config=nr.config)
+    return nr_sample
 
 
 def _get_color(result: Result, failed: bool) -> str:
@@ -59,7 +212,7 @@ def _print_individual_result(
 ) -> None:
     if result.severity_level < severity_level:
         return
-    con = _get_console()
+    con = console()
 
     color = _get_color(result, failed)
     subtitle = "" if result.changed is None else " ** changed : {} ".format(result.changed)
@@ -92,7 +245,7 @@ def print_result(
     severity_level: int = logging.INFO,
     print_host: bool = False,
 ) -> None:
-    con = _get_console()
+    con = console()
     attrs = attrs or ["diff", "result", "stdout"]
     if isinstance(attrs, str):
         attrs = [attrs]
@@ -127,11 +280,12 @@ def print_result(
 
 def _debug():
     nr = get_nornir()
-    target = nr.filter(status="Active", role__in=["Core Switches", "Distribution Switches", "Data Centre Switches"])
+    target = nr.filter(status="Active")
 
     def test_task(task: Task) -> Result:
         host: Host = task.host
         ssh: BaseConnection = host.get_connection("netmiko", task.nornir.config)
+        ssh.enable()
         version_info = ssh.send_command("show version")
         result = version_info.splitlines()[0]  # type: ignore
         return Result(host=host, result=result)
