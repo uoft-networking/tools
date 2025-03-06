@@ -190,8 +190,8 @@ def ssh(
     except HostKeyChanged:
         logger.error(f"Host key for {host} has changed")
         logger.warning("If this is expected, run the following command to remove the old key:")
-        logger.warning(f"[bold]ssh-keygen -R {host}[/]")
-        logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]")
+        logger.warning(f"[bold]ssh-keygen -R {host}[/]", extra={"markup": True})
+        logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]", extra={"markup": True})
         sys.exit(1)
     except KeyExchangeMethodMismatch as e:
         logger.error(f"Key exchange method mismatch: {e.theirs}")
