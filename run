@@ -18,6 +18,8 @@
 #   including every CLI command defined in every project in the monorepo
 """:"
 
+set -euo pipefail
+
 # If monorepo virtualenv is already installed, use it
 HERE=$(realpath $(dirname "${BASH_SOURCE[0]}"))
 
@@ -65,7 +67,7 @@ git submodule update --init
 # and autocomplete to work in the task modules
 ln -s "$HERE/run" $HERE/.venv/lib/python3.10/site-packages/task_runner.py
 
-run_script "$0" --install-completion-in-virtualenv
+"$HERE/.venv/bin/python" -s "$0" --install-completion-in-virtualenv
 
 run_script "$0" "$@"
 """
