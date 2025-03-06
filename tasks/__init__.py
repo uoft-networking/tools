@@ -2,6 +2,8 @@ from tempfile import NamedTemporaryFile
 
 from task_runner import run, sudo, REPO_ROOT
 
+import mcpyrate.activate # activate the macro system before importing any task modules that us it # noqa: F401
+
 GLOBAL_PIPX = "PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx"
 
 
