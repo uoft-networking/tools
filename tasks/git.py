@@ -20,6 +20,8 @@ def _make_git_safe():
         print("Working tree is not clean, you need to either commit or stash changes")
         stash = input("Press enter to commit changes, or type 'stash' to stash them: ")
         # if the user did anything other than press enter, `stash` will evaluate to True
+        if 'Untracked files' in res:
+            run("git add .")
         if stash:
             run("git stash")
             logger.warning("Changes stashed, don't forget to pop them later with `git stash pop`")
@@ -134,10 +136,13 @@ def version_next(patch: bool = False):
         segments.append(0)
     # at this point, segments should be [major, minor, patch]
     if patch:
+        if len(segments) == 2:
+            segments.append(0)
         segments[2] += 1
     else:
         segments[1] += 1
-        segments[2] = 0
+        # remove patch
+        segments = segments[:2]
     new_version = ".".join(map(str, segments))
     print(f"New version: {new_version}")
     return new_version
