@@ -2,7 +2,8 @@ version = 1
 requires-python = ">=3.10"
 resolution-markers = [
     "platform_python_implementation == 'CPython'",
-    "platform_python_implementation != 'CPython'",
+    "platform_python_implementation == 'PyPy'",
+    "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'",
 ]
 
 [manifest]
@@ -456,7 +457,8 @@ name = "coconut"
 version = "3.1.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "platform_python_implementation != 'CPython'",
+    "platform_python_implementation == 'PyPy'",
+    "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'",
 ]
 dependencies = [
     { name = "anyio", marker = "platform_python_implementation != 'CPython' and python_full_version >= '3.10'" },
@@ -3065,16 +3067,16 @@ wheels = [
 
 [[package]]
 name = "pynautobot"
-version = "2.2.1"
+version = "2.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "packaging" },
     { name = "requests" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/80/867d758e1def158aa14d2551f30bd6f51aac195b491dc396d1f6d289a97e/pynautobot-2.2.1.tar.gz", hash = "sha256:0fa0fc2cbac8372d7cdf1d1e0abc396842760bf4934e31aba8517ab2171f2828", size = 29621 }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/43/cb39f53f34b4c3bb25ca993fd7a97b08fb02c61d2b8755385f8fd43e714d/pynautobot-2.6.1.tar.gz", hash = "sha256:f8d04c47f211e7346f8a66a11d5e9943dd5cb6455da6e1c7cd802d2865f48d33", size = 31566 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/ce/a680270c8303503b7b63bbb750f479769d39f13de98d6a8224e8bedddbe0/pynautobot-2.2.1-py3-none-any.whl", hash = "sha256:52d3d0581f25fc1157dce666fb8b4e0fc0491dfab02d1b72fd78aca4a9258be7", size = 36478 },
+    { url = "https://files.pythonhosted.org/packages/58/ec/0d9ca9f98e00d0e8d23d4653fbf193852f8a00c82b6ef173c4356bb9b81f/pynautobot-2.6.1-py3-none-any.whl", hash = "sha256:50255265e69473be99fa4e0706e7ee5311af9f2d95d9cee7f0361b7270899d99", size = 38895 },
 ]
 
 [[package]]
@@ -3174,7 +3176,9 @@ version = "0.13.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
-    { name = "vcrpy" },
+    { name = "vcrpy", version = "5.1.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_python_implementation == 'PyPy'" },
+    { name = "vcrpy", version = "6.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_python_implementation == 'CPython'" },
+    { name = "vcrpy", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fe/2a/ea6b8036ae01979eae02d8ad5a7da14dec90d9176b613e49fb8d134c78fc/pytest_recording-0.13.2.tar.gz", hash = "sha256:000c3babbb466681457fd65b723427c1779a0c6c17d9e381c3142a701e124877", size = 25270 }
 wheels = [
@@ -4145,7 +4149,7 @@ dev = [
 
 [[package]]
 name = "uoft-aruba"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/aruba" }
 dependencies = [
     { name = "typer" },
@@ -4160,7 +4164,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-bluecat"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/bluecat" }
 dependencies = [
     { name = "uoft-core" },
@@ -4171,7 +4175,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-core"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/core" }
 dependencies = [
     { name = "prompt-toolkit" },
@@ -4208,7 +4212,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-grist"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/grist" }
 dependencies = [
     { name = "grist-api" },
@@ -4225,7 +4229,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-librenms"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/librenms" }
 dependencies = [
     { name = "uoft-core" },
@@ -4236,7 +4240,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-nautobot"
-version = "2025.1+d20250306"
+version = "2025.2.dev13+g3b91d60b.d20250307"
 source = { editable = "projects/nautobot" }
 dependencies = [
     { name = "debugpy" },
@@ -4291,7 +4295,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-paloalto"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/paloalto" }
 dependencies = [
     { name = "uoft-core" },
@@ -4302,7 +4306,7 @@ requires-dist = [{ name = "uoft-core", editable = "projects/core" }]
 
 [[package]]
 name = "uoft-phpipam"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/phpipam" }
 dependencies = [
     { name = "uoft-core" },
@@ -4364,7 +4368,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-snipeit"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/snipeit" }
 dependencies = [
     { name = "pillow" },
@@ -4383,7 +4387,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-ssh"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/ssh" }
 dependencies = [
     { name = "pexpect" },
@@ -4398,7 +4402,7 @@ requires-dist = [
 
 [[package]]
 name = "uoft-switchconfig"
-version = "2025.1+d20250306"
+version = "0.1.dev520+gd310467.d20250211"
 source = { editable = "projects/switchconfig" }
 dependencies = [
     { name = "arrow" },
@@ -4432,26 +4436,63 @@ wheels = [
 
 [[package]]
 name = "urllib3"
-version = "1.26.20"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e4/e8/6ff5e6bc22095cfc59b6ea711b687e2b7ed4bdb373f7eeec370a97d7392f/urllib3-1.26.20.tar.gz", hash = "sha256:40c2dc0c681e47eb8f90e7e27bf6ff7df2e677421fd46756da1161c39ca70d32", size = 307380 }
+sdist = { url = "https://files.pythonhosted.org/packages/aa/63/e53da845320b757bf29ef6a9062f5c669fe997973f966045cb019c3f4b66/urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d", size = 307268 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/cf/8435d5a7159e2a9c83a95896ed596f68cf798005fe107cc655b5c5c14704/urllib3-1.26.20-py2.py3-none-any.whl", hash = "sha256:0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e", size = 144225 },
+    { url = "https://files.pythonhosted.org/packages/c8/19/4ec628951a74043532ca2cf5d97b7b14863931476d117c471e8e2b1eb39f/urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df", size = 128369 },
+]
+
+[[package]]
+name = "vcrpy"
+version = "5.1.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_python_implementation == 'PyPy'",
+]
+dependencies = [
+    { name = "pyyaml", marker = "platform_python_implementation == 'PyPy'" },
+    { name = "wrapt", marker = "platform_python_implementation == 'PyPy'" },
+    { name = "yarl", marker = "platform_python_implementation == 'PyPy'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a5/ea/a166a3cce4ac5958ba9bbd9768acdb1ba38ae17ff7986da09fa5b9dbc633/vcrpy-5.1.0.tar.gz", hash = "sha256:bbf1532f2618a04f11bce2a99af3a9647a32c880957293ff91e0a5f187b6b3d2", size = 84576 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/5b/3f70bcb279ad30026cc4f1df0a0491a0205a24dddd88301f396c485de9e7/vcrpy-5.1.0-py2.py3-none-any.whl", hash = "sha256:605e7b7a63dcd940db1df3ab2697ca7faf0e835c0852882142bafb19649d599e", size = 41969 },
 ]
 
 [[package]]
 name = "vcrpy"
 version = "6.0.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_python_implementation == 'CPython'",
+]
 dependencies = [
-    { name = "pyyaml" },
-    { name = "urllib3", marker = "platform_python_implementation == 'PyPy'" },
-    { name = "wrapt" },
-    { name = "yarl" },
+    { name = "pyyaml", marker = "platform_python_implementation == 'CPython'" },
+    { name = "wrapt", marker = "platform_python_implementation == 'CPython'" },
+    { name = "yarl", marker = "platform_python_implementation == 'CPython'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bf/59/9fe85bf7af469bdb0ab8416c76cde630cdff6d1790ecb87e5a58f259c89c/vcrpy-6.0.1.tar.gz", hash = "sha256:9e023fee7f892baa0bbda2f7da7c8ac51165c1c6e38ff8688683a12a4bde9278", size = 84836 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/eb/922cfd27d6593363c3e50b7808bcc234ec996128813fd34341685bb307b7/vcrpy-6.0.1-py2.py3-none-any.whl", hash = "sha256:621c3fb2d6bd8aa9f87532c688e4575bcbbde0c0afeb5ebdb7e14cac409edfdd", size = 41880 },
+]
+
+[[package]]
+name = "vcrpy"
+version = "7.0.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'",
+]
+dependencies = [
+    { name = "pyyaml", marker = "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'" },
+    { name = "urllib3", marker = "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy' and python_full_version >= '3.10'" },
+    { name = "wrapt", marker = "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'" },
+    { name = "yarl", marker = "platform_python_implementation != 'CPython' and platform_python_implementation != 'PyPy'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/25/d3/856e06184d4572aada1dd559ddec3bedc46df1f2edc5ab2c91121a2cccdb/vcrpy-7.0.0.tar.gz", hash = "sha256:176391ad0425edde1680c5b20738ea3dc7fb942520a48d2993448050986b3a50", size = 85502 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/5d/1f15b252890c968d42b348d1e9b0aa12d5bf3e776704178ec37cceccdb63/vcrpy-7.0.0-py2.py3-none-any.whl", hash = "sha256:55791e26c18daa363435054d8b35bd41a4ac441b6676167635d1b37a71dbe124", size = 42321 },
 ]
 
 [[package]]
