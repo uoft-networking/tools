@@ -3,7 +3,7 @@ from .api import SnipeITAPI
 from .generate import generate_label
 from .print import system_print_label
 import sys
-from uoft_core import Prompt
+from uoft_core.prompt import Prompt
 
 
 def snipe_batch_provision(names: list[str], model_id: int = None, location_id: int = None):  # type: ignore

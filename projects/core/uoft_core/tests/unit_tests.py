@@ -705,7 +705,7 @@ class NestedDataTests:
         ]
 
         output = []
-        for keypath, value in uoft_core.NestedData.unstructure(input_data):
+        for keypath, value in uoft_core.nested_data.NestedData.unstructure(input_data):
             assert isinstance(keypath, str)
             output.append((keypath, value))
         assert output == expected_output
@@ -780,7 +780,7 @@ class NestedDataTests:
                 "other": {"[key1]": True, "[key2]": False},
             }
         }
-        output = uoft_core.NestedData.restructure(input_data)
+        output = uoft_core.nested_data.NestedData.restructure(input_data)
         assert output == expected_output
 
     def test_remap(self):
@@ -822,9 +822,9 @@ class NestedDataTests:
                 "other": {"[key1]": True, "[key2]": False},
             }
         }
-        unstructured = uoft_core.NestedData.unstructure(input_data)
-        unstructured = uoft_core.NestedData.remap(unstructured, keymap)
-        output = uoft_core.NestedData.restructure(unstructured)
+        unstructured = uoft_core.nested_data.NestedData.unstructure(input_data)
+        unstructured = uoft_core.nested_data.NestedData.remap(unstructured, keymap)
+        output = uoft_core.nested_data.NestedData.restructure(unstructured)
         assert output == expected_output
 
     def test_filter(self):
@@ -893,7 +893,7 @@ class NestedDataTests:
             }
         }
 
-        unstructured = uoft_core.NestedData.unstructure(input_data)
-        filtered = uoft_core.NestedData.filter_(unstructured, filters)
-        output = uoft_core.NestedData.restructure(filtered)
+        unstructured = uoft_core.nested_data.NestedData.unstructure(input_data)
+        filtered = uoft_core.nested_data.NestedData.filter_(unstructured, filters)
+        output = uoft_core.nested_data.NestedData.restructure(filtered)
         assert output == expected_output

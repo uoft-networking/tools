@@ -23,7 +23,8 @@ import re
 import concurrent.futures as cf
 
 from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
-from uoft_core import Field, Prompt
+from uoft_core import Field
+from uoft_core.prompt import Prompt
 from uoft_bluecat import Settings as BluecatSettings
 from uoft_librenms import Settings as LibrenmsSettings
 from uoft_core import logging

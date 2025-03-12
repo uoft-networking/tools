@@ -1260,8 +1260,3 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
     __config__: ClassVar[Type[Config]]
 
-
-# These imports are placed down here to avoid circular imports
-from .nested_data import *  # noqa
-
-from .prompt import Prompt
