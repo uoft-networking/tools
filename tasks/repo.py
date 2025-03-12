@@ -10,7 +10,7 @@ from ._macros import macros, zxpy  # noqa: F401 # type: ignore
 
 def cog_files():
     "Run cog against all cog files in the repo"
-    run(f"cog -r -I {REPO_ROOT}/tasks/ projects/*/README.md projects/core/uoft_core/__main__.py pyproject.toml")
+    run(f"cog -r -I {REPO_ROOT}/tasks/ projects/*/README.md projects/*/uoft_*/__main__.py projects/*/uoft_*/cli.py pyproject.toml")
 
 
 

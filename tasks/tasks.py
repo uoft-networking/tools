@@ -177,16 +177,11 @@ def profile_import_time(cmd: str):
     collect the generated report, convert it to json,
     and open it in VS Code to drill-down & explore"""
     import subprocess
-    import tempfile
-    from shutil import which
 
-    print(which('uoft'))
-
-    res = subprocess.run(cmd, capture_output=True, shell=True, env={"PYTHONPROFILEIMPORTTIME": "1"})
+    res = subprocess.run(cmd, capture_output=True, shell=True, env=os.environ | {"PYTHONPROFILEIMPORTTIME": "1"})
     stderr = res.stderr.decode("utf-8")
     Path("importtime.txt").write_text(stderr)
     import sys
-    print(sys.executable)
     try:
         subprocess.run('tuna importtime.txt', shell=True)
     except KeyboardInterrupt:
