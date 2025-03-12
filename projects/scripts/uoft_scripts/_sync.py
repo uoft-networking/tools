@@ -458,7 +458,13 @@ class NautobotTarget(Target):
                 dns_name=data.dns_name,
                 namespace=self.syncdata.local_ids["Global namespace"],
             )
-            self.api.ipam.ip_addresses.create(payload)
+            try:
+                self.api.ipam.ip_addresses.create(payload)
+            except pynautobot.RequestError as e:
+                if e.req.status_code == 400 and "already exists" in e.error:
+                    logger.warning(f"Attempted to create address {data.address}, but it already exists, skipping...")
+                else:
+                    raise
 
     def create_devices(self, devices: dict[str, DeviceModel]):
         raise NotImplementedError
