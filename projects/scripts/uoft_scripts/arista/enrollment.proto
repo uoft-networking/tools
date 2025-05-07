@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package admin;
+
+import "google/protobuf/field_mask.proto";
+
+import "google/protobuf/duration.proto";
+
+option go_package = "arista/aeris/service/admin/enrollment/gen";
+
+message EnrollmentToken {
+  string token = 1;
+
+  repeated string groups = 2;
+
+  repeated string reenrollDevices = 3;
+
+  google.protobuf.Duration validFor = 4;
+
+  google.protobuf.FieldMask field_mask = 100;
+}
+
+message AddEnrollmentTokenRequest {
+  EnrollmentToken enrollmentToken = 1;
+}
+
+message AddEnrollmentTokenResponse {
+  EnrollmentToken enrollmentToken = 1;
+}
+
+message Device {
+  string device_id = 1;
+
+  repeated string groups = 2;
+
+  DeviceType device_type = 3 [deprecated = true];
+}
+
+message AddDeviceRequest {
+  Device device = 1;
+}
+
+message AddDeviceResponse {
+  Device device = 1;
+}
+
+enum DeviceType {
+  DEVICE_TYPE_UNSPECIFIED = 0;
+
+  DEVICE_TYPE_WIRED = 1;
+
+  DEVICE_TYPE_WIFI = 2;
+}
+
+service Enrollment {
+  rpc AddEnrollmentToken ( AddEnrollmentTokenRequest ) returns ( AddEnrollmentTokenResponse );
+
+  rpc AddDevice ( AddDeviceRequest ) returns ( AddDeviceResponse );
+}
