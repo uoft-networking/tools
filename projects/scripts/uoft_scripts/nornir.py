@@ -161,11 +161,11 @@ class NautobotInventory(Inventory):
         return cls(hosts=hosts, groups=Groups(), defaults=defaults)
 
 
-def get_nornir(concurrent=True):
+def get_nornir(concurrent=True, concurrency=25):
     ConnectionPluginRegister.register("netmiko", Netmiko)
     config = Config()
     if concurrent:
-        runner = ThreadedRunner(25)
+        runner = ThreadedRunner(concurrency)
     else:
         runner = SerialRunner()
     state = GlobalState(dry_run=False)
@@ -192,6 +192,25 @@ def sample_by(nr: Nornir, field: str):
     nr_sample = Nornir(inventory=new_inventory, runner=nr.runner, data=nr.data, config=nr.config)
     return nr_sample
 
+
+def one_of_each_device_family_first(nr: Nornir):
+    """
+    Splits a nornir instance into two instances:
+    - one with one host from each device family
+    - one with the rest of the hosts
+    """
+    device_families_nr = sample_by(nr, "device_family")
+    rest_nr = nr.filter(~F(name__in=device_families_nr.inventory.hosts.keys()))
+    return device_families_nr, rest_nr
+
+def one_at_a_time(nr: Nornir):
+    """
+    Generator, to be used in a for loop, that yields a new Nornir instance with one host at a time
+    """
+    for host in nr.inventory.hosts.values():
+        new_inventory = Inventory(hosts=t.cast(Hosts, {host.name: host}))
+        nr_sample = Nornir(inventory=new_inventory, runner=nr.runner, data=nr.data, config=nr.config)
+        yield nr_sample
 
 def _get_color(result: Result, failed: bool) -> str:
     if result.failed or failed:
