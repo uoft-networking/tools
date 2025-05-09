@@ -18,7 +18,8 @@ class UofTPexpectSpawn(spawn):
             if direction == 'read':
                 logger.debug(f"{direction}: {s}")
         else:
-            super()._log(s, direction) # type: ignore
+            super()._log(s, direction)  # pyright: ignore[reportAttributeAccessIssue]
+
 
 class MultiExpect:
     """Utility class to register functions as expect handlers"""

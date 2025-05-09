@@ -2,11 +2,18 @@
 from textwrap import dedent
 import logging
 from ast import parse
-from typing import no_type_check, no_type_check_decorator # to be re-exported, but not used here. # noqa: F401 # type: ignore
+from typing import no_type_check, no_type_check_decorator  # to be re-exported # noqa: F401 # type: ignore
 
-import task_runner
+from task_runner import _in_completion_context, run
 
-from mcpyrate.quotes import macros, q, u, a, n, h  # noqa: F401 # type: ignore
+from mcpyrate.quotes import (
+    macros,  # noqa: F401 # pyright: ignore[reportAttributeAccessIssue]
+    q as quasiquote,
+    u as unquote,
+    a as ast_unquote,
+    n as name_unquote,  # noqa: F401
+    h as hygenic_unquote,
+)
 from mcpyrate import unparse, dump
 
 logger = logging.getLogger(__name__)
@@ -17,7 +24,7 @@ def coco_compile(tree, **kw):
     # skip compilation if we're in a shell auto-completion context
     # shell autocomplete doesn't need to know anything about a function's body to work, it only needs
     # to know the function's signature, which we're not modifying
-    if task_runner._in_completion_context():
+    if _in_completion_context():
         return tree
 
     from coconut.api import parse as parse_coco
@@ -30,48 +37,12 @@ def coco_compile(tree, **kw):
     return tree
 
 
-def lazy_imports(stmts, **kw):
-    """[syntax, block] Import modules lazily
-
-    convert:
-        ```python
-        with lazy_imports:
-            import foo
-            import bar
-        ```
-    to:
-        ```python
-        from typing import TYPE_CHECKING
-        from lazyasd import lazyobject
-        if TYPE_CHECKING:
-            import foo
-            import bar
-        else:
-            @lazyobject
-            def foo():
-                print('importing foo')
-                import foo
-                return foo
-            @lazyobject
-            def bar():
-                print('importing bar')
-                import bar
-                return bar
-        ```
-    """
-    if task_runner._in_completion_context():
-        return stmts
-
-    logger.debug(unparse(stmts, debug=True))
-    logger.debug(dump(stmts))
-    raise NotImplementedError("lazy_imports is not implemented yet")
-
-
+@no_type_check
 def zxpy(stmts, **kw):
     """[syntax, block] Run python code in a shell
 
     inspired by https://github.com/tusharsadhwani/zxpy
-    
+
     convert:
         ```python
         with zxpy:
@@ -91,7 +62,7 @@ def zxpy(stmts, **kw):
         stdout, stderr, return_code = _result.stdout, _result.stderr, _result.returncode
         ```
     """
-    if task_runner._in_completion_context():
+    if _in_completion_context():
         return stmts
 
     import ast

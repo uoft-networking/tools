@@ -6,6 +6,7 @@ from .api import LibreNMSRESTAPI
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata
 # module to get the version of the package.
+assert __package__
 __version__ = version(__package__)  # type: ignore
 
 

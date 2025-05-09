@@ -55,18 +55,18 @@ def map_groups(
     for group_name in s.all_groups():
         group, _ = Group.objects.get_or_create(name=group_name)
         if group_name in groups_from_keycloak:
-            user.groups.add(group)
+            user.groups.add(group) # pyright: ignore[reportAttributeAccessIssue]
 
     # set user-level permissions based on group membership
     print(groups_from_keycloak)
     if s.groups_active in groups_from_keycloak:
         print('f{user} is active')
-        user.is_active = True
+        user.is_active = True # pyright: ignore[reportAttributeAccessIssue]
     if s.groups_staff in groups_from_keycloak:
         print('f{user} is staff')
-        user.is_staff = True
+        user.is_staff = True # pyright: ignore[reportAttributeAccessIssue]
     if s.groups_superuser in groups_from_keycloak:
         print('f{user} is superuser')
-        user.is_superuser = True
+        user.is_superuser = True # pyright: ignore[reportAttributeAccessIssue]
     user.validated_save()
     return {}

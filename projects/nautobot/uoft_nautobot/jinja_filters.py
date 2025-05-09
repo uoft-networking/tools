@@ -36,9 +36,9 @@ def import_repo_filters_module(repo_path: Path, force=False):
         # Skip if this module has already been imported
         return sys.modules[module_name]
     spec = spec_from_file_location(module_name, module_file)
-    module = module_from_spec(spec) # type: ignore
+    module = module_from_spec(spec)  # pyright: ignore[reportArgumentType]
     sys.modules[module_name] = module
-    spec.loader.exec_module(module) # type: ignore
+    spec.loader.exec_module(module)  # pyright: ignore[reportOptionalMemberAccess]
     return module
 
 for repo in Path(settings.GIT_ROOT).iterdir():
@@ -64,7 +64,7 @@ def load_local_jinja_library(_):
     """Loads filters, tests, globals, and extensions collocated with the template being rendered"""
 
     environment = _get_jinja_env()
-    loader: FileSystemLoader = environment.loader  # type: ignore
+    loader: FileSystemLoader = environment.loader  # pyright: ignore[reportAssignmentType]
     repo = Path(loader.searchpath[0])
     import_repo_filters_module(repo)
 

@@ -71,6 +71,7 @@ def list_clients(output_format: OutputFormat = OutputFormat.csv, output_file: st
     mds = Settings.from_cache().md_api_connections
 
     res = {}
+    sample_user : dict[str, str]|None = None
     for md in mds:
         with md:
             logger.info(f"Fetching clients from {md.host}")
@@ -79,6 +80,8 @@ def list_clients(output_format: OutputFormat = OutputFormat.csv, output_file: st
             ]  # tried show user-table, got 12.9k results with only 7.4k active clients
         logger.info(f"Found {len(users)} clients, deduplicating...")
         for user in users:
+            if not sample_user:
+                sample_user = user
             res[user["MAC"]] = user
 
     logger.info(f"Found {len(res)} unique clients")
@@ -91,8 +94,8 @@ def list_clients(output_format: OutputFormat = OutputFormat.csv, output_file: st
     if output_format == OutputFormat.csv:
         logger.info("Writing to CSV")
         import csv
-
-        writer = csv.DictWriter(f, fieldnames=users[0].keys())
+        assert sample_user
+        writer = csv.DictWriter(f, fieldnames=sample_user.keys())
         writer.writeheader()
         writer.writerows(res.values())
 

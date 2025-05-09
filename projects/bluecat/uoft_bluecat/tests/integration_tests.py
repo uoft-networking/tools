@@ -3,7 +3,7 @@ from ..api import API
 from uoft_core.api import RESTAPIError
 from uoft_core.types import IPAddress
 
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
@@ -109,7 +109,7 @@ def _create_network(s: API, parent_block_id: int, addr: str, pfx_len: int, ver: 
     network = s.create_network(
         parent_id=parent_block_id,
         range=target_range,
-        type_=f"{ver}Network", # type: ignore
+        type_=f"{ver}Network",  # pyright: ignore[reportArgumentType]
         name="Test Network 1",
         comment="Testing",
     )
@@ -130,12 +130,12 @@ def test_create_block_network_address(bluecat_test_data_cleared, api_instance, p
     parent = s.find_parent_block(addr)
     assert parent["range"] == f"{addr}/{pfx_len}".lower()
     assert "documentation" in parent["name"].lower()
-    type_ = f"{ver}Block"
+    type_: Literal["IPv4Block", "IPv6Block"] = f"{ver}Block" # pyright: ignore[reportRedeclaration, reportAssignmentType]
     assert type_ in ["IPv4Block", "IPv6Block"]
     block = s.create_block(
         parent_id=parent["id"],
         comment="Testing",
-        type_=type_,  # type: ignore
+        type_=type_,   # pyright: ignore[reportArgumentType]
         range=f"{addr}/{pfx_len+1}",
         name="Test Block 1",
     )
@@ -183,14 +183,16 @@ def test_create_block_network_address(bluecat_test_data_cleared, api_instance, p
 
     assert address["name"] == "Test Gateway"
 
-    static_addr = s.create_address(
+    type_: Literal["IPv4Address", "IPv6Address"] = f"{ver}Address" # pyright: ignore[reportAssignmentType]
+    assert type_ in ["IPv4Address", "IPv6Address"]
+    static_addr = s.create_address( 
         address=str(IPAddress(addr) + 2),
         parent_id=network["id"],
         comment="Testing",
-        type_=f"{ver}Address",  # type: ignore
+        type_=type_,
         state="STATIC",
         name="Test Address 1",
-    )
+    ) 
     assert static_addr["address"] == str(IPAddress(addr) + 2)
 
 

@@ -22,28 +22,24 @@ and then calling the synchronize method on the source manager instance.
 
 import json
 from pathlib import Path
-import typing
+import typing as t
 import time
 import re
 from difflib import Differ
 
-from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
+from uoft_core.types import BaseModel, SecretStr
 from uoft_core import logging
 from uoft_core import BaseSettings, Field, StrEnum
-from uoft_core import txt
 from uoft_core.console import console
-from uoft_ssh import Settings as SSHSettings
 
 import pynautobot
-import pynautobot.core.endpoint
-import pynautobot.models
-import pynautobot.models.dcim
 from pynautobot.core.response import Record
+from pynautobot.models.extras import Jobs, JobResults
+from pynautobot.models.dcim import Devices as NautobotDeviceRecord
 import deepdiff
 import deepdiff.model
 import typer
 import jinja2
-import nornir.core.inventory as nornir_inventory
 from rich.table import Table
 from rich.prompt import Prompt, IntPrompt, Confirm
 
@@ -66,7 +62,7 @@ class Settings(BaseSettings):
 
 
 class DevSettings(Settings):
-    class Config(BaseSettings.Config):
+    class Config(BaseSettings.Config):  # pyright: ignore[reportIncompatibleVariableOverride]
         app_name = "nautobot-cli-dev"
 
 
@@ -97,15 +93,15 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(name="nautobot")
 
-ip_address: typing.TypeAlias = str
+ip_address: t.TypeAlias = str
 "ip address in CIDR notation, e.g. '192.168.0.20/24'"
-network_prefix: typing.TypeAlias = str
+network_prefix: t.TypeAlias = str
 "network prefix in CIDR notation, e.g. '10.0.0.0/8'"
-common_id: typing.TypeAlias = ip_address | network_prefix
+common_id: t.TypeAlias = ip_address | network_prefix
 "common id used to identify objects in both systems"
 
-Status: typing.TypeAlias = typing.Literal["Active", "Reserved", "Deprecated"]
-PrefixType: typing.TypeAlias = typing.Literal["container", "network", "pool"]
+Status: t.TypeAlias = t.Literal["Active", "Reserved", "Deprecated"]
+PrefixType: t.TypeAlias = t.Literal["container", "network", "pool"]
 
 
 class IPAddressModel(BaseModel):
@@ -127,9 +123,9 @@ class DeviceModel(BaseModel):
     ip_address: ip_address
 
 
-Prefixes: typing.TypeAlias = dict[network_prefix, PrefixModel]
-Addresses: typing.TypeAlias = dict[ip_address, IPAddressModel]
-Devices: typing.TypeAlias = dict[str, DeviceModel]
+Prefixes: t.TypeAlias = dict[network_prefix, PrefixModel]
+Addresses: t.TypeAlias = dict[ip_address, IPAddressModel]
+Devices: t.TypeAlias = dict[str, DeviceModel]
 
 
 class SyncData(BaseModel):
@@ -170,8 +166,8 @@ class SyncManager:
     diff: deepdiff.DeepDiff
 
     def __init__(self) -> None:
-        self.syncdata = None  # type: ignore
-        self.diff = None  # type: ignore
+        self.syncdata = None  # pyright: ignore[reportAttributeAccessIssue]
+        self.diff = None  # pyright: ignore[reportAttributeAccessIssue]
 
     def synchronize(self, source_data: SyncData):
         assert self.syncdata.datasets == source_data.datasets
@@ -195,7 +191,7 @@ class SyncManager:
 
         delta = deepdiff.Delta(diff)
 
-        new_syncdata: SyncData = self.syncdata + delta  # type: ignore
+        new_syncdata = t.cast(SyncData, self.syncdata + delta)
 
         self.syncdata = new_syncdata
         self.diff = diff
@@ -215,9 +211,9 @@ def _get_all_change_paths(diff, change_type):
     change_type_name = change_type_mapping[change_type]
     res: dict[str, set[common_id]]
     res = dict(prefixes=set(), addresses=set())
-    for record in diff.tree[change_type_name]:  # type: ignore
+    for record in diff.tree[change_type_name]:
         record: deepdiff.model.DiffLevel
-        path: list[str] = record.path(output_format="list")  # type: ignore
+        path = t.cast(list[str], record.path(output_format="list"))
 
         # path lists for records added / removed look like
         # ["prefixes", "10.0.0.0/8"] or ["addresses", "192.168.0.20"],
@@ -251,7 +247,7 @@ def _validate_templates_dir(templates_dir):
     return templates_dir
 
 
-TemplatesPath: typing.TypeAlias = typing.Annotated[Path, typer.Option(exists=True, callback=_validate_templates_dir)]
+TemplatesPath: t.TypeAlias = t.Annotated[Path, typer.Option(exists=True, callback=_validate_templates_dir)]
 
 
 class OnOrphanAction(StrEnum):
@@ -277,7 +273,7 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
     datasets = {"prefixes", "addresses"}
     bc = _sync.BluecatTarget()
     nb = _sync.NautobotTarget(dev=dev)
-    sm = _sync.SyncManager(bc, nb, datasets, on_orphan=on_orphan.value)  # type: ignore
+    sm = _sync.SyncManager(bc, nb, datasets, on_orphan=on_orphan.value)  # pyright: ignore[reportArgumentType]
 
     sm.load()
     sm.synchronize()
@@ -304,7 +300,8 @@ def _autocomplete_hostnames(ctx: typer.Context, partial: str):
         query = nb.dcim.devices.filter(name__ic=partial)
     else:
         query = nb.dcim.devices.all()
-    return [d.name for d in query]  # type: ignore
+    query = t.cast(list[Record], query)
+    return [d.name for d in query]
 
 
 def _autocomplete_manufacturers(ctx: typer.Context, partial: str):
@@ -314,7 +311,8 @@ def _autocomplete_manufacturers(ctx: typer.Context, partial: str):
         query = nb.dcim.manufacturers.filter(name__ic=partial)
     else:
         query = nb.dcim.manufacturers.all()
-    return [d.name for d in query]  # type: ignore
+    query = t.cast(list[Record], query)
+    return [d.name for d in query]
 
 
 def _autocomplete_device_types(ctx: typer.Context, partial: str):
@@ -322,7 +320,7 @@ def _autocomplete_device_types(ctx: typer.Context, partial: str):
     mfg = ctx.params.get("manufacturer", None)
     nb = get_api(dev)
     if mfg:
-        mfg_id = nb.dcim.manufacturers.get(name=mfg).id  # type: ignore
+        mfg_id = t.cast(Record, nb.dcim.manufacturers.get(name=mfg)).id
         if partial:
             query = nb.dcim.device_types.filter(manufacturer=mfg_id, model__ic=partial)
         else:
@@ -332,7 +330,8 @@ def _autocomplete_device_types(ctx: typer.Context, partial: str):
             query = nb.dcim.device_types.filter(model__ic=partial)
         else:
             query = nb.dcim.device_types.all()
-    return [d.model for d in query]  # type: ignore
+    query = t.cast(list[Record], query)
+    return [d.model for d in query]
 
 
 def _get_jinja_env(templates_dir: Path):
@@ -360,16 +359,16 @@ def show_golden_config_data(
     dev: bool = False,
 ):
     nb = get_api(dev)
-    device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
-    gql_query: str = nb.extras.graphql_queries.get(name="golden_config").query  # type: ignore
+    device = t.cast(Record, nb.dcim.devices.get(name=device_name))
+    gql_query = t.cast(str, t.cast(Record, nb.extras.graphql_queries.get(name="golden_config")).query)
     data = nb.graphql.query(gql_query, {"device_id": device.id})
     print(json.dumps(data.json["data"]["device"], indent=2))
 
 
-@typing.no_type_check
+@t.no_type_check
 @app.command()
 def trigger_golden_config_intended(
-    device_name: typing.Annotated[str, typer.Argument(..., autocompletion=_autocomplete_hostnames)],
+    device_name: t.Annotated[str, typer.Argument(..., autocompletion=_autocomplete_hostnames)],
     dev: bool = False,
 ):
     nb = get_api(dev)
@@ -408,14 +407,14 @@ def template_filter_info(
 
 @app.command()
 def test_golden_config_templates(
-    device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    device_name: t.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
     override_status: str | None = None,
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
     print_output: bool = True,
 ):
     nb = get_api(dev)
-    device: Record | None = nb.dcim.devices.get(name=device_name)  # type: ignore
+    device = t.cast(Record | None, nb.dcim.devices.get(name=device_name))
     if not device:
         logger.error(f"Device {device_name} not found in Nautobot")
         raise typer.Exit(1)
@@ -432,8 +431,8 @@ def test_golden_config_templates(
     # we need to set up a jinja environment which mimics the behaviour of the one set up by
     # nautobot for rendering golden config templates
     env = _get_jinja_env(templates_dir)
-    t = env.get_template("templates/entrypoint.j2")
-    text = t.render(data)
+    tmpl = env.get_template("templates/entrypoint.j2")
+    text = tmpl.render(data)
     if print_output:
         print(text)
     return text
@@ -442,16 +441,16 @@ def test_golden_config_templates(
 def run_job(dev: bool, job_name: str, data: dict):
     nb = get_api(dev)
     con = console()
-    job = nb.extras.jobs.get(name=job_name)
+    job = t.cast(Jobs | None, nb.extras.jobs.get(name=job_name))
     assert job, f"Job '{job_name}' not found in Nautobot"
-    job_result = nb.extras.jobs.run(job_id=job.id, data=data).job_result  # type: ignore
+    job_result = t.cast(JobResults, nb.extras.jobs.run(job_id=job.id, data=data).job_result)  # pyright: ignore[reportCallIssue, reportAttributeAccessIssue]
     con.print(f"A new '{job_name}' job run has been triggered. Job status / results can be found here:")
-    url = job_result.url.replace("/api/", "/")  # type: ignore
+    url = t.cast(str, job_result.url).replace("/api/", "/")
     con.print(f"[link={url}]{url}[/link]")
     con.print("Waiting for job to complete...")
     while True:
-        new_result = nb.extras.job_results.get(job_result.id)  # type: ignore
-        status = new_result.status.value  # type: ignore
+        new_result = t.cast(JobResults, nb.extras.job_results.get(job_result.id))
+        status = t.cast(str, t.cast(Record, new_result.status).value)
         if status not in ["STARTED", "PENDING"]:
             con.print(" ")
             break
@@ -464,7 +463,7 @@ def run_job(dev: bool, job_name: str, data: dict):
     return new_result
 
 
-@typing.no_type_check
+@t.no_type_check
 @app.command()
 def push_changes_to_nautobot(
     templates_dir: TemplatesPath = Path("."),
@@ -493,8 +492,13 @@ def test_templates_in_nautobot(
 ):
     push_changes_to_nautobot(templates_dir, dev)
     nb = get_api(dev)
-    all_platform_uuids = [p.id for p in nb.dcim.platforms.all()] # type: ignore
+    all_platform_uuids = t.cast(list[str], [p.id for p in nb.dcim.platforms.all()])  # pyright: ignore[reportAttributeAccessIssue]
     job_result = run_job(dev, "Generate Intended Configurations", {"platform": all_platform_uuids})
+    run_job(
+        dev,
+        "Perform Configuration Compliance",
+        data={"status": [t.cast(Record, nb.extras.statuses.get(name="Active")).id]},
+    )
     return job_result
 
 
@@ -530,7 +534,7 @@ def _complete_model(incomplete: str, ctx: typer.Context):
 def _device_family_id(nb, prompt, model):
     device_families_by_name = {}
     for family in nb.dcim.device_families.all():
-        device_families_by_name[family.name] = family.id  # type: ignore
+        device_families_by_name[family.name] = family.id  
 
     matching_families = [f for f in device_families_by_name if f in model]
     if len(matching_families) == 1:
@@ -561,7 +565,7 @@ def _device_family_id(nb, prompt, model):
                 'Enter a device family name for this device type (Ex: "C9300")',
             )
             family = nb.dcim.device_families.create(name=family_name)
-            return family.id  # type: ignore
+            return family.id  
         else:
             return device_families_by_name[family_name]
 
@@ -571,7 +575,7 @@ def _manufacturer_id(nb, manufacturer):
     if not mfg:
         logger.info(f"Manufacturer {manufacturer} not found, creating...")
         mfg = nb.dcim.manufacturers.create(name=manufacturer)
-    return mfg.id  # type: ignore
+    return mfg.id  
 
 
 @app.command()
@@ -616,14 +620,16 @@ def device_type_add_or_update(
     # for device_types
     model = device_type["model"]
 
-    if existing_device_type := nb.dcim.device_types.get(model=model, manufacturer=device_type["manufacturer"]):
+    if existing_device_type := t.cast(
+        Record, nb.dcim.device_types.get(model=model, manufacturer=device_type["manufacturer"])
+    ):
         logger.info(f"Device type {model} already exists in Nautobot")
         if not prompt.get_bool(
             "update_device_type",
             "Would you like to update this device type?",
         ):
             return
-        device_type_id = existing_device_type.id  # type: ignore
+        device_type_id = existing_device_type.id
     else:
         nb_data = dict(
             front_image=device_type.get("front_image"),
@@ -640,8 +646,14 @@ def device_type_add_or_update(
         if nb_data["comments"] is None:
             del nb_data["comments"]
 
-        res = nb.dcim.device_types.create(nb_data)
-        device_type_id = res.id  # type: ignore
+        try:
+            del nb_data["front_image"]
+            del nb_data["rear_image"]
+        except KeyError:
+            pass
+
+        res = t.cast(Record, nb.dcim.device_types.create(nb_data))
+        device_type_id = res.id
 
     logger.info(f"Device type {model} created with id {device_type_id}")
 
@@ -754,14 +766,14 @@ def _select_from_queryset(
     name,
     msg,
     key="name",
-    create_new_callback: typing.Callable | None = None,
+    create_new_callback: t.Callable[[], tuple[str, str]] | None = None,
     **kwargs,
-):
+) -> tuple[str, str]:
     mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
     choices = list(mapping.keys())
     if create_new_callback:
         choices = ["Create a new one...", *choices]
-    choice = prompt.get_from_choices(
+    choice: str = prompt.get_from_choices(
         name,
         list(mapping.keys()),
         msg,
@@ -835,7 +847,9 @@ def new_switch(
     )
 
     logger.info("Loading list of Locations from Nautobot...")
-    locations: dict[str, str] = {obj["display"]: obj["id"] for obj in nb.dcim.locations.all()}  # type: ignore
+    locations = {
+        t.cast(str, obj["display"]): t.cast(str, obj["id"]) for obj in t.cast(list[Record], nb.dcim.locations.all())
+    }
 
     def _new_room():
         building_name = prompt.get_from_choices(
@@ -848,14 +862,17 @@ def new_switch(
         )
         location_name = prompt.get_string("room_name", "Enter the name of the location")
         logger.info(f"Creating new location '{location_name}'...")
-        location_record = nb.dcim.locations.create(
-            name=location_name,
-            location_type={"name": "Room"},
-            parent=locations[building_name],
-            status={"name": "Active"},
-            custom_fields=dict(room_number=prompt.get_string("room_number", "Enter the room number (ex. AC290)")),
+        location_record = t.cast(
+            Record,
+            nb.dcim.locations.create(
+                name=location_name,
+                location_type={"name": "Room"},
+                parent=locations[building_name],
+                status={"name": "Active"},
+                custom_fields=dict(room_number=prompt.get_string("room_number", "Enter the room number (ex. AC290)")),
+            ),
         )
-        return location_name, location_record.id  # type: ignore
+        return location_name, t.cast(str, location_record.id)
 
     choice = prompt.get_from_choices(
         "location",
@@ -869,22 +886,23 @@ def new_switch(
         location, location_id = _new_room()
     else:
         location, location_id = choice, locations[choice]
+    logger.info(f"Selected location {location} with id {location_id}")
 
-    vlan_groups = nb.ipam.vlan_groups.all()
+    vlan_groups = t.cast(list[Record], nb.ipam.vlan_groups.all())
     vlan_group_name = prompt.get_from_choices(
         "vlan_group",
-        [vg.name for vg in vlan_groups],  # type: ignore
+        [t.cast(str, vg.name) for vg in vlan_groups],
         "Select a VLAN Group for this switch",
     )
-    vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)  # type: ignore
+    vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)
     logger.info(f"Assigning VLAN Group {vlan_group_name} to {name}...")
 
     # Tags
     tags = []
     logger.info("Loading list of available device Tags from Nautobot...")
-    available_tags: dict[str, str] = {
-        tag["name"]: tag["id"]  # type: ignore
-        for tag in nb.extras.tags.filter(content_types="dcim.device")
+    available_tags = {
+        t.cast(str, tag["name"]): t.cast(str, tag["id"])
+        for tag in t.cast(list[Record], nb.extras.tags.filter(content_types="dcim.device"))
     }
     while True:
         if not prompt.get_bool("add_tag", "Would you like to add a tag to this switch?"):
@@ -924,17 +942,17 @@ def new_switch(
         config_context["os_version"] = os_version
 
     logger.info("Checking to see if Device already exists in Nautobot...")
-    if device := nb.dcim.devices.get(name=name):
+    if device := t.cast(NautobotDeviceRecord | None, nb.dcim.devices.get(name=name)):
         logger.info(f"Device {name} already exists in Nautobot, updating...")
         nb.dcim.devices.update(
-            id=device.id,  # type: ignore
+            id=device.id,  # pyright: ignore[reportAttributeAccessIssue]
             data=dict(
                 device_type=dt_id,
                 platform=platform_id,
                 role=role_id,
                 status="Planned",
                 location=location_id,
-                vlan_group=vlan_group.id,  # type: ignore
+                vlan_group=vlan_group.id,
                 manufacturer=manufacturer_id,
                 tags=tags,
                 local_config_context_data=config_context,
@@ -942,41 +960,45 @@ def new_switch(
         )
     else:
         logger.info(f"Creating new device {name} in Nautobot...")
-        device = nb.dcim.devices.create(
-            name=name,
-            device_type=dt_id,
-            platform=platform_id,
-            role=role_id,
-            status="Planned",
-            location=location_id,
-            vlan_group=vlan_group.id,  # type: ignore
-            manufacturer=manufacturer_id,
-            tags=tags,
+        device = t.cast(
+            NautobotDeviceRecord,
+            nb.dcim.devices.create(
+                name=name,
+                device_type=dt_id,
+                platform=platform_id,
+                role=role_id,
+                status="Planned",
+                location=location_id,
+                vlan_group=vlan_group.id,  
+                manufacturer=manufacturer_id,
+                tags=tags,
+            ),
         )
 
     logger.info(f"Checking to see if {name}/{interface_name} already exists in Nautobot...")
-    mgmt_interface = nb.dcim.interfaces.get(device=device.id, name=interface_name)  # type: ignore
+    mgmt_interface = nb.dcim.interfaces.get(device=device.id, name=interface_name)
     if not mgmt_interface:
         logger.info(f"Creating primary interface {interface_name} for {name} in Nautobot...")
         mgmt_interface = nb.dcim.interfaces.create(
-            device=device.id,  # type: ignore
+            device=device.id,
             name=interface_name,
             type="virtual",
             status="Active",
         )
+    mgmt_interface = t.cast(Record, mgmt_interface)
 
     logger.info(f"Checking to see if {primary_ip4} already exists in Nautobot...")
     host, _, prefix_length = primary_ip4.partition("/")
-    if ipv4 := nb.ipam.ip_addresses.get(q=host):
+    if ipv4 := t.cast(Record, nb.ipam.ip_addresses.get(q=host)):
         logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
-        if ipv4.mask_length != int(prefix_length):  # type: ignore
+        if ipv4.mask_length != int(prefix_length):
             logger.error(
-                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "  # type: ignore
+                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "
                 "Please rerun script with this CIDR or update the IP address prefix manually in Nautobot."
             )
             return
         nb.ipam.ip_addresses.update(
-            id=ipv4.id,  # type: ignore
+            id=ipv4.id,  
             data=dict(
                 status="Active",
                 description=name,
@@ -985,19 +1007,22 @@ def new_switch(
         )
     else:
         logger.info(f"Creating new IP Address {primary_ip4} in Nautobot...")
-        ipv4 = nb.ipam.ip_addresses.create(
-            address=primary_ip4,
-            status="Active",
-            namespace={"name": "Global"},
-            description=name,
-            dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+        ipv4 = t.cast(
+            Record,
+            nb.ipam.ip_addresses.create(
+                address=primary_ip4,
+                status="Active",
+                namespace={"name": "Global"},
+                description=name,
+                dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+            ),
         )
 
     logger.info(f"Associating {primary_ip4} with {interface_name}...")
     try:
         nb.ipam.ip_address_to_interface.create(
-            ip_address=ipv4.id,  # type: ignore
-            interface=mgmt_interface.id,  # type: ignore
+            ip_address=ipv4.id,
+            interface=mgmt_interface.id,
         )
     except pynautobot.RequestError as e:
         if "must make a unique set" in e.args[0]:
@@ -1006,16 +1031,16 @@ def new_switch(
             raise e
 
     logger.info(f"Assigning {primary_ip4} as Primary IP for {name}...")
-    device.primary_ip4 = ipv4  # type: ignore
+    device.primary_ip4 = ipv4  # pyright: ignore[reportAttributeAccessIssue]
 
-    device.save()  # type: ignore
+    device.save()
 
     logger.info("Done!")
 
 
 @app.command()
 def regen_interfaces(
-    device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    device_name: t.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
     dev: bool = False,
 ):
     """
@@ -1031,48 +1056,48 @@ def regen_interfaces(
     based on the interface / console port / power port entries in the device type assigned to this switch
     """
     nb = get_api(dev)
-    device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
-    device_type: Record = nb.dcim.device_types.get(id=device.device_type.id)  # type: ignore
+    device = t.cast(Record, nb.dcim.devices.get(name=device_name))
+    device_type = t.cast(Record, nb.dcim.device_types.get(id=device.device_type.id)) # pyright: ignore[reportOptionalMemberAccess]
     logger.info(f"Regenerating entries for {device_name} based on device type {device_type.model}")
     logger.info("Regenerating interfaces...")
-    for i_t in nb.dcim.interface_templates.filter(device_type=device_type.id):
+    for i_t in t.cast(list[Record], nb.dcim.interface_templates.filter(device_type=device_type.id)):
         try:
             nb.dcim.interfaces.create(
                 device=device.id,
-                name=i_t.name,  # type: ignore
-                label=i_t.label,  # type: ignore
-                type=i_t.type.value,  # type: ignore
-                mgmt_only=i_t.mgmt_only,  # type: ignore
-                description=i_t.description,  # type: ignore
+                name=i_t.name,  
+                label=i_t.label,  
+                type=i_t.type.value,   # pyright: ignore[reportOptionalMemberAccess]
+                mgmt_only=i_t.mgmt_only,  
+                description=i_t.description,  
                 status="Active",
             )
         except pynautobot.RequestError as e:
             if "must make a unique set" in e.args[0]:
-                logger.info(f"Interface {i_t.name} already exists")  # type: ignore
+                logger.info(f"Interface {i_t.name} already exists")  
             else:
                 raise e
     logger.info("Regenerating console ports...")
-    for c_t in nb.dcim.console_port_templates.filter(device_type=device_type.id):
+    for c_t in t.cast(list[Record], nb.dcim.console_port_templates.filter(device_type=device_type.id)):
         nb.dcim.console_ports.create(
             device=device.id,
-            name=c_t.name,  # type: ignore
-            label=c_t.label,  # type: ignore
-            type=c_t.type.value,  # type: ignore
-            description=c_t.description,  # type: ignore
+            name=c_t.name,  
+            label=c_t.label,  
+            type=c_t.type.value,   # pyright: ignore[reportOptionalMemberAccess]
+            description=c_t.description,  
         )
     logger.info("Regenerating power ports...")
-    for p_t in nb.dcim.power_port_templates.filter(device_type=device_type.id):
+    for p_t in t.cast(list[Record], nb.dcim.power_port_templates.filter(device_type=device_type.id)):
         nb.dcim.power_ports.create(
             device=device.id,
-            name=p_t.name,  # type: ignore
-            label=p_t.label,  # type: ignore
-            type=p_t.type.value,  # type: ignore
-            description=p_t.description,  # type: ignore
+            name=p_t.name,  
+            label=p_t.label,  
+            type=p_t.type.value,   # pyright: ignore[reportOptionalMemberAccess]
+            description=p_t.description,  
         )
     logger.success("Done")
 
 
-@typing.no_type_check
+@t.no_type_check
 @app.command()
 def rebuild_switch(
     set_status_to_planned: bool = False,
@@ -1093,7 +1118,7 @@ def rebuild_switch(
     if not device:
         logger.error(f"Device {name} not found in Nautobot")
         return
-    
+
     old_device_type = device.device_type.model
 
     logger.info("Loading list of available Manufacturers from Nautobot...")
@@ -1140,7 +1165,7 @@ def rebuild_switch(
     # find all interfaces / console ports / power ports associated with this device which came from the old device type
     # delete them
     old_interfaces = [i.name for i in nb.dcim.interface_templates.filter(device_type=device.device_type.id)]
-    logger.warning(f"This script will delete the following interfaces:")
+    logger.warning("This script will delete the following interfaces:")
     logger.info(old_interfaces)
     if not prompt.get_bool("delete_interfaces", "Do you want to continue?"):
         return
@@ -1313,7 +1338,7 @@ def _sort_config_snippet(snippet: str):
 
 
 def _devices_with_matching_line(
-    line: str, compliance_data: list[ComplianceReport], config_type: typing.Literal["actual", "intended"] = "actual"
+    line: str, compliance_data: list[ComplianceReport], config_type: t.Literal["actual", "intended"] = "actual"
 ):
     logger.info(f"Please wait, searching for devices with matching line: '{line}'")
     matching_devices = [c.device for c in compliance_data if line in getattr(c, config_type)]
@@ -1359,7 +1384,7 @@ def _generate_statistics_summary(
     compliance_data: list[ComplianceReport],
     report: ComplianceReport,
     line: str,
-    config_type: typing.Literal["actual", "intended"] = "actual",
+    config_type: t.Literal["actual", "intended"] = "actual",
 ):
     if config_type == "actual":
         have_column = "Have This Line"

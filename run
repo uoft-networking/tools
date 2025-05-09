@@ -84,7 +84,7 @@ import socket
 from importlib import import_module
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import Annotated, Any, Optional, Callable, TYPE_CHECKING, overload
+import typing as t
 import inspect
 import subprocess
 import logging
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=LOG_LEVEL, format="%(message)s", handlers=[log_handler])
 
 
-if TYPE_CHECKING:
+if t.TYPE_CHECKING:
     from rich.pretty import pprint
     from rich.syntax import Syntax
     from textwrap import dedent, indent
@@ -176,22 +176,22 @@ REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_ROOT))
 
 
-@overload
+@t.overload
 def run(cmd: str, cap: bool, **kwargs) -> str: ...
 
 
-@overload
+@t.overload
 def run(cmd: str, **kwargs) -> subprocess.CompletedProcess[str]: ...
 
 
-def run(cmd: str, cap=False, **kwargs) -> subprocess.CompletedProcess[str]:  # type: ignore
+def run(cmd: str, cap=False, **kwargs) -> subprocess.CompletedProcess[str] | str:  # type: ignore
     """Run a command in the repo root
 
     Args:
         cmd (str): the command to run
         **kwargs: passed to subprocess.run
     """
-    kwargs: dict[str, Any] = dict(cwd=REPO_ROOT, shell=True, check=True, text=True) | kwargs
+    kwargs = t.cast(dict[str, t.Any], dict(cwd=REPO_ROOT, shell=True, check=True, text=True) | kwargs)
     if cap:
         kwargs["capture_output"] = True
     # TODO: find a way to reimplement this so that it captures AND streams output and stderr
@@ -215,7 +215,7 @@ def sudo(cmd: str, user: str = "root", login=False, capture_output=True, **kwarg
     import pexpect
     from getpass import getpass
 
-    kwargs: dict[str, Any] = dict(cwd=REPO_ROOT, timeout=5) | kwargs
+    kwargs = t.cast(dict[str, t.Any], dict(cwd=REPO_ROOT, timeout=5) | kwargs)
     try:
         passcmd = os.environ.get('PASS_CMD', 'pass')
         passwd = run(f"{passcmd} sudo", cap=True)
@@ -237,7 +237,7 @@ def sudo(cmd: str, user: str = "root", login=False, capture_output=True, **kwarg
         proc.logfile_read = proc_stdout
     proc.interact()
     if capture_output:
-        return proc_stdout.getvalue().decode().strip().replace("\r\n", "\n")  # type: ignore
+        return t.cast(io.BytesIO, proc_stdout).getvalue().decode().strip().replace("\r\n", "\n")  # pyright: ignore[reportPossiblyUnboundVariable]
 
 
 @contextmanager
@@ -414,7 +414,7 @@ def _create_root_app():
             def __init__(self):
                 super().__init__("localhost")
 
-            def _new_conn(self):
+            def _new_conn(self): # pyright: ignore[reportIncompatibleMethodOverride]
                 return VSCodeIPCConnection()
 
         class VSCodeIPCAdapter(HTTPAdapter):
@@ -435,7 +435,7 @@ def _create_root_app():
     @app.callback()
     def _(
         ctx: typer.Context,
-        verbose: Annotated[
+        verbose: t.Annotated[
             bool,
             typer.Option(
                 "--verbose",
@@ -443,18 +443,18 @@ def _create_root_app():
                 help="Show verbose output",
             ),
         ] = False,
-        debug: Annotated[
+        debug: t.Annotated[
             bool,
             typer.Option(
                 "--debug",
                 help="Run a debug apadpter and wait for debugger to connect before launching task",
             ),
         ] = False,
-        dry_run: Annotated[
+        dry_run: t.Annotated[
             bool,
             typer.Option("--dry-run", help="print out the task to run instead of running it"),
         ] = False,
-        _: Annotated[
+        _: t.Annotated[
             bool,
             typer.Option(
                 "--install-completion-in-virtualenv",
@@ -463,8 +463,8 @@ def _create_root_app():
                 is_eager=True,
             ),
         ] = False,
-        exec_: Annotated[
-            Optional[str],
+        exec_: t.Annotated[
+            t.Optional[str],
             typer.Option(
                 "--exec",
                 help="Execute a python function in the virtualenv (ex: --exec uoft_aruba.cli:_debug "

@@ -3,10 +3,11 @@ from .api import SnipeITAPI
 from .generate import generate_label
 from .print import system_print_label
 import sys
+import typing as t
 from uoft_core.prompt import Prompt
 
 
-def snipe_batch_provision(names: list[str], model_id: int = None, location_id: int = None):  # type: ignore
+def snipe_batch_provision(names: list[str], model_id: int, location_id: int | None = None):  # type: ignore
     s = settings()
     api = SnipeITAPI.from_settings(s)
 
@@ -30,14 +31,16 @@ def snipe_batch_provision(names: list[str], model_id: int = None, location_id: i
                     break
                 else:
                     asset = api.create_asset(model_id, mac_addr, name, serial)
-                    locations = {location["name"]: location["id"] for location in api.lookup_locations_raw().json()["rows"]}
+                    locations = {
+                        location["name"]: location["id"] for location in api.lookup_locations_raw().json()["rows"]
+                    }
                     if location_id is None:
                         prompt = Prompt(s.util.history_cache)
                         location_names = list(locations.keys())
                         location_name = prompt.get_from_choices(
                             "Location name to be checked out to", location_names, description=""
                         )  # description can be removed once made optional.
-                        location_id: int = locations[location_name]
+                        location_id = t.cast(int, locations[location_name])
                     alpha_id = {value: key for key, value in locations.items()}[location_id]
                     api.checkout_asset(asset, location_id, name)
                     print(f"Asset {name} id:{asset:0>5} checked out to {alpha_id}")

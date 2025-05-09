@@ -15,10 +15,10 @@ class EncryptedConfigSecretsProvider(SecretsProvider):
     This SecretsProvider is used to retrieve secrets from the Nautobot configuration Settings class.
     """
 
-    slug = "encrypted-config"  # type: ignore
-    name = "Encrypted Config"  # type: ignore
+    slug = "encrypted-config"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+    name = "Encrypted Config"   # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
 
-    class ParametersForm(BootstrapMixin, forms.Form):
+    class ParametersForm(BootstrapMixin, forms.Form):  # pyright: ignore[reportIncompatibleMethodOverride]
         """
         User-friendly form for specifying the required parameters of this provider.
         """
@@ -28,7 +28,7 @@ class EncryptedConfigSecretsProvider(SecretsProvider):
         )
 
     @classmethod
-    def get_value_for_secret(cls, secret, obj=None, **kwargs):
+    def get_value_for_secret(cls, secret, obj=None, **kwargs): # pyright: ignore[reportIncompatibleMethodOverride]
         """Retrieve the appropriate Settings class variable's value."""
         rendered_parameters = secret.rendered_parameters(obj=obj)
         if "config_key" not in rendered_parameters:

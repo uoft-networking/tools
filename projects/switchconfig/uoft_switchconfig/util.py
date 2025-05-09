@@ -14,9 +14,7 @@ from typing import (
     get_origin,
     get_args,
 )
-import typing
 import os
-import sys
 import string
 import secrets
 
@@ -32,9 +30,7 @@ from arrow import now
 from jinja2 import Environment
 
 if TYPE_CHECKING:
-    CommentBlockSchema: TypeAlias = Mapping[
-        str, "CommentBlockField" | "CommentBlockSchema"
-    ]
+    CommentBlockSchema: TypeAlias = Mapping[str, "CommentBlockField" | "CommentBlockSchema"]
 
 logger = logging.getLogger(__name__)
 
@@ -57,9 +53,7 @@ class EnvVars:
 DEFAULT_GLOBALS = {
     "env_vars": EnvVars(),
     "now": now(),
-    "password_gen": lambda: "".join(
-        [secrets.choice(string.ascii_letters + string.digits) for i in range(24)]
-    ),
+    "password_gen": lambda: "".join([secrets.choice(string.ascii_letters + string.digits) for i in range(24)]),
 }
 
 
@@ -107,16 +101,12 @@ def get_comment_block_schema(template: str) -> Optional["CommentBlockSchema"]:
             # Use ForwardRef as a means to parse type definitions
             ForwardRef(type_)
         except SyntaxError as e:
-            raise SwitchConfigException(
-                f"Error parsing type {type_} for variable {name} in comment block: {e}"
-            ) from e
+            raise SwitchConfigException(f"Error parsing type {type_} for variable {name} in comment block: {e}") from e
         desc = line.get(2)
         desc = desc or None
         default = line.get(3)
         default = default or None
-        field = CommentBlockField.construct(
-            name=name, type=type_, desc=desc, default=default
-        )
+        field = CommentBlockField.construct(name=name, type=type_, desc=desc, default=default)
         res.append((name, field))
     res = NestedData.restructure(res)
     return res
@@ -175,9 +165,7 @@ def model_source_from_comment_block_schema(
             if "." in field.type:
                 import_list.append(field.type)
         else:
-            model_src += model_source_from_comment_block_schema(
-                field, fname, import_list, render_imports=False
-            )
+            model_src += model_source_from_comment_block_schema(field, fname, import_list, render_imports=False)
             fields.append(CommentBlockField(name=fname, type=fname.capitalize()))
     model_src += template.render(name=name, fields=fields)
     if render_imports:
@@ -191,9 +179,7 @@ def normalize_extension_name(extension_name: str):
     return extension_name.replace("-", "_").replace(".", "_").replace(" ", "_")
 
 
-def construct_model_from_comment_block_schema(
-    schema: "CommentBlockSchema", name="Model"
-) -> Type[types.BaseModel]:
+def construct_model_from_comment_block_schema(schema: "CommentBlockSchema", name="Model") -> Type[types.BaseModel]:
     """
     Given a list of CommentBlockFields, construct a pydantic model
     that corresponds to the fields in the comment block.
@@ -204,9 +190,7 @@ def construct_model_from_comment_block_schema(
     return getattr(module, name)
 
 
-def discriminated_union_choices(
-    field: "ModelField", discriminator: str = "kind"
-) -> dict[str, Type] | None:
+def discriminated_union_choices(field: "ModelField", discriminator: str = "kind") -> dict[str, Type] | None:
     """
     Return the set of kind literals for a discriminated union,
     or None if this field is not a discriminated union.
@@ -229,9 +213,8 @@ def discriminated_union_choices(
         choices[choice] = sub.type_
     return choices
 
-def model_questionnaire(
-    model: Type[types.BaseModel], input_data: dict[str, Any] | None = None
-) -> types.BaseModel:
+
+def model_questionnaire(model: Type[types.BaseModel], input_data: dict[str, Any] | None = None) -> types.BaseModel:
     """
     Given a pydantic data model,
     prompt user for inputs matching fields on that model,
@@ -253,9 +236,7 @@ def model_questionnaire(
         desc = field.field_info.description
         default = field.default
 
-        if (field.required is False) and (
-            prompt.get_bool(name, desc) is True
-        ):
+        if (field.required is False) and (prompt.get_bool(name, desc) is True):
             continue
         if choices := discriminated_union_choices(field):
             choice = prompt.get_from_choices(name, list(choices.keys()), desc)
@@ -274,16 +255,14 @@ def model_questionnaire(
             continue
         elif _is_maybe_subclass(field.type_, types.Path):
             only_directories = issubclass(field.type_, types.DirectoryPath)
-            input_data[name] = prompt.get_path(
-                name, desc, only_directories=only_directories
-            )
+            input_data[name] = prompt.get_path(name, desc, only_directories=only_directories)
             continue
         elif field.type_ is int:
             logger.trace(f"prompting for {name} of type {field.type_} using int handler")
             input_data[name] = prompt.get_int(name, desc, default)
         elif get_origin(field.type_) is List or field.type_ is list:
             # TODO: add handlers for fields of type list[str] etc.
-            #subtype = get_args(field.type_)[0]
+            # subtype = get_args(field.type_)[0]
             logger.trace(f"prompting for {name} of type {field.type_} using list handler")
             input_data[name] = prompt.get_list(name, desc)
             continue
@@ -308,8 +287,7 @@ def handle_field(field_name: str, field: ModelField):
     desc = field.field_info.description
 
     if (field.required is False) and (
-        prompt.get_bool(f"'{field_name}' is optional. Do you want to skip it?", desc)
-        is True
+        prompt.get_bool(f"'{field_name}' is optional. Do you want to skip it?", desc) is True
     ):
         return None
 
@@ -334,7 +312,9 @@ def construct_model_instance_interactively(
     prompt user for inputs matching fields on that model,
     and return an instance of that model
 
-    `input_data` (optional) is a dict of some or all of the required fields of the model. it can be used to pre-populate portions of the model. Any field already contained here will not be prompted for interactively
+    `input_data` (optional) is a dict of some or all of the required fields of the model.
+    it can be used to pre-populate portions of the model.
+    Any field already contained here will not be prompted for interactively
     """
     assert issubclass(model, types.BaseModel)
 
@@ -347,5 +327,4 @@ def construct_model_instance_interactively(
 
         # dictionary types (only Dict[str,str] supported so far)
 
-    return None  # type: ignore
-    # return model(**input_data)
+    return model(**input_data)

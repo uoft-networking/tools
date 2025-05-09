@@ -2,6 +2,8 @@ from pathlib import Path
 import sys
 from typing import Callable, Optional, Any, Type
 from inspect import getmembers, isfunction
+from pydantic import BaseModel
+from jinja2 import Environment, StrictUndefined, FileSystemLoader
 
 from .util import (
     DEFAULT_GLOBALS,
@@ -15,8 +17,6 @@ from .util import (
 from uoft_core import logging
 
 logger = logging.getLogger(__name__)
-from pydantic import BaseModel
-from jinja2 import Environment, StrictUndefined, FileSystemLoader
 
 JINJA_OPTS = {
     "block_start_string",

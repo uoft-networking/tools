@@ -2,7 +2,7 @@ from . import settings
 from .api import SnipeITAPI
 
 
-def snipe_create_asset(mac_addr: str, name: str, serial: str, model_id: int = None) -> int:  # type: ignore
+def snipe_create_asset(mac_addr: str, name: str, serial: str, model_id: int) -> int:  # type: ignore
     s = settings()
 
     api = SnipeITAPI.from_settings(s)

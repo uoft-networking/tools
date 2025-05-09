@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import json
+import typing as t
 
 from uoft_core import logging, txt
 from uoft_core.console import console
@@ -18,9 +19,9 @@ from nornir.core.inventory import Host, Hosts, Inventory, Groups, Defaults, Conn
 from nornir_netmiko.connections.netmiko import Netmiko
 from netmiko import BaseConnection
 from netmiko.exceptions import (
-    NetmikoTimeoutException,
-    ConfigInvalidException,
-)  # These are here to be imported by nornir scripts # noqa
+    NetmikoTimeoutException, # noqa: F401
+    ConfigInvalidException,  # noqa: F401
+)  # These are here to be imported by nornir scripts
 from rich.pretty import pprint
 
 
@@ -183,7 +184,7 @@ def sample_by(nr: Nornir, field: str):
     """
     hosts = nr.inventory.hosts
     unique_values = set([host.get(field) for host in hosts.values()])
-    filtered_hosts: Hosts = {}  # type: ignore
+    filtered_hosts: Hosts = {}  # pyright: ignore[reportAssignmentType]
     for value in unique_values:
         name, host = nr.filter(F(**{field: value})).inventory.hosts.popitem()
         filtered_hosts[name] = host
@@ -216,7 +217,6 @@ def _print_individual_result(
 
     color = _get_color(result, failed)
     subtitle = "" if result.changed is None else " ** changed : {} ".format(result.changed)
-    level_name = logging.getLevelName(result.severity_level)
     symbol = "v" if task_group else "-"
     host = f"{result.host.name}: " if (print_host and result.host and result.host.name) else ""
     msg = "{} {}{}{}".format(symbol * 4, host, result.name, subtitle)
@@ -286,8 +286,8 @@ def _debug():
         host: Host = task.host
         ssh: BaseConnection = host.get_connection("netmiko", task.nornir.config)
         ssh.enable()
-        version_info = ssh.send_command("show version")
-        result = version_info.splitlines()[0]  # type: ignore
+        version_info = t.cast(str, ssh.send_command("show version"))
+        result = version_info.splitlines()[0]
         return Result(host=host, result=result)
 
     res: AggregatedResult = target.run(task=test_task)

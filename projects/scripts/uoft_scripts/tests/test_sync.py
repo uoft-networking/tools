@@ -54,7 +54,7 @@ def mock_sync_data(mocker: MockerFixture):
 def test_bluecat_load_data(mock_sync_data):
     datasets = {"prefixes", "addresses"}
     bc = _sync.BluecatTarget()
-    bc.load_data(datasets) # type: ignore
+    bc.load_data(datasets)  # pyright: ignore[reportArgumentType]
     assert bc.syncdata.prefixes
     assert len(bc.syncdata.prefixes) > 0
     assert bc.syncdata.addresses
@@ -66,7 +66,7 @@ def test_sync_data(mock_sync_data, mocker):
     datasets = {"prefixes", "addresses"}
     bc = _sync.BluecatTarget()
     nb = _sync.NautobotTarget(dev=True)
-    sm = _sync.SyncManager(bc, nb, datasets, on_orphan="skip")  # type: ignore
+    sm = _sync.SyncManager(bc, nb, datasets, on_orphan="skip")  # pyright: ignore[reportArgumentType]
 
     sm.load()
     sm.synchronize()
@@ -81,8 +81,8 @@ def test_bluecat_create(mock_sync_data):
     bc = _sync.BluecatTarget()
     bc.load_data({"prefixes", "addresses"})
     changes = _sync.Changes(
-        create=dict(
-            prefixes={
+        create={
+            'prefixes': {
                 "192.0.2.0/25": _sync.PrefixModel(
                     prefix="192.0.2.0/25",
                     description="test 1",
@@ -108,7 +108,7 @@ def test_bluecat_create(mock_sync_data):
                     status="Deprecated",
                 ),
             },
-            addresses={
+            'addresses': {
                 '192.0.2.1': _sync.IPAddressModel(
                     address='192.0.2.1',
                     prefixlen=25,
@@ -138,7 +138,7 @@ def test_bluecat_create(mock_sync_data):
                     dns_name='host2.netmgmt.utsc.utoronto.ca'
                 ),
             }
-        )
+        }
     )
     bc.create(changes.create)
     print()

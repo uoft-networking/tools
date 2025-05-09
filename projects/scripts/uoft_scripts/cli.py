@@ -1,5 +1,5 @@
 import sys
-from typing import Annotated, Optional
+import typing as t
 from enum import Enum
 
 from . import ldap
@@ -7,10 +7,14 @@ from . import nautobot
 from . import librenms
 from . import sib_turnup
 from . import stg_ipam_dev
+from . import arista_cli
 
 from uoft_core import logging
 
 import typer
+
+if t.TYPE_CHECKING:
+    from pynautobot.models.extras import Record
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +44,13 @@ app.add_typer(nautobot.app)
 app.add_typer(librenms.app)
 app.add_typer(sib_turnup.app)
 app.add_typer(stg_ipam_dev.app)
+app.add_typer(arista_cli.app)
 
 
 @app.callback()
 def callback(
-    version: Annotated[
-        Optional[bool],
+    version: t.Annotated[
+        t.Optional[bool],
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
     ] = None,
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
@@ -78,7 +83,7 @@ def rename_switch(
     Rename a switch in Nautobot, LibreNMS, Bluecat, and via SSH
     """
     logger.info(f"Renaming {old_name} to {new_name}")
-    device_type = device_type.value # type: ignore
+    device_type_name = device_type.value # type: ignore
     from uoft_librenms import Settings as LibreNMSSettings
     from .nautobot import Settings as NautobotSettings
     from uoft_bluecat import Settings as BluecatSettings
@@ -97,9 +102,9 @@ def rename_switch(
 
     logger.info("Changing name in Nautobot...")
     nautobot = NautobotSettings.from_cache().api_connection()
-    nb_dev = nautobot.dcim.devices.get(name=old_name)
-    nb_dev.name = new_name # type: ignore
-    nb_dev.save() # type: ignore
+    nb_dev = t.cast("Record", nautobot.dcim.devices.get(name=old_name))
+    nb_dev.name = new_name  # pyright: ignore[reportAttributeAccessIssue]
+    nb_dev.save()
     logger.success("Changed name in Nautobot")
 
     logger.info("Changing name in Bluecat address and host record(s)...")
@@ -123,16 +128,16 @@ def rename_switch(
     logger.info("changing device's own hostname through SSH...")
     ssh_s = SSHSettings.from_cache()
     ssh_c = dict(
-        device_type=device_type,
+        device_type=device_type_name,
         ip=ip_address,
         username=ssh_s.personal.username,
         password=ssh_s.personal.password.get_secret_value(),
         secret=ssh_s.enable_secret.get_secret_value(),
     )
-    if device_type == "autodetect":
+    if device_type_name == "autodetect":
         guesser = SSHDetect(**ssh_c)
-        device_type = guesser.autodetect() # type: ignore
-        ssh_c["device_type"] = device_type
+        device_type_name = t.cast(str, guesser.autodetect())
+        ssh_c["device_type"] = device_type_name
     with ConnectHandler(**ssh_c) as ssh:
         ssh.send_config_set(config_commands=[f'hostname {new_name}'])
         ssh.send_command("write memory")

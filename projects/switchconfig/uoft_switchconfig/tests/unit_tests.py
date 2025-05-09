@@ -17,14 +17,7 @@ from uoft_switchconfig.util import (
 from uoft_core import txt
 
 if TYPE_CHECKING:
-    from _pytest.monkeypatch import MonkeyPatch
-    from . import MockedConfig, MockPTApp
-
-if TYPE_CHECKING:
     from pytest_mock import MockFixture
-    from _pytest.logging import LogCaptureFixture
-    from _pytest.monkeypatch import MonkeyPatch
-    from . import MockedConfig, MockPTApp
 
 
 SIMPLE_INTERMEDIARY = {
@@ -116,7 +109,7 @@ class CLITests:
         class MockContext:
             params = {"cache_dir": Path(__file__).parent / "fixtures/templates"}
 
-        res = template_name_completion(MockContext(), "")  # type: ignore
+        res = template_name_completion(MockContext(), "")  # pyright: ignore[reportArgumentType]
         assert set(res) == set(
             [
                 "comment-block-schema-test.j2",
@@ -126,7 +119,7 @@ class CLITests:
             ]
         )
 
-        res = template_name_completion(MockContext(), "subdir")  # type: ignore
+        res = template_name_completion(MockContext(), "subdir")  # pyright: ignore[reportArgumentType]
         assert set(res) == set(
             [
                 "subdirectory/template.j2",
@@ -134,7 +127,7 @@ class CLITests:
             ]
         )
 
-        res = template_name_completion(MockContext(), "subdirectory/tem")  # type: ignore
+        res = template_name_completion(MockContext(), "subdirectory/tem")  # pyright: ignore[reportArgumentType]
         assert set(res) == set(
             [
                 "subdirectory/template.j2",

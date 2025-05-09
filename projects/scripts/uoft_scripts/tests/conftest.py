@@ -5,7 +5,7 @@ import pytest
 from uoft_scripts import config
 
 if TYPE_CHECKING:
-    from .. import MockedUtil
+    from uoft_core.tests import MockedUtil
     from pytest_mock import MockerFixture
 
 

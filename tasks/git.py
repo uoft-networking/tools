@@ -3,7 +3,7 @@ import logging
 from typing import no_type_check
 
 from task_runner import run, REPO_ROOT
-from ._macros import macros, zxpy  # noqa: F401, type: ignore
+from ._macros import macros, zxpy  # noqa: F401 # pyright: ignore[reportAttributeAccessIssue]
 
 logger = logging.getLogger(__name__)
 

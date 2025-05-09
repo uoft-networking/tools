@@ -3,7 +3,6 @@ from logging import getLogger
 import concurrent.futures
 import threading
 from functools import cached_property
-import asyncio
 from importlib.metadata import version
 
 from uoft_core import BaseSettings, Field
@@ -16,7 +15,8 @@ logger = getLogger(__name__)
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata 
 # module to get the version of the package.
-__version__ = version(__package__) # type: ignore
+assert __package__
+__version__ = version(__package__)
 
 CONTAINER_TYPES = [
     constants.ObjectType.IP4_BLOCK,
@@ -52,7 +52,8 @@ class Address(APIEntity):
     address: str
 
 
-#TODO: replace all this garbage with a mult-threaded API wrapper on the V2 rest api, delete vendored bluecat libraries from uoft_core
+#TODO: replace all this garbage with a mult-threaded API wrapper on the V2 rest api, 
+# delete vendored bluecat libraries from uoft_core
 
 class API:
     """This class is a wrapper around the bluecat_libraries.address_manager.api.Client class"""
@@ -126,12 +127,12 @@ class API:
 
     def yield_ip_object_tree(self, parent_id) -> Iterator[Network]:
         for typ in ALL_NETWORK_TYPES:
-            for entity in self.get_entities(parent_id, typ):  # type: ignore
+            for entity in self.get_entities(parent_id, typ):
                 if typ in CONTAINER_TYPES:
                     yield dict(
                         entity, children=list(self.yield_ip_object_tree(entity["id"]))
-                    )  # type: ignore
-                yield entity  # type: ignore
+                    ) # pyright: ignore[reportReturnType]
+                yield entity # pyright: ignore[reportReturnType]
 
     def yield_ip_object_list(self, parent_id=None) -> Iterator[APIEntity]:
         if parent_id is None:
@@ -139,7 +140,7 @@ class API:
         for typ in ALL_IP_OBJECTS:
             for entity in self.get_entities(parent_id, typ):
                 entity["parent_id"] = parent_id
-                yield entity  # type: ignore
+                yield entity   # pyright: ignore[reportReturnType]
                 if typ in ALL_NETWORK_TYPES:
                     yield from self.yield_ip_object_list(entity["id"])
 
@@ -147,19 +148,19 @@ class API:
         if parent_id is None:
             parent_id = self.get_view()["id"]
         for typ in [constants.ObjectType.ZONE, constants.ObjectType.HOST_RECORD]:
-            for entity in self.get_entities(parent_id, typ):  # type: ignore
+            for entity in self.get_entities(parent_id, typ): 
                 if typ is constants.ObjectType.ZONE:
                     yield dict(
                         entity, children=list(self.yield_dns_object_tree(entity["id"]))
-                    )  # type: ignore
-                yield entity  # type: ignore
+                    )   # pyright: ignore[reportReturnType]
+                yield entity  # pyright: ignore[reportReturnType]
 
     def yield_dns_object_list(self, parent_id=None) -> Iterator[APIEntity]:
         if parent_id is None:
             parent_id = self.get_view()["id"]
         for typ in [constants.ObjectType.ZONE, constants.ObjectType.HOST_RECORD]:
             for entity in self.get_entities(parent_id, typ):
-                yield entity  # type: ignore
+                yield entity   # pyright: ignore[reportReturnType]
                 if typ in constants.ObjectType.ZONE:
                     yield from self.yield_dns_object_list(entity["id"])
 
@@ -183,7 +184,7 @@ class API:
                 prefix_len = _cidr.split("/")[1]
                 address = entity["properties"]["address"]
                 cidr = f"{address}/{prefix_len}"
-                yield dict(entity, address=cidr)  # type: ignore
+                yield dict(entity, address=cidr)   # pyright: ignore[reportReturnType]
 
     def yield_all_ip_addresses(self):
         for network in self.yield_ip_object_list():
@@ -248,6 +249,8 @@ class API:
                     prefix=prefix,
                     name=name,
                 )
+            else:
+                raise NotImplementedError
         return new_id
 
     def assign_ipv4_address(
@@ -359,9 +362,9 @@ class API:
 
         try:
             if address.version == 4:
-                return self.assign_ipv4_address(**params) # type: ignore
+                return self.assign_ipv4_address(**params)  # pyright: ignore[reportArgumentType]
             else:
-                return self.assign_ipv6_address(**params) # type: ignore
+                return self.assign_ipv6_address(**params)  # pyright: ignore[reportArgumentType]
         except ErrorResponse as e:
             if 'Duplicate of another item' in e.message:
                 # TODO: reassign address
@@ -374,7 +377,6 @@ class MultiThreadedAPI(API):
     """API wrapper that runs all methods in a ThreadPoolExecutor."""
 
     ns = threading.local()
-    loop: asyncio.AbstractEventLoop
     main_thread: threading.Thread
 
     def __init__(self, *args, **kwargs):
@@ -535,5 +537,5 @@ class Settings(BaseSettings):
 
 class STGSettings(Settings):
 
-    class Config(BaseSettings.Config):
+    class Config(BaseSettings.Config):  # pyright: ignore[reportIncompatibleVariableOverride]
         app_name = "bluecat-stg"

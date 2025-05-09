@@ -1,17 +1,12 @@
 # pylint: disable=unused-argument
 from typing import TYPE_CHECKING
 from pathlib import Path
-from uoft_switchconfig import Settings
-from uoft_switchconfig.cli import template_name_completion, console_name_completion
 from uoft_switchconfig.generate import render_template, model_questionnaire
 from uoft_switchconfig.util import create_python_module
 from uoft_core import txt
 import pytest
 
 if TYPE_CHECKING:
-    from pytest_mock import MockFixture
-    from _pytest.logging import LogCaptureFixture
-    from _pytest.monkeypatch import MonkeyPatch
     from . import MockedConfig, MockPTApp
 
 template_dir = Path(__file__).parent.joinpath("fixtures/templates")
@@ -19,11 +14,8 @@ template_dir = Path(__file__).parent.joinpath("fixtures/templates")
 
 @pytest.mark.integration
 class TestGenerate:
-
     def model_questionnaire_test(self, mock_config: "MockedConfig", mock_pt_app: "MockPTApp"):
-        mod = create_python_module(
-            "test_model_questionnaire", template_dir.joinpath("data-model-test.py")
-        )
+        mod = create_python_module("test_model_questionnaire", template_dir.joinpath("data-model-test.py"))
         assert hasattr(mod, "Model")
         Model = getattr(mod, "Model")
 
@@ -55,12 +47,10 @@ class TestGenerate:
             "network": "10.0.1.0/24",
             "ip": "10.0.1.33",
         }
-        res = render_template(
-            template_dir.joinpath("comment-block-schema-test.j2"), input_data=answers
-        )
+        res = render_template(template_dir.joinpath("comment-block-schema-test.j2"), input_data=answers)
         assert res == txt(
             """
-            
+
             hostname av-ac207
 
             vtp domain AC
@@ -115,4 +105,3 @@ class TestGenerate:
             snmp-server location AC207
             """
         )
-

@@ -1,14 +1,12 @@
-from typing import Optional, Literal, Any, ClassVar
+from typing import Optional, Literal, Any
 from logging import getLogger
 
 from uoft_nautobot import Settings
 
 from diffsync import DiffSync
-from netaddr import IPRange, IPNetwork, IPAddress as IPAddr
+from netaddr import IPNetwork
 from nautobot.ipam.models import Prefix, IPAddress
 from nautobot.extras.models import Status, Tag, Note
-from django.db.models.manager import Manager
-from nautobot.extras.jobs import Job
 from nautobot.core.choices import ColorChoices
 from nautobot_ssot.contrib import NautobotModel as NautobotModelBase, NautobotAdapter
 from nautobot_ssot.jobs import DataSource
@@ -18,7 +16,7 @@ logger = getLogger(__name__)
 
 class NautobotModel(NautobotModelBase):
 
-    def delete(self, nautobot_object: Any):
+    def delete(self, nautobot_object: Any): # pyright: ignore[reportIncompatibleMethodOverride]
         """Safe delete an object, by adding tags or changing it's default status.
 
         Args:
@@ -78,7 +76,7 @@ class PrefixModel(NautobotModel):
     """
 
     # Metadata about this model
-    _model = Prefix  # type: ignore
+    _model = Prefix  # pyright: ignore[reportAssignmentType]
     _modelname = "prefix"
     _identifiers = ("prefix",)
     _attributes = (
@@ -108,7 +106,7 @@ class IPAddressModel(NautobotModel):
     """
 
     # Metadata about this model
-    _model = IPAddress  # type: ignore
+    _model = IPAddress  # pyright: ignore[reportAssignmentType]
     _modelname = "address"
     _identifiers = ("address",)
     _attributes = ("status__name", "type", "dns_name")
@@ -124,7 +122,7 @@ class IPAddressModel(NautobotModel):
 
 
 class Nautobot(NautobotAdapter):
-    top_level = ("prefix", "address")  # type: ignore
+    top_level = ("prefix", "address")  # pyright: ignore[reportAssignmentType]
 
     prefix = PrefixModel
     address = IPAddressModel
@@ -155,7 +153,7 @@ class Nautobot(NautobotAdapter):
 
 
 class Bluecat(RemoteAdapter):
-    top_level = ("prefix", "address")  # type: ignore
+    top_level = ("prefix", "address")  # pyright: ignore[reportAssignmentType]
 
     prefix = PrefixModel
     address = IPAddressModel
@@ -188,7 +186,7 @@ class Bluecat(RemoteAdapter):
                     description=bluecat_net_info["name"],
                     type=type,
                     status__name=status,
-                )  # type: ignore
+                ) # pyright: ignore[reportCallIssue]
             )
             self._load_addresses_for_network(bluecat_net_info)
 
@@ -211,7 +209,7 @@ class Bluecat(RemoteAdapter):
                     dns_name=bluecat_ip_info["name"],
                     status__name=status,
                     type=type,
-                )  # type: ignore
+                )  # pyright: ignore[reportCallIssue]
             )
 
 

@@ -1,4 +1,5 @@
-from .. import Settings, typing as t
+from .. import Settings
+import typing as t
 import pytest
 from pathlib import Path
 from uoft_core._vendor.dict_typer import get_type_definitions
@@ -19,6 +20,7 @@ def vcr_config():
 @pytest.mark.vcr(record_mode="new_episodes")
 @pytest.mark.default_cassette("LibreNMS.default.yaml")
 class LibreNMSTests:
+    @t.no_type_check
     def test_discovery(self):
         s = Settings.from_cache()
         api = s.api_connection()
@@ -70,32 +72,3 @@ class LibreNMSTests:
         print(res)
         print()
 
-    def test_collect(self):
-
-        import pandas as pd
-        s = Settings.from_cache()
-        api = s.api_connection()
-        devices = api.devices.list_devices()
-        devices = pd.DataFrame(devices['devices'])
-
-        ports = api.ports.get_all_ports(
-            columns=[
-                "port_id",
-                "device_id",
-                "ifIndex",
-                "ifName",
-                "ifAlias",
-                "ifDescr",
-                "ifOperStatus",
-                "ifAdminStatus",
-                "ifType",
-                "ifVlan",
-                "ifTrunk",
-                "disabled",
-            ]
-        )
-        ports = pd.DataFrame(ports['ports'])
-
-        
-        dev_map = {}
-        print()

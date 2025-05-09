@@ -4,7 +4,7 @@ import logging
 import typer
 import uoft_librenms
 
-from ._sync import Target, SyncData, DeviceModel, NautobotTarget
+from ._sync import DatasetName, SyncManager, Target, SyncData, DeviceModel, NautobotTarget
 
 logger = logging.getLogger(__name__)
 
@@ -54,29 +54,19 @@ class LibreNMSTarget(Target):
 
 @app.command()
 def get_devices(dev: bool = False):
-    import concurrent.futures as cf
+    from uoft_core import Timeit
 
-    with cf.ThreadPoolExecutor(thread_name_prefix="test") as executor:
-        from uoft_core import Timeit
+    t = Timeit()
 
-        t = Timeit()
 
-        # decrypt secrets and initialize managers
-        nb = executor.submit(lambda: NautobotTarget(dev))
-        ln = executor.submit(lambda: LibreNMSTarget())
-        nb = nb.result()
-        ln = ln.result()
+    # load data into the sync manager
+    datasets: set[DatasetName] = {"devices"}
+    sm = SyncManager(LibreNMSTarget(), NautobotTarget(dev), datasets, on_orphan="skip")
+    sm.load()
 
-        # load data
-        datasets = {"devices"}
-        futures = [executor.submit(nb.load_data, datasets), executor.submit(ln.load_data, datasets)]
-        [f.result() for f in cf.as_completed(futures)]
+    # synchronize data
+    sm.synchronize()
 
-    # sync data
-    ln.synchronize(nb.syncdata)
-
-    # save data
-    # ln.save_data()
-
-    runtime = t.stop().str
-    print(runtime)
+    # commit data
+    sm.commit()
+    logger.info(f"Time taken: {t.stop().str} seconds")

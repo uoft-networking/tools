@@ -235,7 +235,8 @@ def clean():
         for group_name in department.apgroups:
             table_name = group_name.capitalize()
             tables = grist.call("tables")
-            tables = tables["tables"]  # type:ignore
+            assert tables
+            tables = tables["tables"]
             for table in tables:
                 table_name = table["id"]
                 if table_name == "Landing_Page":

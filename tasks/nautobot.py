@@ -168,18 +168,18 @@ def db_refresh():
     server(["post_upgrade"])
 
 
-def refresh_graphql_schema(repo: str | None = None): # type: ignore
+def refresh_graphql_schema(repo: str | None = None):  # type: ignore
     """
     Rebuild local graphql schema file from running models.
     Should be done after every nautobot update, and every
     time a custom field is created or modified
     """
     if repo:
-        repo: Path = Path(repo)
+        repo_path = Path(repo)
     else:
-        repo: Path = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
+        repo_path = REPO_ROOT / "projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
     server(
-        f"graphql_schema --out {repo}/graphql/_schema.graphql".split()  # type: ignore
+        f"graphql_schema --out {repo_path}/graphql/_schema.graphql".split()  # type: ignore
     )
 
 
@@ -202,7 +202,9 @@ def curl_as(endpoint: str, user: str = "me", prod: bool = False, method="GET"):
 def rebase_nautobot_custom_fork():
     # this is way too sketchy to try and automate, so i'm just gonna remind myself how to do it
     from uoft_core import txt
-    print(txt("""
+
+    print(
+        txt("""
         cd custom-forks/nautobot
         git fetch upstream
         git checkout v<latest_nautobot_version>
@@ -226,5 +228,5 @@ def rebase_nautobot_custom_fork():
         git branch -D utsc-custom
         git checkout -b utsc-custom
         git push --force-with-lease --set-upstream origin utsc-custom      
-        """))
-
+        """)
+    )

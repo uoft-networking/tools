@@ -5,12 +5,12 @@ from uoft_switchconfig import Config
 from prompt_toolkit.output import DummyOutput
 
 if TYPE_CHECKING:
-    from .. import MockedUtil
+    from uoft_core.tests import MockedUtil
     from prompt_toolkit.application.current import AppSession
     from prompt_toolkit.input.base import PipeInput
 
     class MockPTApp(AppSession):
-        input: PipeInput
+        input: PipeInput # pyright: ignore[reportIncompatibleMethodOverride]
 
     class MockedConfig(Config):
         util: MockedUtil

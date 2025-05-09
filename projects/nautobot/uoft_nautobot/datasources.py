@@ -1,4 +1,6 @@
 from pathlib import Path
+import typing as t
+
 from .jinja_filters import import_repo_filters_module
 
 from nautobot.apps.datasources import DatasourceContent
@@ -7,10 +9,9 @@ from nautobot.extras.models import GraphQLQuery
 from nautobot.extras.choices import LogLevelChoices
 
 
-
 def refresh_device_types(repository_record: GitRepository, job_result, delete=False):
     """Callback for GitRepository updates - refresh Device Types managed by it."""
-    if "nautobot.device_types" not in repository_record.provided_contents or delete:
+    if delete or "nautobot.device_types" not in t.cast(set[str], repository_record.provided_contents):
         # This repository is defined not to provide DeviceType records.
         # In a more complete worked example, we might want to iterate over any
         # DeviceType records that might have been previously created by this GitRepository
@@ -23,20 +24,19 @@ def refresh_device_types(repository_record: GitRepository, job_result, delete=Fa
 
 def refresh_graphql_queries(repository_record: GitRepository, job_result, delete=False):
     """Callback for GitRepository updates - refresh GraphQL queries managed by it."""
-    if "nautobot.graphql" not in repository_record.provided_contents or delete:
+    if delete or "nautobot.device_types" not in t.cast(set[str], repository_record.provided_contents):
         # This repository is defined not to provide GraphQL queries.
         # In a more complete worked example, we might want to iterate over any
         # GraphQL queries that might have been previously created by this GitRepository
         # and ensure their deletion, but for now this is a no-op.
         return
-    
+
     repo_path = Path(repository_record.filesystem_path)
     gql_dir = repo_path / "graphql"
     if not gql_dir.exists():
         job_result.log("No graphql directory found in repository, skipping.")
         return
-    for file in gql_dir.glob("[!_]*.graphql"): # ignore files starting with _
-        
+    for file in gql_dir.glob("[!_]*.graphql"):  # ignore files starting with _
         name = file.stem
         with open(file, "r") as f:
             query = f.read()
