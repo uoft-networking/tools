@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     admin: Credentials = Field(description="Credentials for the admin user.")
     personal: Credentials = Field(description="Your personal credentials.")
     other: dict[str, SecretStr] = Field(description="Other, optional credentials.")
+    terminal_server: Credentials = Field(description="Credentials for the tripplite terminal servers.")
 
 
     class Config(BaseSettings.Config):
