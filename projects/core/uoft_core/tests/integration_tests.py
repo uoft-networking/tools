@@ -1,16 +1,16 @@
 import os
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
-import sys
 import enum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 import select
 from pydantic import BaseModel
 import uoft_core
 import uoft_core.prompt
 from uoft_core.types import SecretStr, DirectoryPath, FilePath
 
+if TYPE_CHECKING:
+    from _pytest.monkeypatch import MonkeyPatch # pyright: ignore[reportPrivateImportUsage]
 
 class _Settings(uoft_core.BaseSettings):
     a_value: str = "a_value"
@@ -22,7 +22,7 @@ class _Settings(uoft_core.BaseSettings):
 
 @pytest.mark.integration
 class SettingsTests:
-    def test_from_env_vars(self, monkeypatch: MonkeyPatch) -> None:
+    def test_from_env_vars(self, monkeypatch: 'MonkeyPatch') -> None:
         for k in os.environ:
             monkeypatch.delenv(k)
         monkeypatch.setattr("os.isatty", lambda fd: False)
@@ -86,40 +86,7 @@ class PromptTests:
                     # reading empty
                     break
 
-    @pytest.mark.skip(reason="This test is not yet implemented")
-    def test_unmocked_prompt(self):
-        import pyte
-
-        # create pseudo-terminal
-        pid, fd = os.forkpty()
-        if pid == 0:
-            # We are now in the child side of the fork
-            # Here we will run the program we want to test
-            p = uoft_core.prompt.Prompt(uoft_core.Util("prompt_test").history_cache)
-            res = p.from_model(_Example)
-            assert res
-            sys.exit(0)
-        else:
-            # We are now in the parent side of the fork
-
-            # create VTY
-            screen = pyte.Screen(80, 24)
-            stream = pyte.ByteStream(screen)
-            # Here we will wait for the child to finish
-            # writing to its stdout, and then we will
-            # read the contents of the child's stdout
-            # and feed it to the VTY for analysis
-            self._wait_for_screen_update(fd, stream)
-
-            # First, we'll print out the contents of the VTY, so we can see what it looks like
-            # in the event of a pytest failure
-            for line in screen.display:
-                print(line)
-
-            # now, do some assertions and interact with the child process
-            assert "a_bool: " in screen.display[0]
-
-    def test_mocked_prompt(self, monkeypatch: MonkeyPatch, tmp_path: Path):
+    def test_mocked_prompt(self, monkeypatch: 'MonkeyPatch', tmp_path: Path):
         """Mock out prompt_toolkit's PromptSession as best we can, and test Prompt against our mock."""
 
         class mockdoc:

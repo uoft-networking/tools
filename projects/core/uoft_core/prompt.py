@@ -98,7 +98,7 @@ class Prompt:
                 opts["auto_suggest"] = AutoSuggestFromHistory()
                 if default_from_history:
                     try:
-                        opts["default"] = next(history.load_history_strings())  # type: ignore
+                        opts["default"] = next(history.load_history_strings())  # pyright: ignore[reportArgumentType]
                     except StopIteration:
                         pass
 
@@ -134,7 +134,7 @@ class Prompt:
             validator=validator,
         )
         opts.update(kwargs)
-        return self.get_string(var, description, default_value, **opts)  # type: ignore
+        return self.get_string(var, description, default_value, **opts) # pyright: ignore[reportArgumentType]
 
     def get_path(  # pylint: disable=too-many-arguments
         self,
@@ -155,7 +155,7 @@ class Prompt:
             complete_while_typing=True,
         )
         opts.update(kwargs)
-        return Path(self.get_string(var, description, default_value, **opts))  # type: ignore
+        return Path(self.get_string(var, description, default_value, **opts)) # pyright: ignore[reportArgumentType]
 
     def get_bool(
         self,
@@ -247,7 +247,7 @@ class Prompt:
             var,
             description,
             default_value="\n".join(default_value) if default_value else None,
-            **opts,  # type: ignore
+            **opts,  # pyright: ignore[reportArgumentType]
         )
         return val.strip().split("\n")
 
@@ -255,7 +255,7 @@ class Prompt:
         self,
         var: str,
         description: str | None,
-        default_value: dict[str, str] | None = None,  # type: ignore
+        default_value: dict[str, str] | None = None,  # pyright: ignore[reportRedeclaration]
         **kwargs,
     ) -> dict[str, str]:
         kb = KeyBindings()
@@ -289,7 +289,7 @@ class Prompt:
         opts.update(kwargs)
         if default_value:
             default_value: str = "\n".join(f"{k}: {v}" for k, v in default_value.items())
-        val = self.get_string(var, description, **opts)  # type: ignore
+        val = self.get_string(var, description, **opts)  # pyright: ignore[reportArgumentType]
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}

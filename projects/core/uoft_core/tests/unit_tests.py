@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from . import MockedUtil
     from pytest_mock import MockerFixture
-    from _pytest.logging import LogCaptureFixture
+    from _pytest.logging import LogCaptureFixture # pyright: ignore[reportPrivateImportUsage]
 
 
 def test_version():
@@ -437,7 +437,7 @@ class UtilsTests:
 
         # Test the success conditions
         mock_util.mock_folders.user_config.toml_file.touch()
-        mock_util._clear_caches()  # noqa
+        mock_util._clear_caches()
         file = mock_util.config.get_file_or_fail()
         assert file.exists()
 
@@ -551,13 +551,13 @@ class UtilsTests:
             mock_util.config.get_key_or_fail("key1")
 
         # test key missing from config file
-        mock_util._clear_caches()  # noqa
+        mock_util._clear_caches()
         mock_util.mock_folders.user_config.json_file.write_text('{"key2": "val2"}')
         with pytest.raises(KeyError):
             mock_util.config.get_key_or_fail("key1")
 
         # test the happy path
-        mock_util._clear_caches()  # noqa
+        mock_util._clear_caches()
         mock_util.mock_folders.user_config.json_file.write_text(
             '{"key1": "val1", "key2": "val2"}'
         )
@@ -565,7 +565,7 @@ class UtilsTests:
         assert result == "val1"
 
         # test env var
-        mock_util._clear_caches()  # noqa
+        mock_util._clear_caches()
         mocker.patch.dict("os.environ", {"EXAMPLE_APP_KEY1": "env var value"})
         result = mock_util.config.get_key_or_fail("key1")
         assert result == "env var value"
@@ -634,6 +634,7 @@ class UtilsTests:
 class NestedDataTests:
 
     def test_unstructure(self):
+        from uoft_core.nested_data import NestedData
         input_data = {
             "menu": {
                 "header": "SVG Viewer",
@@ -705,12 +706,13 @@ class NestedDataTests:
         ]
 
         output = []
-        for keypath, value in uoft_core.nested_data.NestedData.unstructure(input_data):
+        for keypath, value in NestedData.unstructure(input_data):
             assert isinstance(keypath, str)
             output.append((keypath, value))
         assert output == expected_output
 
     def test_restructure(self):
+        from uoft_core.nested_data import NestedData
         input_data = [
             ("menu.header", "SVG Viewer"),
             ("menu.items.[0].id", "Open"),
@@ -780,10 +782,11 @@ class NestedDataTests:
                 "other": {"[key1]": True, "[key2]": False},
             }
         }
-        output = uoft_core.nested_data.NestedData.restructure(input_data)
+        output = NestedData.restructure(input_data)
         assert output == expected_output
 
     def test_remap(self):
+        from uoft_core.nested_data import NestedData
         keymap = [
             # basic renaming
             ("menu.header", "menu.footer"),
@@ -822,12 +825,13 @@ class NestedDataTests:
                 "other": {"[key1]": True, "[key2]": False},
             }
         }
-        unstructured = uoft_core.nested_data.NestedData.unstructure(input_data)
-        unstructured = uoft_core.nested_data.NestedData.remap(unstructured, keymap)
-        output = uoft_core.nested_data.NestedData.restructure(unstructured)
+        unstructured = NestedData.unstructure(input_data)
+        unstructured = NestedData.remap(unstructured, keymap)
+        output = NestedData.restructure(unstructured)
         assert output == expected_output
 
     def test_filter(self):
+        from uoft_core.nested_data import NestedData
         input_data = {
             "menu": {
                 "header": "SVG Viewer",
@@ -893,7 +897,7 @@ class NestedDataTests:
             }
         }
 
-        unstructured = uoft_core.nested_data.NestedData.unstructure(input_data)
-        filtered = uoft_core.nested_data.NestedData.filter_(unstructured, filters)
-        output = uoft_core.nested_data.NestedData.restructure(filtered)
+        unstructured = NestedData.unstructure(input_data)
+        filtered = NestedData.filter_(unstructured, filters)
+        output = NestedData.restructure(filtered)
         assert output == expected_output

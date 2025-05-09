@@ -35,6 +35,7 @@ from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
 from pydantic.fields import Field
 import pydantic.types
 from pydantic.main import ModelMetaclass
+from pydantic.env_settings import SettingsSourceCallable
 
 from . import logging
 from .types import StrEnum, SecretStr
@@ -47,7 +48,8 @@ if TYPE_CHECKING:
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata 
 # module to get the version of the package.
-__version__ = version(__package__) # type: ignore
+assert __package__
+__version__ = version(__package__)
 
 logger = logging.getLogger(__name__)
 assert isinstance(logger, logging.UofTCoreLogger)
@@ -75,8 +77,8 @@ def memoize(f: F) -> F:
             cache[key] = func(*args, **kw)
         return cache[key]
 
-    f.cache = {}
-    return decorate(f, _memoize)  # type: ignore
+    f.cache = {} # pyright: ignore[reportFunctionMemberAccess]
+    return decorate(f, _memoize) # pyright: ignore[reportReturnType]
 
 
 def debug_cache(func: F) -> F:
@@ -136,11 +138,11 @@ def debug_cache(func: F) -> F:
                 pickle.dump(cache, f)
         return cache[key]
 
-    wrapped_func.clear_cache = clear_cache
+    wrapped_func.clear_cache = clear_cache # pyright: ignore[reportFunctionMemberAccess]
     wrapped_func.__name__ = func.__name__
     wrapped_func.__doc__ = func.__doc__
-    wrapped_func.__wrapped__ = func
-    wrapped_func.__signature__ = inspect.signature(func)
+    wrapped_func.__wrapped__ = func # pyright: ignore[reportFunctionMemberAccess]
+    wrapped_func.__signature__ = inspect.signature(func) # pyright: ignore[reportFunctionMemberAccess]
     wrapped_func.__qualname__ = func.__qualname__
     # builtin functions like defaultdict.__setitem__ lack many attributes
     try:
@@ -164,7 +166,7 @@ def debug_cache(func: F) -> F:
     except AttributeError:
         pass
 
-    return wrapped_func  # type: ignore
+    return wrapped_func  # pyright: ignore[reportReturnType]
 
 
 def txt(s: str) -> str:
@@ -405,11 +407,12 @@ class PassPath(type(Path())):
         return self.contents
 
     def write_text(
-        self, data: str, encoding: str | None = None, errors: str | None = None
-    ) -> None:
+        self, data: str, encoding: str | None = None, errors: str | None = None, newline: str | None = None
+    ):
         if _is_pass_installed():
             shell(f"{_pass_cmd} insert -m {self}", input_=data)
             self._contents = data
+            return len(data)
         else:
             raise UofTCoreError(
                 chomptxt(
@@ -417,6 +420,8 @@ class PassPath(type(Path())):
                     pass is not installed"""
                 )
             )
+        
+        
 
 
 def bitwarden_unlock(password_file: Path | None = None):
@@ -834,7 +839,7 @@ class Util:
     def __init__(self, app_name: str) -> None:
         self.app_name = app_name
         self.dirs: PlatformDirs = PlatformDirs("uoft-tools")
-        self.config: "Util.Config" = self.Config(self)
+        self.config = self.Config(self)
         # there should be one config path which is common to all OS platforms,
         # so that users who sync configs between multiple computers can sync
         # those configs to the same directory across machines and have it *just work*
@@ -963,12 +968,11 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                     cls._instance = cls()
             else:
                 logger.debug("Settings already loaded")
-            cls._instance: S
             return cls._instance
 
     def __init_subclass__(cls, **kwargs):
         app_name = getattr(cls.Config, "app_name", None)
-        if app_name is None:
+        if not app_name:
             raise TypeError(
                 "Subclasses of BaseSettings must include a Config class with an app_name attribute"
             )
@@ -1029,6 +1033,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 parser = SecretStr
             elif get_origin(field.outer_type_) is dict:
                 type_ = List[str]
+                assert help_
                 help_ += " (key value pairs separated by =)"
                 def parse_key_value(value):
                     try:
@@ -1049,8 +1054,8 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             settings_parameters.append(param)
         parameters = settings_parameters + list(sig.parameters.values())
         new_sig = sig.replace(parameters=parameters)
-        func.__signature__ = new_sig
-        func.settings_parameters = settings_parameters
+        func.__signature__ = new_sig # pyright: ignore[reportFunctionMemberAccess]
+        func.settings_parameters = settings_parameters # pyright: ignore[reportFunctionMemberAccess]
 
         # here we return the original function, but with the new signature,
         # and let the original function handle the settings-related arguments passed in by typer,
@@ -1060,7 +1065,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
             # we need to pull out the settings-related arguments from the args list
             # and pass them to the settings function
             settings_kwargs = {}
-            for param, value in zip(func.settings_parameters, args):
+            for param, value in zip(func.settings_parameters, args): # pyright: ignore[reportFunctionMemberAccess]
                 if value is None:
                     continue
                 # some dirty hacks to get around quirks in typer behaviour
@@ -1077,14 +1082,15 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 cls._update_cache_instance(
                     **settings_kwargs
                 )  # pylint: disable=protected-access
-            number_of_settings_args = len(func.settings_parameters)
+            number_of_settings_args = len(func.settings_parameters) # pyright: ignore[reportFunctionMemberAccess]
             new_args = args[number_of_settings_args:]
             return f(*new_args)
 
-        return decorate(func, _wrapper)  # type: ignore
+        return decorate(func, _wrapper)  # pyright: ignore[reportReturnType]
 
     @classmethod
     def _prompt(cls):
+        from .prompt import Prompt
         return Prompt(cls._util().history_cache)
 
     @property
@@ -1188,16 +1194,16 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
         # as opposed to a pydantic validator, is that `SecretStr` fields cannot be directly serialized. 
         # they get treated as strings, serialized as "*************", and then the original actual value is lost.
 
-        from collections.abc import Mapping, Iterable
+        from collections.abc import MutableMapping, Iterable
 
         # to prevent this, we-ll need to recursively walk the model and replace SecretStr fields with their actual values
         values = self.dict()
         def _walk(d):
-            if isinstance(d, Mapping):
+            if isinstance(d, MutableMapping):
                 for k, v in d.items():
                     if isinstance(v, SecretStr):
                         d[k] = v.get_secret_value()
-                    elif isinstance(v, (Mapping, Iterable)):
+                    elif isinstance(v, (MutableMapping, Iterable)):
                         _walk(v)
             elif isinstance(d, Iterable) and not isinstance(d, str):
                 for i in d:
@@ -1207,19 +1213,19 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
 
     class Config(PydanticBaseSettings.Config):
         env_file = ".env"
-        app_name: str = None  # type: ignore
+        app_name: str = ''
         prompt_on_missing_values = True
         extra = Extra.allow
 
         @classmethod
-        def customise_sources(cls, init_settings, env_settings, file_secret_settings):
+        def customise_sources(cls, init_settings, env_settings, file_secret_settings) -> tuple[SettingsSourceCallable, ...]:
             return (
                 init_settings,
                 env_settings,
                 file_secret_settings,
                 cls.pass_settings_source(),
                 cls.config_file_settings,
-            )
+            ) # pyright: ignore[reportReturnType]
 
         @classmethod
         def pass_settings_source(cls):
@@ -1258,5 +1264,5 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 # We'll let pydantic check all settings sources and determine if a given setting is missing
                 return {}
 
-    __config__: ClassVar[Type[Config]]
+    __config__: ClassVar[Type[Config]] # pyright: ignore[reportIncompatibleVariableOverride]
 

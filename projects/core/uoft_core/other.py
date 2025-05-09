@@ -5,7 +5,7 @@ additional dependencies not included in uoft_core by default.
 
 import re
 import sys
-from subprocess import run, PIPE
+from subprocess import run, PIPE # noqa F401
 from pathlib import Path
 from types import ModuleType
 import inspect
@@ -80,10 +80,10 @@ def unflatten_yaml(data: Sequence[YamlValue]):
 
 
 def add_comments_to_yaml_doc(doc: str, model: "BaseModel", indent=0):
-    from pydantic.fields import ModelField  # noqa
-    from pydantic import BaseModel  # noqa
+    from pydantic.fields import ModelField
+    from pydantic import BaseModel
 
-    for field in model.fields.values():  # type: ignore
+    for field in model.fields.values():   # pyright: ignore[reportAttributeAccessIssue]
         field: ModelField
         desc = field.field_info.description
         if desc:
@@ -226,7 +226,7 @@ class Prompt:
             key_bindings=kb,
         )
         opts.update(kwargs)
-        val = self.string(var, description, **opts)
+        val = self.string(var, description, **opts) # pyright: ignore[reportArgumentType]
         return val.strip().split("\n")
 
     def dict_(self, var: str, description: str | None, **kwargs) -> dict[str, str]:
@@ -257,7 +257,7 @@ class Prompt:
             validator=DictValidator(),
         )
         opts.update(kwargs)
-        val = self.string(var, description, **opts)
+        val = self.string(var, description, **opts) # pyright: ignore[reportArgumentType]
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
@@ -295,4 +295,4 @@ def clear_caches(module: ModuleType):
 
     for cacheable in get_cachables():
         if hasattr(cacheable, "cache"):
-            cacheable.cache = {}
+            cacheable.cache = {} # pyright: ignore[reportAttributeAccessIssue]
