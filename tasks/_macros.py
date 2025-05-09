@@ -77,10 +77,9 @@ def zxpy(stmts, **kw):
             and isinstance(node.op, ast.Invert)
             and isinstance(node.operand, (ast.Constant, ast.JoinedStr))
         )
-    
-    #TODO: add automatic `run` import to statements that use it
+
     def run_call(value, cap=False, cap_all=False):
-        return q[run(a[value], cap=u[cap], capture_output=u[cap_all])] # type: ignore
+        return quasiquote[hygenic_unquote[run](ast_unquote[value], cap=unquote[cap], capture_output=unquote[cap_all])]  # pyright: ignore[reportIndexIssue]
 
     new_stmts = []
 
@@ -96,9 +95,9 @@ def zxpy(stmts, **kw):
                 new_stmts.append(stmt)
             else:
                 # we're dealing with the `stdout, stderr, return_code = ~'...'` case
-                with q as quoted:
-                    _result = a[run_call(stmt.value.operand, cap_all=True)]
-                    stdout, stderr, return_code = _result.stdout.strip(), _result.stderr.strip(), _result.returncode
+                with quasiquote as quoted:
+                    _result = ast_unquote[run_call(stmt.value.operand, cap_all=True)]
+                    stdout, stderr, return_code = _result.stdout.strip(), _result.stderr.strip(), _result.returncode  # noqa: F841
                 new_stmts.extend(quoted)
         else:
             new_stmts.append(stmt)
