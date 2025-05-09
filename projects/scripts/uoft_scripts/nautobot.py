@@ -1214,6 +1214,9 @@ def generate_compliance_commands(
     goal: ComplianceReportGoal = ComplianceReportGoal.add,
     filters: list[str] | None = None,
     sub_filters: list[str] | None = None,
+    merge_with: Path | None = None,
+    top_level_only: bool = False,
+    prefix_when_merging: bool = False,
 ):
     filters = filters or []
     sub_filters = sub_filters or []
@@ -1221,14 +1224,35 @@ def generate_compliance_commands(
     for report in get_compliance_data(feature):
         if goal == ComplianceReportGoal.add:
             config = report.missing  # missing config to add
-            prefix = ""
         elif goal == ComplianceReportGoal.remove:
-            config = report.extra  # extra config to remove
-            prefix = "no "
-        matched_commands = filter_config(config=config, filters=filters, sub_filters=sub_filters)
+            config = report.extra  # extra config to removes
+        if not config:
+            logger.warning(f"{report.device.name} has no config to {goal}, skipping...")
+            continue
+        matched_commands = filter_config(
+            config=config, filters=filters, sub_filters=sub_filters, top_level_only=top_level_only
+        )
         if matched_commands:
-            res[report.device.name] = [prefix + cmd for cmd in matched_commands]
-    print(json.dumps(res, indent=2))
+            if goal == ComplianceReportGoal.remove:
+                matched_commands = [f"no {c.splitlines()[0]}" for c in matched_commands]
+            else:
+                flattened_commands = []
+                for c in matched_commands:
+                    flattened_commands.extend(c.splitlines())
+                matched_commands = flattened_commands
+            res[report.device.name] = matched_commands
+    if merge_with:
+        assert merge_with.exists(), f"File {merge_with} does not exist"
+        existing_data = json.loads(merge_with.read_text())
+        for k, v in res.items():
+            if prefix_when_merging:
+                existing_data[k] = v + existing_data.get(k, [])
+            else:
+                existing_data[k] = existing_data.get(k, []) + v
+        res = existing_data
+        merge_with.write_text(json.dumps(res, indent=2))
+    else:
+        print(json.dumps(res, indent=2))
 
 
 class ComplianceReportDevice(BaseModel):
@@ -1256,7 +1280,7 @@ def get_compliance_data(feature) -> list[ComplianceReport]:
         variables={"feature": feature},
         query="""
 query ($feature: String) {
-  config_compliances (feature: [$feature], device_status: "Active") {
+  config_compliances (feature: [$feature], device_status: "Active", compliance: false) {
     compliance
     rule {
       feature { name }
@@ -1276,6 +1300,9 @@ query ($feature: String) {
 }
 """,
     )
+    if d.json.get("errors"):
+        logger.error(d.json["errors"])
+        raise Exception(f"Error fetching compliance data: {d.json['errors']}")
     for r in d.json["data"]["config_compliances"]:
         report = ComplianceReport(
             device=ComplianceReportDevice(
@@ -1298,43 +1325,41 @@ query ($feature: String) {
     return res
 
 
-def _group_config(config: str) -> list[str | list[str]]:
+def _group_config(config: str) -> list[str]:
     # Break up the config snippet into a list of lines.
     # Group lines that start with an indent in with the non-indented line above them
-    lst = config.splitlines()
-    for i, line in reversed(list(enumerate(lst))):
-        if line.startswith(" "):
-            lst.pop(i)
-            if isinstance(lst[i - 1], str):
-                # convert the parent config line to a list
-                lst[i - 1] = [lst[i - 1]]  # type: ignore
-            lst[i - 1].append(line)  # type: ignore
-    return lst  # type: ignore
+    return re.split(r"\n(?!\s)", config)
 
 
-def filter_config(config: str, filters: list[str], sub_filters: list[str] | None = None) -> str:
+def filter_config(config: str, filters: list[str], sub_filters: list[str] | None = None, top_level_only: bool = False):
+    grouped_config = _group_config(config)  
     sub_filters = sub_filters or []
     # Break up the config snippet into a list of lines.
     # Group lines that start with an indent in with the non-indented line above them
-    lst = config.splitlines(keepends=True)
-    for i, line in reversed(list(enumerate(lst))):
-        if line.startswith(" "):
-            lst.pop(i)
-            if not any([re.search(f, line) for f in sub_filters]):
-                continue
-            lst[i - 1] += line
-        elif not any([re.search(f, line) for f in filters]):
-            lst.pop(i)
-    return lst  # type: ignore
+    res: list[str] = []
+    for chunk in grouped_config:
+        lines = chunk.splitlines()
+        if not any([re.search(f, lines[0]) for f in filters]):
+            continue
+        if not sub_filters:
+            if top_level_only:
+                res.append(lines[0])
+            else:
+                # add the whole chunk to res
+                res.append("\n".join(lines))
+        else:
+            # filter the chunk by sub_filters
+            filtered_chunk = [lines[0]]
+            for line in lines[1:]:
+                if any([re.search(f, line) for f in sub_filters]):
+                    filtered_chunk.append(line)
+            if len(filtered_chunk) > 1:
+                res.append("\n".join(filtered_chunk))
+    return res
 
 
 def _sort_config_snippet(snippet: str):
-    lst = snippet.splitlines(keepends=True)
-    for i, line in reversed(list(enumerate(lst))):
-        if line.startswith(" "):
-            lst.pop(i)
-            lst[i - 1] += line
-    return "\n".join(sorted(lst))
+    return "\n".join(sorted(_group_config(snippet)))
 
 
 def _devices_with_matching_line(
@@ -1457,3 +1482,7 @@ def explore_compliance(feature: str):
                 devices_report = _devices_with_matching_line(line, compliance_data, config_type=config_type)
                 con.print(devices_report)
             input("Press enter to continue...")
+
+
+def _debug():
+    device_type_add_or_update()
