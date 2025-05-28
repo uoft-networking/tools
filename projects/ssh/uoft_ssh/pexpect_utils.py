@@ -39,7 +39,9 @@ class MultiExpect:
         self.clear()
         self.timeout = timeout
 
-    def register(self, pattern: str | type[TIMEOUT] | type[EOF]):
+    def register(
+        self, pattern: str | type[UofTPexpectSpawn.TIMEOUT] | type[UofTPexpectSpawn.EOF] | type[TIMEOUT] | type[EOF]
+    ):
         def decorator(func):
             self.handlers.append((pattern, func))
             return func

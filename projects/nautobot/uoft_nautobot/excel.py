@@ -69,7 +69,7 @@ class ExcelContext:
         self.valid_vlans = VLAN.objects.filter(vlan_group=self.vlan_group)
 
 
-def export_to_excel(pk):
+def export_to_excel(pk) -> tuple[str, bytes]:
     _register_manager_classes()
     ctx = ExcelContext(pk)
 
