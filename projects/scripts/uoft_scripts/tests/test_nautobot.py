@@ -1,4 +1,4 @@
-from uoft_scripts import nautobot
+from uoft_scripts.nautobot import lib, cli
 from pathlib import Path
 import socket
 from subprocess import Popen, PIPE
@@ -143,24 +143,24 @@ def mock_sync_data(mocker: MockerFixture):
 
 
 def test_multithreaded_sync(nautobot_running):
-    nautobot.sync_from_bluecat()
+    lib.sync_from_bluecat()
     print()
 
 
 def test_autocomplete_hostnames(mocker):
-    all_hostanames = nautobot._autocomplete_hostnames(ctx=mocker.Mock(), partial="")
-    access_switches = nautobot._autocomplete_hostnames(ctx=mocker.Mock(), partial="a1-")
+    all_hostanames = cli._autocomplete_hostnames(ctx=mocker.Mock(), partial="")
+    access_switches = cli._autocomplete_hostnames(ctx=mocker.Mock(), partial="a1-")
     assert isinstance(all_hostanames, list)
     assert isinstance(access_switches, list)
     assert len(all_hostanames) > len(access_switches)
 
 
 def test_show_golden_config_data():
-    nautobot.show_golden_config_data("d1-ia")
+    lib.show_golden_config_data("d1-ia")
 
 
 def test_trigger_golden_config_intended():
-    nautobot.trigger_golden_config_intended("d1-ia")
+    lib.trigger_golden_config_intended("d1-ia")
 
 
 def test_golden_config_templates():
@@ -168,5 +168,5 @@ def test_golden_config_templates():
     templates_dir = Path(
         "~/uoft-tools/projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
     ).expanduser()
-    nautobot.push_changes_to_nautobot(templates_dir)
-    nautobot.test_golden_config_templates("d1-ia", templates_dir=templates_dir)
+    lib.push_changes_to_nautobot(templates_dir)
+    lib.test_golden_config_templates("d1-ia", templates_dir=templates_dir)

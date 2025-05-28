@@ -27,9 +27,9 @@ import time
 import re
 from difflib import Differ
 
-from uoft_core.types import BaseModel, SecretStr
+from . import Settings, OnOrphanAction, ComplianceReportGoal, get_settings, get_api
+from uoft_core.types import BaseModel
 from uoft_core import logging
-from uoft_core import BaseSettings, Field, StrEnum
 from uoft_core.console import console
 
 import pynautobot
@@ -38,60 +38,13 @@ from pynautobot.models.extras import Jobs, JobResults
 from pynautobot.models.dcim import Devices as NautobotDeviceRecord
 import deepdiff
 import deepdiff.model
-import typer
 import jinja2
 from rich.table import Table
 from rich.prompt import Prompt, IntPrompt, Confirm
 
 
-# NOTE: this really aught to live in a uoft-nautobot package, dedicated to code surrounding the nautobot rest api,
-# but there happens to already be a uoft_nautobot package, which is actually a uoft-centric nautobot plugin and
-# should actually be called nautobot-uoft,
-# TODO: move/rename uoft_nautobot to nautobot-uoft and create a uoft_nautobot project for this code.
-class Settings(BaseSettings):
-    """Settings for the nautobot_cli application."""
-
-    url: str = Field(..., title="Nautobot server URL")
-    token: SecretStr = Field(..., title="Nautobot API Token")
-
-    class Config(BaseSettings.Config):
-        app_name = "nautobot-cli"
-
-    def api_connection(self):
-        return pynautobot.api(url=self.url, token=self.token.get_secret_value(), threading=True)
-
-
-class DevSettings(Settings):
-    class Config(BaseSettings.Config):  # pyright: ignore[reportIncompatibleVariableOverride]
-        app_name = "nautobot-cli-dev"
-
-
-def get_settings(dev: bool = False):
-    if dev:
-        return DevSettings.from_cache()
-    return Settings.from_cache()
-
-
-DEV_NB_API = None
-PROD_NB_API = None
-
-
-def get_api(dev: bool = False):
-    global DEV_NB_API, PROD_NB_API
-    if dev:
-        if DEV_NB_API is None:
-            DEV_NB_API = get_settings(dev).api_connection()
-        return DEV_NB_API
-    else:
-        if PROD_NB_API is None:
-            PROD_NB_API = get_settings(dev).api_connection()
-        return PROD_NB_API
-
-
 logger = logging.getLogger(__name__)
 
-
-app = typer.Typer(name="nautobot")
 
 ip_address: t.TypeAlias = str
 "ip address in CIDR notation, e.g. '192.168.0.20/24'"
@@ -237,30 +190,10 @@ def _get_prefix(ip_object):
         return None
 
 
-def _validate_templates_dir(templates_dir):
-    if templates_dir is None:
-        templates_dir = Path(".")
-    if not templates_dir.joinpath("filters.py").exists():
-        logger.error(f"Expected to find a `filters.py` file in template repo directory '{templates_dir.resolve()}'")
-        logger.warning("Are you sure you're in the right directory?")
-        raise typer.Exit(1)
-    return templates_dir
-
-
-TemplatesPath: t.TypeAlias = t.Annotated[Path, typer.Option(exists=True, callback=_validate_templates_dir)]
-
-
-class OnOrphanAction(StrEnum):
-    prompt = "prompt"
-    delete = "delete"
-    backport = "backport"
-    skip = "skip"
-
-
-@app.command()
 def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: OnOrphanAction = OnOrphanAction.prompt):
     from uoft_core import Timeit
-    from . import _sync
+    from .. import _sync
+    import typer
 
     print = console().print
 
@@ -293,49 +226,8 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
     done()
 
 
-def _autocomplete_hostnames(ctx: typer.Context, partial: str):
-    dev = ctx.params.get("dev", False)
-    nb = get_api(dev)
-    if partial:
-        query = nb.dcim.devices.filter(name__ic=partial)
-    else:
-        query = nb.dcim.devices.all()
-    query = t.cast(list[Record], query)
-    return [d.name for d in query]
-
-
-def _autocomplete_manufacturers(ctx: typer.Context, partial: str):
-    dev = ctx.params.get("dev", False)
-    nb = get_api(dev)
-    if partial:
-        query = nb.dcim.manufacturers.filter(name__ic=partial)
-    else:
-        query = nb.dcim.manufacturers.all()
-    query = t.cast(list[Record], query)
-    return [d.name for d in query]
-
-
-def _autocomplete_device_types(ctx: typer.Context, partial: str):
-    dev = ctx.params.get("dev", False)
-    mfg = ctx.params.get("manufacturer", None)
-    nb = get_api(dev)
-    if mfg:
-        mfg_id = t.cast(Record, nb.dcim.manufacturers.get(name=mfg)).id
-        if partial:
-            query = nb.dcim.device_types.filter(manufacturer=mfg_id, model__ic=partial)
-        else:
-            query = nb.dcim.device_types.filter(manufacturer=mfg_id)
-    else:
-        if partial:
-            query = nb.dcim.device_types.filter(model__ic=partial)
-        else:
-            query = nb.dcim.device_types.all()
-    query = t.cast(list[Record], query)
-    return [d.model for d in query]
-
-
 def _get_jinja_env(templates_dir: Path):
-    from . import _jinja
+    from .. import _jinja
     from uoft_core import jinja_library
 
     env = jinja2.Environment(
@@ -353,9 +245,8 @@ def _get_jinja_env(templates_dir: Path):
     return env
 
 
-@app.command()
 def show_golden_config_data(
-    device_name: str = typer.Argument(..., autocompletion=_autocomplete_hostnames),
+    device_name: str,
     dev: bool = False,
 ):
     nb = get_api(dev)
@@ -366,9 +257,8 @@ def show_golden_config_data(
 
 
 @t.no_type_check
-@app.command()
 def trigger_golden_config_intended(
-    device_name: t.Annotated[str, typer.Argument(..., autocompletion=_autocomplete_hostnames)],
+    device_name: str,
     dev: bool = False,
 ):
     nb = get_api(dev)
@@ -381,9 +271,8 @@ def trigger_golden_config_intended(
     print(job_result.url.replace("/api/", "/"))
 
 
-@app.command()
 def template_filter_info(
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir = Path("."),
 ):
     # scan the templates for uses of jinja filters
     found_filters = set()
@@ -405,14 +294,15 @@ def template_filter_info(
     logger.info(f"You have the following filters available: \n- {filters}")
 
 
-@app.command()
+
 def test_golden_config_templates(
-    device_name: t.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    device_name: str,
     override_status: str | None = None,
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir: Path = Path("."),
     dev: bool = False,
     print_output: bool = True,
 ):
+    import typer
     nb = get_api(dev)
     device = t.cast(Record | None, nb.dcim.devices.get(name=device_name))
     if not device:
@@ -464,9 +354,17 @@ def run_job(dev: bool, job_name: str, data: dict):
 
 
 @t.no_type_check
-@app.command()
+def update_golden_config_repo(dev=False):
+    nb = get_api(dev)
+    gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
+    job_result = run_job(dev, "Git Repository: Sync", {"repository": gitrepo.id})
+    return job_result
+
+
+
+
 def push_changes_to_nautobot(
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir: Path = Path("."),
     dev: bool = False,
 ):
     import subprocess
@@ -479,15 +377,11 @@ def push_changes_to_nautobot(
     subprocess.run(["git", "push"], check=True, cwd=templates_dir)
 
     logger.info("Telling nautobot to pull the changes")
-    nb = get_api(dev)
-    gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
-    job_result = run_job(dev, "Git Repository: Sync", {"repository": gitrepo.id})
-    return job_result
+    return update_golden_config_repo(dev=dev)
 
 
-@app.command()
 def test_templates_in_nautobot(
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir: Path = Path("."),
     dev: bool = False,
 ):
     push_changes_to_nautobot(templates_dir, dev)
@@ -502,39 +396,11 @@ def test_templates_in_nautobot(
     return job_result
 
 
-def _assert_cwd_is_devicetype_library():
-    if not (Path(".git").exists() and Path("device-types").exists()):
-        logger.error(
-            "This command is meant to be run from within the device-type-library repository. "
-            "Please clone the repository from https://github.com/netbox-community/devicetype-library"
-            " and run this command from within the repository folder."
-        )
-        raise typer.Exit(1)
-
-
-def _complete_mfg(incomplete: str):
-    _assert_cwd_is_devicetype_library()
-    if incomplete:
-        search_space = Path("device-types").glob(f"{incomplete}*")
-    else:
-        search_space = Path("device-types").iterdir()
-    for dir in search_space:
-        if dir.is_dir():
-            yield dir.name
-
-
-def _complete_model(incomplete: str, ctx: typer.Context):
-    _assert_cwd_is_devicetype_library()
-    manufacturer = ctx.params["manufacturer"]
-    search_space = Path("device-types").joinpath(manufacturer).glob(f"{incomplete}*.yaml")
-    for file in search_space:
-        yield file.stem  # stem instead of name, because we don't want the .yaml extension
-
 
 def _device_family_id(nb, prompt, model):
     device_families_by_name = {}
     for family in nb.dcim.device_families.all():
-        device_families_by_name[family.name] = family.id  
+        device_families_by_name[family.name] = family.id
 
     matching_families = [f for f in device_families_by_name if f in model]
     if len(matching_families) == 1:
@@ -565,7 +431,7 @@ def _device_family_id(nb, prompt, model):
                 'Enter a device family name for this device type (Ex: "C9300")',
             )
             family = nb.dcim.device_families.create(name=family_name)
-            return family.id  
+            return family.id
         else:
             return device_families_by_name[family_name]
 
@@ -575,19 +441,16 @@ def _manufacturer_id(nb, manufacturer):
     if not mfg:
         logger.info(f"Manufacturer {manufacturer} not found, creating...")
         mfg = nb.dcim.manufacturers.create(name=manufacturer)
-    return mfg.id  
+    return mfg.id
 
 
-@app.command()
+
 def device_type_add_or_update(
     dev: bool = False,
 ):
     """
     create or update a device type in nautobot based on a device type file in the device-types repo
     """
-
-    # check to make sure this command is being run from within the device-types library repo
-    _assert_cwd_is_devicetype_library()
 
     prompt = Settings._prompt()
 
@@ -785,14 +648,14 @@ def _select_from_queryset(
     return choice, mapping[choice]
 
 
-@app.command()
 def new_switch(
     dev: bool = False,
 ):
     """
-    Create a new switch in Nautobot
+    Create a new switch in Nautobot.
 
-    This script prompts you for info and creates a new switch entry for you in nautobot
+    This function will create a new switch in Nautobot with the necessary configurations.
+    It will prompt for the device type and other required information.
     """
     prompt = Settings._prompt()
     nb = get_api(dev)
@@ -824,7 +687,7 @@ def new_switch(
         if not prompt.get_bool(
             var="confirm_device_type",
             description=f"There are currently 0 switches in Nautobot with device type '{dt}'. "
-            "Are you sure you want to use this device type?",
+            "Are you sure you picked the right device type?",
         ):
             return
 
@@ -969,7 +832,7 @@ def new_switch(
                 role=role_id,
                 status="Planned",
                 location=location_id,
-                vlan_group=vlan_group.id,  
+                vlan_group=vlan_group.id,
                 manufacturer=manufacturer_id,
                 tags=tags,
             ),
@@ -998,7 +861,7 @@ def new_switch(
             )
             return
         nb.ipam.ip_addresses.update(
-            id=ipv4.id,  
+            id=ipv4.id,
             data=dict(
                 status="Active",
                 description=name,
@@ -1017,6 +880,10 @@ def new_switch(
                 dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
             ),
         )
+        if prompt.get_bool("push to bluecat", "Would you like to push this IP address to Bluecat?"):
+            # from uoft_bluecat.cli import add_or_update_ip
+
+            raise NotImplementedError("Bluecat integration not yet implemented, talk to Alex T")
 
     logger.info(f"Associating {primary_ip4} with {interface_name}...")
     try:
@@ -1038,9 +905,9 @@ def new_switch(
     logger.info("Done!")
 
 
-@app.command()
+
 def regen_interfaces(
-    device_name: t.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    device_name: str,
     dev: bool = False,
 ):
     """
@@ -1057,48 +924,47 @@ def regen_interfaces(
     """
     nb = get_api(dev)
     device = t.cast(Record, nb.dcim.devices.get(name=device_name))
-    device_type = t.cast(Record, nb.dcim.device_types.get(id=device.device_type.id)) # pyright: ignore[reportOptionalMemberAccess]
+    device_type = t.cast(Record, nb.dcim.device_types.get(id=device.device_type.id))  # pyright: ignore[reportOptionalMemberAccess]
     logger.info(f"Regenerating entries for {device_name} based on device type {device_type.model}")
     logger.info("Regenerating interfaces...")
     for i_t in t.cast(list[Record], nb.dcim.interface_templates.filter(device_type=device_type.id)):
         try:
             nb.dcim.interfaces.create(
                 device=device.id,
-                name=i_t.name,  
-                label=i_t.label,  
-                type=i_t.type.value,   # pyright: ignore[reportOptionalMemberAccess]
-                mgmt_only=i_t.mgmt_only,  
-                description=i_t.description,  
+                name=i_t.name,
+                label=i_t.label,
+                type=i_t.type.value,  # pyright: ignore[reportOptionalMemberAccess]
+                mgmt_only=i_t.mgmt_only,
+                description=i_t.description,
                 status="Active",
             )
         except pynautobot.RequestError as e:
             if "must make a unique set" in e.args[0]:
-                logger.info(f"Interface {i_t.name} already exists")  
+                logger.info(f"Interface {i_t.name} already exists")
             else:
                 raise e
     logger.info("Regenerating console ports...")
     for c_t in t.cast(list[Record], nb.dcim.console_port_templates.filter(device_type=device_type.id)):
         nb.dcim.console_ports.create(
             device=device.id,
-            name=c_t.name,  
-            label=c_t.label,  
-            type=c_t.type.value,   # pyright: ignore[reportOptionalMemberAccess]
-            description=c_t.description,  
+            name=c_t.name,
+            label=c_t.label,
+            type=c_t.type.value,  # pyright: ignore[reportOptionalMemberAccess]
+            description=c_t.description,
         )
     logger.info("Regenerating power ports...")
     for p_t in t.cast(list[Record], nb.dcim.power_port_templates.filter(device_type=device_type.id)):
         nb.dcim.power_ports.create(
             device=device.id,
-            name=p_t.name,  
-            label=p_t.label,  
-            type=p_t.type.value,   # pyright: ignore[reportOptionalMemberAccess]
-            description=p_t.description,  
+            name=p_t.name,
+            label=p_t.label,
+            type=p_t.type.value,  # pyright: ignore[reportOptionalMemberAccess]
+            description=p_t.description,
         )
     logger.success("Done")
 
 
 @t.no_type_check
-@app.command()
 def rebuild_switch(
     set_status_to_planned: bool = False,
     dev: bool = False,
@@ -1203,12 +1069,6 @@ def rebuild_switch(
     device.notes.create(dict(note=f"Device has been rebuilt from device type {old_device_type} to {device_type}"))
 
 
-class ComplianceReportGoal(StrEnum):
-    add = "add"
-    remove = "remove"
-
-
-@app.command()
 def generate_compliance_commands(
     feature: str = "base",
     goal: ComplianceReportGoal = ComplianceReportGoal.add,
@@ -1218,6 +1078,28 @@ def generate_compliance_commands(
     top_level_only: bool = False,
     prefix_when_merging: bool = False,
 ):
+    """
+    Generate compliance commands for network devices based on compliance reports.
+    This function processes compliance data for a specified feature and generates the necessary configuration commands
+    to either add missing configuration or remove extra configuration from devices. The commands can be filtered,
+    flattened, and optionally merged with existing data in a JSON file.
+    Args:
+        feature (str): The compliance feature to process. Defaults to "base".
+        goal (ComplianceReportGoal): The compliance goal, either to add missing config or remove extra config.
+        filters (list[str] | None): List of string filters to apply to the configuration commands.
+        sub_filters (list[str] | None): List of sub-filters to further refine the configuration commands.
+        merge_with (Path | None): Path to a JSON file to merge the generated commands with existing data.
+        top_level_only (bool): If True, only top-level configuration commands are considered.
+        prefix_when_merging (bool): If True, new commands are prefixed when merging with existing data.
+    Returns:
+        None
+    Side Effects:
+        - Prints the generated commands as a JSON object if `merge_with` is not provided.
+        - If `merge_with` is provided, updates the specified JSON file with the merged commands.
+    Raises:
+        AssertionError: If `merge_with` is provided but the file does not exist.
+    """
+
     filters = filters or []
     sub_filters = sub_filters or []
     res = {}
@@ -1332,12 +1214,36 @@ def _group_config(config: str) -> list[str]:
 
 
 def filter_config(config: str, filters: list[str], sub_filters: list[str] | None = None, top_level_only: bool = False):
-    grouped_config = _group_config(config)  
+    """
+    Filters and extracts configuration chunks from a given configuration string based on specified filters.
+    Args:
+        config: The configuration string to be filtered.
+        filters: List of regular expression patterns to match against the top-level
+            lines of each configuration chunk.
+        sub_filters: List of regular expression patterns to further filter sub-lines
+            within matched chunks. Defaults to None.
+        top_level_only: If True, only the top-level line of each matched chunk is
+            included in the result. If False, the entire chunk or filtered sub-lines are included.
+            Defaults to False.
+    Returns:
+        A list of configuration chunks or lines that match the specified filters.
+    Notes:
+        - The configuration is first grouped into chunks,
+          where each chunk starts with a non-indented line followed by its indented sub-lines.
+        - If `sub_filters` is provided, only sub-lines within matched chunks that match any of
+          the `sub_filters` are included.
+        - If `top_level_only` is True, only the first line of each matched chunk is returned,
+          and `sub_filters` is ignored.
+    """
+
+    grouped_config = _group_config(config)
     sub_filters = sub_filters or []
     # Break up the config snippet into a list of lines.
     # Group lines that start with an indent in with the non-indented line above them
     res: list[str] = []
     for chunk in grouped_config:
+        if not chunk.strip():
+            continue
         lines = chunk.splitlines()
         if not any([re.search(f, lines[0]) for f in filters]):
             continue
@@ -1452,8 +1358,23 @@ def _generate_statistics_summary(
     return tab
 
 
-@app.command()
 def explore_compliance(feature: str):
+    """
+    Interactively explores compliance reports for a given feature.
+    This function retrieves compliance data for the specified feature and iterates through each report that 
+    is not in compliance.
+    For each non-compliant report, it displays a comparison table and prompts the user to explore either the 
+    "actual" (left) or "intended" (right) configuration differences.
+    The user can select a specific line to further investigate, view a summary of statistics for that line, 
+    and optionally see a list of devices with matching configuration lines.
+    The process continues for each non-compliant report.
+    Args:
+        feature: The name of the feature for which compliance data should be explored.
+    Side Effects:
+        - Prints tables and prompts to the console for interactive exploration.
+        - Waits for user input to proceed through reports and options.
+    """
+
     compliance_data = get_compliance_data(feature)
     con = console()
     for report in compliance_data:

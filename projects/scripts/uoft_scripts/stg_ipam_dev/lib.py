@@ -13,9 +13,9 @@ from uoft_core import logging
 
 from sqlmodel import Field, SQLModel, Session, create_engine, select
 import sqlalchemy as sa
-import typer
 
-from .nautobot import get_settings, Record
+from ..nautobot import get_settings
+from pynautobot.models.extras import Record
 from pynautobot.models.ipam import Prefixes as NautobotPrefixRecord
 
 logger = logging.getLogger(__name__)
@@ -211,21 +211,6 @@ def get_data():
     return Data(networks=networks, users=users, orgs=orgs)
 
 
-app = typer.Typer(
-    name="stg-ipam-dev",
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
-    no_args_is_help=True,
-    help=__doc__,  # Use this module's docstring as the main program help text
-)
-
-
-@app.callback()
-@Settings.wrap_typer_command
-def callback():
-    pass
-
-
-@app.command()
 def sync_to_nautobot():
     """Syncronize networks and contacts from the database behind ipam.utoronto.ca into nautobot"""
 
@@ -461,8 +446,8 @@ def sync_to_nautobot():
     logger.success("Done!")
 
 
-@app.command()
-def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to the Palo Alto API")):
+def sync_to_paloalto(commit: bool):
+
     from uoft_paloalto import Settings as PaloAltoSettings
 
     s = Settings.from_cache()

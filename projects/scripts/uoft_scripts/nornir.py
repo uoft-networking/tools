@@ -17,17 +17,16 @@ from nornir.core.filter import F
 from nornir.core.task import Task, Result, MultiResult, AggregatedResult
 from nornir.core.inventory import Host, Hosts, Inventory, Groups, Defaults, ConnectionOptions
 from nornir_netmiko.connections.netmiko import Netmiko
+from nornir_napalm.plugins.connections import Napalm
 from netmiko import BaseConnection
 from netmiko.exceptions import (
-    NetmikoTimeoutException, # noqa: F401
+    NetmikoTimeoutException,  # noqa: F401
     ConfigInvalidException,  # noqa: F401
 )  # These are here to be imported by nornir scripts
 from rich.pretty import pprint
 
 
-
 class NautobotInventory(Inventory):
-
     @staticmethod
     def _load_gql_data(api):
         query = txt("""
@@ -91,15 +90,18 @@ class NautobotInventory(Inventory):
         hosts = Hosts()
 
         ssh_s = SSHSettings.from_cache()
-        conn_default = ConnectionOptions(extras={"secret": ssh_s.enable_secret.get_secret_value()})
+        conn_default = ConnectionOptions(extras=dict(secret=ssh_s.enable_secret.get_secret_value()))
+        napalm_defaults = ConnectionOptions(
+            extras=dict(optional_args=dict(secret=ssh_s.enable_secret.get_secret_value(), transport="ssh"))
+        )
+
         defaults = Defaults(
             username=ssh_s.personal.username,
             password=ssh_s.personal.password.get_secret_value(),
-            connection_options=dict(netmiko=conn_default, napalm=conn_default, paramiko=conn_default),
+            connection_options=dict(netmiko=conn_default, napalm=napalm_defaults, paramiko=conn_default),
         )
 
         for device in cls._load_gql_data(api):  # type: ignore
-
             name = device["hostname"] or str(device["id"])
             # Add Primary IP address, if found. Otherwise add hostname as the device name
             if device["primary_ip4"]:
@@ -156,6 +158,8 @@ class NautobotInventory(Inventory):
                 # groups=None, # TODO: add support for nautobot dynamic groups
                 defaults=defaults,
             )
+            # Override platform name for napalm, cisco_ios => ios, arista_eos => eos, etc
+
             hosts[name] = host
 
         return cls(hosts=hosts, groups=Groups(), defaults=defaults)
@@ -163,6 +167,7 @@ class NautobotInventory(Inventory):
 
 def get_nornir(concurrent=True, concurrency=25):
     ConnectionPluginRegister.register("netmiko", Netmiko)
+    ConnectionPluginRegister.register("napalm", Napalm)
     config = Config()
     if concurrent:
         runner = ThreadedRunner(concurrency)
@@ -203,6 +208,7 @@ def one_of_each_device_family_first(nr: Nornir):
     rest_nr = nr.filter(~F(name__in=device_families_nr.inventory.hosts.keys()))
     return device_families_nr, rest_nr
 
+
 def one_at_a_time(nr: Nornir):
     """
     Generator, to be used in a for loop, that yields a new Nornir instance with one host at a time
@@ -211,6 +217,7 @@ def one_at_a_time(nr: Nornir):
         new_inventory = Inventory(hosts=t.cast(Hosts, {host.name: host}))
         nr_sample = Nornir(inventory=new_inventory, runner=nr.runner, data=nr.data, config=nr.config)
         yield nr_sample
+
 
 def _get_color(result: Result, failed: bool) -> str:
     if result.failed or failed:

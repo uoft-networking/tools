@@ -1,23 +1,13 @@
 #!/usr/bin/env python3
 "Quick and dirty script to turn up a port on a switch in SIB."
 
-from enum import Enum
-from typing import Annotated
+from . import Role
 
 from uoft_core import lst
 from uoft_core import logging
 from uoft_ssh import Settings
-from typer import Typer, Argument, Option
 from netmiko import ConnectHandler
-
-app = Typer(name="sib-turnup", help=__doc__)
 logger = logging.getLogger(__name__)
-
-
-class Role(str, Enum):
-    voip = "voip"
-    desktop = "desktop"
-    printer = "printer"
 
 
 base_config = lst("""
@@ -82,27 +72,18 @@ def is_port_unconfigured(confs: str) -> bool:
 
     return conf == unconfigured
 
-
-@app.callback()
-def callback():
-    pass
-
-
-@app.command()
 def go(
-    switch: Annotated[str, Argument(help="The switch to configure.")],
-    intf: Annotated[str, Argument(help="The interface to configure.")],
-    room: Annotated[str, Argument(help="What room is this port in?")],
-    label: Annotated[str, Argument(help="The label on the port.")],
-    role: Annotated[Role, Argument(help="what will this port be used for?")],
-    dry_run: Annotated[
-        bool, Option(help="Run preflight checks, print the config the WOULD have been applied, then exit")
-    ] = False,
-    hw: Annotated[bool, Option(help="This is a Health & Wellness port")] = False,
-    lab: Annotated[bool, Option(help="This is a CMS lab port")] = False,
-    pos: Annotated[bool, Option(help="This is a POS / Debit machine port")] = False,
-    passthrough: Annotated[bool, Option(help="This VOIP port will have passthrough configured")] = False,
-    default: Annotated[bool, Option(help="Default the interface before applying the config")] = False,
+    switch: str,
+    intf: str,
+    room: str,
+    label: str,
+    role: Role,
+    dry_run: bool = False,
+    hw: bool = False,
+    lab: bool = False,
+    pos: bool = False,
+    passthrough: bool = False,
+    default: bool = False,
 ):
     logger.info(f"Turning up {intf} on {switch}")
     s = Settings.from_cache()
@@ -164,7 +145,6 @@ def go(
     print(ssh.send_command("write memory"))
 
 
-@app.command()
 def parse(msg: str | None = None):
     """This parse scrip expects a message from teams roughly in the form of:
 
@@ -259,7 +239,3 @@ def parse(msg: str | None = None):
     import subprocess
 
     subprocess.run(cmd, shell=True)
-
-
-if __name__ == "__main__":
-    app()

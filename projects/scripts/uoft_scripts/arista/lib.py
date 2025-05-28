@@ -10,7 +10,7 @@ from uoft_ssh import Settings as SSHSettings
 from uoft_core import logging
 from uoft_core import BaseSettings, SecretStr
 
-from . import interface_name_normalize, interface_name_denormalize
+from .. import interface_name_normalize, interface_name_denormalize
 
 
 if t.TYPE_CHECKING:
@@ -243,7 +243,7 @@ def initial_provision(switch_hostname: "str | Devices", terminal_server: str, po
     to get it online and accessible via SSH over OOB
     (including RADIUS auth)
     """
-    from .nautobot import get_api, get_minimum_viable_config
+    from ..nautobot import get_api, get_minimum_viable_config
     from rich.progress import track
 
     nb = get_api(dev=False)
@@ -348,7 +348,7 @@ class DeviceRecord:
 
     @cached_property
     def nb(self) -> "Devices":
-        from .nautobot import get_api
+        from ..nautobot import get_api
 
         api = get_api(dev=False)
         return api.dcim.devices.get(name=self.name)  # pyright: ignore[reportReturnType]
@@ -361,7 +361,7 @@ class InterfaceRecord:
 
     @cached_property
     def nb(self) -> "Interfaces":
-        from .nautobot import get_api
+        from ..nautobot import get_api
 
         api = get_api(dev=False)
         return api.dcim.interfaces.get(device=self.device.nb.id, name=self.name)  # pyright: ignore[reportReturnType, reportAttributeAccessIssue]
@@ -384,7 +384,7 @@ class Dist(DeviceRecord):
 
     @cached_property
     def vl666_id(self) -> str:
-        from .nautobot import get_api
+        from ..nautobot import get_api
 
         api = get_api(dev=False)
         vl666 = api.ipam.vlans.get(vlan_group=self.nb.vlan_group.id, vid=666)  # pyright: ignore[reportOptionalMemberAccess]
@@ -421,7 +421,7 @@ def _parse_lldp_data(
     dist_switch_hostname: str,
     arista_switch_names: tuple[str, ...],
 ) -> LLDPData:
-    from .nautobot import get_api
+    from ..nautobot import get_api
 
     api = get_api(dev=False)
     dist = Dist(name=dist_switch_hostname)
@@ -531,8 +531,8 @@ def map_stack_connections(dist_switch_hostname: str, *arista_switch_names: str):
     login to each over ssh, identify connections between them all using LLDP, identify port roles
     for each port of each connection, and push the data to nautobot
     """
-    from .nornir import get_nornir, F, Task, BaseConnection
-    from .nautobot import get_api
+    from ..nornir import get_nornir, F, Task, BaseConnection
+    from ..nautobot import get_api
 
     nr = get_nornir()
 
@@ -716,8 +716,8 @@ def push_nautobot_config_to_switches(*arista_switch_names: str):
     Given a list of switch hostnames, pull ip_address and intended config from Nautobot
     push config to switch via SSH
     """
-    from .nornir import get_nornir, F, Task, BaseConnection
-    from .nautobot import get_intended_config
+    from ..nornir import get_nornir, F, Task, BaseConnection
+    from ..nautobot import get_intended_config
     import re
 
     logger.info(f"Generating fresh Intended Configs for: {arista_switch_names}")
@@ -778,7 +778,7 @@ def _cvp_onboarding():
     # with something else in the next software release.
     # The code below is a mess, and should not be used as an example of how to use the CVP gRPC API.
     # It is here for reference only, and may be removed in the future.
-    from .arista import Settings
+    from .lib import Settings
     from uoft_core.api import APIBase
     import grpc
     from google.protobuf import wrappers_pb2 as protobuf

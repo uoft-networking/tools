@@ -2,19 +2,17 @@ import sys
 import typing as t
 from enum import Enum
 
-from . import ldap
-from . import nautobot
-from . import librenms
-from . import sib_turnup
-from . import stg_ipam_dev
-from . import arista_cli
+from .ldap.cli import app as ldap_app
+from .nautobot.cli import app as nautobot_app
+from .librenms.cli import app as librenms_app
+from .sib_turnup.cli import app as sib_turnup_app
+from .stg_ipam_dev.cli import app as stg_ipam_dev_app
+from .arista.cli import app as arista_app
 
 from uoft_core import logging
 
 import typer
 
-if t.TYPE_CHECKING:
-    from pynautobot.models.extras import Record
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +37,12 @@ app = typer.Typer(
     no_args_is_help=True,
     help=__doc__,  # Use this module's docstring as the main program help text
 )
-app.add_typer(ldap.app)
-app.add_typer(nautobot.app)
-app.add_typer(librenms.app)
-app.add_typer(sib_turnup.app)
-app.add_typer(stg_ipam_dev.app)
-app.add_typer(arista_cli.app)
+app.add_typer(ldap_app)
+app.add_typer(nautobot_app)
+app.add_typer(librenms_app)
+app.add_typer(sib_turnup_app)
+app.add_typer(stg_ipam_dev_app)
+app.add_typer(arista_app)
 
 
 @app.callback()
@@ -90,6 +88,7 @@ def rename_switch(
     from uoft_ssh import Settings as SSHSettings
     from netmiko import ConnectHandler, SSHDetect
     from uoft_ssh.util import register_aoscx
+    from pynautobot.models.extras import Record
 
     register_aoscx()
 
@@ -144,6 +143,26 @@ def rename_switch(
         logger.success("Changed device's hostname through SSH")
 
     logger.success(f"Renamed {old_name} to {new_name}")
+
+
+@app.command()
+def update_switch_intf_configs(
+    switch_hostname: t.Annotated[
+        str, typer.Argument(help="Hostname of the switch to update interface configs for", metavar="HOSTNAME")
+    ],
+    intf_names: t.Annotated[
+        list[str],
+        typer.Argument(help="List of interface names to update on the switch", metavar="INTF_NAME..."),
+    ],
+):
+    """
+    Given a switch hostname and a list of interface names,
+    update the interface configurations on the switch
+    to match the intended config from Nautobot.
+    """
+    from . import update_switch_intf_configs
+
+    update_switch_intf_configs(switch_hostname, *intf_names)
 
 
 def cli():

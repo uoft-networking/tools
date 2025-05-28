@@ -1,14 +1,11 @@
 import threading
 import logging
 
-import typer
 import uoft_librenms
 
-from ._sync import DatasetName, SyncManager, Target, SyncData, DeviceModel, NautobotTarget
+from .._sync import DatasetName, SyncManager, Target, SyncData, DeviceModel, NautobotTarget
 
 logger = logging.getLogger(__name__)
-
-app = typer.Typer(name="librenms")
 
 
 class LibreNMSTarget(Target):
@@ -52,7 +49,7 @@ class LibreNMSTarget(Target):
         )
 
 
-@app.command()
+
 def get_devices(dev: bool = False):
     from uoft_core import Timeit
 
