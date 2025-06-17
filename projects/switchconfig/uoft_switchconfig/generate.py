@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 from typing import Callable, Optional, Any, Type
 from inspect import getmembers, isfunction
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 from jinja2 import Environment, StrictUndefined, FileSystemLoader
 
 from .util import (

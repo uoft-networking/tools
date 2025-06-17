@@ -4,7 +4,7 @@ import enum
 from pathlib import Path
 from typing import Literal, TYPE_CHECKING
 import select
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 import uoft_core
 import uoft_core.prompt
 from uoft_core.types import SecretStr, DirectoryPath, FilePath

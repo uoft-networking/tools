@@ -85,8 +85,8 @@ from typing import (
 from pathlib import Path
 
 from netaddr import IPAddress, IPNetwork
-from pydantic import BaseModel, Field  # pylint: disable=no-name-in-module
-from pydantic.types import (
+from pydantic.v1 import BaseModel, Field  # pylint: disable=no-name-in-module
+from pydantic.v1.types import (
     NoneStr,
     NoneBytes,
     StrBytes,

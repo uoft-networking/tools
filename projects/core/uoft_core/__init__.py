@@ -31,11 +31,11 @@ from typing import (
 )
 
 
-from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
-from pydantic.fields import Field
-import pydantic.types
-from pydantic.main import ModelMetaclass
-from pydantic.env_settings import SettingsSourceCallable
+from pydantic.v1 import BaseSettings as PydanticBaseSettings, BaseModel, Extra, root_validator
+from pydantic.v1.fields import Field
+import pydantic.v1.types
+
+from pydantic.v1.env_settings import SettingsSourceCallable
 
 from . import logging
 from .types import StrEnum, SecretStr
@@ -43,8 +43,6 @@ from . import toml
 from ._vendor.decorator import decorate
 from ._vendor.platformdirs import PlatformDirs
 
-if TYPE_CHECKING:
-    from pydantic import BaseModel
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata 
 # module to get the version of the package.
@@ -934,7 +932,7 @@ S = TypeVar("S", bound="BaseSettings")
 F = TypeVar("F", bound=Callable)
 
 
-class BaseSettingsMeta(ModelMetaclass):
+class BaseSettingsMeta(BaseModel.__class__):
     # This metaclass is responsible for setting the env_prefix attribute on the Config class of any 
     # subclass of BaseSettings
     def __new__(cls, name, bases, namespace, **kwargs):
@@ -1028,7 +1026,7 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 help_ = None
 
             parser=None
-            if field.outer_type_ in [SecretStr, pydantic.types.SecretStr]:
+            if field.outer_type_ in [SecretStr, pydantic.v1.types.SecretStr]:
                 type_ = SecretStr
                 parser = SecretStr
             elif get_origin(field.outer_type_) is dict:

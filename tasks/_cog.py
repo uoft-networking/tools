@@ -207,13 +207,14 @@ if __name__ == "__main__":
     #         get_origin,
     #     )
     #     import inspect
+    
     #     from shutil import which
     #     from importlib.metadata import version
     #     from subprocess import CalledProcessError, run
 
-    #     from pydantic import BaseSettings as PydanticBaseSettings, Extra, root_validator
-    #     import pydantic.types
-    #     import pydantic.validators.BaseValidator
+    #     from pydantic.v1 import BaseSettings as PydanticBaseSettings, Extra, root_validator
+    #     import pydantic.v1.types
+    #     import pydantic.v1.validators.BaseValidator
 
     #     from . import logging
     #     from .types import StrEnum, SecretStr

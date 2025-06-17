@@ -2,8 +2,8 @@ import json
 from enum import Enum
 from typing import Literal, Any
 from pathlib import Path
-from pydantic import BaseModel, Field
-from pydantic.types import SecretStr as SecretStrBase, FilePath, DirectoryPath
+from pydantic.v1 import BaseModel, Field
+from pydantic.v1.types import SecretStr as SecretStrBase, FilePath, DirectoryPath
 from ._vendor.netaddr import IPNetwork as IPNetworkBase, IPAddress as IPAddressBase
 
 

@@ -15,7 +15,7 @@ from ipaddress import IPv4Network, IPv4Address
 from pathlib import Path
 from typing import Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic.v1 import BaseModel, Field
 
 PATH = Path(__file__).parent
 

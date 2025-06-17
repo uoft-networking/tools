@@ -247,10 +247,10 @@ class UtilTests:
         assert res == txt(
             """
             from typing import *
-            from pydantic.types import *
+            from pydantic.v1.types import *
             from ipaddress import *
             from netaddr import *
-            from pydantic import BaseModel, Field
+            from pydantic.v1 import BaseModel, Field
             from ipaddress import IPv4Network
             from ipaddress import IPv4Address
 
@@ -274,10 +274,10 @@ class UtilTests:
         assert res == txt(
             """
             from typing import *
-            from pydantic.types import *
+            from pydantic.v1.types import *
             from ipaddress import *
             from netaddr import *
-            from pydantic import BaseModel, Field
+            from pydantic.v1 import BaseModel, Field
             from ipaddress import IPv4Address
             from ipaddress import IPv4Network
 
@@ -302,7 +302,7 @@ class UtilTests:
 
 
     def construct_model_from_comment_block_schema_test(self):
-        from pydantic import BaseModel
+        from pydantic.v1 import BaseModel
 
         schema = SIMPLE_INTERMEDIARY
 
@@ -319,7 +319,7 @@ class UtilTests:
             "tr_code",
         }
 
-        from pydantic import BaseModel
+        from pydantic.v1 import BaseModel
 
         schema = ADVANCED_INTERMEDIARY
 

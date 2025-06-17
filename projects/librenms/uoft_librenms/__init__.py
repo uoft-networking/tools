@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
 from uoft_core import BaseSettings
-from pydantic import AnyHttpUrl, SecretStr
+from pydantic.v1 import AnyHttpUrl, SecretStr
 from .api import LibreNMSRESTAPI
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata

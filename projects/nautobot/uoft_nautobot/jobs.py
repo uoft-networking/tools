@@ -128,7 +128,7 @@ class Nautobot(NautobotAdapter):
     address = IPAddressModel
 
     def _load_single_object(self, database_object, diffsync_model, parameter_names):
-        import pydantic
+        from pydantic.v1 import ValidationError
 
         """Load a single diffsync object from a single database object."""
         parameters = {}
@@ -144,7 +144,7 @@ class Nautobot(NautobotAdapter):
                 )
         try:
             diffsync_model = diffsync_model(**parameters)
-        except pydantic.ValidationError as error:
+        except ValidationError as error:
             raise ValueError(f"Parameters: {parameters}") from error
         self.add(diffsync_model)
 

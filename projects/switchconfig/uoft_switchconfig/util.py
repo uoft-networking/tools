@@ -25,7 +25,7 @@ from uoft_core import txt, create_python_module
 from uoft_core import logging
 from uoft_core.prompt import Prompt
 from uoft_core.nested_data import NestedData
-from pydantic.fields import ModelField
+from pydantic.v1.fields import ModelField
 from arrow import now
 from jinja2 import Environment
 

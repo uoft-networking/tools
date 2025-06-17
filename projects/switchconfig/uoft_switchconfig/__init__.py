@@ -5,7 +5,7 @@ from pathlib import Path
 
 from uoft_core import Util, UofTCoreError, chomptxt, BaseSettings, logging
 
-from pydantic import BaseModel, Field
+from pydantic.v1 import BaseModel, Field
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata 
 # module to get the version of the package.

@@ -12,9 +12,8 @@ from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.document import Document
 from prompt_toolkit.output.defaults import create_output
-from pydantic.error_wrappers import ErrorWrapper
-from pydantic.fields import ModelField
-import pydantic
+from pydantic.v1.error_wrappers import ErrorWrapper
+from pydantic.v1.fields import ModelField
 
 from .types import Enum, Literal, BaseModel, Path, FilePath, DirectoryPath, SecretStr
 
@@ -393,7 +392,7 @@ class Prompt:
             discriminator = field.discriminator_key
             discriminator_to_model = {}
             for subfield in field.sub_fields:
-                if not issubclass(subfield.type_, pydantic.BaseModel):
+                if not issubclass(subfield.type_, BaseModel):
                     raise ValueError(f"Discriminated union {field.name} contains a non-model type {subfield.type_}")
                 if discriminator not in subfield.type_.__fields__:
                     raise ValueError(
