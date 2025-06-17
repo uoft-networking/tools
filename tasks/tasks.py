@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 from shutil import rmtree
 
-from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
+from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core, run_cog
 from task_runner import run, REPO_ROOT
 
 from ._macros import macros, zxpy  # noqa: F401 # pyright: ignore[reportAttributeAccessIssue]
@@ -72,6 +72,8 @@ def new_project(name: str):
     )
     if not return_code == 0:
         raise Exception("copier failed")
+    # add the new project to the top-level pyproject.toml file
+    run_cog('pyproject.toml')
     # add the new project to the lock file and install in editable mode
     from .repo import lock
     lock()

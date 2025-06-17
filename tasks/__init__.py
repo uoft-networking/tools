@@ -39,3 +39,8 @@ def all_projects_by_name():
 
 def all_projects_by_name_except_core():
     return all_projects_by_name().symmetric_difference({"core"})
+
+def run_cog(files: str):
+    run(
+        f"cog -r -I {REPO_ROOT}/tasks/ {files}"
+    )

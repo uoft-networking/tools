@@ -2,15 +2,15 @@ from pathlib import Path
 
 from task_runner import run, REPO_ROOT
 
-from . import all_projects_by_name
+from . import all_projects_by_name, run_cog
 
 from ._macros import macros, zxpy  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType] # noqa: F401
 
 
 def cog_files():
     "Run cog against all cog files in the repo"
-    run(
-        f"cog -r -I {REPO_ROOT}/tasks/ projects/*/README.md projects/core/uoft_core/tests/*.py "
+    run_cog(
+        "projects/*/README.md projects/core/uoft_core/tests/*.py "
         "projects/*/uoft_*/__main__.py projects/*/uoft_*/cli.py pyproject.toml"
     )
 
