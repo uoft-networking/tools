@@ -5,7 +5,7 @@ additional dependencies not included in uoft_core by default.
 
 import re
 import sys
-from subprocess import run, PIPE
+from subprocess import run, PIPE # noqa F401
 from pathlib import Path
 from types import ModuleType
 import inspect
@@ -32,7 +32,7 @@ from prompt_toolkit.output.defaults import create_output
 if TYPE_CHECKING:
     from . import Util
     from .yaml import CommentedMap
-    from pydantic import BaseModel
+    from pydantic.v1 import BaseModel
 
 KeyPath = str
 Val = str
@@ -80,10 +80,10 @@ def unflatten_yaml(data: Sequence[YamlValue]):
 
 
 def add_comments_to_yaml_doc(doc: str, model: "BaseModel", indent=0):
-    from pydantic.fields import ModelField  # noqa
-    from pydantic import BaseModel  # noqa
+    from pydantic.v1.fields import ModelField
+    from pydantic.v1 import BaseModel
 
-    for field in model.fields.values():  # type: ignore
+    for field in model.fields.values():   # pyright: ignore[reportAttributeAccessIssue]
         field: ModelField
         desc = field.field_info.description
         if desc:
@@ -226,7 +226,7 @@ class Prompt:
             key_bindings=kb,
         )
         opts.update(kwargs)
-        val = self.string(var, description, **opts)
+        val = self.string(var, description, **opts) # pyright: ignore[reportArgumentType]
         return val.strip().split("\n")
 
     def dict_(self, var: str, description: str | None, **kwargs) -> dict[str, str]:
@@ -257,7 +257,7 @@ class Prompt:
             validator=DictValidator(),
         )
         opts.update(kwargs)
-        val = self.string(var, description, **opts)
+        val = self.string(var, description, **opts) # pyright: ignore[reportArgumentType]
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
@@ -270,29 +270,3 @@ def model_to_yaml(model: "BaseModel"):
     doc = add_comments_to_yaml_doc(doc, model)
     return doc
 
-
-def clear_caches(module: ModuleType):
-    """
-    clear all caches in a given module
-
-    clear the caches of all cached functions and all cached classmethods
-    and staticmethods of all classes in a given module
-    """
-
-    def get_cachables():
-        # functions
-        for _, function_ in inspect.getmembers(module, inspect.isfunction):
-            yield function_
-
-        for _, class_ in inspect.getmembers(module, inspect.isclass):
-            # static methods
-            for _, static_method in inspect.getmembers(class_, inspect.isfunction):
-                yield static_method
-
-            # class methods
-            for _, class_method in inspect.getmembers(class_, inspect.ismethod):
-                yield class_method
-
-    for cacheable in get_cachables():
-        if hasattr(cacheable, "cache"):
-            cacheable.cache = {}

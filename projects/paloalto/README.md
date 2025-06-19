@@ -100,6 +100,9 @@ import _cog as c; c.gen_conf_table('uoft_paloalto')
 | url | str | URL | The base URL of the Palo Alto REST API server. (ex. https://paloalto.example.com) |  |
 | username | str | Username | The username to authenticate with the Palo Alto REST API server. |  |
 | password | SecretStr | Password | The password to authenticate with the Palo Alto REST API server. |  |
+| api_key | SecretStr | API Key | API key to authenticate with the Palo Alto XML API server. Leave blank if you want to generate one later |  |
+| device_group | str | Device Group | The device group to use when managing objects. If not provided, objects will be placed in the 'shared' location. |  |
+| create_missing_tags | bool | Create Missing Tags | If enabled, missing tags assigned to objects will be created automatically. |  |
 <!--[[[end]]] -->
 
 ## License

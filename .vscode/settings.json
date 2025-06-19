@@ -4,7 +4,12 @@
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff"
   },
-  "ansible.python.interpreterPath": ".venv/bin/python",
   "ruff.lineLength": 120,
   "ruff.nativeServer": "on",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.supportDocstringTemplate": true,
+  "python.analysis.logLevel": "Information",
+  "python.analysis.supportRestructuredText": false,
+  "ruff.format.preview": true,
+  "python.analysis.typeCheckingMode": "standard",
 }

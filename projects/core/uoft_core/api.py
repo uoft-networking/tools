@@ -2,7 +2,7 @@
 General abstractions for working with REST APIs
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, cast
 from concurrent.futures import ThreadPoolExecutor, Future, as_completed, wait
 
 from requests import Session, Response, HTTPError
@@ -40,11 +40,12 @@ class RESTAPIError(HTTPError):
         except Exception:
             return e
         e.__class__ = cls
-        e.data = data # type: ignore
+        e = cast(RESTAPIError, e)
+        e.data = data 
         return e
 
 
-class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block below #type: ignore
+class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will be redeclared in a TYPE_CHECKING block below 
     """A Requests session with a base URL.
 
     Provides cookie persistence, connection-pooling, and configuration.
@@ -125,14 +126,14 @@ class APIBase(Session):  # APIBase will be redeclared in a TYPE_CHECKING block b
         self.logout()
         return super().__exit__(*args)
 
-    def request(self, method: str, url: URL | str, **kwargs) -> Any:
+    def request(self, method: str|bytes, url: URL | str|bytes, *args, **kwargs) -> Any:
         # If the URL is a string, join it with the api URL
         if isinstance(url, str):
             url = self.safe_append_path(self.api_url, url)
 
         # convert URL to string before passing it on to the super class
         url = str(url)
-        return super().request(method, url, **kwargs)
+        return super().request(method, url, *args, **kwargs)
 
     def threadpool(self, *args, **kwargs):
         return ThreadedAPIPool(*args, **kwargs)

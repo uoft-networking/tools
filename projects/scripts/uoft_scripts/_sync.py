@@ -17,13 +17,14 @@ calling the synchronize method on the destination manager instance,
 and then calling the synchronize method on the source manager instance.
 """
 
-import typing
+import typing as t
 import threading
 import re
 import concurrent.futures as cf
 
-from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
-from uoft_core import Field, Prompt
+from uoft_core.types import IPNetwork, BaseModel
+from uoft_core import Field
+from uoft_core.prompt import Prompt
 from uoft_bluecat import Settings as BluecatSettings
 from uoft_librenms import Settings as LibrenmsSettings
 from uoft_core import logging
@@ -43,20 +44,19 @@ logger = logging.getLogger(__name__)
 
 app = typer.Typer(name="nautobot")
 
-ip_address_as_str: typing.TypeAlias = str
+ip_address_as_str: t.TypeAlias = str
 "ip address, e.g. '192.168.0.20'"
-network_prefix_as_str: typing.TypeAlias = str
+network_prefix_as_str: t.TypeAlias = str
 "network prefix in CIDR notation, e.g. '10.0.0.0/8'"
-CommonID: typing.TypeAlias = ip_address_as_str | network_prefix_as_str
+CommonID: t.TypeAlias = ip_address_as_str | network_prefix_as_str
 "common id used to identify objects in both systems"
 
 # The `| str` here is a catchall for any undefined status pulled from nautobot
-Status: typing.TypeAlias = typing.Literal["Active", "Reserved", "Deprecated", "Planned"] | str
+Status: t.TypeAlias = t.Literal["Active", "Reserved", "Deprecated", "Planned"] | str
 
-PrefixType: typing.TypeAlias = typing.Literal["container", "network", "pool"]
+PrefixType: t.TypeAlias = t.Literal["container", "network", "pool"]
 
-
-OnOrphanAction: typing.TypeAlias = typing.Literal["prompt", "delete", "backport", "skip"]
+OnOrphanAction: t.TypeAlias = t.Literal["prompt", "delete", "backport", "skip"]
 
 
 class IPAddressModel(BaseModel):
@@ -80,15 +80,14 @@ class DeviceModel(BaseModel):
     status: Status | None = None
 
 
-
-Prefixes: typing.TypeAlias = dict[network_prefix_as_str, PrefixModel]
-Addresses: typing.TypeAlias = dict[ip_address_as_str, IPAddressModel]
-Devices: typing.TypeAlias = dict[str, DeviceModel]
-DatasetName: typing.TypeAlias = typing.Literal["prefixes", "addresses", "devices"]
+Prefixes: t.TypeAlias = dict[network_prefix_as_str, PrefixModel]
+Addresses: t.TypeAlias = dict[ip_address_as_str, IPAddressModel]
+Devices: t.TypeAlias = dict[str, DeviceModel]
+DatasetName: t.TypeAlias = t.Literal["prefixes", "addresses", "devices"]
 
 
 # models come from source and dest
-class DatasetUpdate(typing.TypedDict):
+class DatasetUpdate(t.TypedDict):
     source: BaseModel
     dest: BaseModel
 
@@ -128,8 +127,8 @@ class Target:
 
     def load_data(self, datasets: set[DatasetName]):
         raise NotImplementedError
-    
-    def preprocess(self, source: str|None=None, dest: str|None=None):
+
+    def preprocess(self, source: str | None = None, dest: str | None = None):
         pass
 
     def create(self, records: dict[DatasetName, dict[CommonID, BaseModel]]):
@@ -158,7 +157,7 @@ class SyncManager:
         self.source = source
         self.dest = dest
         self.datasets = datasets
-        self.diff = None  # type: ignore
+        self.diff = None  # pyright: ignore[reportAttributeAccessIssue]
         self.loaded = False
         self.on_orphan = on_orphan
         self.changes = Changes()
@@ -198,7 +197,7 @@ class SyncManager:
                 if dest_record is None:
                     self.changes.create.setdefault(dataset, {})[common_id] = source_record
                 elif source_record != dest_record:
-                    self.changes.update.setdefault(dataset, {})[common_id] = dict(  # type: ignore
+                    self.changes.update.setdefault(dataset, {})[common_id] = dict(  # pyright: ignore[reportArgumentType]
                         source=source_record,
                         dest=dest_record,
                     )
@@ -209,9 +208,9 @@ class SyncManager:
 
         records_to_create = ", ".join([f"{len(records)} {dataset}" for dataset, records in self.changes.create.items()])
         records_to_update = ", ".join([f"{len(records)} {dataset}" for dataset, records in self.changes.update.items()])
-        orphaned_records = ", ".join(
-            [f"{len(records)} orphaned {dataset}" for dataset, records in self.changes.delete.items()]
-        )
+        orphaned_records = ", ".join([
+            f"{len(records)} orphaned {dataset}" for dataset, records in self.changes.delete.items()
+        ])
         records_to_create = f"{records_to_create} to create, " if records_to_create else ""
         records_to_update = f"{records_to_update} to update, " if records_to_update else ""
         orphaned_records = (
@@ -338,11 +337,16 @@ class NautobotTarget(Target):
             elif ip6 := nb_device.get("primary_ip6"):
                 ip_addr_id = ip6["id"]
             elif device_status != "Active":
-                logger.warning(f"Nautobot: Device {nb_device['name']} is not active and does not have an IP address, skipping...")
+                logger.warning(
+                    f"Nautobot: Device {nb_device['name']} is not active and "
+                    "does not have an IP address, skipping..."
+                )
                 continue
             else:
                 raise Exception(f"Device {nb_device['name']} has no primary IP address")
-            ip_address = self.api.ipam.ip_addresses.get(ip_addr_id)["address"]  # type: ignore
+            ip_address = self.api.ipam.ip_addresses.get(ip_addr_id)
+            ip_address = t.cast(Record, ip_address)
+            ip_address = ip_address["address"]
             devices[nb_device["name"]] = dict(hostname=nb_device["name"], ip_address=ip_address, status=device_status)
 
         self.syncdata = SyncData(
@@ -369,34 +373,34 @@ class NautobotTarget(Target):
             logger.info("Nautobot: Fetching additional metadata (statuses, namespaces, tags)")
             statuses_task = executor.submit(lambda: self.api.extras.statuses.all())
             global_namespace_task = executor.submit(
-                lambda: self.api.ipam.namespaces.get(name="Global")["id"]  # type: ignore
+                lambda: t.cast(str, t.cast(Record, self.api.ipam.namespaces.get(name="Global"))["id"])
             )
             soft_delete_tag_id_task = executor.submit(
-                lambda: self.api.extras.tags.get(name="Soft Delete")["id"]  # type: ignore
+                lambda: t.cast(str, t.cast(Record, self.api.extras.tags.get(name="Soft Delete"))["id"])
             )
 
             # Now join the threads and get the results
             if "prefixes" in datasets:
-                prefixes = list(dict(p) for p in prefixes_task.result())  # type: ignore
+                prefixes = list(dict(p) for p in t.cast(list[Record], prefixes_task.result()))  # pyright: ignore[reportPossiblyUnboundVariable]
             else:
                 prefixes = []
 
             if "addresses" in datasets:
-                addresses = list(dict(a) for a in addresses_task.result())  # type: ignore
+                addresses = list(dict(a) for a in t.cast(list[Record], addresses_task.result()))  # pyright: ignore[reportPossiblyUnboundVariable]
             else:
                 addresses = []
 
             if "devices" in datasets:
-                devices = list(dict(d) for d in devices_task.result())  # type: ignore
+                devices = list(dict(d) for d in t.cast(list[Record], devices_task.result()))  # pyright: ignore[reportPossiblyUnboundVariable]
             else:
                 devices = []
 
             statuses: dict[str, Status] = {
-                s["id"]: s["name"]  # type: ignore
-                for s in statuses_task.result() # type: ignore
-            }  # type: ignore
-            global_namespace_id: str = global_namespace_task.result()  # type: ignore
-            soft_delete_tag_id: str = soft_delete_tag_id_task.result()  # type: ignore
+                t.cast(str, s["id"]): t.cast(Status, s["name"])
+                for s in t.cast(list[Record], statuses_task.result())
+            }
+            global_namespace_id = global_namespace_task.result()
+            soft_delete_tag_id = soft_delete_tag_id_task.result()
 
         return NautobotDataRaw(
             prefixes=prefixes,
@@ -427,15 +431,14 @@ class NautobotTarget(Target):
                 for device in self.syncdata.devices.values():
                     device.status = None
 
-    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
+    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
         for dataset, records in recordset.items():
             if dataset == "prefixes":
-                self.create_prefixes(records)  # type: ignore
+                self.create_prefixes(records)  # pyright: ignore[reportArgumentType]
             elif dataset == "addresses":
-                self.create_addresses(records)  # type: ignore
+                self.create_addresses(records)  # pyright: ignore[reportArgumentType]
             elif dataset == "devices":
-                self.create_devices(records)  # type: ignore
-
+                self.create_devices(records)  # pyright: ignore[reportArgumentType]
     def create_prefixes(self, prefixes: dict[network_prefix_as_str, PrefixModel]):
         logger.info(f"Nautobot: Creating {len(prefixes)} prefixes")
         for data in prefixes.values():
@@ -457,25 +460,31 @@ class NautobotTarget(Target):
                 dns_name=data.dns_name,
                 namespace=self.syncdata.local_ids["Global namespace"],
             )
-            self.api.ipam.ip_addresses.create(payload)
+            try:
+                self.api.ipam.ip_addresses.create(payload)
+            except pynautobot.RequestError as e:
+                if e.req.status_code == 400 and "already exists" in e.error:
+                    logger.warning(f"Attempted to create address {data.address}, but it already exists, skipping...")
+                else:
+                    raise
 
     def create_devices(self, devices: dict[str, DeviceModel]):
         raise NotImplementedError
 
-    def update(self, recordset: dict[DatasetName, dict[CommonID, DatasetUpdate]]):
+    def update(self, recordset: dict[DatasetName, dict[CommonID, DatasetUpdate]]): # pyright: ignore[reportIncompatibleMethodOverride]
         for dataset, records in recordset.items():
             if dataset == "prefixes":
-                self.update_prefixes(records)  # type: ignore
+                self.update_prefixes(records) 
             elif dataset == "addresses":
-                self.update_addresses(records)  # type: ignore
+                self.update_addresses(records) 
             elif dataset == "devices":
-                self.update_devices(records)  # type: ignore
+                self.update_devices(records)  # pyright: ignore[reportArgumentType]
 
     def update_prefixes(self, prefixes: dict[network_prefix_as_str, DatasetUpdate]):
         logger.info(f"Nautobot: Updating {len(prefixes)} prefixes")
         for prefix, data in prefixes.items():
             id_ = self.syncdata.local_ids[prefix]
-            src_data: PrefixModel = data["source"]  # type: ignore
+            src_data = t.cast(PrefixModel, data["source"])
             payload = dict(
                 prefix=src_data.prefix,
                 description=src_data.description,
@@ -493,7 +502,7 @@ class NautobotTarget(Target):
     def update_addresses(self, addresses: dict[ip_address_as_str, DatasetUpdate]):
         logger.info(f"Nautobot: Updating {len(addresses)} addresses")
         for address, data in addresses.items():
-            src_data: IPAddressModel = data["source"]  # type: ignore
+            src_data = t.cast(IPAddressModel, data["source"])
             id_ = self.syncdata.local_ids[address]
             payload = dict(
                 address=f"{src_data.address}/{src_data.prefixlen}",
@@ -507,7 +516,7 @@ class NautobotTarget(Target):
     def update_devices(self, devices: dict[str, tuple[DeviceModel, DeviceModel]]):
         raise NotImplementedError
 
-    def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
+    def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
         for dataset, records in recordset.items():
             logger.info(f"Nautobot: Deleting {len(records)} {dataset}")
             with cf.ThreadPoolExecutor(thread_name_prefix="nautobot_delete") as executor:
@@ -683,12 +692,12 @@ class BluecatTarget(Target):
             addrs=addrs,
         )
 
-    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
+    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
         created_ids = []
         if "prefixes" in recordset:
-            created_ids.extend(self.create_prefixes(recordset["prefixes"]))  # type: ignore
+            created_ids.extend(self.create_prefixes(recordset["prefixes"]))  # pyright: ignore[reportArgumentType]
         if "addresses" in recordset:
-            created_ids.extend(self.create_addresses(recordset["addresses"]))  # type: ignore
+            created_ids.extend(self.create_addresses(recordset["addresses"]))  # pyright: ignore[reportArgumentType]
         if "devices" in recordset:
             raise NotImplementedError
         return created_ids
@@ -748,7 +757,7 @@ class BluecatTarget(Target):
         for net in nets:
             if this_net in net:
                 # uppercase prefix in local_ids because bluecat returns IPv6 addresses uppercased
-                return self.syncdata.local_ids[str(net).upper()]  # type: ignore
+                return t.cast(int, self.syncdata.local_ids[str(net).upper()])
         raise Exception(f"Parent prefix not found for {this_net}")
 
     def all_nets(self):
@@ -775,7 +784,6 @@ class LibreNMSTarget(Target):
     def load_data(self, datasets: set[DatasetName]):
         raw_data = self.load_data_raw()
 
-
         local_ids = {}
         devices = {}
 
@@ -800,8 +808,8 @@ class LibreNMSTarget(Target):
     def load_data_raw(self):
         logger.info("LibreNMS: Loading all devices")
         return self.api.devices.list_devices(order_type="all")["devices"]
-    
-    def create(self, records: dict[DatasetName, dict[CommonID, BaseModel]]):
+
+    def create(self, records: dict[DatasetName, dict[CommonID, DeviceModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
         devices = records["devices"]
         logger.info(f"LibreNMS: Creating {len(devices)} devices")
         for device in devices.values():
@@ -809,9 +817,9 @@ class LibreNMSTarget(Target):
 
     def create_device(self, device: DeviceModel):
         self.api.devices.add_device(
-            hostname=f"{device.hostname}.netmgmt.utsc.utoronto.ca", 
-            overwrite_ip=device.ip_address
+            hostname=f"{device.hostname}.netmgmt.utsc.utoronto.ca", overwrite_ip=device.ip_address
         )
+
 
 def _debug():
     sm = SyncManager(source=NautobotTarget(), dest=LibreNMSTarget(), datasets={"devices"})

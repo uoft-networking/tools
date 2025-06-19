@@ -2,8 +2,8 @@ import json
 from enum import Enum
 from typing import Literal, Any
 from pathlib import Path
-from pydantic import BaseModel, Field
-from pydantic.types import SecretStr as SecretStrBase, FilePath, DirectoryPath
+from pydantic.v1 import BaseModel, Field
+from pydantic.v1.types import SecretStr as SecretStrBase, FilePath, DirectoryPath
 from ._vendor.netaddr import IPNetwork as IPNetworkBase, IPAddress as IPAddressBase
 
 
@@ -25,17 +25,14 @@ def _custom_json_default_encoder(self: json.JSONEncoder, o: Any) -> Any:
 json.JSONEncoder.default = _custom_json_default_encoder
 
 # monkey-patch BaseModel to be JSON serializable
-BaseModel.__json_encode__ = BaseModel.dict # type: ignore
+BaseModel.__json_encode__ = BaseModel.dict   # pyright: ignore[reportAttributeAccessIssue]
 
 
 class IPAddress(IPAddressBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPAddress":
-            nv = cls(val)
-            if nv.version == 4:
-                return nv.ipv4()  # type: ignore
-            return nv.ipv6() # type: ignore
+            return cls(val)
 
         yield validator
 
@@ -44,7 +41,9 @@ class IPv4Address(IPAddressBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv4Address":
-            return cls(val).ipv4()  # type: ignore
+            nv = cls(val)
+            assert nv.version == 4, "Invalid IPv4 address"
+            return nv
 
         yield validator
 
@@ -53,7 +52,9 @@ class IPv6Address(IPAddressBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv6Address":
-            return cls(val).ipv6()  # type: ignore
+            nv = cls(val)
+            assert nv.version == 6, "Invalid IPv6 address"
+            return nv
 
         yield validator
 
@@ -62,10 +63,7 @@ class IPNetwork(IPNetworkBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPNetwork":
-            nv = cls(val)
-            if nv.version == 4:
-                return nv.ipv4()  # type: ignore
-            return nv.ipv6() # type: ignore
+            return cls(val)
 
         yield validator
 
@@ -74,7 +72,9 @@ class IPv4Network(IPNetworkBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv4Network":
-            return cls(val).ipv4()  # type: ignore
+            nv = cls(val)
+            assert nv.version == 4, "Invalid IPv4 network"
+            return nv
 
         yield validator
 
@@ -83,7 +83,9 @@ class IPv6Network(IPNetworkBase):
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPv6Network":
-            return cls(val).ipv6()  # type: ignore
+            nv = cls(val)
+            assert nv.version == 6, "Invalid IPv6 network"
+            return nv
 
         yield validator
 

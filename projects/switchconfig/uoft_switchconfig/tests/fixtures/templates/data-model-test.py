@@ -10,7 +10,7 @@ interactively getting and validating template data
 """
 
 from uoft_core.types import BaseModel, IPv4Address, IPv4Network, Path, Literal
-from pydantic import Field
+from pydantic.v1 import Field
 
 PATH = Path(__file__).parent
 

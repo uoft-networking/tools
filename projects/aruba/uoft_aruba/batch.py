@@ -5,7 +5,7 @@ from functools import cached_property
 
 from uoft_core.types import BaseModel
 from uoft_core.console import console
-from pydantic import validator
+from pydantic.v1 import validator
 
 
 class AP(BaseModel):

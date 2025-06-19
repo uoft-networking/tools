@@ -1,32 +1,9 @@
+from . import Settings
+
 from typing import Optional
 
-from uoft_core import shell, BaseSettings, SecretStr
-
 import ldap3
-import typer
 
-
-app = typer.Typer(name="ldap")
-
-
-class Settings(BaseSettings):
-    bind_username: str
-    bind_password: SecretStr
-    server: str
-    users_base_dn: str
-    groups_base_dn: str
-
-    class Config(BaseSettings.Config):
-        app_name = "ldap"
-
-
-@app.callback()
-@Settings.wrap_typer_command
-def _():
-    pass
-
-
-@app.command()
 def user(
     name: str,
 ):
@@ -37,7 +14,6 @@ def user(
     print(conn.entries)
 
 
-@app.command()
 def group(name: Optional[str] = "", attributes: str = "cn,name,member,objectClass"):
     if attributes == "ALL":
         attrs = ldap3.ALL_ATTRIBUTES

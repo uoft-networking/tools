@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Mapping, TYPE_CHECKING
+from typing import Literal, Optional, TYPE_CHECKING
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -38,8 +38,8 @@ class NautobotNetwork(Network):
     """Data model representing a container Prefix in nautobot"""
 
     @classmethod
-    def create(
-        cls, diffsync: "Nautobot", ids: Mapping, attrs: Mapping
+    def create(  # pyright: ignore[reportIncompatibleMethodOverride]
+        cls, diffsync: "Nautobot", ids: dict, attrs: dict
     ) -> Optional["DiffSyncModel"]:
         """Create Prefix object in Nautobot."""
         status = Status.objects.get(name=attrs["status"])
@@ -51,7 +51,7 @@ class NautobotNetwork(Network):
         prefix.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
-    def update(self, attrs: Mapping) -> Optional["DiffSyncModel"]:
+    def update(self, attrs: dict) -> Optional["DiffSyncModel"]:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Update Prefix object in Nautobot."""
         prefix = Prefix.objects.get(pk=self.pk)  # type: ignore
         if attrs.get("name"):
@@ -99,8 +99,8 @@ class NautobotAddress(Address):
     """Data model representing an IPAddress in nautobot"""
 
     @classmethod
-    def create(
-        cls, diffsync: "Nautobot", ids: Mapping, attrs: Mapping
+    def create(  # pyright: ignore[reportIncompatibleMethodOverride]
+        cls, diffsync: "Nautobot", ids: dict, attrs: dict
     ) -> Optional["DiffSyncModel"]:
         """Create IPAddress object in Nautobot."""
         status = Status.objects.get(name=attrs["status"])
@@ -112,7 +112,7 @@ class NautobotAddress(Address):
         address.validated_save()
         return super().create(ids=ids, diffsync=diffsync, attrs=attrs)
 
-    def update(self, attrs: Mapping) -> Optional["DiffSyncModel"]:
+    def update(self, attrs: dict) -> Optional["DiffSyncModel"]:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Update IPAddress object in Nautobot."""
         address = IPAddress.objects.get(pk=self.pk)  # type: ignore
         if attrs.get("name"):

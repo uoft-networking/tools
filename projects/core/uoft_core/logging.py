@@ -11,7 +11,7 @@ from contextvars import ContextVar
 from .console import console
 
 # exports
-from logging import *  # noqa F401 # type: ignore
+from logging import *  # pyright: ignore[reportAssignmentType, reportWildcardImportFromLibrary] # noqa F401
 
 TRACE = 5
 SUCCESS = 25
@@ -66,7 +66,7 @@ class _ContextFilter(logging.Filter):
         return True
 
 
-def basicConfig(**kwargs):  # type: ignore
+def basicConfig(**kwargs):   # pyright: ignore[reportRedeclaration]
     """
     Do basic configuration for the logging system.
 

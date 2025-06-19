@@ -1,4 +1,4 @@
-From b9b166a432f1888702499064e4bfff99616b2d36 Mon Sep 17 00:00:00 2001
+From b8ec0a65737f3d61615ccdeb4a1aad7a85795cd7 Mon Sep 17 00:00:00 2001
 From: Alex Tremblay <alex.tremblay@utoronto.ca>
 Date: Mon, 10 Feb 2025 17:30:34 -0500
 Subject: [PATCH 2/2] make project installable with uv

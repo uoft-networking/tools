@@ -2,7 +2,8 @@
 A toolkit for working with SSH. Wrappers, Ansible convenience features, Nornir integration, etc
 """
 
-from typing import Annotated, Optional
+import re
+import typing as t
 import sys
 import socket
 
@@ -60,7 +61,7 @@ def get_ssh_session(
     host: str,
     username: str,
     password: str,
-    command: Optional[str] = None,
+    command: str | None = None,
     accept_unknown_host=False,
     extra_args: list[str] = [""],
 ):
@@ -83,9 +84,9 @@ def get_ssh_session(
     if match == 1:
         raise HostKeyChanged("Host key has changed")
     elif match == 2:
-        logger.error(child.after.strip())  # type: ignore
-        mismatch_type = child.match.group(1).strip()  # type: ignore
-        value = child.match.group(2).strip()  # type: ignore
+        logger.error(t.cast(str, child.after).strip())  # type: ignore
+        mismatch_type = t.cast(re.Match, child.match).group(1).strip()  # type: ignore
+        value = t.cast(re.Match, child.match).group(2).strip()  # type: ignore
         if mismatch_type == "host key type":
             raise HostKeyAlgorithmMismatch(value)
         elif mismatch_type == "key exchange method":
@@ -113,23 +114,27 @@ def get_ssh_session(
 # TODO: implement support for exploding submodels in Settings.wrap_typer_command
 def ssh(
     ctx: typer.Context,
-    host: Annotated[str, typer.Argument(help="The hostname or IP address of the remote server")],
-    command: Annotated[
+    host:t.Annotated[str, typer.Argument(help="The hostname or IP address of the remote server")],
+    command:t.Annotated[
         str | None,
         typer.Option(
             help="The command to run on the remote server. "
             "Interactive shell will be launched if no command specified",
         ),
     ] = None,
-    login_as_admin: Annotated[
+    login_as_admin: t.Annotated[
         bool, typer.Option("--login-as-admin", help="Login as admin user (instead of using your utorid)")
     ] = False,
-    debug: Annotated[bool, typer.Option("--debug", help="Turn on debug logging", envvar="DEBUG")] = False,
-    trace: Annotated[
+    terminal_server:t.Annotated[
+        bool,
+        typer.Option("--terminal-server", help="Use the terminal server credentials to login (instead of your utorid)"),
+    ] = False,
+    debug:t.Annotated[bool, typer.Option("--debug", help="Turn on debug logging", envvar="DEBUG")] = False,
+    trace:t.Annotated[
         bool, typer.Option("--trace", help="Turn on trace logging. implies --debug", envvar="TRACE")
     ] = False,
-    _: Annotated[
-        Optional[bool],
+    _:t.Annotated[
+        t.Optional[bool],
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
     ] = None,
 ):
@@ -167,7 +172,12 @@ def ssh(
         DEBUG_MODE = True
     logging.basicConfig(level=log_level)
     s = Settings.from_cache()
-    creds = s.admin if login_as_admin else s.personal
+    if login_as_admin:
+        creds = s.admin
+    elif terminal_server:
+        creds = s.terminal_server
+    else:
+        creds = s.personal
     extra_args = ctx.args
 
     # sanity check the host
@@ -190,8 +200,8 @@ def ssh(
     except HostKeyChanged:
         logger.error(f"Host key for {host} has changed")
         logger.warning("If this is expected, run the following command to remove the old key:")
-        logger.warning(f"[bold]ssh-keygen -R {host}[/]")
-        logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]")
+        logger.warning(f"[bold]ssh-keygen -R {host}[/]", extra={"markup": True})
+        logger.warning(f"[bold]ssh-keygen -R {ip_addr}[/]", extra={"markup": True})
         sys.exit(1)
     except KeyExchangeMethodMismatch as e:
         logger.error(f"Key exchange method mismatch: {e.theirs}")

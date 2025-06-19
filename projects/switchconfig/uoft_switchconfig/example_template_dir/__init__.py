@@ -13,14 +13,9 @@ interactively getting and validating template data
 
 from ipaddress import IPv4Network, IPv4Address
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Literal, Union
 
-from uoft_switchconfig.generate import (
-    model_questionnaire,
-    validate_data_from_comment_block_schema,
-    Choice,
-)
-from pydantic import BaseModel, Field
+from pydantic.v1 import BaseModel, Field
 
 PATH = Path(__file__).parent
 
@@ -70,24 +65,24 @@ class Filters:
 GLOBALS = {}
 
 
-class DeskSwitch(Choice):
+class DeskSwitch(BaseModel):
     kind: Literal["deskswitch"]
     user_id: str = Field(
         description="user_id of the person this deskswitch is for, Example: someuser"
     )
 
 
-class Podium(Choice):
+class Podium(BaseModel):
     kind: Literal["podium"]
 
 
-class Access(Choice):
+class Access(BaseModel):
     kind: Literal["access"]
     tr_code: str = Field(description="Telecom Room code, Example: 2r")
 
 
 class ExampleModel(BaseModel):
-    usage: Union[DeskSwitch, Podium, Access]
+    usage: Union[DeskSwitch, Podium, Access] = Field(..., discriminator="kind")
     building_code: str = Field(description="(aka alpha code) Example: SW")
     room_code: str = Field(description="Example: 254A")
     network: IPv4Network = Field(
@@ -121,18 +116,3 @@ class ExampleModel(BaseModel):
     def is_access(self):
         return isinstance(self.usage, Access)
 
-
-def process_template_data(
-    template_name: str, input_data: dict[str, Any]
-) -> dict[str, Any]:
-    template_file = PATH / template_name
-    if template_name == "comment-block-schema-example.j2":
-        return validate_data_from_comment_block_schema(template_file, input_data)
-    if template_name == "data-model-example.j2":
-        input_data = model_questionnaire(ExampleModel, input_data=input_data)
-        return dict(
-            switch=ExampleModel(**input_data),
-        )
-    
-    # else:
-    return input_data

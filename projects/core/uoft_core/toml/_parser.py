@@ -73,11 +73,11 @@ def load(fp: BinaryIO, *, parse_float: ParseFloat = float) -> Dict[str, Any]:
             ' Use `open("foo.toml", "rb")` to open the file in binary mode.',
             DeprecationWarning,
         )
-        s = s_bytes  # type: ignore[assignment]
+        s: str = s_bytes # pyright: ignore[reportAssignmentType]
     return loads(s, parse_float=parse_float)
 
 
-def loads(s: str, *, parse_float: ParseFloat = float) -> Dict[str, Any]:  # noqa: C901
+def loads(s: str, *, parse_float: ParseFloat = float) -> Dict[str, Any]:
     """Parse TOML from a string."""
 
     # The spec allows converting "\r\n" to "\n", even in string
@@ -174,7 +174,7 @@ class Flags:
                 cont[k] = {"flags": {flag}, "recursive_flags": set(), "nested": {}}
             cont = cont[k]["nested"]
 
-    def set(self, key: Key, flag: int, *, recursive: bool) -> None:  # noqa: A003
+    def set(self, key: Key, flag: int, *, recursive: bool) -> None:
         cont = self._flags
         key_parent, key_stem = key[:-1], key[-1]
         for k in key_parent:
@@ -471,7 +471,7 @@ def parse_inline_table(src: str, pos: Pos, parse_float: ParseFloat) -> Tuple[Pos
         pos = skip_chars(src, pos, TOML_WS)
 
 
-def parse_basic_str_escape(  # noqa: C901
+def parse_basic_str_escape(
     src: str, pos: Pos, *, multiline: bool = False
 ) -> Tuple[Pos, str]:
     escape_id = src[pos : pos + 2]
@@ -589,7 +589,7 @@ def parse_basic_str(src: str, pos: Pos, *, multiline: bool) -> Tuple[Pos, str]:
         pos += 1
 
 
-def parse_value(  # noqa: C901
+def parse_value(
     src: str, pos: Pos, parse_float: ParseFloat
 ) -> Tuple[Pos, Any]:
     try:

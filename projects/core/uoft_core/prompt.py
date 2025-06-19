@@ -6,15 +6,14 @@ from base64 import b64encode
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.completion import WordCompleter, PathCompleter, FuzzyCompleter
 from prompt_toolkit.validation import Validator, ValidationError
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.document import Document
 from prompt_toolkit.output.defaults import create_output
-from pydantic.error_wrappers import ErrorWrapper
-from pydantic.fields import ModelField
-import pydantic
+from pydantic.v1.error_wrappers import ErrorWrapper
+from pydantic.v1.fields import ModelField
 
 from .types import Enum, Literal, BaseModel, Path, FilePath, DirectoryPath, SecretStr
 
@@ -76,7 +75,9 @@ class Prompt:
         default_from_history: bool = False,
         **kwargs,
     ) -> str:
-        message = HTML(f"<style fg='#ffffff' bg='#888888'>{var}</style>: ")
+        if not var.endswith(": "):
+            var = f"{var}: "
+        message = FormattedText([("#ffffff #888888", var)])
         opts: dict[str, Any] = dict(
             message=message,
             mouse_support=True,
@@ -85,7 +86,7 @@ class Prompt:
         if default_value:
             opts["default"] = default_value
         if description:
-            opts["bottom_toolbar"] = HTML(f"<b>{description}</b>")
+            opts["bottom_toolbar"] = message
 
         history = None
         if is_password:
@@ -96,7 +97,7 @@ class Prompt:
                 opts["auto_suggest"] = AutoSuggestFromHistory()
                 if default_from_history:
                     try:
-                        opts["default"] = next(history.load_history_strings())  # type: ignore
+                        opts["default"] = next(history.load_history_strings())  # pyright: ignore[reportArgumentType]
                     except StopIteration:
                         pass
 
@@ -124,14 +125,15 @@ class Prompt:
         if fuzzy_search:
             completer = FuzzyCompleter(completer)
         if generate_rprompt:
-            kwargs["rprompt"] = HTML(f"Valid options are: <b>{', '.join(choices)}</b>")
+            choices_str = ", ".join(choices)
+            kwargs["rprompt"] = FormattedText([("", "Valid options are: "), ("bold", choices_str)])
         opts = dict(
             completer=completer,
             complete_while_typing=True,
             validator=validator,
         )
         opts.update(kwargs)
-        return self.get_string(var, description, default_value, **opts)
+        return self.get_string(var, description, default_value, **opts) # pyright: ignore[reportArgumentType]
 
     def get_path(  # pylint: disable=too-many-arguments
         self,
@@ -152,7 +154,7 @@ class Prompt:
             complete_while_typing=True,
         )
         opts.update(kwargs)
-        return Path(self.get_string(var, description, default_value, **opts))
+        return Path(self.get_string(var, description, default_value, **opts)) # pyright: ignore[reportArgumentType]
 
     def get_bool(
         self,
@@ -200,9 +202,7 @@ class Prompt:
                 try:
                     int(document.text.strip())
                 except Exception as exc:
-                    raise ValidationError(
-                        message=f"{document.text} is not a valid integer"
-                    ) from exc
+                    raise ValidationError(message=f"{document.text} is not a valid integer") from exc
 
         val = self.get_string(
             var,
@@ -228,8 +228,16 @@ class Prompt:
 
         opts = dict(
             multiline=True,
-            rprompt=HTML(
-                "Press <b>Enter</b> to add a new line, <b>Alt-Enter</b> or <b>Ctrl+D</b> to finish and submit list."
+            rprompt=FormattedText(
+                [
+                    ("", "Press "),
+                    ("bold", "Enter"),
+                    ("", " to add a new line, "),
+                    ("bold", "Alt-Enter"),
+                    ("", " or "),
+                    ("bold", "Ctrl+D"),
+                    ("", " to finish and submit list."),
+                ]
             ),
             key_bindings=kb,
         )
@@ -238,7 +246,7 @@ class Prompt:
             var,
             description,
             default_value="\n".join(default_value) if default_value else None,
-            **opts,
+            **opts,  # pyright: ignore[reportArgumentType]
         )
         return val.strip().split("\n")
 
@@ -246,7 +254,7 @@ class Prompt:
         self,
         var: str,
         description: str | None,
-        default_value: dict[str, str] | None = None, # type: ignore
+        default_value: dict[str, str] | None = None,  # pyright: ignore[reportRedeclaration]
         **kwargs,
     ) -> dict[str, str]:
         kb = KeyBindings()
@@ -255,9 +263,7 @@ class Prompt:
             def validate(self, document) -> None:
                 for line in document.text.splitlines():
                     if ": " not in line:
-                        raise ValidationError(
-                            message="Each line must have a key and a value, separated by ': '"
-                        )
+                        raise ValidationError(message="Each line must have a key and a value, separated by ': '")
 
         @kb.add("c-d")
         def _(event):
@@ -265,18 +271,24 @@ class Prompt:
 
         opts = dict(
             multiline=True,
-            rprompt=HTML(
-                "Press <b>Enter</b> to add a new line, <b>Alt-Enter</b> or <b>Ctrl+D</b> to finish and submit mapping."
+            rprompt=FormattedText(
+                [
+                    ("", "Press "),
+                    ("bold", "Enter"),
+                    ("", " to add a new line, "),
+                    ("bold", "Alt-Enter"),
+                    ("", " or "),
+                    ("bold", "Ctrl+D"),
+                    ("", " to finish and submit mapping."),
+                ]
             ),
             key_bindings=kb,
             validator=DictValidator(),
         )
         opts.update(kwargs)
         if default_value:
-            default_value: str = "\n".join(
-                f"{k}: {v}" for k, v in default_value.items()
-            )
-        val = self.get_string(var, description, **opts)
+            default_value: str = "\n".join(f"{k}: {v}" for k, v in default_value.items())
+        val = self.get_string(var, description, **opts)  # pyright: ignore[reportArgumentType]
         lines = val.strip().split("\n")
         pairs = [line.partition(": ") for line in lines]
         return {k: v for k, _, v in pairs}
@@ -294,9 +306,8 @@ class Prompt:
                     if not 0 <= int(mask) <= 32:
                         raise ValueError
                 except ValueError:
-                    raise ValidationError(
-                        message="Value must be a valid CIDR notation, ex: 192.168.0.1/24"\
-                    )
+                    raise ValidationError(message="Value must be a valid CIDR notation, ex: 192.168.0.1/24")
+
         return self.get_string(var, description, validator=CIDRValidator(), **kwargs)
 
     def from_model(self, model: type[BaseModel], prefix: str | None = None):
@@ -353,9 +364,7 @@ class Prompt:
         elif type_ is Path:
             return self.get_path(name, desc, default_value=default)
         elif type_ is FilePath:
-            return self.get_path(
-                name, desc, default_value=default, validator=PydanticValidator()
-            )
+            return self.get_path(name, desc, default_value=default, validator=PydanticValidator())
         elif type_ is DirectoryPath:
             return self.get_path(
                 name,
@@ -383,10 +392,8 @@ class Prompt:
             discriminator = field.discriminator_key
             discriminator_to_model = {}
             for subfield in field.sub_fields:
-                if not issubclass(subfield.type_, pydantic.BaseModel):
-                    raise ValueError(
-                        f"Discriminated union {field.name} contains a non-model type {subfield.type_}"
-                    )
+                if not issubclass(subfield.type_, BaseModel):
+                    raise ValueError(f"Discriminated union {field.name} contains a non-model type {subfield.type_}")
                 if discriminator not in subfield.type_.__fields__:
                     raise ValueError(
                         f"Discriminated union {field.name} contains a model {subfield.type_} \

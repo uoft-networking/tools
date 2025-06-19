@@ -9,15 +9,11 @@ class ArubaRESTAPIError(Exception):
 
 
 class ArubaRESTAPIClient:
-    def __init__(
-        self, host, username, password, default_config_path="/mm", ssl_verify=False
-    ) -> None:
+    def __init__(self, host, username, password, default_config_path="/mm", ssl_verify=False) -> None:
         self.host = host
         self.auth = dict(username=username, password=password)
         self.session = Session()
-        self.session.headers.update(
-            {"Content-Type": "application/json", "Accept": "application/json"}
-        )
+        self.session.headers.update({"Content-Type": "application/json", "Accept": "application/json"})
 
         self.default_config_path = default_config_path
 
@@ -38,21 +34,18 @@ class ArubaRESTAPIClient:
         csrf_token = res["X-CSRF-Token"]
 
         self.session.cookies["SESSION"] = token
-        self.session.headers.update(
-            {"SESSION": token, "uidaruba": token, "X-CSRF-Token": csrf_token}
-        )
-        self.session.params.update({"UIDARUBA": token, "config_path": self.default_config_path})  # type: ignore
+        self.session.headers.update({"SESSION": token, "uidaruba": token, "X-CSRF-Token": csrf_token})
+        self.session.params.update({"UIDARUBA": token, "config_path": self.default_config_path})  # pyright: ignore[reportAttributeAccessIssue]
 
     def logout(self):
         self.session.post(self.endpoint.logout)
-        
+
         # At some undocumented point, aruba changed the logout procedure.
         # in such a way as to cause logout to silently fail.
         # logging out the old way does not produce an error, but the session is not actually logged out.
-        # I can find no documentation about WHEN this change was made, so for compatability, 
+        # I can find no documentation about WHEN this change was made, so for compatability,
         # We're going to do both methods
         self.session.delete(self.endpoint.old_logout)
-
 
     def show_raw(self, cmd, **params):
         return self.session.get(
@@ -135,9 +128,7 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def ap_radio_summary():
-                return self.showcommand("show ap radio-summary")[
-                    "APs Radios information"
-                ]
+                return self.showcommand("show ap radio-summary")["APs Radios information"]
 
             @staticmethod
             def all_objects():
@@ -197,9 +188,7 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def get_cpsec_allowlist():
-                return self.showcommand("show whitelist-db cpsec")[
-                    "Control-Plane Security Allowlist-entry Details"
-                ]
+                return self.showcommand("show whitelist-db cpsec")["Control-Plane Security Allowlist-entry Details"]
 
         return AP_Provisioning
 
@@ -242,21 +231,15 @@ class ArubaRESTAPIClient:
 
             @staticmethod
             def stm_blocklist_remove(mac_address: str):
-                return self.post(
-                    "stm_blacklist_client_remove", {"client-mac": mac_address}
-                )
+                return self.post("stm_blacklist_client_remove", {"client-mac": mac_address})
 
             @staticmethod
             def blmgr_blocklist_add(mac_address: str):
-                return self.post(
-                    "blmgr_blacklist_client_add", {"client-mac": mac_address}
-                )
+                return self.post("blmgr_blacklist_client_add", {"client-mac": mac_address})
 
             @staticmethod
             def blmgr_blocklist_remove(mac_address: str):
-                return self.post(
-                    "blmgr_blacklist_client_remove", {"client-mac": mac_address}
-                )
+                return self.post("blmgr_blacklist_client_remove", {"client-mac": mac_address})
 
             @staticmethod
             def blmgr_blocklist_purge():

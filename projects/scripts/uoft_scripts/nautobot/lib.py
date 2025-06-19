@@ -22,230 +22,39 @@ and then calling the synchronize method on the source manager instance.
 
 import json
 from pathlib import Path
-import typing
+import typing as t
 import time
 import re
 from difflib import Differ
 
-from uoft_core.types import IPNetwork, IPAddress, BaseModel, SecretStr
+from . import Settings, OnOrphanAction, ComplianceReportGoal, get_settings, get_api
+from uoft_core.types import BaseModel
 from uoft_core import logging
-from uoft_core import BaseSettings, Field, StrEnum
-from uoft_core import txt
 from uoft_core.console import console
-from uoft_ssh import Settings as SSHSettings
 
 import pynautobot
-import pynautobot.core.endpoint
-import pynautobot.models
-import pynautobot.models.dcim
 from pynautobot.core.response import Record
+from pynautobot.models.extras import Jobs, JobResults
+from pynautobot.models.dcim import Devices as NautobotDeviceRecord
 import deepdiff
 import deepdiff.model
-import typer
 import jinja2
-import nornir.core.inventory as nornir_inventory
 from rich.table import Table
 from rich.prompt import Prompt, IntPrompt, Confirm
 
 
-# NOTE: this really aught to live in a uoft-nautobot package, dedicated to code surrounding the nautobot rest api,
-# but there happens to already be a uoft_nautobot package, which is actually a uoft-centric nautobot plugin and
-# should actually be called nautobot-uoft,
-# TODO: move/rename uoft_nautobot to nautobot-uoft and create a uoft_nautobot project for this code.
-class Settings(BaseSettings):
-    """Settings for the nautobot_cli application."""
-
-    url: str = Field(..., title="Nautobot server URL")
-    token: SecretStr = Field(..., title="Nautobot API Token")
-
-    class Config(BaseSettings.Config):
-        app_name = "nautobot-cli"
-
-    def api_connection(self):
-        return pynautobot.api(url=self.url, token=self.token.get_secret_value(), threading=True)
-
-
-class DevSettings(Settings):
-    class Config(BaseSettings.Config):
-        app_name = "nautobot-cli-dev"
-
-
-def get_settings(dev: bool = False):
-    if dev:
-        return DevSettings.from_cache()
-    return Settings.from_cache()
-
-
 logger = logging.getLogger(__name__)
 
-##!SECTION Nornir
 
-
-class NautobotInventory:
-    def __init__(self) -> None:
-        self.api = Settings.from_cache().api_connection()
-
-    def devices_with_platforms(self):
-        query = txt("""
-        query {
-            devices (platform__isnull: false) {
-                id
-                hostname: name
-                device_type {
-                    model
-                    manufacturer { name }
-                    family: device_family {
-                        name
-                    }
-                }
-                software_version { version }
-                platform {
-                    name
-                    network_driver
-                }
-                primary_ip4 {
-                    cidr: address
-                    address: host
-                }
-                primary_ip6 {
-                    cidr: address
-                    address: host
-                }
-                status {
-                    name
-                }
-                tags {
-                    name
-                }
-                location {
-                    name
-                    cf_room_number
-                    parent {
-                        name
-                        cf_building_code
-                    }
-                }
-                role {
-                    name
-                }
-                vlan_group {
-                    name
-                }
-            }
-        }
-        """)
-        return self.api.graphql.query(query).json["data"]["devices"]
-
-    def load(self) -> nornir_inventory.Inventory:
-        """Load of Nornir inventory.
-
-        Returns:
-            Inventory: Nornir Inventory
-        """
-        hosts = nornir_inventory.Hosts()
-        groups = nornir_inventory.Groups()
-        defaults = nornir_inventory.Defaults()
-
-        ssh_s = SSHSettings.from_cache()
-
-        for device in self.devices_with_platforms():  # type: ignore
-            data = device
-            data["get_nautobot_obj"] = lambda: self.api.dcim.devices.get(device["id"])  # type: ignore
-
-            name = device["hostname"] or str(device["id"])
-            # Add Primary IP address, if found. Otherwise add hostname as the device name
-            if device["primary_ip4"]:
-                hostname = device["primary_ip4"]["address"]
-            elif device["primary_ip6"]:
-                hostname = device["primary_ip6"]["address"]
-            else:
-                hostname: str = device["hostname"]
-
-            # squash nested fields
-            device["device_family"] = (
-                device["device_type"]["family"]["name"] if device["device_type"]["family"] else None
-            )
-            device["manufacturer"] = (
-                device["device_type"]["manufacturer"]["name"] if device["device_type"]["manufacturer"] else None
-            )
-            device["device_type"] = device["device_type"]["model"]
-            device["network_driver"] = device["platform"]["network_driver"]
-            device["platform"] = device["platform"]["name"]
-            device["ipv4_cidr"] = device["primary_ip4"]["cidr"] if device["primary_ip4"] else None
-            device["ipv4_address"] = device["primary_ip4"]["address"] if device["primary_ip4"] else None
-            device["ipv6_cidr"] = device["primary_ip6"]["cidr"] if device["primary_ip6"] else None
-            device["ipv6_address"] = device["primary_ip6"]["address"] if device["primary_ip6"] else None
-            device["status"] = device["status"]["name"]
-            device["tags"] = [tag["name"] for tag in device["tags"]]
-            device["room_number"] = (
-                device["location"]["cf_room_number"]
-                if device["location"] and device["location"]["cf_room_number"]
-                else None
-            )
-            device["building_name"] = (
-                device["location"]["parent"]["name"] if device["location"] and device["location"]["parent"] else None
-            )
-            device["building_code"] = (
-                device["location"]["parent"]["cf_building_code"]
-                if device["location"]
-                and device["location"]["parent"]
-                and device["location"]["parent"]["cf_building_code"]
-                else None
-            )
-            device["location"] = device["location"]["name"] if device["location"] else None
-            device["role"] = device["role"]["name"] if device["role"] else None
-            device["vlan_group"] = device["vlan_group"]["name"] if device["vlan_group"] else None
-            device["software_version"] = device["software_version"]["version"] if device["software_version"] else None
-
-            # Add host to hosts by name first, ID otherwise - to string
-            host_platform = device["network_driver"]
-
-            connection_options = {}
-
-            username = data.get("connection_options", {}).get("username")
-            if not username:
-                username = ssh_s.personal.username
-            password = data.get("connection_options", {}).get("password")
-            if not password:
-                password = ssh_s.personal.password.get_secret_value()
-            extras = data.get("connection_options", {}).get("extras", {})
-            extras["secret"] = ssh_s.enable_secret.get_secret_value()
-            connection_options["netmiko"] = nornir_inventory.ConnectionOptions(
-                hostname=hostname,
-                port=data.get("connection_options", {}).get("port"),
-                username=username,
-                password=password,
-                platform=host_platform,
-                extras=extras,
-            )
-
-            host = nornir_inventory.Host(
-                name=name,
-                hostname=hostname,
-                platform=host_platform,
-                data=data,
-                # groups=None, # TODO: add support for nautobot dynamic groups
-                defaults=defaults,
-                connection_options=connection_options,
-            )
-            hosts[name] = host
-
-        return nornir_inventory.Inventory(hosts=hosts, groups=groups, defaults=defaults)
-
-
-##!SECTION Nautobot / CLI
-
-app = typer.Typer(name="nautobot")
-
-ip_address: typing.TypeAlias = str
+ip_address: t.TypeAlias = str
 "ip address in CIDR notation, e.g. '192.168.0.20/24'"
-network_prefix: typing.TypeAlias = str
+network_prefix: t.TypeAlias = str
 "network prefix in CIDR notation, e.g. '10.0.0.0/8'"
-common_id: typing.TypeAlias = ip_address | network_prefix
+common_id: t.TypeAlias = ip_address | network_prefix
 "common id used to identify objects in both systems"
 
-Status: typing.TypeAlias = typing.Literal["Active", "Reserved", "Deprecated"]
-PrefixType: typing.TypeAlias = typing.Literal["container", "network", "pool"]
+Status: t.TypeAlias = t.Literal["Active", "Reserved", "Deprecated"]
+PrefixType: t.TypeAlias = t.Literal["container", "network", "pool"]
 
 
 class IPAddressModel(BaseModel):
@@ -267,9 +76,9 @@ class DeviceModel(BaseModel):
     ip_address: ip_address
 
 
-Prefixes: typing.TypeAlias = dict[network_prefix, PrefixModel]
-Addresses: typing.TypeAlias = dict[ip_address, IPAddressModel]
-Devices: typing.TypeAlias = dict[str, DeviceModel]
+Prefixes: t.TypeAlias = dict[network_prefix, PrefixModel]
+Addresses: t.TypeAlias = dict[ip_address, IPAddressModel]
+Devices: t.TypeAlias = dict[str, DeviceModel]
 
 
 class SyncData(BaseModel):
@@ -310,8 +119,8 @@ class SyncManager:
     diff: deepdiff.DeepDiff
 
     def __init__(self) -> None:
-        self.syncdata = None  # type: ignore
-        self.diff = None  # type: ignore
+        self.syncdata = None  # pyright: ignore[reportAttributeAccessIssue]
+        self.diff = None  # pyright: ignore[reportAttributeAccessIssue]
 
     def synchronize(self, source_data: SyncData):
         assert self.syncdata.datasets == source_data.datasets
@@ -335,7 +144,7 @@ class SyncManager:
 
         delta = deepdiff.Delta(diff)
 
-        new_syncdata: SyncData = self.syncdata + delta  # type: ignore
+        new_syncdata = t.cast(SyncData, self.syncdata + delta)
 
         self.syncdata = new_syncdata
         self.diff = diff
@@ -355,9 +164,9 @@ def _get_all_change_paths(diff, change_type):
     change_type_name = change_type_mapping[change_type]
     res: dict[str, set[common_id]]
     res = dict(prefixes=set(), addresses=set())
-    for record in diff.tree[change_type_name]:  # type: ignore
+    for record in diff.tree[change_type_name]:
         record: deepdiff.model.DiffLevel
-        path: list[str] = record.path(output_format="list")  # type: ignore
+        path = t.cast(list[str], record.path(output_format="list"))
 
         # path lists for records added / removed look like
         # ["prefixes", "10.0.0.0/8"] or ["addresses", "192.168.0.20"],
@@ -381,30 +190,10 @@ def _get_prefix(ip_object):
         return None
 
 
-def _validate_templates_dir(templates_dir):
-    if templates_dir is None:
-        templates_dir = Path(".")
-    if not templates_dir.joinpath("filters.py").exists():
-        logger.error(f"Expected to find a `filters.py` file in template repo directory '{templates_dir.resolve()}'")
-        logger.warning("Are you sure you're in the right directory?")
-        raise typer.Exit(1)
-    return templates_dir
-
-
-TemplatesPath: typing.TypeAlias = typing.Annotated[Path, typer.Option(exists=True, callback=_validate_templates_dir)]
-
-
-class OnOrphanAction(StrEnum):
-    prompt = "prompt"
-    delete = "delete"
-    backport = "backport"
-    skip = "skip"
-
-
-@app.command()
 def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: OnOrphanAction = OnOrphanAction.prompt):
     from uoft_core import Timeit
-    from . import _sync
+    from .. import _sync
+    import typer
 
     print = console().print
 
@@ -417,7 +206,7 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
     datasets = {"prefixes", "addresses"}
     bc = _sync.BluecatTarget()
     nb = _sync.NautobotTarget(dev=dev)
-    sm = _sync.SyncManager(bc, nb, datasets, on_orphan=on_orphan.value)  # type: ignore
+    sm = _sync.SyncManager(bc, nb, datasets, on_orphan=on_orphan.value)  # pyright: ignore[reportArgumentType]
 
     sm.load()
     sm.synchronize()
@@ -437,46 +226,8 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
     done()
 
 
-def _autocomplete_hostnames(ctx: typer.Context, partial: str):
-    dev = ctx.params.get("dev", False)
-    nb = get_settings(dev).api_connection()
-    if partial:
-        query = nb.dcim.devices.filter(name__ic=partial)
-    else:
-        query = nb.dcim.devices.all()
-    return [d.name for d in query]  # type: ignore
-
-
-def _autocomplete_manufacturers(ctx: typer.Context, partial: str):
-    dev = ctx.params.get("dev", False)
-    nb = get_settings(dev).api_connection()
-    if partial:
-        query = nb.dcim.manufacturers.filter(name__ic=partial)
-    else:
-        query = nb.dcim.manufacturers.all()
-    return [d.name for d in query]  # type: ignore
-
-
-def _autocomplete_device_types(ctx: typer.Context, partial: str):
-    dev = ctx.params.get("dev", False)
-    mfg = ctx.params.get("manufacturer", None)
-    nb = get_settings(dev).api_connection()
-    if mfg:
-        mfg_id = nb.dcim.manufacturers.get(name=mfg).id  # type: ignore
-        if partial:
-            query = nb.dcim.device_types.filter(manufacturer=mfg_id, model__ic=partial)
-        else:
-            query = nb.dcim.device_types.filter(manufacturer=mfg_id)
-    else:
-        if partial:
-            query = nb.dcim.device_types.filter(model__ic=partial)
-        else:
-            query = nb.dcim.device_types.all()
-    return [d.model for d in query]  # type: ignore
-
-
 def _get_jinja_env(templates_dir: Path):
-    from . import _jinja
+    from .. import _jinja
     from uoft_core import jinja_library
 
     env = jinja2.Environment(
@@ -494,25 +245,23 @@ def _get_jinja_env(templates_dir: Path):
     return env
 
 
-@app.command()
 def show_golden_config_data(
-    device_name: str = typer.Argument(..., autocompletion=_autocomplete_hostnames),
+    device_name: str,
     dev: bool = False,
 ):
-    nb = get_settings(dev).api_connection()
-    device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
-    gql_query: str = nb.extras.graphql_queries.get(name="golden_config").query  # type: ignore
+    nb = get_api(dev)
+    device = t.cast(Record, nb.dcim.devices.get(name=device_name))
+    gql_query = t.cast(str, t.cast(Record, nb.extras.graphql_queries.get(name="golden_config")).query)
     data = nb.graphql.query(gql_query, {"device_id": device.id})
     print(json.dumps(data.json["data"]["device"], indent=2))
 
 
-@typing.no_type_check
-@app.command()
+@t.no_type_check
 def trigger_golden_config_intended(
-    device_name: typing.Annotated[str, typer.Argument(..., autocompletion=_autocomplete_hostnames)],
+    device_name: str,
     dev: bool = False,
 ):
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
     device: Record = nb.dcim.devices.get(name=device_name)
     job = nb.extras.jobs.get(name="Generate Intended Configurations")
     job_result = nb.extras.jobs.run(job_id=job.id, data={"device": [device.id]}).job_result
@@ -522,9 +271,8 @@ def trigger_golden_config_intended(
     print(job_result.url.replace("/api/", "/"))
 
 
-@app.command()
 def template_filter_info(
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir = Path("."),
 ):
     # scan the templates for uses of jinja filters
     found_filters = set()
@@ -546,16 +294,17 @@ def template_filter_info(
     logger.info(f"You have the following filters available: \n- {filters}")
 
 
-@app.command()
+
 def test_golden_config_templates(
-    device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    device_name: str,
     override_status: str | None = None,
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir: Path = Path("."),
     dev: bool = False,
     print_output: bool = True,
 ):
-    nb = get_settings(dev).api_connection()
-    device: Record | None = nb.dcim.devices.get(name=device_name)  # type: ignore
+    import typer
+    nb = get_api(dev)
+    device = t.cast(Record | None, nb.dcim.devices.get(name=device_name))
     if not device:
         logger.error(f"Device {device_name} not found in Nautobot")
         raise typer.Exit(1)
@@ -572,22 +321,53 @@ def test_golden_config_templates(
     # we need to set up a jinja environment which mimics the behaviour of the one set up by
     # nautobot for rendering golden config templates
     env = _get_jinja_env(templates_dir)
-    t = env.get_template("templates/entrypoint.j2")
-    text = t.render(data)
+    tmpl = env.get_template("templates/entrypoint.j2")
+    text = tmpl.render(data)
     if print_output:
         print(text)
     return text
 
 
-@typing.no_type_check
-@app.command()
+def run_job(dev: bool, job_name: str, data: dict):
+    nb = get_api(dev)
+    con = console()
+    job = t.cast(Jobs | None, nb.extras.jobs.get(name=job_name))
+    assert job, f"Job '{job_name}' not found in Nautobot"
+    job_result = t.cast(JobResults, nb.extras.jobs.run(job_id=job.id, data=data).job_result)  # pyright: ignore[reportCallIssue, reportAttributeAccessIssue]
+    con.print(f"A new '{job_name}' job run has been triggered. Job status / results can be found here:")
+    url = t.cast(str, job_result.url).replace("/api/", "/")
+    con.print(f"[link={url}]{url}[/link]")
+    con.print("Waiting for job to complete...")
+    while True:
+        new_result = t.cast(JobResults, nb.extras.job_results.get(job_result.id))
+        status = t.cast(str, t.cast(Record, new_result.status).value)
+        if status not in ["STARTED", "PENDING"]:
+            con.print(" ")
+            break
+        con.print(".", end="")
+        time.sleep(1)
+    logger.success("Job completed with status: " + status)
+    if status != "SUCCESS":
+        logger.error("Job failed")
+        logger.error(new_result)
+    return new_result
+
+
+@t.no_type_check
+def update_golden_config_repo(dev=False):
+    nb = get_api(dev)
+    gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
+    job_result = run_job(dev, "Git Repository: Sync", {"repository": gitrepo.id})
+    return job_result
+
+
+
+
 def push_changes_to_nautobot(
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir: Path = Path("."),
     dev: bool = False,
 ):
     import subprocess
-
-    con = console()
 
     # make sure git status is clean
     git_status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, cwd=templates_dir)
@@ -597,94 +377,30 @@ def push_changes_to_nautobot(
     subprocess.run(["git", "push"], check=True, cwd=templates_dir)
 
     logger.info("Telling nautobot to pull the changes")
-    nb = get_settings(dev).api_connection()
-    gitrepo = nb.extras.git_repositories.get(name="golden_config_templates")
-    job = nb.extras.jobs.get(name="Git Repository: Sync")
-    job_result = nb.extras.jobs.run(job_id=job.id, data={"repository": gitrepo.id}).job_result
-    con.print("A new `GitRepository: Sync` job run has been triggered. Job status / results can be found here:")
-    url = job_result.url.replace("/api/", "/")
-    con.print(f"[link={url}]{url}[/link]")
-    return job_result
+    return update_golden_config_repo(dev=dev)
 
 
-@typing.no_type_check
-@app.command()
 def test_templates_in_nautobot(
-    templates_dir: TemplatesPath = Path("."),
+    templates_dir: Path = Path("."),
     dev: bool = False,
 ):
-    job_result = push_changes_to_nautobot(templates_dir, dev)
-    nb = get_settings(dev).api_connection()
-    con = console()
-    con.print("Waiting for job to complete...")
-    while True:
-        new_result = nb.extras.job_results.get(job_result.id)
-        if new_result.status.value not in ["STARTED", "PENDING"]:
-            con.print(" ")
-            break
-        con.print(".", end="")
-        time.sleep(1)
-    logger.success("Job completed with status: " + new_result.status.value)
-    if new_result.status.value != "SUCCESS":
-        logger.error("Job failed")
-        logger.error(new_result)
-        return new_result
-    job = nb.extras.jobs.get(name="Generate Intended Configurations")
-    all_platform_uuids = [p.id for p in nb.dcim.platforms.all()]
-    job_result = nb.extras.jobs.run(job_id=job.id, data={"platform": all_platform_uuids}).job_result
-    con.print("A new `Generate Intended Configurations` job run has been triggered")
-    con.print("Details can be found here:")
-    url = job_result.url.replace("/api/", "/")
-    con.print(f"[link={url}]{url}[/link]")
-    con.print("Waiting for job to complete...")
-    while True:
-        new_result = nb.extras.job_results.get(job_result.id)
-        if new_result.status.value not in ["STARTED", "PENDING"]:
-            con.print(" ")
-            break
-        con.print(".", end="")
-        time.sleep(2)
-    if new_result.status.value != "SUCCESS":
-        logger.error("Job failed")
-        logger.error(new_result)
-        return new_result
-    logger.success("Job completed with status: " + new_result.status.value)
-    return new_result
+    push_changes_to_nautobot(templates_dir, dev)
+    nb = get_api(dev)
+    all_platform_uuids = t.cast(list[str], [p.id for p in nb.dcim.platforms.all()])  # pyright: ignore[reportAttributeAccessIssue]
+    job_result = run_job(dev, "Generate Intended Configurations", {"platform": all_platform_uuids})
+    run_job(
+        dev,
+        "Perform Configuration Compliance",
+        data={"status": [t.cast(Record, nb.extras.statuses.get(name="Active")).id]},
+    )
+    return job_result
 
-
-def _assert_cwd_is_devicetype_library():
-    if not (Path(".git").exists() and Path("device-types").exists()):
-        logger.error(
-            "This command is meant to be run from within the device-type-library repository. "
-            "Please clone the repository from https://github.com/netbox-community/devicetype-library"
-            "and run this command from within the repository folder."
-        )
-        raise typer.Exit(1)
-
-
-def _complete_mfg(incomplete: str):
-    _assert_cwd_is_devicetype_library()
-    if incomplete:
-        search_space = Path("device-types").glob(f"{incomplete}*")
-    else:
-        search_space = Path("device-types").iterdir()
-    for dir in search_space:
-        if dir.is_dir():
-            yield dir.name
-
-
-def _complete_model(incomplete: str, ctx: typer.Context):
-    _assert_cwd_is_devicetype_library()
-    manufacturer = ctx.params["manufacturer"]
-    search_space = Path("device-types").joinpath(manufacturer).glob(f"{incomplete}*.yaml")
-    for file in search_space:
-        yield file.stem  # stem instead of name, because we don't want the .yaml extension
 
 
 def _device_family_id(nb, prompt, model):
     device_families_by_name = {}
     for family in nb.dcim.device_families.all():
-        device_families_by_name[family.name] = family.id  # type: ignore
+        device_families_by_name[family.name] = family.id
 
     matching_families = [f for f in device_families_by_name if f in model]
     if len(matching_families) == 1:
@@ -715,7 +431,7 @@ def _device_family_id(nb, prompt, model):
                 'Enter a device family name for this device type (Ex: "C9300")',
             )
             family = nb.dcim.device_families.create(name=family_name)
-            return family.id  # type: ignore
+            return family.id
         else:
             return device_families_by_name[family_name]
 
@@ -725,25 +441,34 @@ def _manufacturer_id(nb, manufacturer):
     if not mfg:
         logger.info(f"Manufacturer {manufacturer} not found, creating...")
         mfg = nb.dcim.manufacturers.create(name=manufacturer)
-    return mfg.id  # type: ignore
+    return mfg.id
 
 
-@app.command()
+
 def device_type_add_or_update(
-    manufacturer: typing.Annotated[str, typer.Argument(autocompletion=_complete_mfg)],
-    model: typing.Annotated[str, typer.Argument(autocompletion=_complete_model)],
     dev: bool = False,
 ):
     """
     create or update a device type in nautobot based on a device type file in the device-types repo
     """
 
-    # check to make sure this command is being run from within the device-types library repo
-    _assert_cwd_is_devicetype_library()
+    prompt = Settings._prompt()
 
+    manufacturers = [str(p.stem) for p in Path("device-types").iterdir() if p.is_dir()]
+    manufacturer = prompt.get_from_choices(
+        "manufacturer: ",
+        choices=manufacturers,
+        description="Select a manufacturer for this device type",
+    )
+
+    model = prompt.get_from_choices(
+        "model: ",
+        [f.stem for f in Path("device-types").joinpath(manufacturer).glob("*.yaml")],
+        description="Select a model for this device type",
+        fuzzy_search=True,
+    )
     # make sure the specified manufacturer and model exist in the device-types library
     device_type_file = Path("device-types").joinpath(manufacturer, f"{model}.yaml")
-    assert device_type_file.exists(), f"Device type file not found: {device_type_file}"
 
     # read the device type file
     from uoft_core.yaml import loads
@@ -752,20 +477,22 @@ def device_type_add_or_update(
 
     prompt = Settings._prompt()
 
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
 
     # the device_type dictionary ALMOST perfectly matches the structure expected by the Nautobot API
     # for device_types
     model = device_type["model"]
 
-    if existing_device_type := nb.dcim.device_types.get(model=model, manufacturer=device_type["manufacturer"]):
+    if existing_device_type := t.cast(
+        Record, nb.dcim.device_types.get(model=model, manufacturer=device_type["manufacturer"])
+    ):
         logger.info(f"Device type {model} already exists in Nautobot")
         if not prompt.get_bool(
             "update_device_type",
             "Would you like to update this device type?",
         ):
             return
-        device_type_id = existing_device_type.id  # type: ignore
+        device_type_id = existing_device_type.id
     else:
         nb_data = dict(
             front_image=device_type.get("front_image"),
@@ -782,8 +509,14 @@ def device_type_add_or_update(
         if nb_data["comments"] is None:
             del nb_data["comments"]
 
-        res = nb.dcim.device_types.create(nb_data)
-        device_type_id = res.id  # type: ignore
+        try:
+            del nb_data["front_image"]
+            del nb_data["rear_image"]
+        except KeyError:
+            pass
+
+        res = t.cast(Record, nb.dcim.device_types.create(nb_data))
+        device_type_id = res.id
 
     logger.info(f"Device type {model} created with id {device_type_id}")
 
@@ -896,14 +629,14 @@ def _select_from_queryset(
     name,
     msg,
     key="name",
-    create_new_callback: typing.Callable | None = None,
+    create_new_callback: t.Callable[[], tuple[str, str]] | None = None,
     **kwargs,
-):
+) -> tuple[str, str]:
     mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
     choices = list(mapping.keys())
     if create_new_callback:
         choices = ["Create a new one...", *choices]
-    choice = prompt.get_from_choices(
+    choice: str = prompt.get_from_choices(
         name,
         list(mapping.keys()),
         msg,
@@ -915,17 +648,17 @@ def _select_from_queryset(
     return choice, mapping[choice]
 
 
-@app.command()
 def new_switch(
     dev: bool = False,
 ):
     """
-    Create a new switch in Nautobot
+    Create a new switch in Nautobot.
 
-    This script prompts you for info and creates a new switch entry for you in nautobot
+    This function will create a new switch in Nautobot with the necessary configurations.
+    It will prompt for the device type and other required information.
     """
     prompt = Settings._prompt()
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
 
     name = prompt.get_string("name", "Enter the name of the switch")
 
@@ -954,7 +687,7 @@ def new_switch(
         if not prompt.get_bool(
             var="confirm_device_type",
             description=f"There are currently 0 switches in Nautobot with device type '{dt}'. "
-            "Are you sure you want to use this device type?",
+            "Are you sure you picked the right device type?",
         ):
             return
 
@@ -977,7 +710,9 @@ def new_switch(
     )
 
     logger.info("Loading list of Locations from Nautobot...")
-    locations: dict[str, str] = {obj["display"]: obj["id"] for obj in nb.dcim.locations.all()}  # type: ignore
+    locations = {
+        t.cast(str, obj["display"]): t.cast(str, obj["id"]) for obj in t.cast(list[Record], nb.dcim.locations.all())
+    }
 
     def _new_room():
         building_name = prompt.get_from_choices(
@@ -990,14 +725,17 @@ def new_switch(
         )
         location_name = prompt.get_string("room_name", "Enter the name of the location")
         logger.info(f"Creating new location '{location_name}'...")
-        location_record = nb.dcim.locations.create(
-            name=location_name,
-            location_type={"name": "Room"},
-            parent=locations[building_name],
-            status={"name": "Active"},
-            custom_fields=dict(room_number=prompt.get_string("room_number", "Enter the room number (ex. AC290)")),
+        location_record = t.cast(
+            Record,
+            nb.dcim.locations.create(
+                name=location_name,
+                location_type={"name": "Room"},
+                parent=locations[building_name],
+                status={"name": "Active"},
+                custom_fields=dict(room_number=prompt.get_string("room_number", "Enter the room number (ex. AC290)")),
+            ),
         )
-        return location_name, location_record.id  # type: ignore
+        return location_name, t.cast(str, location_record.id)
 
     choice = prompt.get_from_choices(
         "location",
@@ -1011,22 +749,23 @@ def new_switch(
         location, location_id = _new_room()
     else:
         location, location_id = choice, locations[choice]
+    logger.info(f"Selected location {location} with id {location_id}")
 
-    vlan_groups = nb.ipam.vlan_groups.all()
+    vlan_groups = t.cast(list[Record], nb.ipam.vlan_groups.all())
     vlan_group_name = prompt.get_from_choices(
         "vlan_group",
-        [vg.name for vg in vlan_groups],  # type: ignore
+        [t.cast(str, vg.name) for vg in vlan_groups],
         "Select a VLAN Group for this switch",
     )
-    vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)  # type: ignore
+    vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)
     logger.info(f"Assigning VLAN Group {vlan_group_name} to {name}...")
 
     # Tags
     tags = []
     logger.info("Loading list of available device Tags from Nautobot...")
-    available_tags: dict[str, str] = {
-        tag["name"]: tag["id"]  # type: ignore
-        for tag in nb.extras.tags.filter(content_types="dcim.device")
+    available_tags = {
+        t.cast(str, tag["name"]): t.cast(str, tag["id"])
+        for tag in t.cast(list[Record], nb.extras.tags.filter(content_types="dcim.device"))
     }
     while True:
         if not prompt.get_bool("add_tag", "Would you like to add a tag to this switch?"):
@@ -1066,17 +805,17 @@ def new_switch(
         config_context["os_version"] = os_version
 
     logger.info("Checking to see if Device already exists in Nautobot...")
-    if device := nb.dcim.devices.get(name=name):
+    if device := t.cast(NautobotDeviceRecord | None, nb.dcim.devices.get(name=name)):
         logger.info(f"Device {name} already exists in Nautobot, updating...")
         nb.dcim.devices.update(
-            id=device.id,  # type: ignore
+            id=device.id,  # pyright: ignore[reportAttributeAccessIssue]
             data=dict(
                 device_type=dt_id,
                 platform=platform_id,
                 role=role_id,
                 status="Planned",
                 location=location_id,
-                vlan_group=vlan_group.id,  # type: ignore
+                vlan_group=vlan_group.id,
                 manufacturer=manufacturer_id,
                 tags=tags,
                 local_config_context_data=config_context,
@@ -1084,41 +823,45 @@ def new_switch(
         )
     else:
         logger.info(f"Creating new device {name} in Nautobot...")
-        device = nb.dcim.devices.create(
-            name=name,
-            device_type=dt_id,
-            platform=platform_id,
-            role=role_id,
-            status="Planned",
-            location=location_id,
-            vlan_group=vlan_group.id,  # type: ignore
-            manufacturer=manufacturer_id,
-            tags=tags,
+        device = t.cast(
+            NautobotDeviceRecord,
+            nb.dcim.devices.create(
+                name=name,
+                device_type=dt_id,
+                platform=platform_id,
+                role=role_id,
+                status="Planned",
+                location=location_id,
+                vlan_group=vlan_group.id,
+                manufacturer=manufacturer_id,
+                tags=tags,
+            ),
         )
 
     logger.info(f"Checking to see if {name}/{interface_name} already exists in Nautobot...")
-    mgmt_interface = nb.dcim.interfaces.get(device=device.id, name=interface_name)  # type: ignore
+    mgmt_interface = nb.dcim.interfaces.get(device=device.id, name=interface_name)
     if not mgmt_interface:
         logger.info(f"Creating primary interface {interface_name} for {name} in Nautobot...")
         mgmt_interface = nb.dcim.interfaces.create(
-            device=device.id,  # type: ignore
+            device=device.id,
             name=interface_name,
             type="virtual",
             status="Active",
         )
+    mgmt_interface = t.cast(Record, mgmt_interface)
 
     logger.info(f"Checking to see if {primary_ip4} already exists in Nautobot...")
     host, _, prefix_length = primary_ip4.partition("/")
-    if ipv4 := nb.ipam.ip_addresses.get(q=host):
+    if ipv4 := t.cast(Record, nb.ipam.ip_addresses.get(q=host)):
         logger.info(f"IP Address {primary_ip4} already exists in Nautobot, updating...")
-        if ipv4.mask_length != int(prefix_length):  # type: ignore
+        if ipv4.mask_length != int(prefix_length):
             logger.error(
-                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "  # type: ignore
+                f"IP Address {primary_ip4} already exists in Nautobot as {ipv4.address}, "
                 "Please rerun script with this CIDR or update the IP address prefix manually in Nautobot."
             )
             return
         nb.ipam.ip_addresses.update(
-            id=ipv4.id,  # type: ignore
+            id=ipv4.id,
             data=dict(
                 status="Active",
                 description=name,
@@ -1127,19 +870,26 @@ def new_switch(
         )
     else:
         logger.info(f"Creating new IP Address {primary_ip4} in Nautobot...")
-        ipv4 = nb.ipam.ip_addresses.create(
-            address=primary_ip4,
-            status="Active",
-            namespace={"name": "Global"},
-            description=name,
-            dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+        ipv4 = t.cast(
+            Record,
+            nb.ipam.ip_addresses.create(
+                address=primary_ip4,
+                status="Active",
+                namespace={"name": "Global"},
+                description=name,
+                dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
+            ),
         )
+        if prompt.get_bool("push to bluecat", "Would you like to push this IP address to Bluecat?"):
+            # from uoft_bluecat.cli import add_or_update_ip
+
+            raise NotImplementedError("Bluecat integration not yet implemented, talk to Alex T")
 
     logger.info(f"Associating {primary_ip4} with {interface_name}...")
     try:
         nb.ipam.ip_address_to_interface.create(
-            ip_address=ipv4.id,  # type: ignore
-            interface=mgmt_interface.id,  # type: ignore
+            ip_address=ipv4.id,
+            interface=mgmt_interface.id,
         )
     except pynautobot.RequestError as e:
         if "must make a unique set" in e.args[0]:
@@ -1148,16 +898,16 @@ def new_switch(
             raise e
 
     logger.info(f"Assigning {primary_ip4} as Primary IP for {name}...")
-    device.primary_ip4 = ipv4  # type: ignore
+    device.primary_ip4 = ipv4  # pyright: ignore[reportAttributeAccessIssue]
 
-    device.save()  # type: ignore
+    device.save()
 
     logger.info("Done!")
 
 
-@app.command()
+
 def regen_interfaces(
-    device_name: typing.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+    device_name: str,
     dev: bool = False,
 ):
     """
@@ -1172,50 +922,49 @@ def regen_interfaces(
     When run, this script will generate new interface / console port / power port entries for this switch in nautobot
     based on the interface / console port / power port entries in the device type assigned to this switch
     """
-    nb = get_settings(dev).api_connection()
-    device: Record = nb.dcim.devices.get(name=device_name)  # type: ignore
-    device_type: Record = nb.dcim.device_types.get(id=device.device_type.id)  # type: ignore
+    nb = get_api(dev)
+    device = t.cast(Record, nb.dcim.devices.get(name=device_name))
+    device_type = t.cast(Record, nb.dcim.device_types.get(id=device.device_type.id))  # pyright: ignore[reportOptionalMemberAccess]
     logger.info(f"Regenerating entries for {device_name} based on device type {device_type.model}")
     logger.info("Regenerating interfaces...")
-    for i_t in nb.dcim.interface_templates.filter(device_type=device_type.id):
+    for i_t in t.cast(list[Record], nb.dcim.interface_templates.filter(device_type=device_type.id)):
         try:
             nb.dcim.interfaces.create(
                 device=device.id,
-                name=i_t.name,  # type: ignore
-                label=i_t.label,  # type: ignore
-                type=i_t.type.value,  # type: ignore
-                mgmt_only=i_t.mgmt_only,  # type: ignore
-                description=i_t.description,  # type: ignore
+                name=i_t.name,
+                label=i_t.label,
+                type=i_t.type.value,  # pyright: ignore[reportOptionalMemberAccess]
+                mgmt_only=i_t.mgmt_only,
+                description=i_t.description,
                 status="Active",
             )
         except pynautobot.RequestError as e:
             if "must make a unique set" in e.args[0]:
-                logger.info(f"Interface {i_t.name} already exists") # type: ignore
+                logger.info(f"Interface {i_t.name} already exists")
             else:
                 raise e
     logger.info("Regenerating console ports...")
-    for c_t in nb.dcim.console_port_templates.filter(device_type=device_type.id):
+    for c_t in t.cast(list[Record], nb.dcim.console_port_templates.filter(device_type=device_type.id)):
         nb.dcim.console_ports.create(
             device=device.id,
-            name=c_t.name,  # type: ignore
-            label=c_t.label,  # type: ignore
-            type=c_t.type.value,  # type: ignore
-            description=c_t.description,  # type: ignore
+            name=c_t.name,
+            label=c_t.label,
+            type=c_t.type.value,  # pyright: ignore[reportOptionalMemberAccess]
+            description=c_t.description,
         )
     logger.info("Regenerating power ports...")
-    for p_t in nb.dcim.power_port_templates.filter(device_type=device_type.id):
+    for p_t in t.cast(list[Record], nb.dcim.power_port_templates.filter(device_type=device_type.id)):
         nb.dcim.power_ports.create(
             device=device.id,
-            name=p_t.name,  # type: ignore
-            label=p_t.label,  # type: ignore
-            type=p_t.type.value,  # type: ignore
-            description=p_t.description,  # type: ignore
+            name=p_t.name,
+            label=p_t.label,
+            type=p_t.type.value,  # pyright: ignore[reportOptionalMemberAccess]
+            description=p_t.description,
         )
     logger.success("Done")
 
 
-@typing.no_type_check
-@app.command()
+@t.no_type_check
 def rebuild_switch(
     set_status_to_planned: bool = False,
     dev: bool = False,
@@ -1227,7 +976,7 @@ def rebuild_switch(
     while keeping the hostname and ip address the same.
     """
     prompt = Settings._prompt()
-    nb = get_settings(dev).api_connection()
+    nb = get_api(dev)
 
     name = prompt.get_string("name", "Enter the name of the switch")
 
@@ -1235,6 +984,8 @@ def rebuild_switch(
     if not device:
         logger.error(f"Device {name} not found in Nautobot")
         return
+
+    old_device_type = device.device_type.model
 
     logger.info("Loading list of available Manufacturers from Nautobot...")
     manufacturer, manufacturer_id = _select_from_queryset(
@@ -1280,7 +1031,7 @@ def rebuild_switch(
     # find all interfaces / console ports / power ports associated with this device which came from the old device type
     # delete them
     old_interfaces = [i.name for i in nb.dcim.interface_templates.filter(device_type=device.device_type.id)]
-    logger.warning(f"This script will delete the following interfaces:")
+    logger.warning("This script will delete the following interfaces:")
     logger.info(old_interfaces)
     if not prompt.get_bool("delete_interfaces", "Do you want to continue?"):
         return
@@ -1310,36 +1061,80 @@ def rebuild_switch(
         device.status = "Planned"
 
     device.save()
+
     # create new interfaces / console ports / power ports based on the new device type
     regen_interfaces(name, dev)
 
-
-class ComplianceReportGoal(StrEnum):
-    add = "add"
-    remove = "remove"
+    # Add a note to the device object
+    device.notes.create(dict(note=f"Device has been rebuilt from device type {old_device_type} to {device_type}"))
 
 
-@app.command()
 def generate_compliance_commands(
     feature: str = "base",
     goal: ComplianceReportGoal = ComplianceReportGoal.add,
     filters: list[str] | None = None,
     sub_filters: list[str] | None = None,
+    merge_with: Path | None = None,
+    top_level_only: bool = False,
+    prefix_when_merging: bool = False,
 ):
+    """
+    Generate compliance commands for network devices based on compliance reports.
+    This function processes compliance data for a specified feature and generates the necessary configuration commands
+    to either add missing configuration or remove extra configuration from devices. The commands can be filtered,
+    flattened, and optionally merged with existing data in a JSON file.
+    Args:
+        feature (str): The compliance feature to process. Defaults to "base".
+        goal (ComplianceReportGoal): The compliance goal, either to add missing config or remove extra config.
+        filters (list[str] | None): List of string filters to apply to the configuration commands.
+        sub_filters (list[str] | None): List of sub-filters to further refine the configuration commands.
+        merge_with (Path | None): Path to a JSON file to merge the generated commands with existing data.
+        top_level_only (bool): If True, only top-level configuration commands are considered.
+        prefix_when_merging (bool): If True, new commands are prefixed when merging with existing data.
+    Returns:
+        None
+    Side Effects:
+        - Prints the generated commands as a JSON object if `merge_with` is not provided.
+        - If `merge_with` is provided, updates the specified JSON file with the merged commands.
+    Raises:
+        AssertionError: If `merge_with` is provided but the file does not exist.
+    """
+
     filters = filters or []
     sub_filters = sub_filters or []
     res = {}
     for report in get_compliance_data(feature):
         if goal == ComplianceReportGoal.add:
             config = report.missing  # missing config to add
-            prefix = ""
         elif goal == ComplianceReportGoal.remove:
-            config = report.extra  # extra config to remove
-            prefix = "no "
-        matched_commands = filter_config(config=config, filters=filters, sub_filters=sub_filters)
+            config = report.extra  # extra config to removes
+        if not config:
+            logger.warning(f"{report.device.name} has no config to {goal}, skipping...")
+            continue
+        matched_commands = filter_config(
+            config=config, filters=filters, sub_filters=sub_filters, top_level_only=top_level_only
+        )
         if matched_commands:
-            res[report.device.name] = [prefix + cmd for cmd in matched_commands]
-    print(json.dumps(res, indent=2))
+            if goal == ComplianceReportGoal.remove:
+                matched_commands = [f"no {c.splitlines()[0]}" for c in matched_commands]
+            else:
+                flattened_commands = []
+                for c in matched_commands:
+                    flattened_commands.extend(c.splitlines())
+                matched_commands = flattened_commands
+            res[report.device.name] = matched_commands
+    if merge_with:
+        assert merge_with.exists(), f"File {merge_with} does not exist"
+        existing_data = json.loads(merge_with.read_text())
+        for k, v in res.items():
+            if prefix_when_merging:
+                existing_data[k] = v + existing_data.get(k, [])
+            else:
+                existing_data[k] = existing_data.get(k, []) + v
+        res = existing_data
+        merge_with.write_text(json.dumps(res, indent=2))
+    else:
+        print(json.dumps(res, indent=2))
 
 
 class ComplianceReportDevice(BaseModel):
@@ -1367,7 +1162,7 @@ def get_compliance_data(feature) -> list[ComplianceReport]:
         variables={"feature": feature},
         query="""
 query ($feature: String) {
-  config_compliances (feature: [$feature]) {
+  config_compliances (feature: [$feature], device_status: "Active", compliance: false) {
     compliance
     rule {
       feature { name }
@@ -1387,6 +1182,9 @@ query ($feature: String) {
 }
 """,
     )
+    if d.json.get("errors"):
+        logger.error(d.json["errors"])
+        raise Exception(f"Error fetching compliance data: {d.json['errors']}")
     for r in d.json["data"]["config_compliances"]:
         report = ComplianceReport(
             device=ComplianceReportDevice(
@@ -1409,49 +1207,69 @@ query ($feature: String) {
     return res
 
 
-def _group_config(config: str) -> list[str | list[str]]:
+def _group_config(config: str) -> list[str]:
     # Break up the config snippet into a list of lines.
     # Group lines that start with an indent in with the non-indented line above them
-    lst = config.splitlines()
-    for i, line in reversed(list(enumerate(lst))):
-        if line.startswith(" "):
-            lst.pop(i)
-            if isinstance(lst[i - 1], str):
-                # convert the parent config line to a list
-                lst[i - 1] = [lst[i - 1]]  # type: ignore
-            lst[i - 1].append(line)  # type: ignore
-    return lst  # type: ignore
+    return re.split(r"\n(?!\s)", config)
 
 
-def filter_config(config: str, filters: list[str], sub_filters: list[str] | None = None) -> str:
+def filter_config(config: str, filters: list[str], sub_filters: list[str] | None = None, top_level_only: bool = False):
+    """
+    Filters and extracts configuration chunks from a given configuration string based on specified filters.
+    Args:
+        config: The configuration string to be filtered.
+        filters: List of regular expression patterns to match against the top-level
+            lines of each configuration chunk.
+        sub_filters: List of regular expression patterns to further filter sub-lines
+            within matched chunks. Defaults to None.
+        top_level_only: If True, only the top-level line of each matched chunk is
+            included in the result. If False, the entire chunk or filtered sub-lines are included.
+            Defaults to False.
+    Returns:
+        A list of configuration chunks or lines that match the specified filters.
+    Notes:
+        - The configuration is first grouped into chunks,
+          where each chunk starts with a non-indented line followed by its indented sub-lines.
+        - If `sub_filters` is provided, only sub-lines within matched chunks that match any of
+          the `sub_filters` are included.
+        - If `top_level_only` is True, only the first line of each matched chunk is returned,
+          and `sub_filters` is ignored.
+    """
+
+    grouped_config = _group_config(config)
     sub_filters = sub_filters or []
     # Break up the config snippet into a list of lines.
     # Group lines that start with an indent in with the non-indented line above them
-    lst = config.splitlines(keepends=True)
-    for i, line in reversed(list(enumerate(lst))):
-        if line.startswith(" "):
-            lst.pop(i)
-            if not any([re.search(f, line) for f in sub_filters]):
-                continue
-            lst[i - 1] += line
-        elif not any([re.search(f, line) for f in filters]):
-            lst.pop(i)
-    return lst  # type: ignore
+    res: list[str] = []
+    for chunk in grouped_config:
+        if not chunk.strip():
+            continue
+        lines = chunk.splitlines()
+        if not any([re.search(f, lines[0]) for f in filters]):
+            continue
+        if not sub_filters:
+            if top_level_only:
+                res.append(lines[0])
+            else:
+                # add the whole chunk to res
+                res.append("\n".join(lines))
+        else:
+            # filter the chunk by sub_filters
+            filtered_chunk = [lines[0]]
+            for line in lines[1:]:
+                if any([re.search(f, line) for f in sub_filters]):
+                    filtered_chunk.append(line)
+            if len(filtered_chunk) > 1:
+                res.append("\n".join(filtered_chunk))
+    return res
 
 
 def _sort_config_snippet(snippet: str):
-    lst = snippet.splitlines(keepends=True)
-    for i, line in reversed(list(enumerate(lst))):
-        if line.startswith(" "):
-            lst.pop(i)
-            lst[i - 1] += line
-    return "\n".join(sorted(lst))
+    return "\n".join(sorted(_group_config(snippet)))
 
 
 def _devices_with_matching_line(
-    line: str, 
-    compliance_data: list[ComplianceReport], 
-    config_type: typing.Literal["actual", "intended"] = "actual"
+    line: str, compliance_data: list[ComplianceReport], config_type: t.Literal["actual", "intended"] = "actual"
 ):
     logger.info(f"Please wait, searching for devices with matching line: '{line}'")
     matching_devices = [c.device for c in compliance_data if line in getattr(c, config_type)]
@@ -1497,7 +1315,7 @@ def _generate_statistics_summary(
     compliance_data: list[ComplianceReport],
     report: ComplianceReport,
     line: str,
-    config_type: typing.Literal["actual", "intended"] = "actual",
+    config_type: t.Literal["actual", "intended"] = "actual",
 ):
     if config_type == "actual":
         have_column = "Have This Line"
@@ -1540,8 +1358,23 @@ def _generate_statistics_summary(
     return tab
 
 
-@app.command()
 def explore_compliance(feature: str):
+    """
+    Interactively explores compliance reports for a given feature.
+    This function retrieves compliance data for the specified feature and iterates through each report that 
+    is not in compliance.
+    For each non-compliant report, it displays a comparison table and prompts the user to explore either the 
+    "actual" (left) or "intended" (right) configuration differences.
+    The user can select a specific line to further investigate, view a summary of statistics for that line, 
+    and optionally see a list of devices with matching configuration lines.
+    The process continues for each non-compliant report.
+    Args:
+        feature: The name of the feature for which compliance data should be explored.
+    Side Effects:
+        - Prints tables and prompts to the console for interactive exploration.
+        - Waits for user input to proceed through reports and options.
+    """
+
     compliance_data = get_compliance_data(feature)
     con = console()
     for report in compliance_data:
@@ -1570,3 +1403,7 @@ def explore_compliance(feature: str):
                 devices_report = _devices_with_matching_line(line, compliance_data, config_type=config_type)
                 con.print(devices_report)
             input("Press enter to continue...")
+
+
+def _debug():
+    device_type_add_or_update()

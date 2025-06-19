@@ -1,10 +1,8 @@
 from pathlib import Path
 import uuid
-import pickle
-from pathlib import Path
 
 import pytest
-from nautobot.core.cli import load_settings, execute_from_command_line
+from nautobot.core.cli import load_settings
 import django
 from django.test.client import RequestFactory
 
@@ -12,7 +10,6 @@ from django_jinja.backend import Jinja2
 from jinja2.loaders import FileSystemLoader
 from jinja2 import Environment, StrictUndefined
 
-from pytest_mock import MockerFixture
 
 fixtures_dir = Path(__file__).parent / "fixtures"
 
@@ -21,7 +18,7 @@ fixtures_dir = Path(__file__).parent / "fixtures"
 def _nautobot_initialized():
     load_settings("projects/nautobot/.dev_data/nautobot_config.py")
     django.setup()
-    from django.conf import settings
+    from django.conf import settings  # noqa: F401
 
 
 def _golden_config_data(device_name):
@@ -34,11 +31,11 @@ def _golden_config_data(device_name):
 
     device = Device.objects.get(name=device_name)
     request = RequestFactory().get("/extras/jobs/plugins/nautobot_golden_config.jobs/AllGoldenConfig/")
-    request.user = User.objects.get(username="admin")
-    request.id = uuid.uuid4() # type: ignore
+    request.user = User.objects.get(username="admin") # pyright: ignore[reportAttributeAccessIssue]
+    request.id = uuid.uuid4()  # pyright: ignore[reportAttributeAccessIssue]
 
     settings = GoldenConfigSetting.objects.get(name="Default Settings")
-    q = settings.sot_agg_query.query  # type: ignore
+    q = settings.sot_agg_query.query  # pyright: ignore[reportAttributeAccessIssue]
     _, device_data = graph_ql_query(request, device, q)
     return device, device_data
 
@@ -54,7 +51,6 @@ class NautobotTests:
             update_git_config_contexts,
             GitRepository,
         )
-        
 
         git_repo = fixtures_dir / "_private/.gitlab_repo"
         assert git_repo.exists()
@@ -63,9 +59,7 @@ class NautobotTests:
             {"sot_agg_transposer": "uoft_nautobot.golden_config.noop_transposer"},
         )
 
-        mocker.patch.object(
-            GitRepository, "filesystem_path", property(lambda _: str(git_repo))
-        )
+        mocker.patch.object(GitRepository, "filesystem_path", property(lambda _: str(git_repo)))
         _repo_record = GitRepository.objects.get(name="golden_config_templates")
         _job_result = mocker.Mock()
         update_git_config_contexts(_repo_record, _job_result)
@@ -88,7 +82,7 @@ class NautobotTests:
             t = jinja_env.get_template(template)
             text = t.render(**data)
             return text
-        
+
         Path("hazmat/test.cisco").write_text(_render("d1-sw"))
         Path("hazmat/test-aruba.cisco").write_text(_render("a1-p50c"))
         Path("hazmat/test.cisco").unlink()
@@ -104,7 +98,7 @@ class NautobotTests:
         repo = GitRepository.objects.get(name="golden_config_templates")
         repo.sync(user=User.objects.get(username="admin"))
 
-        PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get(  # type: ignore
+        PLUGIN_CFG = django.conf.settings.PLUGINS_CONFIG.get(  # pyright: ignore[reportAttributeAccessIssue]
             "nautobot_plugin_nornir", {}
         )
         NORNIR_SETTINGS = PLUGIN_CFG.get("nornir_settings")
@@ -112,19 +106,17 @@ class NautobotTests:
 
         uuid = Device.objects.get(name="a1-p50c").id
 
-        Command().run_from_argv(
-            [
-                "nautobot-server",
-                "runjob",
-                "--local",
-                "--commit",
-                "--username",
-                "trembl94",
-                "--data",
-                f'{{"device":["{uuid}"]}}',
-                "plugins/nautobot_golden_config.jobs/IntendedJob",
-            ]
-        )
+        Command().run_from_argv([
+            "nautobot-server",
+            "runjob",
+            "--local",
+            "--commit",
+            "--username",
+            "trembl94",
+            "--data",
+            f'{{"device":["{uuid}"]}}',
+            "plugins/nautobot_golden_config.jobs/IntendedJob",
+        ])
 
     def test_interfaces_excel(self, _nautobot_initialized):
         from ..excel import import_from_excel, export_to_excel
@@ -144,6 +136,7 @@ class NautobotTests:
     def test_bluecat_ssot(self, _nautobot_initialized, mocker):
         from ..jobs import BluecatToNautobot
         from nautobot.extras.models import JobResult
+
         job = BluecatToNautobot()
         job.sync = mocker.Mock()
         job.job_result = JobResult()
@@ -151,5 +144,4 @@ class NautobotTests:
         job.load_source_adapter()
         job.calculate_diff()
         job.sync_data(memory_profiling=False)
-        print(job.diff.summary())
-
+        # print(job.diff.summary())

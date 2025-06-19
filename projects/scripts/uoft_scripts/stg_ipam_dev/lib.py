@@ -2,7 +2,6 @@
 Code for pulling data out of the uoft-ipam database's dev instance
 """
 
-import sys
 import contextlib
 import typing as t
 from datetime import date
@@ -14,9 +13,10 @@ from uoft_core import logging
 
 from sqlmodel import Field, SQLModel, Session, create_engine, select
 import sqlalchemy as sa
-import typer
 
-from .nautobot import get_settings, Record
+from ..nautobot import get_settings
+from pynautobot.models.extras import Record
+from pynautobot.models.ipam import Prefixes as NautobotPrefixRecord
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +33,15 @@ class Settings(BaseSettings):
         default_factory=dict,
         title="Tags by Network",
         description="A mapping of network prefixes to tags. "
-        "The key is the network prefix, and the value is the tag to apply to networks that fall within that prefix.",
+        "The key is the network prefix, and the value is the tag "
+        "to apply to networks that fall within that prefix.",
     )
     tags_by_network_exact: dict[IPv4Network | IPv6Network, str] = Field(
         default_factory=dict,
         title="Tags by Network",
         description="A mapping of network prefixes to tags. "
-        "The key is the network prefix, and the value is the tag to apply to the network that exactly matches that prefix.",
+        "The key is the network prefix, and the value is the tag "
+        "to apply to the network that exactly matches that prefix.",
     )
 
     class Config(BaseSettings.Config):
@@ -78,7 +80,7 @@ UserType = t.Literal["UTORid", "Group", "External", "Admin", "Tech"]
 
 
 class User(SQLModel, table=True):
-    __tablename__ = "users"  # type: ignore
+    __tablename__ = "users"  # pyright: ignore[reportAssignmentType]
 
     username: str = Field(primary_key=True)
     name: str
@@ -88,7 +90,7 @@ class User(SQLModel, table=True):
 
 
 class Org(SQLModel, table=True):
-    __tablename__ = "orgs"  # type: ignore
+    __tablename__ = "orgs"  # pyright: ignore[reportAssignmentType]
 
     id: int = Field(primary_key=True)
     name: str | None = None
@@ -97,7 +99,7 @@ class Org(SQLModel, table=True):
 
 
 class Network(SQLModel, table=True):
-    __tablename__ = "networks"  # type: ignore
+    __tablename__ = "networks"  # pyright: ignore[reportAssignmentType]
 
     id: int = Field(primary_key=True)
     ip4: IPv4Network | None = None
@@ -157,20 +159,20 @@ class Data:
 def _calculate_parentage(networks: dict[int, Network]) -> dict[int, Network]:
     v4_networks = sorted(
         [n for n in networks.values() if n.ip4],
-        key=lambda x: int(x.ip4.netmask),  # type: ignore
+        key=lambda x: int(t.cast(IPv4Network, x.ip4).netmask),
         reverse=True,
     )
 
     for network in v4_networks:
         next_index = v4_networks.index(network) + 1
         for n in v4_networks[next_index:]:
-            if n.ip4.supernet_of(network.ip4):  # type: ignore
+            if t.cast(IPv4Network, n.ip4).supernet_of(t.cast(IPv4Network, network.ip4)):
                 network._parent = n.id
                 break
 
     v6_networks = sorted(
         [n for n in networks.values() if n.ip6],
-        key=lambda x: int(x.ip6.netmask),  # type: ignore
+        key=lambda x: int(t.cast(IPv6Network, x.ip6).netmask),
         reverse=True,
     )
 
@@ -180,7 +182,7 @@ def _calculate_parentage(networks: dict[int, Network]) -> dict[int, Network]:
     for network in v6_networks:
         next_index = v6_networks.index(network) + 1
         for n in v6_networks[next_index:]:
-            if n.ip6.supernet_of(network.ip6):  # type: ignore
+            if t.cast(IPv6Network, n.ip6).supernet_of(t.cast(IPv6Network, network.ip6)):
                 network._parent = n.id
                 break
 
@@ -209,21 +211,6 @@ def get_data():
     return Data(networks=networks, users=users, orgs=orgs)
 
 
-app = typer.Typer(
-    name="stg-ipam-dev",
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
-    no_args_is_help=True,
-    help=__doc__,  # Use this module's docstring as the main program help text
-)
-
-
-@app.callback()
-@Settings.wrap_typer_command
-def callback():
-    pass
-
-
-@app.command()
 def sync_to_nautobot():
     """Syncronize networks and contacts from the database behind ipam.utoronto.ca into nautobot"""
 
@@ -240,7 +227,7 @@ def sync_to_nautobot():
     utsg_rir = nb.ipam.rirs.get(name="UTSG")
     assert isinstance(utsg_rir, Record), "UTSG RIR not found in Nautobot"
     logger.info("Loading existing prefixes from Nautobot...")
-    nb_prefixes = {p.prefix: p for p in nb.ipam.prefixes.all()}  # type: ignore
+    nb_prefixes = {p.prefix: p for p in t.cast(list[NautobotPrefixRecord], nb.ipam.prefixes.all())}
     to_create = []
     to_update = []
 
@@ -251,10 +238,11 @@ def sync_to_nautobot():
         stg_comments = net.comments
         stg_net_type = net.net_type
         if pfx in nb_prefixes:
-            nb_obj = nb_prefixes[pfx]
-            nb_stg_name = nb_obj.description  # type: ignore
-            nb_org_code = nb_obj.custom_fields.get("org_code")  # type: ignore
-            nb_extra = nb_obj.custom_fields.get("extra") or {}  # type: ignore
+            nb_obj = t.cast(Record, nb_prefixes[pfx])
+            cf = t.cast(dict[str, t.Any], nb_obj.custom_fields)
+            nb_stg_name = nb_obj.description
+            nb_org_code = cf.get("org_code")
+            nb_extra = cf.get("extra") or {}
             nb_stg_desc = nb_extra.get("stg_desc")
             nb_stg_comments = nb_extra.get("stg_comments")
             nb_stg_net_type = nb_extra.get("stg_net_type")
@@ -273,7 +261,7 @@ def sync_to_nautobot():
             ):
                 to_update.append(
                     dict(
-                        id=nb_obj.id,  # type: ignore
+                        id=nb_obj.id,
                         description=stg_name,
                         custom_fields=dict(
                             org_code=org_code,
@@ -319,8 +307,8 @@ def sync_to_nautobot():
 
     # sync contacts
     logger.info("Syncing organizations...")
-    nb_contacts = {t.name: t for t in nb.extras.contacts.all()}  # type: ignore
-    nb_teams = {t.name: t for t in nb.extras.teams.all()}  # type: ignore
+    nb_contacts = t.cast(dict[str | None, Record], {t.name: t for t in nb.extras.contacts.all()})  # pyright: ignore[reportAttributeAccessIssue]
+    nb_teams = t.cast(dict[str | None, Record], {t.name: t for t in nb.extras.teams.all()})  # pyright: ignore[reportAttributeAccessIssue]
     contacts_to_create = []
     contacts_to_update = []
     teams_to_create = []
@@ -329,10 +317,10 @@ def sync_to_nautobot():
         if user.type == "UTORid":
             if user.name in nb_contacts:
                 nb_obj = nb_contacts[user.name]
-                if nb_obj.email != user.email:  # type: ignore
+                if nb_obj.email != user.email:
                     contacts_to_update.append(
                         dict(
-                            id=nb_obj.id,  # type: ignore
+                            id=nb_obj.id,
                             email=user.email,
                             custom_fields=dict(extras=dict(stg_ipam_id=user_id)),
                         )
@@ -344,10 +332,10 @@ def sync_to_nautobot():
         elif user.type == "Group":
             if user.name in nb_teams:
                 nb_obj = nb_teams[user.name]
-                if nb_obj.email != user.email:  # type: ignore
+                if nb_obj.email != user.email:
                     teams_to_update.append(
                         dict(
-                            id=nb_obj.id,  # type: ignore
+                            id=nb_obj.id,
                             email=user.email,
                             custom_fields=dict(extras=dict(stg_ipam_id=user_id)),
                         )
@@ -369,24 +357,26 @@ def sync_to_nautobot():
 
     # Associate contacts / teams to prefixes
     logger.debug("Refreshing contacts and teams cache...")
-    nb_contacts = {t.name: t for t in nb.extras.contacts.all()}  # type: ignore
-    nb_teams = {t.name: t for t in nb.extras.teams.all()}  # type: ignore
+    nb_contacts = t.cast(dict[str | None, Record], {t.name: t for t in nb.extras.contacts.all()})  # pyright: ignore[reportAttributeAccessIssue]
+    nb_teams = t.cast(dict[str | None, Record], {t.name: t for t in nb.extras.teams.all()})  # pyright: ignore[reportAttributeAccessIssue]
     logger.debug("Refreshing prefixes cache...")
-    nb_prefixes = {p.prefix: p for p in nb.ipam.prefixes.all()}  # type: ignore
+    nb_prefixes = t.cast(dict[str | None, Record], {p.prefix: p for p in nb.ipam.prefixes.all()})  # pyright: ignore[reportAttributeAccessIssue]
     logger.info("Associating contacts and teams with prefixes...")
 
-    existing_associations = nb.extras.contact_associations.filter(associated_object_type="ipam.prefix")
+    existing_associations = t.cast(
+        list[Record], nb.extras.contact_associations.filter(associated_object_type="ipam.prefix")
+    )
     to_create = []
     to_update = []
 
     def _existing_association(pfx_id, contact=None, team=None):
         assert contact or team
         for assoc in existing_associations:
-            if assoc.associated_object_id == pfx_id:  # type: ignore
-                if contact and assoc.contact and assoc.contact.id == contact:  # type: ignore
-                    return assoc.id  # type: ignore
-                if team and assoc.team and assoc.team.id == team:  # type: ignore
-                    return assoc.id  # type: ignore
+            if assoc.associated_object_id == pfx_id:
+                if contact and assoc.contact and assoc.contact.id == contact:
+                    return assoc.id
+                if team and assoc.team and assoc.team.id == team:
+                    return assoc.id
 
     for net in data.networks.values():
         if "utsc-" not in net.name:
@@ -401,24 +391,24 @@ def sync_to_nautobot():
 
         if net.techc:
             if data.users[net.techc].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.techc].name].id, "Support", "Primary"))  # type: ignore
+                contacts.append((nb_contacts[data.users[net.techc].name].id, "Support", "Primary"))
             elif data.users[net.techc].type == "Group":
-                teams.append((nb_teams[data.users[net.techc].name].id, "Support", "Primary"))  # type: ignore
+                teams.append((nb_teams[data.users[net.techc].name].id, "Support", "Primary"))
         if net.techc_alt:
             if data.users[net.techc_alt].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.techc_alt].name].id, "Support", "Secondary"))  # type: ignore
+                contacts.append((nb_contacts[data.users[net.techc_alt].name].id, "Support", "Secondary"))
             elif data.users[net.techc_alt].type == "Group":
-                teams.append((nb_teams[data.users[net.techc_alt].name].id, "Support", "Secondary"))  # type: ignore
+                teams.append((nb_teams[data.users[net.techc_alt].name].id, "Support", "Secondary"))
         if net.adminc:
             if data.users[net.adminc].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.adminc].name].id, "Administrative", "Primary"))  # type: ignore
+                contacts.append((nb_contacts[data.users[net.adminc].name].id, "Administrative", "Primary"))
             elif data.users[net.adminc].type == "Group":
-                teams.append((nb_teams[data.users[net.adminc].name].id, "Administrative", "Primary"))  # type: ignore
+                teams.append((nb_teams[data.users[net.adminc].name].id, "Administrative", "Primary"))
         if net.adminc_alt:
             if data.users[net.adminc_alt].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.adminc_alt].name].id, "Administrative", "Secondary"))  # type: ignore
+                contacts.append((nb_contacts[data.users[net.adminc_alt].name].id, "Administrative", "Secondary"))
             elif data.users[net.adminc_alt].type == "Group":
-                teams.append((nb_teams[data.users[net.adminc_alt].name].id, "Administrative", "Secondary"))  # type: ignore
+                teams.append((nb_teams[data.users[net.adminc_alt].name].id, "Administrative", "Secondary"))
         for pfx in pfxs:
             for team, role, status in teams:
                 if assoc_id := _existing_association(pfx.id, team=team):
@@ -456,8 +446,8 @@ def sync_to_nautobot():
     logger.success("Done!")
 
 
-@app.command()
-def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to the Palo Alto API")):
+def sync_to_paloalto(commit: bool):
+
     from uoft_paloalto import Settings as PaloAltoSettings
 
     s = Settings.from_cache()
@@ -509,7 +499,7 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
         assert ip is not None
 
         for prefix, tag in s.tags_by_network.items():
-            if prefix.version == ip.version and ip.subnet_of(prefix):  # type: ignore
+            if prefix.version == ip.version and ip.subnet_of(prefix):  # pyright: ignore[reportArgumentType]
                 tags.add(tag)
 
         for prefix, tag in s.tags_by_network_exact.items():

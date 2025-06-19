@@ -2,11 +2,12 @@ from importlib.resources import files
 from textwrap import wrap
 from . import settings
 from .mkinventorylabel import get_info_from_server
-from typing import Literal
+import typing as t
 from PIL import Image, ImageDraw, ImageFont
 from qrcode.main import QRCode
 from qrcode.image.pil import PilImage
 from os.path import expanduser
+from io import BytesIO
 
 
 def generate_label(asset: int):
@@ -15,7 +16,7 @@ def generate_label(asset: int):
     fields = get_info_from_server(item_type="asset", item_id=asset)
     field = {key: fields[key] for key in {"name", "asset_tag", "serial", "model_number"}}
     im = make_label_from_fields(90, 29, 2, "mm", field, qrcode_url)
-    im.save(expanduser(f"~/Asset-Label.jpg"))
+    im.save(expanduser("~/Asset-Label.jpg"))
 
 
 def to_pixels(
@@ -23,7 +24,7 @@ def to_pixels(
     height: float,
     margin: float,
     qrcode_size: float,
-    unit: Literal["in", "mm", "cm", "px"],
+    unit: t.Literal["in", "mm", "cm", "px"],
     dpi: int = 300,
 ):
     if unit == "in":
@@ -48,7 +49,7 @@ def to_pixels(
     return int(width), int(height), int(margin), int(qrcode_size)
 
 
-def generate_qr_image(data: str, size: int) -> Image.Image:
+def generate_qr_image(data: str, size: int):
     qr = QRCode(
         version=1,
         box_size=1,
@@ -56,8 +57,8 @@ def generate_qr_image(data: str, size: int) -> Image.Image:
     )
     qr.add_data(data)
     qr.make(fit=True)
-    img: Image.Image = qr.make_image(image_factory=PilImage)  # type: ignore
-    img = img.resize((size, size))
+    img = qr.make_image(image_factory=PilImage)
+    img = t.cast(Image.Image, img.resize((size, size)))
     return img
 
 
@@ -69,8 +70,10 @@ def generate_label_image(fields: dict[str, str], width: int, max_height: int) ->
     image = Image.new("L", (width, max_height), color=255)
     draw = ImageDraw.Draw(image)
 
-    regular = ImageFont.truetype(files("uoft_snipeit").joinpath("DejavuSans-mono-regular.ttf").open("rb"), font_size)
-    bold = ImageFont.truetype(files("uoft_snipeit").joinpath("DejavuSans-mono-bold.ttf").open("rb"), font_size)
+    regular_font_file: BytesIO = files("uoft_snipeit").joinpath("DejavuSans-mono-regular.ttf").open("rb") # pyright: ignore[reportAssignmentType]
+    regular = ImageFont.truetype(regular_font_file, font_size)
+    bold_font_file: BytesIO = files("uoft_snipeit").joinpath("DejavuSans-mono-bold.ttf").open("rb") # pyright: ignore[reportAssignmentType]
+    bold = ImageFont.truetype(bold_font_file, font_size)
 
     # In order to calculate how many characters we can fit on a line, we need to know how wide the font is.
     # We can leverage the fact that the font is monospaced, and that the bold and regular variants are the same width
@@ -99,7 +102,7 @@ def make_label_from_fields(
     width: float,
     height: float,
     margin: float,
-    unit: Literal["in", "mm", "cm", "px"],
+    unit: t.Literal["in", "mm", "cm", "px"],
     fields: dict[str, str],
     qrcode_url: str | None = None,
     qrcode_size: float | None = None,

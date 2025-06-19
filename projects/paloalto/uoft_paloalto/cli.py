@@ -2,7 +2,7 @@
 CLI and API to work with Paloalto products (NSM, etc)
 """
 
-from typing import Annotated, Optional
+import typing as t
 import sys
 
 import typer
@@ -40,8 +40,8 @@ app = typer.Typer(
 @app.callback()
 @Settings.wrap_typer_command
 def callback(
-    version: Annotated[
-        Optional[bool],
+    version: t.Annotated[
+        t.Optional[bool],
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
     ] = None,
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
@@ -80,7 +80,7 @@ def network_list():
         print(f"{n['@name']:30} => {n['ip-netmask']}")
 
 @app.command()
-def network_create(name: str, netmask: str, description: str | None = None, tags: list[str] | None = None):
+def network_create(name: str, netmask: str, description: t.Optional[str] = None, tags: t.Optional[list[str]] = None):
     """Create a network object in the Palo Alto API"""
     tags_set = set(tags) if tags else None
     s = Settings.from_cache()

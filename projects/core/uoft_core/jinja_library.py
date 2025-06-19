@@ -36,7 +36,7 @@ def _attach_function(attr, func, name=None):
 
 def _register_function(attr, name=None, fn=None):
     if name is None and fn is None:
-        def dec(func): # type: ignore
+        def dec(func):  # pyright: ignore[reportRedeclaration]
             return _attach_function(attr, func)
         return dec
 

@@ -1,4 +1,3 @@
-import os
 
 
 def pdm_build_initialize(context):
@@ -32,12 +31,6 @@ def pdm_build_initialize(context):
                     return f"{base_name} @ file://{forks[base_name]}"
                 return name
 
-        metadata = context.config.metadata
-        # import debugpy
-
-        # debugpy.listen(5678)
-        # print("Debugger listening on 5678")
-        # debugpy.wait_for_client()
-        # debugpy.breakpoint()
-        metadata["dependencies"] = [local_dependency(dep) for dep in metadata["dependencies"]]
-        print("Local dependencies selected")
+            metadata = context.config.metadata
+            metadata["dependencies"] = [local_dependency(dep) for dep in metadata["dependencies"]]
+            print("Local dependencies selected")

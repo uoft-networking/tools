@@ -6,8 +6,8 @@ It is not intended to be used by external projects, and is not installed as part
 It is loaded automatically by pytest because it is referenced in the pytest_plugins list in
 the conftest.py file at the root of this repository
 """
+
 from typing import TYPE_CHECKING
-import logging
 from pathlib import Path
 import os
 from uoft_core.tests import MockFolders
@@ -17,7 +17,7 @@ import pytest
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
-    from _pytest.fixtures import FixtureRequest
+    from _pytest.fixtures import FixtureRequest  # pyright: ignore[reportPrivateImportUsage]
 
 if os.getenv("VSCODE_DEBUGGER"):
     # set up hooks for VSCode debugger to break on exceptions
@@ -28,17 +28,10 @@ if os.getenv("VSCODE_DEBUGGER"):
     @pytest.hookimpl(tryfirst=True)
     def pytest_internalerror(excinfo):
         raise excinfo.value
-    
+
     # enable logging to stderr when running tests in the debugger
-    import logging
-    configured = False
-    for handler in logging.root.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            if handler.stream.name == "<stderr>":
-                configured = True
-                break
-    if not configured:
-        logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
+
 
 @pytest.fixture()
 def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"):
@@ -54,24 +47,16 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
     folders = MockFolders(tmp_path, app_name)  # create the folders to use as mocks
 
     # mock out the real folders
-    mocker.patch.object(
-        uoft_core.PlatformDirs, "site_config_path", folders.site_config.dir
-    )
-    mocker.patch.object(
-        uoft_core.PlatformDirs, "user_config_path", folders.user_config.dir
-    )
-    mocker.patch.object(
-        uoft_core.PlatformDirs, "site_data_path", folders.site_cache.parent
-    )
-    mocker.patch.object(
-        uoft_core.PlatformDirs, "user_cache_path", folders.user_cache.parent
-    )
+    mocker.patch.object(uoft_core.PlatformDirs, "site_config_path", folders.site_config.dir)
+    mocker.patch.object(uoft_core.PlatformDirs, "user_config_path", folders.user_config.dir)
+    mocker.patch.object(uoft_core.PlatformDirs, "site_data_path", folders.site_cache.parent)
+    mocker.patch.object(uoft_core.PlatformDirs, "user_cache_path", folders.user_cache.parent)
 
     util = uoft_core.Util(app_name)  # create the Util instance to be tested
 
     mocker.patch.object(util.config, "common_user_config_dir", folders.user_config.dir)
 
-    util.mock_folders = folders  # type: ignore
+    util.mock_folders = folders  # pyright: ignore[reportAttributeAccessIssue]
 
     yield util
 
@@ -80,7 +65,7 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
         f.chmod(0o777)
 
     # clean up the Util instance
-    del util.mock_folders  # type: ignore
+    del util.mock_folders  # pyright: ignore[reportAttributeAccessIssue]
     util._clear_caches()
 
 
@@ -136,14 +121,11 @@ def pytest_configure(config: pytest.Config):
     """
     Adds markers for integration and end-to-end tests
     """
-    config.addinivalue_line(
-        "markers", "integration: mark test to run after unit tests " "are complete"
-    )
+    config.addinivalue_line("markers", "integration: mark test to run after unit tests " "are complete")
 
     config.addinivalue_line(
         "markers",
-        "end_to_end: mark test to run after unit tests "
-        "and (quick) integration tests are complete",
+        "end_to_end: mark test to run after unit tests " "and (quick) integration tests are complete",
     )
 
 
@@ -154,6 +136,7 @@ def pytest_collection_modifyitems(session, config, items: list[pytest.Item]):
     end-to-end tests.
     """
     del session, config
+
     def _get_items_key(item: pytest.Item):
         if item.get_closest_marker("end_to_end"):
             return 2
@@ -211,11 +194,13 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
 def pytest_itemcollected(item: pytest.Item):
     "Rename all pytest Package items to match their folder structure"
-    parent = item.parent # type: ignore
+    parent = item.parent  # pyright: ignore[reportAssignmentType]
     while not isinstance(parent, pytest.Package):
-        parent = parent.parent # type: ignore
+        parent = parent.parent
 
     parent: pytest.Package
     parent.name = str(item.path.parent.relative_to(item.session.config.rootpath))
     yield
+
+
 # endregion pytest-markers

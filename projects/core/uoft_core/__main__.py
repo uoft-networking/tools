@@ -3,30 +3,27 @@ import sys
 from typing import Optional
 from sys import version_info, platform, executable
 from importlib.metadata import version
-from pkgutil import resolve_name
 from shutil import which
 
 from . import Util
 
 import typer
 
-app = typer.Typer(name=__package__) # type: ignore
+assert __package__
+app = typer.Typer(name=__package__)
 
-util = Util(__package__) # type: ignore
+util = Util(__package__)
 
 
 def version_callback(value: bool):
     if value:
         v = version_info
-        print(
-            f"uoft wrapper command v{version(__package__)}\nPython {v.major}.{v.minor} ({executable}) on {platform})"
-        )
+        assert __package__
+        print(f"uoft wrapper command v{version(__package__)}\nPython {v.major}.{v.minor} ({executable}) on {platform})")
         raise typer.Exit()
 
 
-@app.callback(
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
-)
+@app.callback(context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]})
 def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug"),
@@ -47,6 +44,7 @@ def callback(
     if trace:
         log_level = "TRACE"
     import logging
+
     logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s", stream=sys.stderr)
 
 
@@ -139,17 +137,11 @@ def handle_external_subcommand_completion(external: set[str]):
         subcommand, var, sep = res
         if subcommand in external:
             # prepare completeion env args for the external subcommand
-            os.environ[f"_UOFT_{subcommand.upper()}_COMPLETE"] = os.environ[
-                "_UOFT_COMPLETE"
-            ]
-            os.environ[var] = os.environ[var].replace(
-                f"uoft{sep}{subcommand}", f"uoft-{subcommand}", 1
-            )
+            os.environ[f"_UOFT_{subcommand.upper()}_COMPLETE"] = os.environ["_UOFT_COMPLETE"]
+            os.environ[var] = os.environ[var].replace(f"uoft{sep}{subcommand}", f"uoft-{subcommand}", 1)
             if bash_comp_word_count := os.environ.get("COMP_CWORD"):
                 os.environ["COMP_CWORD"] = str(int(bash_comp_word_count) - 1)
-            os.execvpe(
-                "uoft-" + subcommand, [f"uoft-{subcommand}"] + sys.argv[1:], os.environ
-            )
+            os.execvpe("uoft-" + subcommand, [f"uoft-{subcommand}"] + sys.argv[1:], os.environ)
 
 
 def cli():
@@ -165,7 +157,6 @@ def cli():
             raise
         print(f"Error: {e}")
         sys.exit(1)
-        
 
 
 if __name__ == "__main__":
@@ -187,7 +178,7 @@ if __name__ == "__main__":
         Autocompleter that uses the Jedi library.
         """
 
-        def get_completions(self, document, _) -> Iterable[Completion]:
+        def get_completions(self, document, complete_event) -> Iterable[Completion]:
             try:
                 script = jedi.Script(f"import {document.text}")
                 jedi_completions = script.complete(
@@ -197,7 +188,7 @@ if __name__ == "__main__":
                 for jc in jedi_completions:
                     yield Completion(
                         jc.name_with_symbols,
-                        len(jc.complete) - len(jc.name_with_symbols),  # type: ignore
+                        len(jc.complete) - len(jc.name_with_symbols),  # pyright: ignore[reportArgumentType]
                         display=jc.name_with_symbols,
                         display_meta=jc.type,
                     )
@@ -237,15 +228,15 @@ if __name__ == "__main__":
     )
     os.chdir(cd)
 
-    if '--debug' in sys.argv:
+    if "--debug" in sys.argv:
         level = logging.DEBUG
-    elif '--trace' in sys.argv:
+    elif "--trace" in sys.argv:
         level = logging.TRACE
     else:
         level = logging.INFO
-    
+
     logging.basicConfig(level=level)
-    
+
     mod = import_module(mod_name)
     if hasattr(mod, "_debug"):
         mod._debug()  # pylint: disable=protected-access

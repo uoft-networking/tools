@@ -61,13 +61,13 @@ class API(APIBase):
         # Bluecat REST V2 API does not have a logout endpoint
         pass
 
-    def put(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs):
+    def put(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs): # pyright: ignore[reportIncompatibleMethodOverride]
         # Every change in bluecat requires a comment
         headers = kwargs.setdefault("headers", {})
         headers["x-bcn-change-control-comment"] = comment
         return super().put(url, data, json=json, **kwargs)
 
-    def post(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs):
+    def post(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs): # pyright: ignore[reportIncompatibleMethodOverride]
         # Every change in bluecat requires a comment
         headers = kwargs.setdefault("headers", {})
         headers["x-bcn-change-control-comment"] = comment
@@ -161,10 +161,6 @@ class API(APIBase):
         parent_id: str | int,
         address: str,
         type_: Literal["IPv4Address", "IPv6Address"],
-        name: str | None = None,
-        comment: str = "Address created by uoft_bluecat tool",
-        state: IPAddressState = "STATIC",
-        create_reverse_record: bool = True,
         **kwargs,
     ): ...
 
@@ -174,10 +170,6 @@ class API(APIBase):
         parent_id: str | int,
         address: IPAddress,
         type_: None = None,
-        name: str | None = None,
-        comment: str = "Address created by uoft_bluecat tool",
-        state: IPAddressState = "STATIC",
-        create_reverse_record: bool = True,
         **kwargs,
     ): ...
 
@@ -189,6 +181,7 @@ class API(APIBase):
         name: str | None = None,
         comment: str = "Address created by uoft_bluecat tool",
         state: IPAddressState = "STATIC",
+        create_host_record: bool = True,
         create_reverse_record: bool = True,
         **kwargs,
     ) -> dict[str, Any]:

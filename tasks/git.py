@@ -3,7 +3,7 @@ import logging
 from typing import no_type_check
 
 from task_runner import run, REPO_ROOT
-from ._macros import macros, zxpy  # noqa: F401, type: ignore
+from ._macros import macros, zxpy  # noqa: F401 # pyright: ignore[reportAttributeAccessIssue]
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,8 @@ def _make_git_safe():
         print("Working tree is not clean, you need to either commit or stash changes")
         stash = input("Press enter to commit changes, or type 'stash' to stash them: ")
         # if the user did anything other than press enter, `stash` will evaluate to True
+        if 'Untracked files' in res:
+            run("git add .")
         if stash:
             run("git stash")
             logger.warning("Changes stashed, don't forget to pop them later with `git stash pop`")
@@ -111,8 +113,6 @@ def split_commit():
         raise Exception("Only run this task when editing a commit in the middle of a rebase")
     run("git reset HEAD~")
 
-# TODO: clean up these tasks
-
 def version():
     """get current version of repository from git tag"""
     from setuptools_scm import get_version
@@ -136,10 +136,13 @@ def version_next(patch: bool = False):
         segments.append(0)
     # at this point, segments should be [major, minor, patch]
     if patch:
+        if len(segments) == 2:
+            segments.append(0)
         segments[2] += 1
     else:
         segments[1] += 1
-        segments[2] = 0
+        # remove patch
+        segments = segments[:2]
     new_version = ".".join(map(str, segments))
     print(f"New version: {new_version}")
     return new_version
@@ -147,12 +150,26 @@ def version_next(patch: bool = False):
 
 def tag(version: str = "", push=False):  # type: ignore
     """create a new git tag with the given version, or the next version if not specified"""
+    # in order to get the locked versions of our monorepo projects to include the version 
+    # that we are tagging them against, we need to do a little song and dance
     if not version:
         version = version_next()
+
+    # first, create a lightweight tag for setuptools_scm to pick up
+    run(f"git tag {version}")
+
+    # then we re-lock the lock file, causing setuptools_scm to pick up the new tag
+    run("uv lock --no-cache -P uoft-core")
+    run("git add uv.lock")
+    run(f"git commit -m '[dev]: lock version {version}'")
+
+    # then we replace the lightweight tag with a proper one
+    run(f"git tag -d {version}")
     run(f"git tag --sign --message 'Version {version}' {version}")
     if push:
         run("git push --tags")
 
+# TODO: clean up these tasks
 
 def should_bump_version():
     """ "

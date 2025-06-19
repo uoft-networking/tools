@@ -1,4 +1,4 @@
-From f77e37afe661d1b791048e1f7b696104fae86d46 Mon Sep 17 00:00:00 2001
+From 7f8144ede1d3dcd0059558331ff0adf39cf07822 Mon Sep 17 00:00:00 2001
 From: Alex Tremblay <alex.tremblay@utoronto.ca>
 Date: Mon, 19 Aug 2024 23:46:31 -0400
 Subject: [PATCH 1/2] add vlan_group foreign key to Device model
@@ -6,19 +6,19 @@ Subject: [PATCH 1/2] add vlan_group foreign key to Device model
 ---
  nautobot/dcim/api/serializers.py              |  5 +-
  nautobot/dcim/factory.py                      |  2 +
- nautobot/dcim/filters/__init__.py             |  7 +++
- nautobot/dcim/forms.py                        | 57 ++++++++++++-------
- .../dcim/migrations/0063_device_vlan_group.py | 25 ++++++++
- .../migrations/9999_merge_dvg_with_latest.py  | 13 +++++
- nautobot/dcim/models/device_components.py     | 14 +++++
- nautobot/dcim/models/devices.py               | 16 ++++--
+ nautobot/dcim/filters/__init__.py             |  7 ++
+ nautobot/dcim/forms.py                        | 68 +++++++++++++------
+ .../dcim/migrations/0063_device_vlan_group.py | 25 +++++++
+ .../migrations/9999_merge_dvg_with_latest.py  | 13 ++++
+ nautobot/dcim/models/device_components.py     | 14 ++++
+ nautobot/dcim/models/devices.py               | 16 +++--
  nautobot/dcim/tables/devices.py               |  5 ++
  nautobot/dcim/templates/dcim/device.html      |  6 ++
  nautobot/dcim/templates/dcim/device_edit.html |  1 +
- nautobot/dcim/utils.py                        | 15 ++---
+ nautobot/dcim/utils.py                        | 15 ++--
  nautobot/dcim/views.py                        |  1 +
  nautobot/ipam/filters.py                      |  8 +--
- 14 files changed, 134 insertions(+), 41 deletions(-)
+ 14 files changed, 145 insertions(+), 41 deletions(-)
  create mode 100644 nautobot/dcim/migrations/0063_device_vlan_group.py
  create mode 100644 nautobot/dcim/migrations/9999_merge_dvg_with_latest.py
 
@@ -79,7 +79,7 @@ index cc7a34e2b..0ad5200b9 100644
          prefers_id=True,
          queryset=RackGroup.objects.all(),
 diff --git a/nautobot/dcim/forms.py b/nautobot/dcim/forms.py
-index b210bb417..b27b44006 100644
+index b210bb417..a481db4f3 100644
 --- a/nautobot/dcim/forms.py
 +++ b/nautobot/dcim/forms.py
 @@ -68,7 +68,7 @@ from nautobot.extras.models import (
@@ -196,6 +196,24 @@ index b210bb417..b27b44006 100644
      manufacturer = DynamicModelMultipleChoiceField(
          queryset=Manufacturer.objects.all(),
          to_field_name="name",
+@@ -3290,6 +3307,17 @@ class InterfaceBulkEditForm(
+ 
+         # Restrict parent/bridge/LAG interface assignment by device (or VC master)
+         if device_count == 1:
++            # Limit VLAN choices by VLAN Group
++            if device.vlan_group:
++                # Remove query param added by 'locations' above
++                # APISelect widgets do not support removing query params, so we must do it manually
++                if self.fields["untagged_vlan"].widget.attrs.get("data-query-param-available_on_device"):
++                    del self.fields["untagged_vlan"].widget.attrs["data-query-param-available_on_device"]
++                if self.fields['tagged_vlans'].widget.attrs.get('data-query-param-locations'):
++                    del self.fields['tagged_vlans'].widget.attrs['data-query-param-locations']
++                self.fields["untagged_vlan"].widget.add_query_param("vlan_group", device.vlan_group.pk)
++                self.fields["tagged_vlans"].widget.add_query_param("vlan_group", device.vlan_group.pk)
++                
+             self.fields["parent_interface"].widget.add_query_param("device_with_common_vc", device.pk)
+             self.fields["bridge"].widget.add_query_param("device_with_common_vc", device.pk)
+             self.fields["lag"].widget.add_query_param("device_with_common_vc", device.pk)
 diff --git a/nautobot/dcim/migrations/0063_device_vlan_group.py b/nautobot/dcim/migrations/0063_device_vlan_group.py
 new file mode 100644
 index 000000000..e69eaa804

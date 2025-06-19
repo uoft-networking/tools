@@ -84,10 +84,10 @@ LOG = getLogger(__name__)
 
 @dataclass
 class Args:
-    type: str = None  # type: ignore
-    item_num: str = None  # type: ignore
-    input_file: str = DEFAULT_IN_FILE_PATH  # type: ignore
-    output_file: str = DEFAULT_OUT_FILE_PATH  # type: ignore
+    type: str|None = None
+    item_num: str|None = None
+    input_file: str|Path = DEFAULT_IN_FILE_PATH
+    output_file: str|Path = DEFAULT_OUT_FILE_PATH
     show_available_fields: bool = False
 
     def process_inputs(self):
@@ -493,7 +493,7 @@ def generate_qr_code(item_type, item_number, template_info, tempdir):
     qr_code_file = sorted(tempdir.glob("Pictures/*"))[0]
     imgdata = qrcode.make(qr_code_url)
     dimensions = template_info["qr_code_dimensions"]
-    imgdata = imgdata.resize(dimensions)  # type: ignore
+    imgdata = imgdata.resize(dimensions)  # pyright: ignore[reportAttributeAccessIssue]
     imgdata.save(str(qr_code_file))
 
 

@@ -7,10 +7,10 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 from shutil import rmtree
 
-from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core
+from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core, run_cog
 from task_runner import run, REPO_ROOT
 
-from ._macros import macros, zxpy  # noqa: F401 # type: ignore
+from ._macros import macros, zxpy  # noqa: F401 # pyright: ignore[reportAttributeAccessIssue]
 
 import typer
 
@@ -72,6 +72,8 @@ def new_project(name: str):
     )
     if not return_code == 0:
         raise Exception("copier failed")
+    # add the new project to the top-level pyproject.toml file
+    run_cog('pyproject.toml')
     # add the new project to the lock file and install in editable mode
     from .repo import lock
     lock()
@@ -93,14 +95,16 @@ def repl(project: Annotated[Optional[str], typer.Argument()] = None):
                 f"""\
                     import sys
                     import os
+                    import json
                     from pathlib import Path
                     from uoft_core import shell, txt, lst, chomptxt
                     from uoft_core.prompt import Prompt
+                    from rich.pretty import pprint
                     import uoft_{project}
                     if hasattr(uoft_{project}, "Settings"):
                         Settings = uoft_{project}.Settings
                     print("The following modules/functions are imported and available:")
-                    print("os, sys, Path, shell, txt, lst, chomptxt, Prompt, uoft_{project}, Settings")
+                    print("os, sys, json, Path, shell, txt, lst, chomptxt, Prompt, pprint, uoft_{project}, Settings")
                 """
             )
         )
@@ -175,16 +179,11 @@ def profile_import_time(cmd: str):
     collect the generated report, convert it to json,
     and open it in VS Code to drill-down & explore"""
     import subprocess
-    import tempfile
-    from shutil import which
 
-    print(which('uoft'))
-
-    res = subprocess.run(cmd, capture_output=True, shell=True, env={"PYTHONPROFILEIMPORTTIME": "1"})
+    res = subprocess.run(cmd, capture_output=True, shell=True, env=os.environ | {"PYTHONPROFILEIMPORTTIME": "1"})
     stderr = res.stderr.decode("utf-8")
     Path("importtime.txt").write_text(stderr)
     import sys
-    print(sys.executable)
     try:
         subprocess.run('tuna importtime.txt', shell=True)
     except KeyboardInterrupt:

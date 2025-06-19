@@ -21,7 +21,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
-from glom import glom, register, Coalesce, T, Check
+from glom import glom, register, Coalesce
 
 from django.db.models import Manager, QuerySet
 import nautobot.core.models.managers
@@ -50,7 +50,7 @@ def _register_manager_classes():
 class ExcelContext:
     def __init__(self, pk) -> None:
         self.device_obj = Device.objects.get(pk=pk)
-        self.intfs: list[Interface] = list(self.device_obj.interfaces.all())  # type: ignore
+        self.intfs: list[Interface] = list(self.device_obj.interfaces.all())  # pyright: ignore[reportAttributeAccessIssue]
 
         self.interface_types = InterfaceTypeChoices.as_dict()
         self.interface_types_inverse = {v: k for k, v in self.interface_types.items()}
@@ -63,17 +63,19 @@ class ExcelContext:
         if self.device_obj.vlan_group:
             self.vlan_group = self.device_obj.vlan_group
         else:
-            vlan_group_name = self.device_obj.name.partition("-")[2][:2]  # type: ignore
+            assert self.device_obj.name
+            vlan_group_name = self.device_obj.name.partition("-")[2][:2]
             self.vlan_group = VLANGroup.objects.get(name=vlan_group_name)
         self.valid_vlans = VLAN.objects.filter(vlan_group=self.vlan_group)
 
 
-def export_to_excel(pk):
+def export_to_excel(pk) -> tuple[str, bytes]:
     _register_manager_classes()
     ctx = ExcelContext(pk)
 
     wb = Workbook()
-    ws: Worksheet = wb.active  # type: ignore
+    assert wb.active
+    ws: Worksheet = wb.active 
     ws.title = "Interfaces"
 
     def _vlan_to_string(vlan):
@@ -292,13 +294,13 @@ def import_from_excel(pk, file):
                                 "Status",
                                 lambda s: Status.objects.get(name=s),
                             ),
-                            "label": ("Label", lambda l: l if l else ""),
+                            "label": ("Label", lambda lbl: lbl if lbl else ""),
                             "type": ("Type", lambda t: ctx.interface_types_inverse[t]),
                             "role": ("Role", lambda r: Role.objects.get(name=r) if r else None),
                             "enabled": "Enabled",
                             "lag": (
                                 "LAG",
-                                lambda l: Interface.objects.get(name=l, device_id=pk) if l else None,
+                                lambda lag: Interface.objects.get(name=lag, device_id=pk) if lag else None,
                             ),
                             "mgmt_only": "Management Only",
                             "description": ("Description", lambda d: d if d else ""),
@@ -371,15 +373,13 @@ class DeviceInterfacesExcel(View):
                         yield f"<p>{line}</p>"
                     yield "<p>Please check the server logs for additional information</p>"
 
-            return StreamingHttpResponse(excel_processing())  # type: ignore
+            return StreamingHttpResponse(excel_processing())  # pyright: ignore[reportArgumentType]
         else:
             # We've been sent here by the widget on the device page
             # but the data we've been sent here with failed server-side validation.
             # We need to render the form again, but with the errors from the form included
             form_html = render(request, "device_interfaces_excel.html", {"form": form, "pk": pk})
             return form_html
-            # return HttpResponse(f"<div class='alert alert-danger'>Invalid file format. Please try again and make sure you're uploading a .xlsx file</div>{form_html.content}")
-
 
 class DeviceInterfacesExcelWidget(TemplateExtension):
     """

@@ -30,6 +30,10 @@ dependencies = [
   "nornir_nautobot >= 3.2",
   "sqlmodel >= 0.0.22",
   "psycopg >= 3.2",
+  "grpcio >= 1.71",
+  "grpcio_reflection >= 1.71",
+  "protobuf >= 5",
+  "cloudvision >= 1.23"
 ]
 
 [project.scripts]
@@ -46,3 +50,8 @@ source = "scm"
 custom-hook = "pyproject.py"
 includes = ["uoft_scripts"]
 excludes = ["**/tests", "**/__pycache__"]
+
+[tool.uv]
+dev-dependencies = [
+    "grpcio-tools>=1.71.0",
+]

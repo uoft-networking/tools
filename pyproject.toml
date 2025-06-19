@@ -9,23 +9,23 @@ authors = [
 ]
 license = { text = "MIT" }
 dependencies = [
-# [[[cog
-# import _cog as c; c.all_projects_as_dependencies()
-# ]]]
-"uoft-grist",
-"uoft-snipeit",
-"uoft-phpipam",
-"uoft-librenms",
-"uoft-aruba",
-"uoft-nautobot",
-"uoft-paloalto",
-"uoft-bluecat",
-"uoft-ssh",
-"uoft-scripts",
-"uoft-switchconfig",
-"uoft-core",
-"nautobot",
-# [[[end]]]
+    # [[[cog
+    # import _cog as c; c.all_projects_as_dependencies()
+    # ]]]
+    "uoft-grist",
+    "uoft-snipeit",
+    "uoft-phpipam",
+    "uoft-librenms",
+    "uoft-aruba",
+    "uoft-nautobot",
+    "uoft-paloalto",
+    "uoft-bluecat",
+    "uoft-ssh",
+    "uoft-scripts",
+    "uoft-switchconfig",
+    "uoft-core",
+    "nautobot",
+    # [[[end]]]
 ]
 
 [build-system]
@@ -66,6 +66,7 @@ dev-dependencies = [
     "mcpyrate >= 3.6.0",
     "tuna >= 0.5",
     "debugpy >= 1.5.0",
+    "basedpyright>=1.29.1",
 ]
 
 [tool.uv.workspace]
@@ -166,3 +167,21 @@ typing-modules = ["uoft_core.types"]
 # Enable Flake's "E", "W", and "F" codes by default.
 select = ["E", "W", "F", "RUF"]
 ignore = ["E401", "W291"]
+
+[tool.pyright]
+exclude = [
+    "**/*_cache",
+    "**/__pycache__",
+    "**/.git",
+    "**/.venv",
+    "custom-forks",
+    "hazmat",
+    "**/.dev_data",
+    "**/_private",
+]
+ignore = [
+    "**/_vendor",
+    "**/uoft_core/**/yaml"
+  ]
+enableTypeIgnoreComments = false
+typeCheckingMode = 'standard'

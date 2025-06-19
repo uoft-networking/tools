@@ -1,7 +1,4 @@
-# pylint: disable=unused-argument, unused-import, redefined-outer-name, import-outside-toplevel, unspecified-encoding
-import os
 import sys
-import traceback
 from typing import Annotated, Optional
 from pathlib import Path
 import json
@@ -17,7 +14,6 @@ from uoft_core import (
     UofTCoreError,
     chomptxt,
     parse_config_file,
-    txt,
     write_config_file,
 )
 from uoft_core.console import console
@@ -28,6 +24,7 @@ import typer
 logger = logging.getLogger(__name__)
 
 DEBUG_MODE = False
+
 
 def _version_callback(value: bool):
     if not value:
@@ -40,6 +37,7 @@ def _version_callback(value: bool):
         f"{sys.version_info.minor} ({sys.executable}) on {sys.platform}"
     )
     raise typer.Exit()
+
 
 app = typer.Typer(
     name="switchdeploy",
@@ -138,9 +136,7 @@ def show_paths(value: bool):
     raise typer.Exit()
 
 
-@app.callback(
-    context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]}
-)
+@app.callback(context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]})
 def callback(
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
@@ -286,11 +282,7 @@ def console_name_completion(partial: str):
 
 
 @app.command()
-def to_console(
-    console_name: str = typer.Argument(
-        ..., help="Name of the console server / port to deploy to"
-    )
-):
+def to_console(console_name: str = typer.Argument(..., help="Name of the console server / port to deploy to")):
     "Connect to a serial console server, authenticate, and pass in configuration from STDIN"
     if target_name := settings().deploy.targets.get(console_name):
         target = target_name
@@ -326,75 +318,66 @@ def deprecated():
         raise ValueError(f"command {cmdline} is not deprecated")
 
     # TODO: convert this into a log.warn msg once we've sorted out logging
-    warn(
-        FutureWarning(
-            f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."
-        )
-    )
+    warn(FutureWarning(f"The '{from_}' command has been renamed to '{to}' and will be removed in a future version."))
     app()
+
 
 def _debug():
     # Debug code goes here
-    # noqa
-    from .util import construct_model_instance_interactively
-    #from uoft_switchconfig.types import *
+    # from .util import construct_model_instance_interactively
+    # #from uoft_switchconfig.types import *
 
-    class SubModel(BaseModel):
-        id: int = Field(description="The VLAN ID of this VLAN, Example: 100")
-        description: str = Field(
-            description="The description of this VLAN, Example: PUBLIC"
-        )
-        ip: IPv4Network = Field(
-            description="The IP address of this VLAN, in CIDR notation, Example: 10.14.1.33/24"
-        )
+    # class SubModel(BaseModel):
+    #     id: int = Field(description="The VLAN ID of this VLAN, Example: 100")
+    #     description: str = Field(
+    #         description="The description of this VLAN, Example: PUBLIC"
+    #     )
+    #     ip: IPv4Network = Field(
+    #         description="The IP address of this VLAN, in CIDR notation, Example: 10.14.1.33/24"
+    #     )
 
-    class MyEnum(StrEnum):
-        opt_a = object()
-        opt_b = object()
-        opt_c = object()
+    # class MyEnum(StrEnum):
+    #     opt_a = object()
+    #     opt_b = object()
+    #     opt_c = object()
 
-    class ChoiceA(Choice):
-        kind: Literal["choicea"]
+    # class ChoiceA(Choice):
+    #     kind: Literal["choicea"]
 
-    class ChoiceB(Choice):
-        kind: Literal["choiceb"]
+    # class ChoiceB(Choice):
+    #     kind: Literal["choiceb"]
 
-    class Model(BaseModel):
-        a: str
-        aa: bool
-        b: int
-        bb: float
-        c: Optional[str]
-        cc: str | None
-        d: Union[str, int, None]
-        e: MyEnum
-        f: Path
-        g: DirectoryPath
-        h: Literal["one", "two"]
-        i: IPv4Address
-        j: SubModel
-        k: Union[ChoiceA, ChoiceB]
-        l: list
-        ll: List
-        ids: List[int]
-        names: List[str]
-        ips: List[IPv4Address]
-        objects: List[SubModel]
-        z: dict
-        za: Dict
-        zb: Dict[str, str]
-        zc: Dict[int, str]
-        xd: Dict[str, int]
+    # class Model(BaseModel):
+    #     a: str
+    #     aa: bool
+    #     b: int
+    #     bb: float
+    #     c: Optional[str]
+    #     cc: str | None
+    #     d: Union[str, int, None]
+    #     e: MyEnum
+    #     f: Path
+    #     g: DirectoryPath
+    #     h: Literal["one", "two"]
+    #     i: IPv4Address
+    #     j: SubModel
+    #     k: Union[ChoiceA, ChoiceB]
+    #     l: list
+    #     ll: List
+    #     ids: List[int]
+    #     names: List[str]
+    #     ips: List[IPv4Address]
+    #     objects: List[SubModel]
+    #     z: dict
+    #     za: Dict
+    #     zb: Dict[str, str]
+    #     zc: Dict[int, str]
+    #     xd: Dict[str, int]
 
-    r = construct_model_instance_interactively(Model)
-    print(r)
+    # r = construct_model_instance_interactively(Model)
+    # print(r)
+    pass
+
 
 if __name__ == "__main__":
-
-    if os.environ.get("PYDEBUG"):
-        # Debug code goes here
-        # noqa
-
-        _debug()
-        sys.exit()
     cli()
