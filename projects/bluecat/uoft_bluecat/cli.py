@@ -3,8 +3,6 @@ CLI and API to manage a Bluecat instance
 """
 
 import sys
-from pathlib import Path
-from csv import DictReader, Sniffer
 from typing import Annotated, Optional
 
 import typer
@@ -62,43 +60,44 @@ def callback(
 
 @app.command()
 def get_all_prefixes():
-    with Settings.from_cache().alt_api_connection() as api:
-        blocks = api.get('/blocks').json()['data']
-        nets = api.get('/networks').json()['data']
+    with Settings.from_cache().get_api_connection() as api:
+        blocks = api.get("/blocks").json()["data"]
+        nets = api.get("/networks").json()["data"]
     con = console()
     con.print(blocks)
     con.print(nets)
 
-@app.command()
-def register_ips_from_file(
-    filename: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        allow_dash=True,
-    ),
-):
-    if filename.name == "-":
-        file = sys.stdin.readlines()
-    else:
-        file = filename.open().readlines()
-    dialect = Sniffer().sniff(file[0])  # figure out if the file is a csv, or a tsv, or whatever
-    reader = DictReader(file, dialect=dialect)
 
-    api = Settings.from_cache().get_api_connection()
-    conf_id = api.configuration_id
-    for row in reader:
-        mac = row["mac-address"]
-        ip = row["ipv4"]
-        res = api.get_ipv4_address(ip, configuration_id=conf_id)
-        if res:
-            logger.info(f"IP {ip} already registered to Bluecat Object ID: {res['id']}")
-            continue
-        res = api.assign_ipv4_address(ip, mac, row["hostname"], configuration_id=conf_id)
-        logger.success(f"Registered MAC {mac} with address {ip} to Bluecat Object ID: {res}")
+@app.command()
+def add_or_update_ip(
+    ip: Annotated[str, typer.Argument(help="IP address (CIDR notation) to add or update")],
+    hostname: Annotated[str, typer.Argument(help="Hostname to add or update")],
+):
+    from ipaddress import ip_interface
+
+    try:
+        ip_cidr = ip_interface(ip)
+    except ValueError as e:
+        logger.error(f"Invalid IP address: {ip}. Error: {e}")
+        sys.exit(1)
+    with Settings.from_cache().get_api_connection() as api:
+        pass
+        net = api.find_parent_network(str(ip_cidr.ip))
+
+        # create address if it does not exist
+
+        # create or update host record linked to the IP address
+
+        # netmgmt_zone = api.get_container_default_zones(net["id"], "networks")[0]
+        # if existing_record := api.get(
+        #     f'/zones/{netmgmt_zone["id"]}/resourceRecords', params={"name": hostname}
+        # ).json()["data"]:
+        #     existing_record = existing_record[0]
+        #     if existing_record["type"] == "A":
+        #         logger.info(f"Updating existing A record for {hostname} to {ip_cidr}")
+        #         api.update_resource_record(existing_record["id"], ip_cidr, netmgmt_zone["id"])
+        #     else:
+        #         logger.error(f"Existing record for {hostname} is not an A record. Skipping update.")
 
 
 def cli():
@@ -114,7 +113,9 @@ def cli():
         logger.error(e)
         sys.exit(1)
 
+
 def _debug():
     "Debugging function, only used in active debugging sessions."
     # pylint: disable=all
-    app()
+    # app()
+    add_or_update_ip("192.168.64.7/22", "a1-ev0c-arista")
