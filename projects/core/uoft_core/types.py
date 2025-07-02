@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from typing import Literal, Any
+from typing import Literal, Any, cast
 from pathlib import Path
 from pydantic.v1 import BaseModel, Field
 from pydantic.v1.types import SecretStr as SecretStrBase, FilePath, DirectoryPath
@@ -8,6 +8,7 @@ from ._vendor.netaddr import IPNetwork as IPNetworkBase, IPAddress as IPAddressB
 
 
 _json_default = json.JSONEncoder.default
+
 
 def _custom_json_default_encoder(self: json.JSONEncoder, o: Any) -> Any:
     # this function works exactly like the default json.JSONEncoder.default
@@ -25,10 +26,11 @@ def _custom_json_default_encoder(self: json.JSONEncoder, o: Any) -> Any:
 json.JSONEncoder.default = _custom_json_default_encoder
 
 # monkey-patch BaseModel to be JSON serializable
-BaseModel.__json_encode__ = BaseModel.dict   # pyright: ignore[reportAttributeAccessIssue]
+BaseModel.__json_encode__ = BaseModel.dict  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class IPAddress(IPAddressBase):
+    __slots__ = ()
     @classmethod
     def __get_validators__(cls):
         def validator(val: Any) -> "IPAddress":
@@ -67,6 +69,20 @@ class IPNetwork(IPNetworkBase):
 
         yield validator
 
+    @property
+    def ip(self) -> IPAddress:
+        """Return the IP address of the network."""
+        res = super().ip
+        res.__class__ = IPAddress
+        return cast(IPAddress, res)
+
+    @property
+    def network(self) -> IPAddress:
+        """Return the network address of the network."""
+        res = super().network
+        res.__class__ = IPAddress
+        return cast(IPAddress, res)
+
 
 class IPv4Network(IPNetworkBase):
     @classmethod
@@ -89,8 +105,10 @@ class IPv6Network(IPNetworkBase):
 
         yield validator
 
+
 # All data types that we endeavor to support in uoft_core
 # TODO: merge types from switchconfig.types into here
+
 
 class SecretStr(SecretStrBase):
     def __repr__(self) -> str:
@@ -98,7 +116,6 @@ class SecretStr(SecretStrBase):
 
     def __json_encode__(self):
         return self.get_secret_value()
-
 
 
 class StrEnum(str, Enum):
