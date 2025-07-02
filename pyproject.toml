@@ -12,18 +12,18 @@ dependencies = [
     # [[[cog
     # import _cog as c; c.all_projects_as_dependencies()
     # ]]]
-    "uoft-grist",
-    "uoft-snipeit",
-    "uoft-phpipam",
-    "uoft-librenms",
     "uoft-aruba",
+    "uoft-bluecat",
+    "uoft-core",
+    "uoft-grist",
+    "uoft-librenms",
     "uoft-nautobot",
     "uoft-paloalto",
-    "uoft-bluecat",
-    "uoft-ssh",
+    "uoft-phpipam",
     "uoft-scripts",
+    "uoft-snipeit",
+    "uoft-ssh",
     "uoft-switchconfig",
-    "uoft-core",
     "nautobot",
     # [[[end]]]
 ]
@@ -45,7 +45,8 @@ managed = true
 dev-dependencies = [
     "black >= 22.3.0",
     "cogapp >= 3.3",
-    "copier >= 7",
+    "copier >= 8",
+    "pyyaml-include >= 1.2, < 2.0",
     "copier-templates-extensions >= 0.3.0",
     "ptpython[ptipython] >= 3.0.29",
     "pytest >= 7.0",
@@ -77,18 +78,18 @@ exclude = ["custom-forks/_patches"]
 # [[[cog
 # import _cog as c; c.all_projects_as_uv_sources()
 # ]]]
-uoft-grist = { workspace = true }
-uoft-snipeit = { workspace = true }
-uoft-phpipam = { workspace = true }
-uoft-librenms = { workspace = true }
 uoft-aruba = { workspace = true }
+uoft-bluecat = { workspace = true }
+uoft-core = { workspace = true }
+uoft-grist = { workspace = true }
+uoft-librenms = { workspace = true }
 uoft-nautobot = { workspace = true }
 uoft-paloalto = { workspace = true }
-uoft-bluecat = { workspace = true }
-uoft-ssh = { workspace = true }
+uoft-phpipam = { workspace = true }
 uoft-scripts = { workspace = true }
+uoft-snipeit = { workspace = true }
+uoft-ssh = { workspace = true }
 uoft-switchconfig = { workspace = true }
-uoft-core = { workspace = true }
 nautobot = { workspace = true }
 # [[[end]]]
 

@@ -28,11 +28,8 @@ class RESTAPIError(HTTPError):
         return f"RESTAPIError({self.data})"
 
     def __str__(self) -> str:
-        return (
-            f"{self.response.status_code}: {self.response.reason} - "
-            f"{self.data}"
-        )
-    
+        return f"{self.response.status_code}: {self.response.reason} - " f"{self.data}"
+
     @classmethod
     def from_http_error(cls, e: HTTPError) -> "RESTAPIError | HTTPError":
         try:
@@ -41,11 +38,11 @@ class RESTAPIError(HTTPError):
             return e
         e.__class__ = cls
         e = cast(RESTAPIError, e)
-        e.data = data 
+        e.data = data
         return e
 
 
-class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will be redeclared in a TYPE_CHECKING block below 
+class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will be redeclared in a TYPE_CHECKING block below
     """A Requests session with a base URL.
 
     Provides cookie persistence, connection-pooling, and configuration.
@@ -69,7 +66,8 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
         ...     s.get('/records')
         <Response [200]>
     """
-    # Convenience feature: attach common error types to the class, so that operations which only have a handle to 
+
+    # Convenience feature: attach common error types to the class, so that operations which only have a handle to
     # an APIBase instance can still access these error types without having to import them from uoft_core.api
     RESTAPIError = RESTAPIError
     HTTPError = HTTPError
@@ -89,9 +87,9 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
         if not self.verify:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    def safe_append_path(self, url: URL, path: str) -> URL: 
+    def safe_append_path(self, url: URL, path: str) -> URL:
         # paths with leading slashes are treated by most of the computing world as absolute paths
-        # yarl.URL explicitly disallows joining an absolute path to a URL, since by convention, 
+        # yarl.URL explicitly disallows joining an absolute path to a URL, since by convention,
         # doing so would *replace* the URL's path with the absolute path, which can often times violate
         # the principal of least surprise
         # This is rather unfortunate for us, since most REST APIs document relative paths (relative to the API root)
@@ -104,7 +102,13 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
         try:
             response.raise_for_status()
         except HTTPError as e:
-            raise RESTAPIError.from_http_error(e)
+            # the goal of error handling here is to enhance the error message
+            # by extracting the error message from the JSON response, if available
+            # and to convert the error to a RESTAPIError, which is a subclass of HTTPError
+            # that contains the JSON data in the `data` attribute.
+            new_err = RESTAPIError.from_http_error(e)
+            raise new_err from e
+
         return response
 
     def login(self):
@@ -126,7 +130,7 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
         self.logout()
         return super().__exit__(*args)
 
-    def request(self, method: str|bytes, url: URL | str|bytes, *args, **kwargs) -> Any:
+    def request(self, method: str | bytes, url: URL | str | bytes, *args, **kwargs) -> Any:
         # If the URL is a string, join it with the api URL
         if isinstance(url, str):
             url = self.safe_append_path(self.api_url, url)
@@ -140,8 +144,8 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
 
 
 class ThreadedAPIPool(ThreadPoolExecutor):
-    # Attach common threadpool primitives to the pool itself so they don't need to be re-imported
-    # every where they are needed
+    # Attach common threadpool primitives to the pool itself 
+    # so they don't need to be re-imported everywhere they are needed
     Future = Future
     as_completed = as_completed
     wait = wait

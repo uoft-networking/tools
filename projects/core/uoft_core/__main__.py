@@ -52,18 +52,18 @@ def callback(
 # import _cog as c; c.all_projects_as_python_list()
 # ]]]
 ALL_PROJECTS = [
-    "grist",
-    "snipeit",
-    "phpipam",
-    "librenms",
     "aruba",
+    "bluecat",
+    "core",
+    "grist",
+    "librenms",
     "nautobot",
     "paloalto",
-    "bluecat",
-    "ssh",
+    "phpipam",
     "scripts",
+    "snipeit",
+    "ssh",
     "switchconfig",
-    "core",
 ]
 # [[[end]]]
 

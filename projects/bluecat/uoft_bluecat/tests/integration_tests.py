@@ -92,7 +92,7 @@ def test_get(bluecat_test_data_cleared, api_instance):
 
 
 def test_get_all():
-    with Settings.from_cache().alt_api_connection() as api:
+    with Settings.from_cache().get_api_connection() as api:
         addrs = api.get_all("/addresses", params=dict(filter="state:in('GATEWAY', 'STATIC', 'DHCP_RESERVED')"))
         assert len(addrs) > 0
         assert all("id" in addr for addr in addrs)

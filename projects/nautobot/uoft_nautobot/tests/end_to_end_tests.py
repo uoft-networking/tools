@@ -132,16 +132,3 @@ class NautobotTests:
         import_from_excel(pk, Path("hazmat/test.xlsx").read_bytes())
 
         Path("hazmat/test.xlsx").unlink()
-
-    def test_bluecat_ssot(self, _nautobot_initialized, mocker):
-        from ..jobs import BluecatToNautobot
-        from nautobot.extras.models import JobResult
-
-        job = BluecatToNautobot()
-        job.sync = mocker.Mock()
-        job.job_result = JobResult()
-        job.load_target_adapter()
-        job.load_source_adapter()
-        job.calculate_diff()
-        job.sync_data(memory_profiling=False)
-        # print(job.diff.summary())

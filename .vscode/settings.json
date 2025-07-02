@@ -6,10 +6,10 @@
   },
   "ruff.lineLength": 120,
   "ruff.nativeServer": "on",
-  "python.analysis.diagnosticMode": "workspace",
   "python.analysis.supportDocstringTemplate": true,
   "python.analysis.logLevel": "Information",
   "python.analysis.supportRestructuredText": false,
   "ruff.format.preview": true,
-  "python.analysis.typeCheckingMode": "standard",
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.userFileIndexingLimit": 3000,
 }
