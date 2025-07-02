@@ -11,7 +11,7 @@ license = { text = "MIT" }
 dynamic = ["version"]
 dependencies = [
     "uoft_core",
-    "sqlalchemy_views",
+    "sqlalchemy_views >= 0.3",
 ]
 
 [project.urls]
