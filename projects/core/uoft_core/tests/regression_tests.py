@@ -121,8 +121,6 @@ importable_modules = [
     "uoft_core.yaml.tokens",
     "uoft_core.yaml.timestamp",
     "uoft_core.yaml.parser",
-    "uoft_grist.cli",
-    "uoft_grist",
     "uoft_bluecat.cli",
     "uoft_bluecat",
     "uoft_bluecat.api",

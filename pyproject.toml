@@ -15,7 +15,6 @@ dependencies = [
     "uoft-aruba",
     "uoft-bluecat",
     "uoft-core",
-    "uoft-grist",
     "uoft-librenms",
     "uoft-nautobot",
     "uoft-occupancy",
@@ -82,7 +81,6 @@ exclude = ["custom-forks/_patches"]
 uoft-aruba = { workspace = true }
 uoft-bluecat = { workspace = true }
 uoft-core = { workspace = true }
-uoft-grist = { workspace = true }
 uoft-librenms = { workspace = true }
 uoft-nautobot = { workspace = true }
 uoft-occupancy = { workspace = true }

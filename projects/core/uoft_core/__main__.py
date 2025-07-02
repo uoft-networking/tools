@@ -55,7 +55,6 @@ ALL_PROJECTS = [
     "aruba",
     "bluecat",
     "core",
-    "grist",
     "librenms",
     "nautobot",
     "occupancy",
