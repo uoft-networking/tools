@@ -5,7 +5,7 @@ Occupancy tracking
 from typing import Annotated, Optional
 import sys
 import typer
-from uoft_core import logging, debug_cache
+from uoft_core import logging
 from collections import defaultdict
 from sqlmodel import SQLModel, Session, create_engine
 from . import Settings, Occupancy_Tracking, RawRecord
@@ -50,9 +50,7 @@ def callback(
         ),
     ] = None,
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
-    trace: bool = typer.Option(
-        False, help="Turn on trace logging. implies --debug", envvar="TRACE"
-    ),
+    trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
 ):
     global DEBUG_MODE
     log_level = "INFO"
@@ -87,7 +85,6 @@ def run_polls():
     write_to_db(data)
 
 
-@debug_cache  ##REMOVE LATER
 def get_data_raw():
     # region example data
     # {'AP name': '<AP_NAME>',
@@ -160,10 +157,7 @@ def count_data(unique_data: list[RawRecord]):
                 # tally each of the range types for each user as well as a total unique user count
                 for range_name, ip_prefix in s.filter_ranges.items():
                     # This range_name will look like "unique_student", ip_prefix looks like "100.112"
-                    if (
-                        client_ip.startswith(ip_prefix)
-                        and group in inverted_ap2g[client_ap_name]
-                    ):
+                    if client_ip.startswith(ip_prefix) and group in inverted_ap2g[client_ap_name]:
                         tally[group][range_name] += 1
                         tally[group]["unique_users"] += 1
                         # if the department has departmental users count and create a watermark for that
