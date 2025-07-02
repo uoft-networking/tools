@@ -1022,6 +1022,16 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 help_ = finfo.title
             elif finfo.description:
                 help_ = finfo.description
+            elif finfo.default and finfo.default.__class__.__name__ == 'FieldInfo':
+                default = finfo.default
+                if default.title and default.description:
+                    help_ = f"{default.title}: {default.description}"
+                elif default.title:
+                    help_ = default.title
+                elif  default.description:
+                    help_ = default.description
+                else:
+                    help_ = None
             else:
                 help_ = None
 
