@@ -1,9 +1,11 @@
 from typing import Any, Literal, overload
 from functools import cached_property
 
-from uoft_core.api import APIBase
+from uoft_core.api import APIBase, RESTAPIError
 from uoft_core import logging
 from uoft_core.types import IPAddress, IPNetwork
+
+from . import type_stubs as ts
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +26,14 @@ IPAddressState = Literal[
 
 
 class API(APIBase):
-    def __init__(self, base_url: str, username: str, password: str, verify: bool | str = True):
+    def __init__(self, base_url: str, username: str, password: str, configuration: str | None = None, verify: bool | str = True):
         super().__init__(base_url, api_root="api/v2", verify=verify)
         self.username = username
         self.password = password
-        self.headers.update(
-            {
-                "Accept": "application/hal+json",
-            }
-        )
-        # TODO: add support for custom / non-default configuration IDs
+        self.headers.update({
+            "Accept": "application/hal+json",
+        })
+        self.configuration = configuration
 
     def login(self):
         # /sessions is perhaps the only endpoint that doesn't require a change control comment to POST to,
@@ -50,24 +50,43 @@ class API(APIBase):
         # which is a base64 encoded string of the form "username:token"
         # and THAT is what we need to use to authenticate
         credentials = token_response["basicAuthenticationCredentials"]
-        self.headers.update(
-            {
-                "Authorization": f"Basic {credentials}",
-            }
-        )
+        self.headers.update({
+            "Authorization": f"Basic {credentials}",
+        })
         super().login()
+
+        # Setting up configuration ID must be done before any API calls that require it
+        # but cannot be done until after login, so we might as well do it here
+
+        if self.configuration:
+            # get the configuration ID by name
+            configurations = self.get(self.url / "api/v2/configurations", params=dict(filter=f"name:eq('{self.configuration}')")).json()["data"]
+            if not configurations:
+                raise ValueError(f"Configuration '{self.configuration}' not found")
+            if len(configurations) > 1:
+                raise ValueError(f"Multiple configurations found with name '{self.configuration}'")
+            conf_id = configurations[0]["id"]
+            logger.info(f"Using configuration '{self.configuration}' with ID {conf_id}")
+        else:
+            # old behaviour, kept around for compatability
+            conf_id = self.get(self.api_url / "configurations").json()["data"][0]["id"]
+            logger.warning(f"No configuration specified, using first configuration found: {conf_id}")
+
+        self.configuration_id = conf_id
+        self.api_url = self.safe_append_path(self.url, f"api/v2/configurations/{conf_id}")
+
 
     def logout(self):
         # Bluecat REST V2 API does not have a logout endpoint
         pass
 
-    def put(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs): # pyright: ignore[reportIncompatibleMethodOverride]
+    def put(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
         # Every change in bluecat requires a comment
         headers = kwargs.setdefault("headers", {})
         headers["x-bcn-change-control-comment"] = comment
         return super().put(url, data, json=json, **kwargs)
 
-    def post(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs): # pyright: ignore[reportIncompatibleMethodOverride]
+    def post(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
         # Every change in bluecat requires a comment
         headers = kwargs.setdefault("headers", {})
         headers["x-bcn-change-control-comment"] = comment
@@ -87,10 +106,7 @@ class API(APIBase):
             res = self.get(res["_links"]["next"]["href"]).json()
             data.extend(res["data"])
         return data
-
-    @cached_property
-    def configuration_id(self) -> int:
-        return self.get(self.api_url / "configurations").json()["data"][0]["id"]
+        
 
     def find_parent_container(
         self, container_type: Literal["blocks", "networks", "any"], addr: str | IPAddress
@@ -115,9 +131,8 @@ class API(APIBase):
             except ValueError:
                 return self.find_parent_container("blocks", addr)
         assert container_type in ["blocks", "networks"]
-        containers = self.get(self.api_url / container_type, params=dict(filter=f"range:contains('{addr}')")).json()[
-            "data"
-        ]
+        params = dict(filter=f"range:contains('{addr}')")
+        containers = self.get(self.api_url / container_type, params=params).json()["data"]
         if not containers:
             raise ValueError(f"No {container_type} found containing {addr}")
         # blocks returned from api are sorted from largest prefix (ie /8) to smallest (ie /24)
@@ -155,10 +170,39 @@ class API(APIBase):
         """
         return self.find_parent_container("networks", addr)
 
+    def get_container_default_zones(
+        self, container_id: str | int, container_type: Literal["blocks", "networks"]
+    ) -> list[dict[str, Any]]:
+        """
+        Get the default zone for a given container.
+
+        Args:
+            container_id (str | int): The ID of the container.
+            container_type (Literal['blocks', 'networks']): The type of the container.
+
+        Returns:
+            dict[str, Any]: A dictionary representing the default zone for the given container.
+        """
+        assert container_type in ["blocks", "networks"]
+        return self.get(f"/{container_type}/{container_id}/defaultZones").json()["data"]
+
+    # get an address by ip
+    def get_address(self, address: str | IPAddress, **kwargs) -> dict[str, Any]:
+        """
+        Get an address by its IP.
+
+        Args:
+            address (str | IPAddress): The IP address to search for.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The address object if found, otherwise raises an error.
+        """
+        return self.get("/addresses", params=dict(filter=f"address:eq('{address}')"), **kwargs).json()
+
     @overload
     def create_address(
         self,
-        parent_id: str | int,
         address: str,
         type_: Literal["IPv4Address", "IPv6Address"],
         **kwargs,
@@ -167,7 +211,6 @@ class API(APIBase):
     @overload
     def create_address(
         self,
-        parent_id: str | int,
         address: IPAddress,
         type_: None = None,
         **kwargs,
@@ -175,17 +218,18 @@ class API(APIBase):
 
     def create_address(
         self,
-        parent_id: str | int,
         address: str | IPAddress,
         type_: Literal["IPv4Address", "IPv6Address"] | None = None,
+        parent_id: str | int | None = None,
         name: str | None = None,
         comment: str = "Address created by uoft_bluecat tool",
         state: IPAddressState = "STATIC",
-        create_host_record: bool = True,
         create_reverse_record: bool = True,
         **kwargs,
-    ) -> dict[str, Any]:
-        json = kwargs.setdefault("json", {})
+    ) -> ts.IPv4Address | ts.IPv6Address:
+        json = kwargs.pop("json", {})
+        if parent_id is None:
+            parent_id = self.find_parent_network(address)["id"]
         if isinstance(address, IPAddress):
             # If we're given an IPAddress object, we can derive type_ from it
             type_ = "IPv6Address" if address.version == 6 else "IPv4Address"
@@ -202,14 +246,84 @@ class API(APIBase):
             kwargs.setdefault("headers", {})["x-bcn-create-reverse-record"] = "false"
 
         url = f"/networks/{parent_id}/addresses"
-        if state == "GATEWAY" and type_ == "IPv4Address":
+
+        try:
+            res = self.post(url, json=json, comment=comment, **kwargs).json()
+        except RESTAPIError as e:
+            print(e)
+            exit()
+
+            # if state == "GATEWAY" and type_ == "IPv4Address":
             # bluecat automatically creates a blank gateway address for each IPv4 network
             # and does not allow you to manually create your own.
             # we can achieve the desired effect by fetching and updating the existing gateway address
             # this is a workaround for the bluecat API's limitations
             gw_id = self.get(url, params=dict(limit=1, filter="state:'GATEWAY'")).json()["data"][0]["id"]
-            return self.put(f"/addresses/{gw_id}", comment="Testing", **kwargs).json()
-        return self.post(url, comment=comment, **kwargs).json()
+            res = self.put(f"/addresses/{gw_id}", json=json, comment="Testing", **kwargs).json()  # pyright: ignore[reportArgumentType]
+
+        return res
+
+    def update_address(
+        self,
+        address_id: str | int,
+        name: str | None = None,
+        comment: str = "Address updated by uoft_bluecat tool",
+        state: IPAddressState = "STATIC",
+        create_reverse_record: bool | None = None,
+        **kwargs,
+    ) -> dict[str, Any]:
+        """
+        Update an existing address in Bluecat.
+        Args:
+            address_id (str | int): The ID of the address to update.
+            name (str | None): The new name for the address.
+            comment (str): A comment for the change control.
+            state (IPAddressState | None): The new state of the address.
+            create_reverse_record (bool | None): Whether to create a reverse record.
+            **kwargs: Additional keyword arguments to pass to the request.
+        Returns:
+            dict[str, Any]: The updated address object.
+        """
+        json = kwargs.setdefault("json", {})
+        if name:
+            json["name"] = name
+        if state:
+            json["state"] = state
+        if create_reverse_record is not None:
+            kwargs.setdefault("headers", {})["x-bcn-create-reverse-record"] = str(create_reverse_record).lower()
+        return self.put(f"/addresses/{address_id}", comment=comment, **kwargs).json()
+
+    def create_host_record(
+        self,
+        name: str,
+        address_id: int,
+        zone_id: int,
+        comment: str = "Host record created by uoft_bluecat tool",
+    ):
+        json = ts.hostrecord_post(
+            name=name,
+            addresses=[{"id": address_id}],
+            type="HostRecord",
+        )
+        return self.post(
+            f"/zones/{zone_id}/resourceRecords",
+            json=json,  # pyright: ignore[reportArgumentType]
+            comment=comment,
+        ).json()
+
+    def create_address_and_host(
+        self,
+        ip_address: IPAddress,
+        name: str,
+        dns_zone: str = "netmgmt.utsc.utoronto.ca",
+        comment: str = "Address and host record created by uoft_bluecat tool",
+        state: IPAddressState = "STATIC",
+    ):
+        logger.info(f"Creating address {ip_address} with name {name} in zone {dns_zone}")
+        address = self.create_address(ip_address, name=name, state=state, comment=comment)
+        zone = self.get("/zones", params=dict(filter=f"absoluteName:eq('{dns_zone}')")).json()['data'][0]
+        res = self.create_host_record(name, address["id"], zone["id"], comment=comment)
+        return res
 
     def create_network(
         self,
