@@ -1,0 +1,33 @@
+[project]
+name = "uoft_occupancy"
+description = "Occupancy tracking"
+authors = [
+    { name = "Kyle-Fozo", email = "kyle.fozo@utoronto.ca" },
+    { name = "University of Toronto", email = "alex.tremblay@utoronto.ca" },
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
+dependencies = [
+    "uoft_core",
+    "sqlalchemy_views",
+]
+
+[project.urls]
+Repository = "https://github.com/uoft-networking/tools/tree/main/projects/occupancy"
+
+[project.scripts]
+uoft-occupancy = "uoft_occupancy.cli:cli"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.version]
+source = "scm"
+
+[tool.pdm.build]
+custom-hook = "pyproject.py"
+includes = ["uoft_occupancy"]
+excludes = ["**/tests", "**/__pycache__"]

@@ -58,6 +58,7 @@ ALL_PROJECTS = [
     "grist",
     "librenms",
     "nautobot",
+    "occupancy",
     "paloalto",
     "phpipam",
     "scripts",

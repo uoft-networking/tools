@@ -18,6 +18,7 @@ dependencies = [
     "uoft-grist",
     "uoft-librenms",
     "uoft-nautobot",
+    "uoft-occupancy",
     "uoft-paloalto",
     "uoft-phpipam",
     "uoft-scripts",
@@ -84,6 +85,7 @@ uoft-core = { workspace = true }
 uoft-grist = { workspace = true }
 uoft-librenms = { workspace = true }
 uoft-nautobot = { workspace = true }
+uoft-occupancy = { workspace = true }
 uoft-paloalto = { workspace = true }
 uoft-phpipam = { workspace = true }
 uoft-scripts = { workspace = true }
@@ -179,6 +181,7 @@ exclude = [
     "hazmat",
     "**/.dev_data",
     "**/_private",
+    "utm-tools"
 ]
 ignore = [
     "**/_vendor",

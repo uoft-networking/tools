@@ -1,0 +1,6 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_src_path: tasks/_new_project/template
+author_email: kyle.fozo@utoronto.ca
+author_name: Kyle-Fozo
+description: Occupancy tracking
+name: occupancy

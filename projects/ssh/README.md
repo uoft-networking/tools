@@ -101,6 +101,7 @@ import _cog as c; c.gen_conf_table('uoft_ssh')
 | admin | Credentials |  | Credentials for the admin user. |  |
 | personal | Credentials |  | Your personal credentials. |  |
 | other | SecretStr |  | Other, optional credentials. |  |
+| terminal_server | Credentials |  | Credentials for the tripplite terminal servers. |  |
 <!--[[[end]]] -->
 
 ## License
