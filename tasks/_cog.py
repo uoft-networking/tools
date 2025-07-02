@@ -35,21 +35,20 @@ def gen_conf_table(module_path: str, class_name: str = "Settings"):
 
 def all_projects_as_python_list():
     "Generate a list of all projects in the uoft-* namespace."
+    projects = sorted([p for p in Path("projects").iterdir() if p.is_dir()])
     cog.outl("ALL_PROJECTS = [")
-    for p in Path("projects").iterdir():
-        if not p.is_dir():
-            continue
+    for p in projects:
         cog.outl(f'    "{p.name}",')
     cog.outl("]")
 
 
 def all_projects_as_dependencies():
     "Generate a list of all projects in the uoft-* namespace as dependencies."
-    for p in Path("projects").iterdir():
+    for p in sorted(Path("projects").iterdir(), key=lambda x: x.name):
         if not p.is_dir():
             continue
         cog.outl(f'    "uoft-{p.name}",')
-    for p in Path("custom-forks").iterdir():
+    for p in sorted(Path("custom-forks").iterdir(), key=lambda x: x.name):
         if not p.is_dir():
             continue
         if p.name.startswith("_"):
@@ -59,11 +58,11 @@ def all_projects_as_dependencies():
 
 def all_projects_as_uv_sources():
     "Generate a list of all projects in the uoft-* namespace as uv sources."
-    for p in Path("projects").iterdir():
+    for p in sorted(Path("projects").iterdir(), key=lambda x: x.name):
         if not p.is_dir():
             continue
         cog.outl(f"uoft-{p.name} = {{ workspace = true }}")
-    for p in Path("custom-forks").iterdir():
+    for p in sorted(Path("custom-forks").iterdir(), key=lambda x: x.name):
         if not p.is_dir():
             continue
         if p.name.startswith("_"):
