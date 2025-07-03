@@ -39,7 +39,6 @@ RawRecord = TypedDict(
 class Department(BaseModel):
     """This is what all Department models must look like.  Some fields are optional, some are not."""
 
-    ### TODO: Clean source data in pass
     departmental_users: list[str]  # Optional
     watermarks: dict[str, int]  # Optional
     apgroups: dict[str, list[str]]  # Required
