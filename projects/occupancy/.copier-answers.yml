@@ -1,6 +1,6 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_src_path: tasks/new_project_template
+_src_path: tasks/_new_project/template
 author_email: kyle.fozo@utoronto.ca
 author_name: Kyle-Fozo
-description: UofT Grist - Utilization Reporting
-name: grist
+description: Occupancy tracking
+name: occupancy
