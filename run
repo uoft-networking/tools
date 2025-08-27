@@ -41,7 +41,7 @@ find_uv() {
         return
     fi
     # search in uv's standard install locations, in case they're not in $PATH
-    for uv in $CARGO_HOME/bin/uv $HOME/.cargo/bin/uv $HOME/.local/bin; do
+    for uv in ${CARGO_HOME:-$HOME/.cargo}/bin/uv $HOME/.local/bin/uv; do
         if command -v "$uv" >/dev/null 2>&1; then
             uv_bin="$uv"
             return
