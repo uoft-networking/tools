@@ -82,7 +82,6 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
             url = url.with_scheme("https")
         self.url = url
         self.api_url = self.safe_append_path(url, api_root)
-        self.hooks["response"].append(self.handle_errors)
         self.verify = verify
         if not self.verify:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -97,19 +96,6 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
         # so we need to strip the leading slash from the path before joining it to the URL
         path = path.lstrip("/")
         return url / path
-
-    def handle_errors(self, response: Response, *args, **kwargs):
-        try:
-            response.raise_for_status()
-        except HTTPError as e:
-            # the goal of error handling here is to enhance the error message
-            # by extracting the error message from the JSON response, if available
-            # and to convert the error to a RESTAPIError, which is a subclass of HTTPError
-            # that contains the JSON data in the `data` attribute.
-            new_err = RESTAPIError.from_http_error(e)
-            raise new_err from e
-
-        return response
 
     def login(self):
         # login is called in __enter__, so it must not require any parameters.
@@ -137,18 +123,35 @@ class APIBase(Session):  # pyright: ignore[reportRedeclaration] # APIBase will b
 
         # convert URL to string before passing it on to the super class
         url = str(url)
-        return super().request(method, url, *args, **kwargs)
+        res = super().request(method, url, *args, **kwargs)
+        try:
+            res.raise_for_status()
+        except HTTPError as e:
+            # the goal of error handling here is to enhance the error message
+            # by extracting the error message from the JSON response, if available
+            # and to convert the error to a RESTAPIError, which is a subclass of HTTPError
+            # that contains the JSON data in the `data` attribute.
+            new_err = RESTAPIError.from_http_error(e)
+            raise new_err
+
+        return res
 
     def threadpool(self, *args, **kwargs):
-        return ThreadedAPIPool(*args, **kwargs)
+        return ThreadedAPIPool(self, *args, **kwargs)
 
 
 class ThreadedAPIPool(ThreadPoolExecutor):
-    # Attach common threadpool primitives to the pool itself 
+    # Attach common threadpool primitives to the pool itself
     # so they don't need to be re-imported everywhere they are needed
     Future = Future
-    as_completed = as_completed
-    wait = wait
+
+    @staticmethod
+    def as_completed(fs, *args, **kwargs):
+        return as_completed(fs, *args, **kwargs)
+
+    @staticmethod
+    def wait(fs, *args, **kwargs):
+        return wait(fs, *args, **kwargs)
 
     def __init__(self, api: APIBase, *args, **kwargs):
         thread_name_prefix = kwargs.pop("thread_name_prefix", None) or f"{api.__class__.__name__}-thread"
