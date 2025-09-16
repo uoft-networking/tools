@@ -61,7 +61,7 @@ class Settings(BaseSettings):
 
     psql_database: str = Field(
         title="PSQL Database name",
-        description="The username used to manage the PSQL database.",
+        description="The name of the PSQL database.",
     )
 
     psql_host: str = Field(

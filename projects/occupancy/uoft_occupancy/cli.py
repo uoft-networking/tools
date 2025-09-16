@@ -10,6 +10,7 @@ from collections import defaultdict
 from sqlmodel import SQLModel, Session, create_engine
 from . import Settings, Occupancy_Tracking, RawRecord
 import json
+import concurrent.futures
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +80,21 @@ def cli():
 
 @app.command()
 def run_polls():
-    data = get_data_raw()
+    data = get_data_raw_threaded()
     data = filter_data(data)
     data = count_data(data)
     write_to_db(data)
 
 
-def get_data_raw():
+@app.command()
+def show_groups():
+    s = Settings().from_cache()
+    for department in s.departments.values():
+        for apgroup in department.apgroups:
+            print(apgroup)
+
+
+def get_data_raw(host):
     # region example data
     # {'AP name': '<AP_NAME>',
     #  'Age(d:h:m)': '00:00:06',
@@ -103,16 +112,20 @@ def get_data_raw():
     #  'User Type': 'WIRELESS',
     #  'VPN link': None}
     # endregion
+    with host:
+        res = host.showcommand("show user-table unique ip")["Users"]
+    return res
+
+
+def get_data_raw_threaded():
     s = Settings().from_cache()
-    raw_data = []
-    try:
-        for host in s.md_api_connections:
-            with host:
-                raw_data.extend(host.showcommand("show user-table unique ip")["Users"])
-    except Exception:
-        logger.exception("Cannot source data.")
-        sys.exit()
-    return raw_data
+    data = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(get_data_raw, host) for host in s.md_api_connections]
+        for future in concurrent.futures.as_completed(futures):
+            host_data = future.result()
+            data.extend(host_data)
+    return data
 
 
 def filter_data(raw_data: list[RawRecord]):
