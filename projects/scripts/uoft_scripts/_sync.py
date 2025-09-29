@@ -17,13 +17,14 @@ calling the synchronize method on the destination manager instance,
 and then calling the synchronize method on the source manager instance.
 """
 
+from functools import cached_property
 import typing as t
 import threading
 import re
 import concurrent.futures as cf
 
-from uoft_core.types import IPNetwork, BaseModel
-from uoft_core import Field
+from uoft_core.api import RESTAPIError
+from uoft_core.types import IPNetwork, BaseModel, Field
 from uoft_core.prompt import Prompt
 from uoft_bluecat import Settings as BluecatSettings
 from uoft_librenms import Settings as LibrenmsSettings
@@ -60,11 +61,23 @@ OnOrphanAction: t.TypeAlias = t.Literal["prompt", "delete", "backport", "skip"]
 
 
 class IPAddressModel(BaseModel):
-    address: str  # CIDR notation
+    address: str
     prefixlen: int
     name: str
     status: Status
     dns_name: str
+
+    @cached_property
+    def _interface(self):
+        return IPNetwork(f"{self.address}/{self.prefixlen}")
+
+    @property
+    def interface(self):
+        """
+        Returns the CIDR of this address as an IPNetwork object.
+        This is a cached property to avoid recalculating it multiple times.
+        """
+        return self._interface
 
 
 class PrefixModel(BaseModel):
@@ -72,6 +85,18 @@ class PrefixModel(BaseModel):
     description: str
     type: PrefixType
     status: Status
+
+    @cached_property
+    def _ip_network(self):
+        return IPNetwork(self.prefix)
+
+    @property
+    def ip_network(self) -> IPNetwork:
+        """
+        Returns the IPNetwork object for this prefix.
+        This is a cached property to avoid recalculating it multiple times.
+        """
+        return self._ip_network
 
 
 class DeviceModel(BaseModel):
@@ -131,13 +156,13 @@ class Target:
     def preprocess(self, source: str | None = None, dest: str | None = None):
         pass
 
-    def create(self, records: dict[DatasetName, dict[CommonID, BaseModel]]):
+    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         raise NotImplementedError
 
-    def update(self, records: dict[DatasetName, dict[CommonID, DatasetUpdate]]):
+    def update(self, recordset: dict[DatasetName, dict[CommonID, DatasetUpdate]]):
         raise NotImplementedError
 
-    def delete(self, records: dict[DatasetName, dict[CommonID, BaseModel]]):
+    def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         raise NotImplementedError
 
 
@@ -211,21 +236,21 @@ class SyncManager:
         orphaned_records = ", ".join([
             f"{len(records)} orphaned {dataset}" for dataset, records in self.changes.delete.items()
         ])
-        records_to_create = f"{records_to_create} to create, " if records_to_create else ""
-        records_to_update = f"{records_to_update} to update, " if records_to_update else ""
+        records_to_create = f"{records_to_create} to create" if records_to_create else ""
+        records_to_update = f"{records_to_update} to update" if records_to_update else ""
         orphaned_records = (
             f"{orphaned_records} (records that exist in the destination system, but not in the source system)"
             if orphaned_records
             else ""
         )
-        total_records = records_to_create + records_to_update + orphaned_records
+        total_records = ', '.join(filter(lambda x: x, [records_to_create, records_to_update, orphaned_records]))
         msg = f"Found {total_records}" if total_records else "No records to synchronize, everything is in sync!"
         logger.info(msg)
 
     def commit(self):
         assert self.changes is not None, "Synchronize must be called before commit"
         self.dest.create(self.changes.create)
-        self.dest.update(self.changes.update)
+        self.dest.update(recordset=self.changes.update)
 
         if self.changes.delete:
             self._handle_orphaned_records()
@@ -396,8 +421,7 @@ class NautobotTarget(Target):
                 devices = []
 
             statuses: dict[str, Status] = {
-                t.cast(str, s["id"]): t.cast(Status, s["name"])
-                for s in t.cast(list[Record], statuses_task.result())
+                t.cast(str, s["id"]): t.cast(Status, s["name"]) for s in t.cast(list[Record], statuses_task.result())
             }
             global_namespace_id = global_namespace_task.result()
             soft_delete_tag_id = soft_delete_tag_id_task.result()
@@ -425,13 +449,11 @@ class NautobotTarget(Target):
                     device.status = None
                     filtered_devices[device_name] = device
                 self.syncdata.devices = filtered_devices
-            else:
-                # strip the status from all devices. we no longer need it
-                assert self.syncdata.devices
+            elif self.syncdata.devices:
                 for device in self.syncdata.devices.values():
                     device.status = None
 
-    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
+    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         for dataset, records in recordset.items():
             if dataset == "prefixes":
                 self.create_prefixes(records)  # pyright: ignore[reportArgumentType]
@@ -439,6 +461,7 @@ class NautobotTarget(Target):
                 self.create_addresses(records)  # pyright: ignore[reportArgumentType]
             elif dataset == "devices":
                 self.create_devices(records)  # pyright: ignore[reportArgumentType]
+
     def create_prefixes(self, prefixes: dict[network_prefix_as_str, PrefixModel]):
         logger.info(f"Nautobot: Creating {len(prefixes)} prefixes")
         for data in prefixes.values():
@@ -471,12 +494,12 @@ class NautobotTarget(Target):
     def create_devices(self, devices: dict[str, DeviceModel]):
         raise NotImplementedError
 
-    def update(self, recordset: dict[DatasetName, dict[CommonID, DatasetUpdate]]): # pyright: ignore[reportIncompatibleMethodOverride]
+    def update(self, recordset: dict[DatasetName, dict[CommonID, DatasetUpdate]]):
         for dataset, records in recordset.items():
             if dataset == "prefixes":
-                self.update_prefixes(records) 
+                self.update_prefixes(records)
             elif dataset == "addresses":
-                self.update_addresses(records) 
+                self.update_addresses(records)
             elif dataset == "devices":
                 self.update_devices(records)  # pyright: ignore[reportArgumentType]
 
@@ -516,7 +539,7 @@ class NautobotTarget(Target):
     def update_devices(self, devices: dict[str, tuple[DeviceModel, DeviceModel]]):
         raise NotImplementedError
 
-    def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
+    def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         for dataset, records in recordset.items():
             logger.info(f"Nautobot: Deleting {len(records)} {dataset}")
             with cf.ThreadPoolExecutor(thread_name_prefix="nautobot_delete") as executor:
@@ -569,9 +592,53 @@ class BluecatRawData(BaseModel):
 class BluecatTarget(Target):
     name = "bluecat"
 
-    def __init__(self) -> None:
-        self.api = BluecatSettings.from_cache().alt_api_connection()
+    def __init__(self, configuration=None) -> None:
+        self.configuration = configuration or "UTSCProduction"
+        self.api = BluecatSettings.from_cache().get_api_connection(configuration)
         self.api.login()
+
+    @cached_property
+    def _status_pattern(self):
+        # groups: reserved, deprecated
+        pattern = re.compile(
+            r"""
+            (reserve[d]?|tbd|do-not-use|cannot-use|avoid\ this) # reserved
+            |(to-be-moved|remove[d]?|deprecated|old-|unused|replaced|decommissioned|legacy|reclaimed) # deprecated
+        """,
+            re.VERBOSE | re.IGNORECASE,
+        )
+        return pattern
+
+    def _infer_status(self, name):
+        match = self._status_pattern.search(name)
+        if match and match.group(1):
+            status = "Reserved"
+        elif match and match.group(2):
+            status = "Deprecated"
+        else:
+            status = "Active"
+        return status
+
+    def _is_gateway(self, addr: IPAddressModel) -> bool:
+        if addr.interface.version == 6:
+            return False
+        if addr.prefixlen > 30:
+            # /31s do not have gateway addresses in bluecat
+            return False
+        return addr.interface.ip == addr.interface.network + 1
+
+    def _name_missing_status_indicator(self, name: str) -> bool:
+        """
+        Check if the name needs a suffix to denote the object's status.
+        This is used to determine if we need to append "-DEPRECATED" or "-RESERVED"
+        to the name when creating an address.
+        """
+        # Bluecat does not have a "deprecated" state for addresses or prefixes,
+        # so we parse the name to check if it contains any keywords that indicate
+        # that the address or prefix is deprecated, and when writing objects back to bluecat,
+        # we append "-DEPRECATED" to the name, but only if the object name doesn't already contain
+        # a deprecation indicator.
+        return self._status_pattern.search(name) is None
 
     def load_data(self, datasets: set[DatasetName]):
         raw_data = self.load_data_raw(datasets)
@@ -605,6 +672,10 @@ class BluecatTarget(Target):
             name = raw_net["name"] or ""
             status = self._infer_status(name)
             prefix: str = raw_net["range"]  # type: ignore
+            # Bluecat sometimes returns ip addresses and prefixes in lowercase, sometimes in uppercase,
+            # so we normalize them to lowercase for consistency
+            prefix = prefix.lower()
+
             objects_by_ip[prefix] = raw_net
             local_ids[prefix] = raw_net["id"]
             prefixes[prefix] = PrefixModel(
@@ -623,13 +694,12 @@ class BluecatTarget(Target):
 
         for raw_addr in raw_data.addrs:
             name = raw_addr["name"] or ""
-            if raw_addr["type"] == "GATEWAY" and not name:
-                # skip gateway addresses without a name, they're an artifact of Bluecat,
-                # not actual records we want to track
-                continue
             raw_id = raw_addr["id"]
             objects_by_id[raw_id] = raw_addr
             address = raw_addr["address"]
+            # Bluecat sometimes returns ip addresses and prefixes in lowercase, sometimes in uppercase,
+            # so we normalize them to lowercase for consistency
+            address = address.lower()
             objects_by_ip[address] = raw_addr
             local_ids[address] = raw_addr["id"]
 
@@ -651,27 +721,8 @@ class BluecatTarget(Target):
             )
         return addresses
 
-    def _infer_status(self, name):
-        # groups: reserved, deprecated
-        pattern = re.compile(
-            r"""
-            (reserve[d]?|tbd|do-not-use|cannot-use|avoid\ this) # reserved
-            |(to-be-moved|remove[d]?|deprecated|old-|unused|replaced|decommissioned|legacy|reclaimed) # deprecated
-        """,
-            re.VERBOSE | re.IGNORECASE,
-        )
-
-        match = pattern.search(name)
-        if match and match.group(1):
-            status = "Reserved"
-        elif match and match.group(2):
-            status = "Deprecated"
-        else:
-            status = "Active"
-        return status
-
     def load_data_raw(self, datasets: set[DatasetName]):
-        with logging.Context("Bluecat"):
+        with logging.Context(f"Bluecat-{self.configuration}"):
             if "prefixes" in datasets or "addresses" in datasets:
                 # prefix data is needed to find parent prefixes for addresses
                 blocks = self.api.get_all("/blocks")
@@ -692,7 +743,7 @@ class BluecatTarget(Target):
             addrs=addrs,
         )
 
-    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
+    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
         created_ids = []
         if "prefixes" in recordset:
             created_ids.extend(self.create_prefixes(recordset["prefixes"]))  # pyright: ignore[reportArgumentType]
@@ -708,35 +759,36 @@ class BluecatTarget(Target):
 
         # create prefixes in order from largest to smallest,
         # so that the parent prefix is created before the child prefix
-        prefixes_to_create = sorted([IPNetwork(p) for p in prefixes.keys()], key=lambda x: x.prefixlen)
-        for net in prefixes_to_create:
-            data = prefixes[str(net)]
-            new_id = self.create_prefix(net, data)
+        prefixes_to_create = sorted([p for p in prefixes.values()], key=lambda x: x.ip_network.prefixlen)
+        for pfx in prefixes_to_create:
+            res = self.create_prefix(pfx)
+            new_id = res["id"]
             created_ids.append(new_id)
             # add the new id to the local_ids table
-            self.syncdata.local_ids[data.prefix] = new_id
+            self.syncdata.local_ids[pfx.prefix] = new_id
             # add the new network to the syncdata prefixes dict
             # so it can be looked up and used as a parent_id for a smaller prefix being created at the same time
             assert self.syncdata.prefixes
-            self.syncdata.prefixes[data.prefix] = data
+            self.syncdata.prefixes[pfx.prefix] = pfx
         return created_ids
 
-    def create_prefix(self, net: IPNetwork, data: PrefixModel):
-        parent_id: int = self.find_parent_id(net)
-        name = data.description
-        if data.status == "Deprecated":
+    def create_prefix(self, pfx: PrefixModel):
+        parent_id: int = self._find_parent_id(pfx.ip_network)
+        name = pfx.description
+        if pfx.status == "Deprecated" and self._name_missing_status_indicator(name):
             name += "-DEPRECATED"
-        elif data.status == "Reserved":
+        elif pfx.status == "Reserved" and self._name_missing_status_indicator(name):
             name += "-RESERVED"
-        if data.type == "container":
+        logger.info(f"Creating prefix {pfx.prefix} with name {name}")
+        if pfx.type == "container":
             return self.api.create_block(
-                range=net,
+                range=pfx.ip_network,
                 name=name,
                 parent_id=parent_id,
             )
-        elif data.type == "network":
+        elif pfx.type == "network":
             return self.api.create_network(
-                range=net,
+                range=pfx.ip_network,
                 name=name,
                 parent_id=parent_id,
             )
@@ -744,9 +796,177 @@ class BluecatTarget(Target):
             raise NotImplementedError("TODO: add support for pools / ip ranges")
 
     def create_addresses(self, addresses: dict[ip_address_as_str, IPAddressModel]):
-        return []
+        created_ids = []
+        for addr in addresses.values():
+            res = self.create_address(addr)
+            new_id = res["id"]
+            created_ids.append(new_id)
+        return created_ids
 
-    def find_parent_id(self, this_net: IPNetwork) -> int:
+    def create_address(self, addr: IPAddressModel):
+        state = "STATIC"
+        name = addr.name
+        if self._is_gateway(addr):
+            state = "GATEWAY"
+        elif addr.status == "Reserved" and self._name_missing_status_indicator(name):
+            state = "RESERVED"
+        elif addr.status == "Deprecated" and self._name_missing_status_indicator(name):
+            name += "-DEPRECATED"
+
+        # create the address in Bluecat
+        logger.info(f"Creating address {addr.address} with name {name} and state {state}")
+        address = self.api.create_address(
+            address=addr.interface.ip,
+            name=name,
+            state=state,
+        )
+        if addr.dns_name:
+            self.create_or_update_host_record(addr, address["id"])
+        return address
+
+    def create_or_update_host_record(self, addr: IPAddressModel, ip_address_id: int):
+        """
+        Create or update a host record in Bluecat for the given DNS name and address ID.
+        If the host record already exists, it will be updated to include the new address.
+        """
+        assert "." in addr.dns_name, f"{addr}: DNS name must be a fully qualified domain name"
+        dns_host, _, dns_zone = addr.dns_name.partition(".")
+        logger.info(f"Creating address {addr.address} with name {dns_host} in zone {dns_zone}")
+        zone = self.api.get("/zones", params=dict(filter=f"absoluteName:eq('{dns_zone}')")).json()["data"]
+        if len(zone) == 0:
+            logger.warning(f"Zone '{dns_zone}' not found. Creating it now.")
+            zone = self.api.create_zone(dns_zone)
+        else:
+            zone = zone[0]
+        try:
+            self.api.create_host_record(dns_host, ip_address_id, zone["id"])
+        except RESTAPIError as e:
+            if e.data and "code" in e.data and e.data["code"] == "ResourceAlreadyExists":
+                logger.warning(
+                    f"Host record {dns_host} already exists in zone {dns_zone}, adding {addr.address} to it..."
+                )
+                host = self.api.get_host_record(addr.dns_name, params=dict(fields="embed(addresses)"))
+                addresses = host.pop("_embedded", {}).get("addresses", [])
+                addresses.append({"id": ip_address_id})
+                host["addresses"] = addresses
+                self.api.update_host_record(host["id"], host)
+            else:
+                logger.error(f"Failed to create host record {dns_host} in zone {dns_zone}: {e}")
+                raise e
+
+    def remove_address_from_host_record(self, host_record_name: str, address_id: int, addr_info: IPNetwork):
+        host = self.api.get_host_record(absolute_name=host_record_name, params=dict(fields="embed(addresses)"))
+        addresses = host.pop("_embedded", {}).get("addresses", [])
+        if len(addresses) > 1:
+            # remove this address from the host record
+            logger.info(f"Removing address {addr_info.ip} from DNS record {host_record_name}")
+            for entry in addresses.copy():
+                if entry["id"] == address_id:
+                    addresses.remove(entry)
+            host["addresses"] = addresses
+            self.api.update_host_record(host["id"], host)
+        else:
+            # if this is the only address in the host record, delete the host record
+            logger.warning(f"Deleting old DNS record {host_record_name} for address {addr_info.ip}")
+            self.api.delete_host_record(host["id"])
+
+    def update(self, recordset: dict[DatasetName, dict[CommonID, DatasetUpdate]]):
+        for dataset, records in recordset.items():
+            if dataset == "prefixes":
+                self.update_prefixes(records)
+            elif dataset == "addresses":
+                self.update_addresses(records)
+
+    def update_prefixes(self, prefixes: dict[network_prefix_as_str, DatasetUpdate]):
+        logger.info(f"Bluecat: Updating {len(prefixes)} prefixes")
+        for record in prefixes.values():
+            src_pfx = t.cast(PrefixModel, record["source"])
+            dest_pfx = t.cast(PrefixModel, record["dest"])
+            id_ = t.cast(int, self.syncdata.local_ids[dest_pfx.prefix])
+            ip_network = src_pfx.ip_network
+
+            name = src_pfx.description
+            if src_pfx.status == "Deprecated" and self._name_missing_status_indicator(name):
+                # bluecat does not have a "deprecated" state, so we append "-DEPRECATED
+                name += "-DEPRECATED"
+            elif src_pfx.status == "Reserved" and self._name_missing_status_indicator(name):
+                # bluecat does not have a "reserved" state for prefixes, so we append "-RESERVED
+                name += "-RESERVED"
+
+            if src_pfx.type != dest_pfx.type:
+                logger.warning(
+                    f"Prefix {ip_network} type changed from {dest_pfx.type} to {src_pfx.type}, "
+                    "this is not supported, skipping update"
+                )
+                continue
+            if src_pfx.type == "container":
+                type_ = "IPv4Block" if ip_network.version == 4 else "IPv6Block"
+                logger.info(f"Bluecat: Updating block {ip_network} ({type_}) to {name}")
+                self.api.update_block(id_, {"name": name, "range": src_pfx.prefix, "type": type_})
+            elif src_pfx.type == "network":
+                type_ = "IPv4Network" if ip_network.version == 4 else "IPv6Network"
+                logger.info(f"Bluecat: Updating network {ip_network} ({type_}) to {name}")
+                self.api.update_network(id_, {"name": name, "range": src_pfx.prefix, "type": type_})
+            else:
+                raise NotImplementedError("TODO: add support for pools / ip ranges")
+
+    def update_addresses(self, addresses: dict[ip_address_as_str, DatasetUpdate]):
+        logger.info(f"Bluecat: Updating {len(addresses)} addresses")
+        for record in addresses.values():
+            src_addr = t.cast(IPAddressModel, record["source"])
+            dest_addr = t.cast(IPAddressModel, record["dest"])
+            id_ = t.cast(int, self.syncdata.local_ids[dest_addr.address])
+
+            interface = src_addr.interface
+            name = src_addr.name
+            state = "STATIC"
+            # if address is the first address in a prefix, it is a gateway address
+            if interface.ip == interface.network + 1:
+                state = "GATEWAY"
+            elif src_addr.status == "Reserved":
+                state = "RESERVED"
+            elif src_addr.status == "Deprecated" and self._name_missing_status_indicator(name):
+                # bluecat does not have a "deprecated" state, so we append "-DEPRECATED" to the name
+                name += "-DEPRECATED"
+
+            if src_addr.dns_name != dest_addr.dns_name:
+                if dest_addr.dns_name:
+                    self.remove_address_from_host_record(
+                        host_record_name=dest_addr.dns_name, address_id=id_, addr_info=interface
+                    )
+                if src_addr.dns_name:
+                    # if dns record with this name already exists, add this address to it
+                    self.create_or_update_host_record(src_addr, id_)
+            logger.info(f"Bluecat: Updating address {src_addr.address} ({src_addr.status}) to {name} ({state})")
+            self.api.update_address(id_, name, state=state)
+
+    def delete(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
+        for dataset, records in recordset.items():
+            if dataset == "prefixes":
+                self.delete_prefixes(records)  # pyright: ignore[reportArgumentType]
+            elif dataset == "addresses":
+                self.delete_addresses(records)  # pyright: ignore[reportArgumentType]
+
+    def delete_prefixes(self, prefixes: dict[network_prefix_as_str, PrefixModel]):
+        logger.info(f"Bluecat: Deleting {len(prefixes)} prefixes")
+        # sort prefixes by prefix length, from highest to lowest,
+        # so that we delete child prefixes before parent prefixes
+        for pfx in sorted(prefixes.values(), key= lambda x: x.ip_network.prefixlen, reverse=True):
+            id_ = self.syncdata.local_ids[pfx.prefix]
+            msg = f"Deleting prefix {pfx.prefix} ({pfx.type})"
+            logger.info(f"Bluecat: {msg}")
+            url = f"/blocks/{id_}" if pfx.type == "container" else f"/networks/{id_}"
+            self.api.delete(url, comment=msg)
+
+    def delete_addresses(self, addresses: dict[ip_address_as_str, IPAddressModel]):
+        logger.warning(f"Bluecat: Deleting {len(addresses)} addresses")
+        for addr in addresses.values():
+            id_ = self.syncdata.local_ids[addr.address]
+            msg = f"Deleting address {addr.address}"
+            logger.info(f"Bluecat: {msg}")
+            self.api.delete(f"/addresses/{id_}", comment=msg)
+
+    def _find_parent_id(self, this_net: IPNetwork) -> int:
         "Find the smallest parent prefix that contains the given prefix"
         v4_nets, v6_nets = self.all_nets()
         if this_net.version == 4:
@@ -756,9 +976,13 @@ class BluecatTarget(Target):
         # nets are already sorted from smallest to largest, so first hit should be the parent
         for net in nets:
             if this_net in net:
-                # uppercase prefix in local_ids because bluecat returns IPv6 addresses uppercased
-                return t.cast(int, self.syncdata.local_ids[str(net).upper()])
-        raise Exception(f"Parent prefix not found for {this_net}")
+                # WARNING: at some point, bluecat was returning IPv6 addresses in all uppercase
+                # and at some point it started returning them in lowercase. I have no idea why.
+                # so we need to normalize the address to lowercase before looking it up in local_ids
+                net = str(net).lower()
+                return t.cast(int, self.syncdata.local_ids[str(net)])
+        logger.warning(f"Parent prefix not found for {this_net}, using configuration root")
+        return self.api.configuration_id
 
     def all_nets(self):
         self._ipv4_nets = []
@@ -809,11 +1033,11 @@ class LibreNMSTarget(Target):
         logger.info("LibreNMS: Loading all devices")
         return self.api.devices.list_devices(order_type="all")["devices"]
 
-    def create(self, records: dict[DatasetName, dict[CommonID, DeviceModel]]): # pyright: ignore[reportIncompatibleMethodOverride]
-        devices = records["devices"]
+    def create(self, recordset: dict[DatasetName, dict[CommonID, BaseModel]]):
+        devices = recordset["devices"]
         logger.info(f"LibreNMS: Creating {len(devices)} devices")
         for device in devices.values():
-            self.create_device(device)
+            self.create_device(device)  # pyright: ignore[reportArgumentType]
 
     def create_device(self, device: DeviceModel):
         self.api.devices.add_device(
@@ -822,11 +1046,9 @@ class LibreNMSTarget(Target):
 
 
 def _debug():
-    sm = SyncManager(source=NautobotTarget(), dest=LibreNMSTarget(), datasets={"devices"})
+    sm = SyncManager(NautobotTarget(), BluecatTarget(), {"prefixes", "addresses"}, on_orphan="delete")  # pyright: ignore[reportArgumentType]
+
     sm.load()
-    # TODO: devices from nautobot have address + netmask, devices in librenms have ip
-    # can't just strip the netmask, as its needed for syncing to bluecat.
-    # need to find a way to customize the datasets to be synchronized based on the target destination...
     sm.synchronize()
-    print()
     sm.commit()
+    print("Done!")
