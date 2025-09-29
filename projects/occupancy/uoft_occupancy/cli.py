@@ -13,6 +13,10 @@ import json
 import concurrent.futures
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    log_errors_to_file=True,
+    level=logging.ERROR,
+)
 
 DEBUG_MODE = False
 
@@ -123,8 +127,12 @@ def get_data_raw_threaded():
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(get_data_raw, host) for host in s.md_api_connections]
         for future in concurrent.futures.as_completed(futures):
-            host_data = future.result()
-            data.extend(host_data)
+            try:
+                host_data = future.result()
+                data.extend(host_data)
+            except Exception as e:
+                logger.error(f"Unable to query, {e}")
+                sys.exit()
     return data
 
 
@@ -186,10 +194,18 @@ def count_data(unique_data: list[RawRecord]):
 def write_to_db(tally: dict):
     s = Settings().from_cache()
     engine = create_engine(s.get_db_connection)
-    SQLModel.metadata.create_all(engine)
+    try:
+        SQLModel.metadata.create_all(engine)
+    except Exception as e:
+        logger.error(f"Error managing DB, {e}")
+        sys.exit()
     with Session(engine) as session:
         for line in tally.values():
-            session.add(Occupancy_Tracking(**line))
+            try:
+                session.add(Occupancy_Tracking(**line))
+            except Exception as e:
+                logger.error(f"Error writing to DB, {e}")
+                sys.exit()
         session.commit()
 
 
