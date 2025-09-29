@@ -26,7 +26,9 @@ IPAddressState = Literal[
 
 
 class API(APIBase):
-    def __init__(self, base_url: str, username: str, password: str, configuration: str | None = None, verify: bool | str = True):
+    def __init__(
+        self, base_url: str, username: str, password: str, configuration: str | None = None, verify: bool | str = True
+    ):
         super().__init__(base_url, api_root="api/v2", verify=verify)
         self.username = username
         self.password = password
@@ -41,10 +43,8 @@ class API(APIBase):
         token_response = (
             super().post(self.api_url / "sessions", json={"username": self.username, "password": self.password}).json()
         )
-        # tok_data contains an apiToken field
-        # you would think that the api token would be a valid Bearer token, but it's not
-        # using it as such produces a 401 error
-        # thanks bluecat!
+        # tok_data contains an apiToken field. You would think that the api token would be a valid Bearer token,
+        # but it's not. Using it as such produces a 401 error. Thanks bluecat!
         # token = tok_data['apiToken']
         # tok_data also contains a basicAuthenticationCredentials field
         # which is a base64 encoded string of the form "username:token"
@@ -55,42 +55,72 @@ class API(APIBase):
         })
         super().login()
 
-        # Setting up configuration ID must be done before any API calls that require it
-        # but cannot be done until after login, so we might as well do it here
-
-        if self.configuration:
-            # get the configuration ID by name
-            configurations = self.get(self.url / "api/v2/configurations", params=dict(filter=f"name:eq('{self.configuration}')")).json()["data"]
-            if not configurations:
-                raise ValueError(f"Configuration '{self.configuration}' not found")
-            if len(configurations) > 1:
-                raise ValueError(f"Multiple configurations found with name '{self.configuration}'")
-            conf_id = configurations[0]["id"]
-            logger.info(f"Using configuration '{self.configuration}' with ID {conf_id}")
-        else:
-            # old behaviour, kept around for compatability
-            conf_id = self.get(self.api_url / "configurations").json()["data"][0]["id"]
-            logger.warning(f"No configuration specified, using first configuration found: {conf_id}")
-
-        self.configuration_id = conf_id
-        self.api_url = self.safe_append_path(self.url, f"api/v2/configurations/{conf_id}")
-
-
     def logout(self):
         # Bluecat REST V2 API does not have a logout endpoint
         pass
 
-    def put(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def get(self, url, params: dict[str, Any] | None = None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
+        if params and 'skip_configuration_filtering' in params:
+            # explicitly skip configuration filtering
+            del params['skip_configuration_filtering']
+        elif self.configuration:
+            # add configuration filter if not already set
+            if not params or "filter" not in params:
+                params = params or {}
+                params["filter"] = f"configuration.id:eq({self.configuration_id})"
+            elif "configuration.id:" not in params["filter"]:
+                params["filter"] = f"configuration.id:eq({self.configuration_id}) and {params['filter']}"
+        
+        try:
+            return super().get(url, params=params, **kwargs)
+        except RESTAPIError as e:
+            # re-raise here so debugger stops here instead of stopping deep in the bowels of the requests machinery
+            raise e
+
+    def put(self, url: str, comment: str, json: dict | list, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
         # Every change in bluecat requires a comment
         headers = kwargs.setdefault("headers", {})
         headers["x-bcn-change-control-comment"] = comment
-        return super().put(url, data, json=json, **kwargs)
+        # bluecat `PUT` methods require so many bits of information from the source record, that it's
+        # easier to just fetch the original record being updated and merge the new data into it
+        original = self.get(url, params=dict(skip_configuration_filtering=True)).json()
+        if isinstance(json, list):
+            new_data = []
+            for item in json:
+                item = {**original, **item}
+                new_data.append(item)
+            json = new_data
+        elif isinstance(json, dict):
+            json = {**original, **json}
+        else:
+            raise TypeError(f"json must be a dict or list, not {type(json)}")
+        try:
+            return super().put(url, json=json, **kwargs)
+        except RESTAPIError as e:
+            # re-raise here so debugger stops here instead of stopping deep in the bowels of the requests machinery
+            raise e
 
     def post(self, url: str, comment: str, data: Any = None, json: dict | list | None = None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
         # Every change in bluecat requires a comment
         headers = kwargs.setdefault("headers", {})
         headers["x-bcn-change-control-comment"] = comment
+        if self.configuration:
+            if isinstance(json, list):
+                for item in json:
+                    item.setdefault("configuration", {"id": self.configuration_id})
+            elif isinstance(json, dict):
+                json.setdefault("configuration", {"id": self.configuration_id})
         return super().post(url, data, json=json, **kwargs)
+
+    def delete(self, url: str, comment: str, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
+        # Every change in bluecat requires a comment
+        headers = kwargs.setdefault("headers", {})
+        headers["x-bcn-change-control-comment"] = comment
+        try:
+            return super().delete(url, **kwargs)
+        except RESTAPIError as e:
+            # re-raise here so debugger stops here instead of stopping deep in the bowels of the requests machinery
+            raise e
 
     def get_all(self, url, **kwargs) -> list[dict[str, Any]]:
         logger.info(f"Fetching all records in {url}")
@@ -106,7 +136,24 @@ class API(APIBase):
             res = self.get(res["_links"]["next"]["href"]).json()
             data.extend(res["data"])
         return data
-        
+
+    @cached_property
+    def configuration_id(self) -> int:
+        if self.configuration is None:
+            # old behaviour, kept around for compatability
+            logger.warning("No configuration specified, using the first configuration found")
+            return self.get(self.api_url / "configurations").json()["data"][0]["id"]
+        # get the configuration ID by name
+        configurations = (
+            super()
+            .get(self.api_url / "configurations", params=dict(filter=f"name:eq('{self.configuration}')"))
+            .json()["data"]
+        )
+        if not configurations:
+            raise ValueError(f"Configuration '{self.configuration}' not found")
+        if len(configurations) > 1:
+            raise ValueError(f"Multiple configurations found with name '{self.configuration}'")
+        return configurations[0]["id"]
 
     def find_parent_container(
         self, container_type: Literal["blocks", "networks", "any"], addr: str | IPAddress
@@ -187,34 +234,24 @@ class API(APIBase):
         return self.get(f"/{container_type}/{container_id}/defaultZones").json()["data"]
 
     # get an address by ip
-    def get_address(self, address: str | IPAddress, **kwargs) -> dict[str, Any]:
+    def get_address(self, address: str | IPAddress, **kwargs) -> ts.IPv4Address | ts.IPv6Address:
         """
         Get an address by its IP.
 
         Args:
             address (str | IPAddress): The IP address to search for.
             **kwargs: Additional keyword arguments to pass to the request.
-
-        Returns:
-            dict[str, Any]: The address object if found, otherwise raises an error.
         """
-        return self.get("/addresses", params=dict(filter=f"address:eq('{address}')"), **kwargs).json()
-
-    @overload
-    def create_address(
-        self,
-        address: str,
-        type_: Literal["IPv4Address", "IPv6Address"],
-        **kwargs,
-    ): ...
-
-    @overload
-    def create_address(
-        self,
-        address: IPAddress,
-        type_: None = None,
-        **kwargs,
-    ): ...
+        res = self.get(
+            "/addresses",
+            params=dict(filter=f"address:eq('{address}')"),
+            **kwargs,
+        ).json()
+        if res["count"] == 0:
+            raise ValueError(f"Address {address} not found")
+        if res["count"] > 1:
+            raise ValueError(f"Multiple addresses found for {address}")
+        return res["data"][0]
 
     def create_address(
         self,
@@ -250,16 +287,17 @@ class API(APIBase):
         try:
             res = self.post(url, json=json, comment=comment, **kwargs).json()
         except RESTAPIError as e:
-            print(e)
-            exit()
-
-            # if state == "GATEWAY" and type_ == "IPv4Address":
-            # bluecat automatically creates a blank gateway address for each IPv4 network
-            # and does not allow you to manually create your own.
-            # we can achieve the desired effect by fetching and updating the existing gateway address
-            # this is a workaround for the bluecat API's limitations
-            gw_id = self.get(url, params=dict(limit=1, filter="state:'GATEWAY'")).json()["data"][0]["id"]
-            res = self.put(f"/addresses/{gw_id}", json=json, comment="Testing", **kwargs).json()  # pyright: ignore[reportArgumentType]
+            if state == "GATEWAY" and type_ == "IPv4Address":
+                # bluecat automatically creates a blank gateway address for each IPv4 network
+                # and does not allow you to manually create your own.
+                # we can achieve the desired effect by fetching and updating the existing gateway address
+                # this is a workaround for the bluecat API's limitations
+                gw_id = self.get(url, params=dict(limit=1, filter="state:'GATEWAY'")).json()["data"][0]["id"]
+                res = self.put(
+                    f"/addresses/{gw_id}", json=json, comment="GW updated by uoft_bluecat tool", **kwargs
+                ).json()  # pyright: ignore[reportArgumentType]
+            else:
+                raise e
 
         return res
 
@@ -284,14 +322,94 @@ class API(APIBase):
         Returns:
             dict[str, Any]: The updated address object.
         """
-        json = kwargs.setdefault("json", {})
+        json = kwargs.pop("json", {})
         if name:
             json["name"] = name
         if state:
             json["state"] = state
         if create_reverse_record is not None:
             kwargs.setdefault("headers", {})["x-bcn-create-reverse-record"] = str(create_reverse_record).lower()
-        return self.put(f"/addresses/{address_id}", comment=comment, **kwargs).json()
+        try:
+            return self.put(f"/addresses/{address_id}", json=json, comment=comment, **kwargs).json()
+        except RESTAPIError as e:
+            if e.data and "code" in e.data and e.data["code"] == "CreateUpdateNetworkGatewayNotSupported":
+                # Can't modify the state of a gatewy address
+                del json["state"]
+                # Try again
+                return self.put(f"/addresses/{address_id}", json=json, comment=comment, **kwargs).json()
+            raise e
+
+    def get_zone(self, dns_zone: str, **kwargs):
+        params = kwargs.pop("params", {})
+        params["filter"] = f"absoluteName:eq('{dns_zone}') and type:eq('Zone')"
+        res = self.get(
+            "/zones",
+            params=params,
+            **kwargs,
+        ).json()
+        if res["count"] == 0:
+            raise ValueError(f"Zone {dns_zone} not found")
+        if res["count"] > 1:
+            raise ValueError(f"Multiple zones found for {dns_zone}")
+        return res["data"][0]
+
+    def create_zone(
+        self, dns_zone: str, view_id: int | None = None, comment: str = "Zone created by uoft_bluecat tool", **kwargs
+    ):
+        """
+        Create a new DNS zone in Bluecat.
+
+        Args:
+            dns_zone (str): The name of the DNS zone to create.
+            view_id (int): The ID of the view to associate with the zone.
+            comment (str): A comment for the change control.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The created zone object.
+        """
+        if not view_id:
+            # If no view_id is provided, use the default view for the configuration
+            views = self.get(f"/configurations/{self.configuration_id}/views").json()["data"]
+            if len(views) == 0:
+                raise ValueError(f"No views found for configuration {self.configuration_id}")
+            view_id = views[0]["id"]
+        json = kwargs.pop("json", {})
+        json["absoluteName"] = dns_zone
+        json["type"] = "Zone"
+        json = ts.zone_post(**json)
+        return self.post(f"/views/{view_id}/zones", json=json, comment=comment, **kwargs).json()  # pyright: ignore[reportArgumentType]
+
+    def update_zone(
+        self, zone_id: int, json: dict[str, Any], comment: str = "Zone updated by uoft_bluecat tool", **kwargs
+    ):
+        """
+        Update an existing zone in Bluecat.
+
+        Args:
+            zone_id (int): The ID of the zone to update.
+            json (dict[str, Any]): The JSON data to update the zone with.
+            comment (str): A comment for the change control.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The updated zone object.
+        """
+        return self.put(f"/zones/{zone_id}", json=json, comment=comment, **kwargs).json()
+
+    def get_host_record(self, absolute_name: str, **kwargs):
+        params = kwargs.pop("params", {})
+        params["filter"] = f"absoluteName:eq('{absolute_name}')"
+        res = self.get(
+            "/resourceRecords",
+            params=params,
+            **kwargs,
+        ).json()
+        if res["count"] == 0:
+            raise ValueError(f"Host record {absolute_name} not found")
+        if res["count"] > 1:
+            raise ValueError(f"Multiple host records found for {absolute_name}")
+        return res["data"][0]
 
     def create_host_record(
         self,
@@ -305,25 +423,51 @@ class API(APIBase):
             addresses=[{"id": address_id}],
             type="HostRecord",
         )
-        return self.post(
-            f"/zones/{zone_id}/resourceRecords",
-            json=json,  # pyright: ignore[reportArgumentType]
-            comment=comment,
-        ).json()
+        try:
+            return self.post(
+                f"/zones/{zone_id}/resourceRecords",
+                json=json,  # pyright: ignore[reportArgumentType]
+                comment=comment,
+            ).json()
+        except RESTAPIError as e:
+            if e.response.status_code == 409 and "Duplicated with a zone name." in e.data.get("detail", ""):
+                raise ValueError(f"There is a sub-zone with this name that must be removed first")
+            raise e
 
-    def create_address_and_host(
+    def update_host_record(
         self,
-        ip_address: IPAddress,
-        name: str,
-        dns_zone: str = "netmgmt.utsc.utoronto.ca",
-        comment: str = "Address and host record created by uoft_bluecat tool",
-        state: IPAddressState = "STATIC",
+        record_id: int,
+        record: dict[str, Any],
+        comment: str = "Host record updated by uoft_bluecat tool",
+        **kwargs,
     ):
-        logger.info(f"Creating address {ip_address} with name {name} in zone {dns_zone}")
-        address = self.create_address(ip_address, name=name, state=state, comment=comment)
-        zone = self.get("/zones", params=dict(filter=f"absoluteName:eq('{dns_zone}')")).json()['data'][0]
-        res = self.create_host_record(name, address["id"], zone["id"], comment=comment)
-        return res
+        """
+        Update an existing host record in Bluecat.
+
+        Args:
+            record_id (int): The ID of the host record to update.
+            record (dict[str, Any]): The updated host record data.
+            comment (str): A comment for the change control.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The updated host record object.
+        """
+        return self.put(f"/resourceRecords/{record_id}", json=record, comment=comment, **kwargs).json()
+
+    def delete_host_record(self, record_id: int, comment: str = "Host record deleted by uoft_bluecat tool", **kwargs):
+        """
+        Delete an existing host record in Bluecat.
+
+        Args:
+            record_id (int): The ID of the host record to delete.
+            comment (str): A comment for the change control.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The response from the delete operation.
+        """
+        return self.delete(f"/resourceRecords/{record_id}", comment=comment, **kwargs)
 
     def create_network(
         self,
@@ -351,6 +495,23 @@ class API(APIBase):
         assert parent_id != self.configuration_id, "Networks must be assigned to blocks, not configurations"
         url = f"/blocks/{parent_id}/networks"
         return self.post(url, comment=comment, **kwargs).json()
+
+    def update_network(
+        self, id: int, json: dict[str, Any], comment: str = "Network updated by uoft_bluecat tool", **kwargs
+    ):
+        """
+        Update an existing network in Bluecat.
+
+        Args:
+            id (int): The ID of the network to update.
+            json (dict[str, Any]): The JSON data to update the network with.
+            comment (str): A comment for the change control.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The updated network object.
+        """
+        return self.put(f"/networks/{id}", json=json, comment=comment, **kwargs).json()
 
     def create_block(
         self,
@@ -380,3 +541,52 @@ class API(APIBase):
         else:
             url = f"/blocks/{parent_id}/blocks"
         return self.post(url, comment=comment, **kwargs).json()
+
+    def update_block(
+        self, id: int, json: dict[str, Any], comment: str = "Block updated by uoft_bluecat tool", **kwargs
+    ):
+        """
+        Update an existing block in Bluecat.
+
+        Args:
+            id (int): The ID of the block to update.
+            json (dict[str, Any]): The JSON data to update the block with.
+            comment (str): A comment for the change control.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            dict[str, Any]: The updated block object.
+        """
+        return self.put(f"/blocks/{id}", json=json, comment=comment, **kwargs).json()
+
+    def get_dns_servers(self, **kwargs):
+        # bluecat does not support filtering servers by state (eg ENABLED) or by profile (eg DNS_DHCP_SERVER_*)
+        # so we have to fetch all servers and filter them ourselves
+        params = kwargs.pop("params", {})
+        params['fields'] = 'embed(deploymentRoles)'
+        all_servers = self.get(
+            "/servers",
+            params=params,
+            **kwargs,
+        ).json()['data']
+        dns_servers = [s for s in all_servers if 'DNS_DHCP_SERVER_' in s['profile'] and s['state'] == 'ENABLED']
+        if len(dns_servers) == 0:
+            raise ValueError("No enabled DNS/DHCP servers found")
+        return dns_servers
+
+    def deploy_changes(
+        self,
+        server_id: int,
+        service: Literal["DHCPv4", "DNS"],
+        comment: str = "Deploy changes by uoft_bluecat tool",
+        **kwargs,
+    ):
+        payload = dict(type="FullDeployment", service=service)
+        return self.post(
+            f"/servers/{server_id}/deployments", json=payload, comment=comment, **kwargs
+        ).json()
+
+    def deployment_status(self, deployment_id: int, **kwargs):
+        params = kwargs.pop("params", {})
+        params['skip_configuration_filtering'] = True
+        return self.get(f"/deployments/{deployment_id}", params=params, **kwargs).json()

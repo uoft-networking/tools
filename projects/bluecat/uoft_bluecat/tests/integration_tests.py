@@ -28,13 +28,11 @@ def bluecat_test_data_cleared():
     # tok_data also contains a basicAuthenticationCredentials field
     # which is a base64 encoded string of the form "username:token"
     credentials = tok_data["basicAuthenticationCredentials"]
-    sess.headers.update(
-        {
-            "Authorization": f"Basic {credentials}",
-            "Accept": "application/hal+json",
-            "x-bcn-change-control-comment": "Automatically deleting test fixtures from previous test run",
-        }
-    )
+    sess.headers.update({
+        "Authorization": f"Basic {credentials}",
+        "Accept": "application/hal+json",
+        "x-bcn-change-control-comment": "Automatically deleting test fixtures from previous test run",
+    })
 
     for addr, prefixlen in [("192.0.2.0", 24), ("2001:DB8:", 32)]:
         # this ugly chunk of code will generate GET requests like:
@@ -102,10 +100,10 @@ def test_get_all():
 
 def _create_network(s: API, parent_block_id: int, addr: str, pfx_len: int, ver: str):
     if ver == "IPv4":
-        target_range = f"{addr}/{pfx_len+2}"
+        target_range = f"{addr}/{pfx_len + 2}"
     else:
         # Bluecat requires that IPv6 networks have a prefix length minimum of 64
-        target_range = f"{addr}/{max(pfx_len+2, 64)}"
+        target_range = f"{addr}/{max(pfx_len + 2, 64)}"
     network = s.create_network(
         parent_id=parent_block_id,
         range=target_range,
@@ -130,13 +128,13 @@ def test_create_block_network_address(bluecat_test_data_cleared, api_instance, p
     parent = s.find_parent_block(addr)
     assert parent["range"] == f"{addr}/{pfx_len}".lower()
     assert "documentation" in parent["name"].lower()
-    type_: Literal["IPv4Block", "IPv6Block"] = f"{ver}Block" # pyright: ignore[reportRedeclaration, reportAssignmentType]
+    type_: Literal["IPv4Block", "IPv6Block"] = f"{ver}Block"  # pyright: ignore[reportRedeclaration, reportAssignmentType]
     assert type_ in ["IPv4Block", "IPv6Block"]
     block = s.create_block(
         parent_id=parent["id"],
         comment="Testing",
-        type_=type_,   # pyright: ignore[reportArgumentType]
-        range=f"{addr}/{pfx_len+1}",
+        type_=type_,  # pyright: ignore[reportArgumentType]
+        range=f"{addr}/{pfx_len + 1}",
         name="Test Block 1",
     )
     assert block["name"] == "Test Block 1"
@@ -183,16 +181,16 @@ def test_create_block_network_address(bluecat_test_data_cleared, api_instance, p
 
     assert address["name"] == "Test Gateway"
 
-    type_: Literal["IPv4Address", "IPv6Address"] = f"{ver}Address" # pyright: ignore[reportAssignmentType]
+    type_: Literal["IPv4Address", "IPv6Address"] = f"{ver}Address"  # pyright: ignore[reportAssignmentType]
     assert type_ in ["IPv4Address", "IPv6Address"]
-    static_addr = s.create_address( 
+    static_addr = s.create_address(
         address=str(IPAddress(addr) + 2),
         parent_id=network["id"],
         comment="Testing",
         type_=type_,
         state="STATIC",
         name="Test Address 1",
-    ) 
+    )
     assert static_addr["address"] == str(IPAddress(addr) + 2)
 
 
