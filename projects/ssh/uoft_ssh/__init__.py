@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     personal: Credentials = Field(description="Your personal credentials.")
     other: dict[str, SecretStr] = Field(description="Other, optional credentials.")
     terminal_server: Credentials = Field(description="Credentials for the tripplite terminal servers.")
+    airconsole: Credentials = Field(description="Credentials for the Airconsole terminal servers.")
 
 
     class Config(BaseSettings.Config):

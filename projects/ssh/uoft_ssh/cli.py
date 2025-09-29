@@ -57,6 +57,9 @@ class KeyExchangeMethodMismatch(HostKeyAlgorithmMismatch):
     pass
 
 
+class SSHSessionError(Exception):
+    """Base class for SSH session errors."""
+
 def get_ssh_session(
     host: str,
     username: str,
@@ -79,6 +82,7 @@ def get_ssh_session(
             "has changed and you have requested strict checking",
             r"no matching (host key type|key exchange method) found. Their offer: (.*)",
             r"The authenticity of host '[^']*' can't be established",
+            child.EOF
         ]
     )
     if match == 1:
@@ -97,6 +101,8 @@ def get_ssh_session(
             child.sendline("yes")
         else:
             raise UnknownHostKey("Host key is unknown")
+    elif match == 4:
+        raise SSHSessionError(child.before)
 
     child.sendline(password)
     return child
@@ -219,6 +225,9 @@ def ssh(
         logger.warning(" hit Ctrl-C to abort, or hit Enter to continue connecting")
         input()
         child = get_ssh_session(host, username, password=creds.password.get_secret_value(), accept_unknown_host=True)
+    except SSHSessionError as e:
+        logger.error(e)
+        sys.exit(1)
 
     console().set_window_title(f"uoft-ssh {host}")
     while True:
