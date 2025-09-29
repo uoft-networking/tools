@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from time import sleep
 import typing as t
+import os
 
 from pexpect import TIMEOUT
 from uoft_core.console import console
@@ -9,6 +10,7 @@ from uoft_ssh.cli import get_ssh_session
 from uoft_ssh import Settings as SSHSettings
 from uoft_core import logging
 from uoft_core import BaseSettings, SecretStr
+from netmiko.exceptions import ConfigInvalidException
 
 from .. import interface_name_normalize, interface_name_denormalize
 
@@ -16,7 +18,6 @@ from .. import interface_name_normalize, interface_name_denormalize
 if t.TYPE_CHECKING:
     from uoft_ssh.pexpect_utils import UofTPexpectSpawn
     from pynautobot.models.dcim import Devices, Interfaces
-    from pynautobot.models.extras import Record
 
 
 class Settings(BaseSettings):
@@ -28,24 +29,37 @@ class Settings(BaseSettings):
 
 logger = logging.getLogger(__name__)
 
+TERM_SRV_TYP = t.Literal["tripplite", "airconsole"]
 
-def _get_ssh_session(
+def _terminal_server_ssh_session(
     terminal_server: str,
     port: int,
+    terminal_server_type: TERM_SRV_TYP = 'tripplite',
 ):
+    if terminal_server_type == 'airconsole':
+        # airconsole encodes the serial port number into the SSH port number, 
+        # runs a separate SSH server for each port
+        creds = SSHSettings.from_cache().airconsole
+        username = creds.username
+        extra_args = ['-p', f"40{port:02d}"]  # Airconsole uses port numbers like 4001, 4002, etc.
+    else:
+        # tripplite terminal servers encode the serial port number into SSH username
+        # using the username format <username>:port<port>
     creds = SSHSettings.from_cache().terminal_server
     username = f"{creds.username}:port{port}"
+        extra_args = []
 
     ssh = get_ssh_session(
         host=terminal_server,
         username=username,
         password=creds.password.get_secret_value(),
+        extra_args=extra_args,
     )
 
     return ssh
 
 
-def get_onboarding_token():
+def _get_onboarding_token():
     "Generate a CVP onboarding token"
     import grpc
     from grpc_reflection.v1alpha.proto_reflection_descriptor_database import ProtoReflectionDescriptorDatabase
@@ -77,7 +91,7 @@ def get_onboarding_token():
     # Call the method
     res = method(request=token_request)
 
-    return res.enrollmentToken.token
+    return res.enrollmentToken.token # pyright: ignore[reportAttributeAccessIssue]
 
 
 def _put_switch_in_config_mode(ssh: "UofTPexpectSpawn"):
@@ -234,8 +248,7 @@ def _wait_for_switch_to_come_online(ip: str):
     logger.success(f"{ip} is now online!")
 
 
-
-def initial_provision(switch_hostname: "str | Devices", terminal_server: str, port: int):
+def initial_provision(switch_hostname: str, terminal_server: str, port: int, terminal_server_type: TERM_SRV_TYP = 'tripplite'):
     """
     Given a switch hostname, terminal server, and port,
     connect to the switch via the terminal server
@@ -243,48 +256,13 @@ def initial_provision(switch_hostname: "str | Devices", terminal_server: str, po
     to get it online and accessible via SSH over OOB
     (including RADIUS auth)
     """
-    from ..nautobot import get_api, get_minimum_viable_config
+    from ..nautobot import get_minimum_viable_config
+    from ..nautobot.lib import get_or_assign_oob_ip
     from rich.progress import track
 
-    nb = get_api(dev=False)
-    if isinstance(switch_hostname, str):
-        switch = nb.dcim.devices.get(name=switch_hostname)
-    else:
-        switch = switch_hostname
-    switch = t.cast("Devices", switch)
-    if not switch:
-        logger.error(f"Switch {switch_hostname} not found in Nautobot")
-        return
+    oob_ip = get_or_assign_oob_ip(switch_hostname)
 
-    mgmt_intf = nb.dcim.interfaces.get(device=switch.id, name="Management1")
-    if not mgmt_intf:
-        logger.error(f"Switch {switch_hostname} does not have a Management1 interface")
-        return
-    mgmt_intf = t.cast("Record", mgmt_intf)
-    if not mgmt_intf.enabled:
-        logger.info(f"Enabling Management1 interface on {switch_hostname}")
-        mgmt_intf.update(dict(enabled=True))
-
-    # intf role
-    if mgmt_intf.role is None or mgmt_intf.role.name == "Management":
-        logger.info(f"Setting Management1 interface role to Management on {switch_hostname}")
-        role = nb.extras.roles.get(name="Management")
-        mgmt_intf.update(dict(role=role))
-
-    if len(mgmt_intf.ip_addresses) == 0:  # pyright: ignore[reportArgumentType]
-        logger.warning(f"Switch {switch_hostname} does not have an OOB IP address assigned")
-        oob_pfx = nb.ipam.prefixes.get(prefix="192.168.64.0/22")
-        logger.warning(f"Assigning next available IP to {switch_hostname}")
-        oob_ip = oob_pfx.available_ips.create(  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
-            data=dict(status="Active", dns_name=f"{switch_hostname}-oob", description=f"{switch_hostname}-oob")
-        )
-        nb.ipam.ip_address_to_interface.create(dict(ip_address=oob_ip.id, interface=mgmt_intf.id))  # type: ignore
-        switch.update(dict(primary_ip4=oob_ip.id))  # type: ignore
-        logger.info(f"Assigned IP {oob_ip.address} to {switch_hostname}")
-    else:
-        oob_ip = t.cast(list["Record"], mgmt_intf.ip_addresses)[0]  # type: ignore
-
-    ssh = _get_ssh_session(terminal_server, port)
+    ssh = _terminal_server_ssh_session(terminal_server, port, terminal_server_type)
 
     _put_switch_in_config_mode(ssh)
 
@@ -310,19 +288,61 @@ def initial_provision(switch_hostname: "str | Devices", terminal_server: str, po
 
     logger.success(
         "Switch is now ready for onboarding. It can be accessed via SSH with the admin "
-        f"account at IP address {oob_ip.address} and should show up in CVP momentarily"
+        f"account at IP address {oob_ip} and should show up in CVP momentarily"
     )
     ssh.sendline("wr mem")
 
 
-def wipe_switch(terminal_server: str, port: int, reenable_ztp_mode: bool = False):
+def onboard_into_cvp(switch_name: str, oob = True):
+    s = SSHSettings.from_cache()
+    logger.info(f"Onboarding switch {switch_name} into CVP...")
+    ssh = get_ssh_session(switch_name, username=s.personal.username, password=s.personal.password.get_secret_value())
+    onboarding_token = _get_onboarding_token()
+    
+    ssh.expect(r"([a-zA-Z0-9-]+)>")
+    # entering config mode
+    ssh.sendline("enable")
+    ssh.sendline(s.enable_secret.get_secret_value())
+    ssh.expect(r"([a-zA-Z0-9-]+)#")
+    ssh.sendline("configure terminal")
+    ssh.expect(r"([a-zA-Z0-9-]+)\(config\)#")
+
+    logger.info("Writing CVP onboarding token to file...")
+    ssh.sendline("copy terminal: file:/tmp/cv-onboarding-token")
+    ssh.expect("enter input")
+    ssh.sendline(onboarding_token)
+    ssh.sendline("")
+    ssh.sendcontrol("d")
+    ssh.expect("Copy completed")
+
+    logger.info("Configuring TerminAttr daemon...")
+    ssh.expect(r"([a-zA-Z0-9-]+)\(config\)#")
+    ssh.sendline("daemon TerminAttr")
+    cmd = ("exec /usr/bin/TerminAttr -smashexcludes=ale,flexCounter,hardware,kni,pulse,strata "
+        "-cvaddr=apiserver.arista.io:443 -cvauth=token-secure,/tmp/cv-onboarding-token "
+        "-cvproxy=http://dante.utsc.utoronto.ca:3128 -taillogs --disableaaa"
+    )
+    if oob:
+        cmd += " --cvvrf=MANAGEMENT-VRF"
+    ssh.sendline(cmd)
+    ssh.sendline("shutdown")
+    ssh.sendline("no shutdown")
+    ssh.expect(r"([a-zA-Z0-9-]+)\(config-daemon-TerminAttr\)#")
+    ssh.sendline("end")
+    ssh.expect(r"([a-zA-Z0-9-]+)#")
+    ssh.sendline("write memory")
+    ssh.expect(r"([a-zA-Z0-9-]+)#")
+    logger.success("Switch has been onboarded into CVP. It should show up in CVP momentarily.")
+
+
+def wipe_switch(terminal_server: str, port: int, reenable_ztp_mode: bool = False, terminal_server_type: TERM_SRV_TYP = 'tripplite'):
     """
     Given a terminal server and port,
     wipe the Arista switch attached to that port
     and reset it to factory defaults.
     This is used for testing and debugging.
     """
-    ssh = _get_ssh_session(terminal_server, port)
+    ssh = _terminal_server_ssh_session(terminal_server, port, terminal_server_type)
     _put_switch_in_config_mode(ssh)
     ssh.sendline("bash")
     logger.info("erasing flash...")
@@ -339,7 +359,6 @@ def wipe_switch(terminal_server: str, port: int, reenable_ztp_mode: bool = False
     ssh.expect("Restarting system")
     logger.success("Switch has been wiped and is now rebooting")
     return
-
 
 
 @dataclass(eq=False, kw_only=True)
@@ -420,6 +439,7 @@ def _parse_lldp_data(
     lldp_data: dict[str, list[dict[str, str]]],
     dist_switch_hostname: str,
     arista_switch_names: tuple[str, ...],
+    dist_lag_number: int | str = "auto",
 ) -> LLDPData:
     from ..nautobot import get_api
 
@@ -429,14 +449,15 @@ def _parse_lldp_data(
     spine2 = Spine(name=arista_switch_names[1], mlag_peers=[], link_to_leafs=[])
     leafs = [Leaf(name=leaf_hostname) for leaf_hostname in arista_switch_names[2:]]
 
-    def _get_or_create_dist_lag(spine_name: str):
+    def _get_or_create_dist_lag(spine_name: str, dist_lag_number: int | str):
         # find the next free port channel number on the dist switch
         # TODO: right now this is cisco-specific, needs to be able to handle arista dist switches too
 
         label_fragment = spine_name.partition("-")[2]
         # given a spine name like `a1-ev0c-arista`, this will give us `ev0c-arista`
-
         lags = api.dcim.interfaces.filter(device=dist.nb.id, type="lag")
+
+        if dist_lag_number == "auto":
         if lags and (existing_lag := next((lag for lag in lags if label_fragment in lag.label), None)):  # pyright: ignore[reportAttributeAccessIssue, reportOperatorIssue]
             lag_name = t.cast(str, existing_lag.name)  # pyright: ignore[reportAttributeAccessIssue]
             logger.info(f"Found existing port channel {lag_name} on {dist.name}")
@@ -444,9 +465,17 @@ def _parse_lldp_data(
             return InterfaceRecord(device=dist, name=lag_name)
 
         lag_numbers = sorted([int(lag.name.partition("hannel")[2]) for lag in lags])  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-        next_lag_number = lag_numbers[-1] + 1 if lag_numbers else 1
-        lag_name = f"Port-Channel{next_lag_number}"
-        logger.info(f"Creating new port channel {next_lag_number} on {dist_switch_hostname} for {label_fragment}")
+            target_lag_number = lag_numbers[-1] + 1 if lag_numbers else 1
+        else:
+            try:
+                target_lag_number = int(dist_lag_number)
+            except ValueError:
+                raise ValueError(f"dist_lag_number must be an integer or 'auto', got {dist_lag_number}")
+        lag_name = f"Port-Channel{target_lag_number}"
+        if existing_lag := next((lag for lag in lags if lag.name == lag_name), None):  # pyright: ignore[reportAttributeAccessIssue, reportOperatorIssue]
+            logger.info(f"Found existing port channel {lag_name} on {dist.name}")
+            return InterfaceRecord(device=dist, name=lag_name)
+        logger.info(f"Creating new port channel {target_lag_number} on {dist_switch_hostname} for {label_fragment}")
         api.dcim.interfaces.create(
             dict(
                 name=lag_name,
@@ -461,7 +490,7 @@ def _parse_lldp_data(
         return InterfaceRecord(device=dist, name=lag_name)
 
     # Map out the trunk links from dist to spines
-    dist.lag_to_spines = _get_or_create_dist_lag("spine")
+    dist.lag_to_spines = _get_or_create_dist_lag(spine1.name, dist_lag_number)
     spine_uplink_lag_name = "Port-Channel1"
     for link_dict in lldp_data[dist.name]:
         if link_dict["neighbor_name"] == spine1.name:
@@ -499,6 +528,10 @@ def _parse_lldp_data(
         )
         spine1.mlag_peers.append(link)
         spine2.mlag_peers.append(link.reverse())
+    
+    if len(spine1.mlag_peers) == 0:
+        logger.error("No mlag peer links found between spines, this is unexpected!")
+        raise ValueError("No mlag peer links found between spines, this is unexpected!")
 
     # Map out the leaf links to spines
     for leaf in leafs:
@@ -525,7 +558,9 @@ def _parse_lldp_data(
     return LLDPData(dist=dist, spine1=spine1, spine2=spine2, leafs=leafs)
 
 
-def map_stack_connections(dist_switch_hostname: str, *arista_switch_names: str):
+def map_stack_connections(
+    dist_switch_hostname: str, *arista_switch_names: str, dist_lag_number: int | t.Literal["auto"] = "auto"
+):
     """
     Given a dist switch and a list of arista switches to organize into an mlag leaf-spine stack,
     login to each over ssh, identify connections between them all using LLDP, identify port roles
@@ -533,6 +568,12 @@ def map_stack_connections(dist_switch_hostname: str, *arista_switch_names: str):
     """
     from ..nornir import get_nornir, F, Task, BaseConnection
     from ..nautobot import get_api
+
+    if isinstance(dist_lag_number, str) and dist_lag_number.lower() != "auto":
+        try:
+            dist_lag_number = int(dist_lag_number)
+        except ValueError:
+            raise ValueError(f"dist_lag_number must be an integer or 'auto', got {dist_lag_number}")
 
     nr = get_nornir()
 
@@ -552,20 +593,22 @@ def map_stack_connections(dist_switch_hostname: str, *arista_switch_names: str):
     # pickle.dump(lldp_data_raw, open('.uoft_core.debug.arista_lldp.pkl', 'wb'))
     # lldp_data_raw = pickle.load(open(".uoft_core.debug.arista_lldp.pkl", "rb"))
 
-    lldp_data = _parse_lldp_data(lldp_data_raw, dist_switch_hostname, arista_switch_names)
+    lldp_data = _parse_lldp_data(
+        lldp_data_raw, dist_switch_hostname, arista_switch_names, dist_lag_number=dist_lag_number
+    )
 
-    assert lldp_data.dist.link_to_spine1 is not None
-    assert lldp_data.dist.link_to_spine2 is not None
-    assert lldp_data.dist.lag_to_spines is not None
-    assert lldp_data.spine1.link_to_dist is not None
-    assert lldp_data.spine2.link_to_dist is not None
-    assert lldp_data.spine1.lag_to_dist is not None
-    assert lldp_data.spine2.lag_to_dist is not None
+    assert lldp_data.dist.link_to_spine1 is not None, "Dist switch is not connected to spine1"
+    assert lldp_data.dist.link_to_spine2 is not None, "Dist switch is not connected to spine2"
+    assert lldp_data.dist.lag_to_spines is not None, "Dist switch is not connected to spines via a lag interface"
+    assert lldp_data.spine1.link_to_dist is not None, "Spine1 is not connected to dist switch"
+    assert lldp_data.spine2.link_to_dist is not None, "Spine2 is not connected to dist switch"
+    assert lldp_data.spine1.lag_to_dist is not None, "Spine1 is not connected to dist switch via a lag interface"
+    assert lldp_data.spine2.lag_to_dist is not None, "Spine2 is not connected to dist switch via a lag interface"
     assert lldp_data.spine1.mlag_peers is not None
     assert lldp_data.spine2.mlag_peers is not None
-    assert lldp_data.spine1.link_to_leafs is not None
-    assert lldp_data.spine2.link_to_leafs is not None
-    assert lldp_data.leafs is not None
+    assert lldp_data.spine1.link_to_leafs is not None, "Spine1 is not connected to any leaf switches"
+    assert lldp_data.spine2.link_to_leafs is not None, "Spine2 is not connected to any leaf switches"
+    assert lldp_data.leafs is not None, "No leaf switches found"
 
     api = get_api(dev=False)
 
@@ -668,6 +711,7 @@ def map_stack_connections(dist_switch_hostname: str, *arista_switch_names: str):
             remote_intf = t.cast("Interfaces", remote_intf)
             remote_intf.update(remote_intf_data)
 
+
     _get_or_create_intfs(lldp_data.spine2.lag_to_dist)
     _get_or_create_intfs(lldp_data.spine1.lag_to_dist)
     # do spine1 after spine2, so the dist-switch lag label points to spine1 instead of spine2
@@ -686,8 +730,8 @@ def map_stack_connections(dist_switch_hostname: str, *arista_switch_names: str):
     # so we don't need to do it again
 
     for leaf in lldp_data.leafs:
-        assert leaf.link_to_spine1 is not None
-        assert leaf.link_to_spine2 is not None
+        assert leaf.link_to_spine1 is not None, f"Leaf {leaf.name} is not connected to spine1"
+        assert leaf.link_to_spine2 is not None, f"Leaf {leaf.name} is not connected to spine2"
 
         # identify the port channel used by the spines to connect to the leaf. Each leaf has its own
         # ie a3-ev0c-arista has Po3, a4-ev0c-arista has Po4, etc
@@ -716,7 +760,7 @@ def push_nautobot_config_to_switches(*arista_switch_names: str):
     Given a list of switch hostnames, pull ip_address and intended config from Nautobot
     push config to switch via SSH
     """
-    from ..nornir import get_nornir, F, Task, BaseConnection
+    from ..nornir import get_nornir, F, Task, BaseConnection, Result
     from ..nautobot import get_intended_config
     import re
 
@@ -758,15 +802,61 @@ def push_nautobot_config_to_switches(*arista_switch_names: str):
                 error_pattern=r"%.*",
             )
         except Exception as e:
-            logger.error(f"Failed to push config to switch {host.name}: {e}")
+            logger.error(f"Failed to push config to switch {host.name}, aborting config session.")
             ssh.exit_config_mode("abort")
+            if isinstance(e, ConfigInvalidException):
+                return Result(host, f"Config for {host.name} is invalid: {e.with_traceback(None)}", failed=True)
             raise e
         ssh.exit_config_mode("commit")
         ssh.send_command("write memory")
-        logger.success(f"Config pushed to {host.name}")
+        return Result(host, f"Config pushed to {host.name}")
 
     arista_switches.run(update_config, raise_on_error=True)
     logger.success(f"Successfully pushed intended configs to switches: {', '.join(arista_switch_names)}")
+
+
+def breakout_interface(switch_name: str, interface_name: str):
+    """
+    Given a switch name and a list of interfaces to breakout,
+    update the switch's interfacees in nautobot to reflect the breakout
+
+    ie, if interfaces = ['Ethernet97/1'], connect to Nautobot
+    - find Ethernet97/1, set its type to SFP28 (25GE),
+    - create Ethernet97/2, Ethernet97/3, Ethernet97/4 with type SFP28 (25GE),
+    """
+    from ..nautobot import get_api, Record
+
+    nb = get_api(dev=False)
+    switch: Record | None = nb.dcim.devices.get(name=switch_name) # pyright: ignore[reportAssignmentType]
+    if not switch:
+        raise ValueError(f"Switch {switch_name} not found in Nautobot")
+
+    interface: Record | None = nb.dcim.interfaces.get(device=switch.id, name=interface_name) # pyright: ignore[reportAssignmentType]
+    if not interface:
+        raise ValueError(f"Interface {interface_name} not found on switch {switch_name}")
+    
+    # update the interface type to SFP28 (25GE)
+    logger.info(f"Updating {interface_name} on {switch_name} to SFP28 (25GE)")
+    interface.update(dict(type="25gbase-x-sfp28"))
+
+    # create the new interfaces
+    base_name = interface_name.rpartition("/")[0]
+    for i in range(2, 5):
+        new_interface_name = f"{base_name}/{i}"
+        if nb.dcim.interfaces.get(device=switch.id, name=new_interface_name): # pyright: ignore[reportArgumentType]
+            logger.info(f"Interface {new_interface_name} already exists on {switch_name}, skipping creation")
+            continue
+        logger.info(f"Creating interface {new_interface_name} on {switch_name} with type SFP28 (25GE)")
+        nb.dcim.interfaces.create(
+            dict(
+                device=switch.id,
+                name=new_interface_name,
+                type="25gbase-x-sfp28",
+                status="Active",
+            )
+        )
+    
+    logger.success(f"Successfully broke out 100G {interface_name} on {switch_name} into 4 x 25G interfaces")
 
 
 @t.no_type_check
