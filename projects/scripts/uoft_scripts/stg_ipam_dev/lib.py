@@ -596,5 +596,5 @@ def sync_to_paloalto(commit: bool):
 
 
 def _debug():
-    data = get_data()
+    data = sync_to_paloalto(False)
     print(data)

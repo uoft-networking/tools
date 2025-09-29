@@ -115,7 +115,7 @@ def get_intended_config(switch_hostname: "str | NautobotDeviceRecord", update_te
 
     # trigger intended config generation
     logger.info(f"Generating fresh intended config for {switch_hostname}...")
-    run_job(dev=False, job_name="Generate Intended Configurations", data=dict(device=[switch.id]))
+    run_job(dev=False, job_name="Generate Intended Configurations", data=dict(device=[switch.id], fail_job_on_task_failure=True))
 
     intended_config = t.cast(
         str, t.cast("Record", nb.plugins.golden_config.config_postprocessing.get(switch.id)).config
@@ -196,6 +196,9 @@ def get_minimum_viable_config(switch_hostname: "str | NautobotDeviceRecord") -> 
                 "aaa",
                 "ip route",
                 "^interface Management1",
+                # Needed for CVP to work over the dante proxy
+                "ip domain lookup",
+                "ip name-server",
             ],
         )
     )

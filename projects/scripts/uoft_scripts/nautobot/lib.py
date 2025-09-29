@@ -272,7 +272,7 @@ def trigger_golden_config_intended(
 
 
 def template_filter_info(
-    templates_dir = Path("."),
+    templates_dir=Path("."),
 ):
     # scan the templates for uses of jinja filters
     found_filters = set()
@@ -294,7 +294,6 @@ def template_filter_info(
     logger.info(f"You have the following filters available: \n- {filters}")
 
 
-
 def test_golden_config_templates(
     device_name: str,
     override_status: str | None = None,
@@ -303,6 +302,7 @@ def test_golden_config_templates(
     print_output: bool = True,
 ):
     import typer
+
     nb = get_api(dev)
     device = t.cast(Record | None, nb.dcim.devices.get(name=device_name))
     if not device:
@@ -361,8 +361,6 @@ def update_golden_config_repo(dev=False):
     return job_result
 
 
-
-
 def push_changes_to_nautobot(
     templates_dir: Path = Path("."),
     dev: bool = False,
@@ -394,7 +392,6 @@ def test_templates_in_nautobot(
         data={"status": [t.cast(Record, nb.extras.statuses.get(name="Active")).id]},
     )
     return job_result
-
 
 
 def _device_family_id(nb, prompt, model):
@@ -442,7 +439,6 @@ def _manufacturer_id(nb, manufacturer):
         logger.info(f"Manufacturer {manufacturer} not found, creating...")
         mfg = nb.dcim.manufacturers.create(name=manufacturer)
     return mfg.id
-
 
 
 def device_type_add_or_update(
@@ -905,7 +901,6 @@ def new_switch(
     logger.info("Done!")
 
 
-
 def regen_interfaces(
     device_name: str,
     dev: bool = False,
@@ -1361,11 +1356,11 @@ def _generate_statistics_summary(
 def explore_compliance(feature: str):
     """
     Interactively explores compliance reports for a given feature.
-    This function retrieves compliance data for the specified feature and iterates through each report that 
+    This function retrieves compliance data for the specified feature and iterates through each report that
     is not in compliance.
-    For each non-compliant report, it displays a comparison table and prompts the user to explore either the 
+    For each non-compliant report, it displays a comparison table and prompts the user to explore either the
     "actual" (left) or "intended" (right) configuration differences.
-    The user can select a specific line to further investigate, view a summary of statistics for that line, 
+    The user can select a specific line to further investigate, view a summary of statistics for that line,
     and optionally see a list of devices with matching configuration lines.
     The process continues for each non-compliant report.
     Args:
@@ -1405,5 +1400,51 @@ def explore_compliance(feature: str):
             input("Press enter to continue...")
 
 
+def get_or_assign_oob_ip(switch_hostname: str, dev: bool = False) -> str:
+    nb = get_api(dev=dev)
+    switch = nb.dcim.devices.get(name=switch_hostname)
+    switch = t.cast(NautobotDeviceRecord, switch)
+    if not switch:
+        raise Exception(f"Switch {switch_hostname} not found in Nautobot")
+
+    mgmt_intf = nb.dcim.interfaces.get(device=switch.id, name="Management1")
+    if not mgmt_intf:
+        raise Exception(f"Switch {switch_hostname} does not have a Management1 interface")
+    mgmt_intf = t.cast("Record", mgmt_intf)
+    if not mgmt_intf.enabled:
+        logger.info(f"Enabling Management1 interface on {switch_hostname}")
+        mgmt_intf.update(dict(enabled=True))
+
+    # intf role
+    if mgmt_intf.role is None or mgmt_intf.role.name == "Management":
+        logger.info(f"Setting Management1 interface role to Management on {switch_hostname}")
+        role = nb.extras.roles.get(name="Management")
+        mgmt_intf.update(dict(role=role))
+
+    if len(mgmt_intf.ip_addresses) == 0:  # pyright: ignore[reportArgumentType]
+        logger.warning(f"Switch {switch_hostname} does not have an OOB IP address assigned")
+        oob_pfx = nb.ipam.prefixes.get(prefix="192.168.64.0/22")
+        logger.warning(f"Assigning next available IP to {switch_hostname}")
+        oob_ip = oob_pfx.available_ips.create(  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
+            data=dict(status="Active", dns_name=f"{switch_hostname}-oob", description=f"{switch_hostname}-oob")
+        )
+        nb.ipam.ip_address_to_interface.create(dict(ip_address=oob_ip.id, interface=mgmt_intf.id))  # type: ignore
+        switch.update(dict(primary_ip4=oob_ip.id))  # type: ignore
+        logger.info(f"Assigned IP {oob_ip.address} to {switch_hostname}")
+    else:
+        oob_ip = t.cast(list["Record"], mgmt_intf.ip_addresses)[0]  # type: ignore
+
+    return oob_ip.address  # pyright: ignore[reportReturnType]
+
+
+def latest_backup_job_succeeded():
+    nb = get_api(dev=False)
+    latest_backup_job = nb.extras.job_results.filter(
+        name="nautobot_golden_config.jobs.BackupJob", sort="~date_created"
+    )[0]
+    succeeded = latest_backup_job.status.value != "FAILURE" # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
+    return succeeded, latest_backup_job
+
+
 def _debug():
-    device_type_add_or_update()
+    latest_backup_job_succeeded()

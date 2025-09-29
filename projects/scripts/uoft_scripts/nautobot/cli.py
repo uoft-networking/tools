@@ -300,11 +300,11 @@ def explore_compliance(
 ):
     """
     Interactively explores compliance reports for a given feature.
-    This function retrieves compliance data for the specified feature and iterates through each report that 
+    This function retrieves compliance data for the specified feature and iterates through each report that
     is not in compliance.
-    For each non-compliant report, it displays a comparison table and prompts the user to explore either the 
+    For each non-compliant report, it displays a comparison table and prompts the user to explore either the
     "actual" (left) or "intended" (right) configuration differences.
-    The user can select a specific line to further investigate, view a summary of statistics for that line, 
+    The user can select a specific line to further investigate, view a summary of statistics for that line,
     and optionally see a list of devices with matching configuration lines.
     The process continues for each non-compliant report.
 
@@ -314,3 +314,58 @@ def explore_compliance(
     from . import lib
 
     lib.explore_compliance(feature)
+
+
+@app.command()
+def get_or_assign_oob_ip(
+    device_name: t.Annotated[str, typer.Argument(autocompletion=_autocomplete_hostnames)],
+):
+    """
+    Get or assign an OOB IP address for a device.
+
+    This command retrieves the OOB IP address for a device if it exists.
+    If it does not exist, it assigns next available OOB IP address to the device.
+    """
+    from . import lib
+
+    lib.get_or_assign_oob_ip(device_name, dev=False)
+
+
+@app.command()
+def check_golden_config_backup_job(
+    email_to: t.Annotated[
+        str, typer.Option(help="Email address to notify on job failure")
+    ] = "alex.tremblay@utoronto.ca",
+):
+    """
+    Check the status of the golden config backup job.
+    Email myself on job failure.
+
+    This command checks the status of the golden config backup job and prints the result.
+    """
+    from . import lib
+    from subprocess import run
+
+    succeeded, details = lib.latest_backup_job_succeeded()
+    if succeeded:
+        logger.success("Latest Golden Config Backup job succeeded")
+    else:
+        logger.warning("Latest Golden Config Backup job failed, emailing %s", email_to)
+        run(
+            [
+                "/usr/bin/mailx",
+                "--subject=Golden Config Backup Job Failed",
+                "--append=Content-Type: text/html",
+                email_to,
+            ],
+            input="The latest Golden Config Backup job has failed. see "
+            f"<a href=\"https://engine.netmgmt.utsc.utoronto.ca/extras/job-results/{details['id']}\">"
+            "the logs</a> for details",
+            text=True,
+            check=True,
+            capture_output=True,
+        )
+
+
+def _debug():
+    check_golden_config_backup_job()
