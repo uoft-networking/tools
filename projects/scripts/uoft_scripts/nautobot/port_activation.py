@@ -2,14 +2,17 @@
 
 # /// script
 # requires-python = ">=3.10, <3.11"
-# dependencies = ["scapy", "debugpy", "pynautobot", "uoft_core @ git+https://github.com/uoft-networking/tools#subdirectory=projects/core", "typer"]
+# dependencies = ["scapy", "debugpy", "pynautobot", "questionary", "uoft_core @ git+https://github.com/uoft-networking/tools#subdirectory=projects/core", "typer"]
 # ///
 
 import os
+from typing import Literal
+from datetime import datetime
 from scapy.all import sniff, conf, Packet
 from scapy.interfaces import NetworkInterfaceDict, NetworkInterface
 from scapy.contrib import lldp
 import typer
+from questionary import Choice, checkbox
 
 from uoft_core import BaseSettings, Field
 from uoft_core.types import SecretStr
@@ -21,8 +24,9 @@ class Settings(BaseSettings):
     class Config(BaseSettings.Config):
         app_name = 'utsc_port_activation'
     
-    interface_name: str = Field(default=conf.iface.name, prompt=False)
     nautobot_token: SecretStr
+    target_intfs: list[str] | Literal[''] = Field('', prompt=False)
+    all_intfs: list[str] | Literal[''] = Field('', prompt=False)
 
 
 def _select_target_interface(iface: NetworkInterface) -> bool:
@@ -57,20 +61,27 @@ def _select_target_interface(iface: NetworkInterface) -> bool:
     return True
 
 
-def _configure_interface():
+def get_or_update_intfs_list() -> list[NetworkInterface]:
     s = Settings.from_cache()
-    interfaces: NetworkInterfaceDict = conf.ifaces
-    if s.interface_name != conf.iface.name:
-        target_interface = interfaces.dev_from_name(s.interface_name)
-    else:
-        target_interface = conf.iface
-    user_did_change = _select_target_interface(target_interface)
-    if user_did_change:
-        s.interface_name = conf.iface.name
+    choices = []
+    all_intfs = []
+    for i in conf.ifaces.values():
+        choices.append(Choice(f"{i.name}: {i.description}", i.name))
+        all_intfs.append(i.name)
+    if s.target_intfs == '' or s.all_intfs == '':
+        print("In order for this program to run correctly, it needs to monitor a specific interface for LLDP packets")
+        s.target_intfs = checkbox("Please select all ethernet interfaces in your system", choices).unsafe_ask()
+        s.all_intfs = all_intfs
         s.interactive_save_config()
+    elif set(s.all_intfs) != set(all_intfs):
+        print("The list of network adapters in your system appears to have changed since you last ran this program")
+        s.target_intfs = checkbox("Please select all ethernet interfaces in your system", choices).unsafe_ask()
+        s.all_intfs = all_intfs
+        s.interactive_save_config()
+    return [i for i in conf.ifaces.values() if i.name in s.target_intfs]
 
 
-def get_lldp_data():
+def get_lldp_data(intfs: list[NetworkInterface]):
     print("Listening for LLDP packet...")
     print("Please plug in network cable now.")
     print("If network cable is already plugged in, please unplug it and plug it back in")
@@ -84,11 +95,13 @@ def get_lldp_data():
         res['switch'] = packet.getlayer(lldp.LLDPDUSystemName).system_name.decode()  # pyright: ignore[reportOptionalMemberAccess]
         res['port'] = packet.getlayer(lldp.LLDPDUPortID).id.decode()  # pyright: ignore[reportOptionalMemberAccess]
         res['port_desc'] = packet.getlayer(lldp.LLDPDUPortDescription).description.decode()  # pyright: ignore[reportOptionalMemberAccess]
+        print(res, datetime.now())
 
     sniff(
         filter=f"ether proto {lldp.LLDP_ETHER_TYPE}",  # BPF filter. see https://www.ibm.com/docs/en/qsip/7.4?topic=queries-berkeley-packet-filters
         prn=process_packet,
-        count=1,  # Capture only one packet
+        iface=intfs,
+        count=300,  # Capture only one packet
     )
 
     assert res['switch']
@@ -102,7 +115,6 @@ def get_lldp_data():
 
 
 if __name__ == "__main__":
-    _configure_interface()
-    lldp_data = get_lldp_data()
-        
+    intfs = get_or_update_intfs_list()
+    lldp_data = get_lldp_data(intfs)
 
