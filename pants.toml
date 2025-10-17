@@ -1,0 +1,5 @@
+[GLOBAL]
+pants_version = "2.27.0"
+
+[subprocess-environment]
+env_vars.add = ["http_proxy", "https_proxy"] # pull in proxy settings from environment and pass them through to all subprocesses
