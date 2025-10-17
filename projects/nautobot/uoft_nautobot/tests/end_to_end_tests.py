@@ -9,6 +9,7 @@ from django.test.client import RequestFactory
 from django_jinja.backend import Jinja2
 from jinja2.loaders import FileSystemLoader
 from jinja2 import Environment, StrictUndefined
+from nautobot.apps.testing import run_job_for_testing, TransactionTestCase
 
 
 fixtures_dir = Path(__file__).parent / "fixtures"
@@ -132,3 +133,11 @@ class NautobotTests:
         import_from_excel(pk, Path("hazmat/test.xlsx").read_bytes())
 
         Path("hazmat/test.xlsx").unlink()
+
+class PortActivationTestCase(TransactionTestCase):
+    def setUp(self):
+        super().setUp()
+        from nautobot.users.models import User
+
+        self.user = User.objects.get(username="helpdesk_service_account")  # pyright: ignore[reportAttributeAccessIssue]
+    

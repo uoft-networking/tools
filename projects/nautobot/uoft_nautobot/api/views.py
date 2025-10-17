@@ -1,5 +1,6 @@
 # pylint: disable=unused-argument,redefined-builtin
 import re
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from rest_framework import permissions
@@ -9,9 +10,11 @@ from rest_framework.exceptions import APIException
 from rest_framework import status, fields as f
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
 
-from uoft_aruba import Settings as ArubaSettings
+
 from uoft_core import txt
 
+if TYPE_CHECKING:
+    from uoft_aruba import Settings as ArubaSettings
 
 class InputError(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
@@ -30,7 +33,7 @@ class ArubaBlocklistView(APIView):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        conf: ArubaSettings = settings.PLUGINS_CONFIG["uoft_nautobot"]["aruba"]
+        conf: "ArubaSettings" = settings.PLUGINS_CONFIG["uoft_nautobot"]["aruba"]
         self.controllers = conf.md_api_connections
         self.mobility_master = conf.mm_api_connection
 
@@ -176,3 +179,4 @@ class ArubaBlocklistView(APIView):
             "detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"
         }
         return Response(res, status=status.HTTP_202_ACCEPTED)
+    
