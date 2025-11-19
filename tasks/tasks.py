@@ -55,6 +55,13 @@ def test_all():
     run("python -m pytest --integration --end-to-end")
 
 
+def test_inline(cmd: str):
+    """run tests with an i-process pytest invocation"""
+    from pytest import main as pytest_main
+    pytest_args = cmd.split(" ")
+    pytest_main(pytest_args)
+
+
 def coverage():
     """run coverage on all projects"""
     run("pytest --cov-config=.coveragerc --cov-report xml:cov.xml --cov")
