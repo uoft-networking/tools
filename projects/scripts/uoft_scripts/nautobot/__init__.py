@@ -102,8 +102,8 @@ def update_golden_config_repo(dev=False):
     job_result = run_job(dev, "Git Repository: Sync", {"repository": gitrepo.id})
     return job_result
 
-def get_intended_config(switch_hostname: "str | NautobotDeviceRecord", update_templates_repo=False) -> str:
-    nb = get_api(dev=False)
+def get_intended_config(switch_hostname: "str | NautobotDeviceRecord", update_templates_repo=False, dev=False) -> str:
+    nb = get_api(dev=dev)
     if isinstance(switch_hostname, str):
         switch = t.cast("NautobotDeviceRecord", nb.dcim.devices.get(name=switch_hostname))
     else:
@@ -111,11 +111,11 @@ def get_intended_config(switch_hostname: "str | NautobotDeviceRecord", update_te
 
     if update_templates_repo:
         logger.info("Updating templates repository before generating intended config...")
-        update_golden_config_repo()
+        update_golden_config_repo(dev=dev)
 
     # trigger intended config generation
     logger.info(f"Generating fresh intended config for {switch_hostname}...")
-    run_job(dev=False, job_name="Generate Intended Configurations", data=dict(device=[switch.id], fail_job_on_task_failure=True))
+    run_job(dev=dev, job_name="Generate Intended Configurations", data=dict(device=[switch.id], fail_job_on_task_failure=True))
 
     intended_config = t.cast(
         str, t.cast("Record", nb.plugins.golden_config.config_postprocessing.get(switch.id)).config

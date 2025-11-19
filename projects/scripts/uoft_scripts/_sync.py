@@ -1046,7 +1046,7 @@ class LibreNMSTarget(Target):
 
 
 def _debug():
-    sm = SyncManager(NautobotTarget(), BluecatTarget(), {"prefixes", "addresses"}, on_orphan="delete")  # pyright: ignore[reportArgumentType]
+    sm = SyncManager(BluecatTarget(), NautobotTarget(), {"prefixes"}, on_orphan="skip")  # pyright: ignore[reportArgumentType]
 
     sm.load()
     sm.synchronize()

@@ -45,8 +45,8 @@ def _terminal_server_ssh_session(
     else:
         # tripplite terminal servers encode the serial port number into SSH username
         # using the username format <username>:port<port>
-    creds = SSHSettings.from_cache().terminal_server
-    username = f"{creds.username}:port{port}"
+        creds = SSHSettings.from_cache().terminal_server
+        username = f"{creds.username}:port{port}"
         extra_args = []
 
     ssh = get_ssh_session(
@@ -296,7 +296,7 @@ def initial_provision(switch_hostname: str, terminal_server: str, port: int, ter
 def onboard_into_cvp(switch_name: str, oob = True):
     s = SSHSettings.from_cache()
     logger.info(f"Onboarding switch {switch_name} into CVP...")
-    ssh = get_ssh_session(switch_name, username=s.personal.username, password=s.personal.password.get_secret_value())
+    ssh = get_ssh_session(switch_name, username=s.personal.username, password=s.personal.password.get_secret_value(), accept_unknown_host=True)
     onboarding_token = _get_onboarding_token()
     
     ssh.expect(r"([a-zA-Z0-9-]+)>")
@@ -458,13 +458,13 @@ def _parse_lldp_data(
         lags = api.dcim.interfaces.filter(device=dist.nb.id, type="lag")
 
         if dist_lag_number == "auto":
-        if lags and (existing_lag := next((lag for lag in lags if label_fragment in lag.label), None)):  # pyright: ignore[reportAttributeAccessIssue, reportOperatorIssue]
-            lag_name = t.cast(str, existing_lag.name)  # pyright: ignore[reportAttributeAccessIssue]
-            logger.info(f"Found existing port channel {lag_name} on {dist.name}")
-            existing_lag = t.cast("Interfaces", existing_lag)
-            return InterfaceRecord(device=dist, name=lag_name)
+            if lags and (existing_lag := next((lag for lag in lags if label_fragment in lag.label), None)):  # pyright: ignore[reportAttributeAccessIssue, reportOperatorIssue]
+                lag_name = t.cast(str, existing_lag.name)  # pyright: ignore[reportAttributeAccessIssue]
+                logger.info(f"Found existing port channel {lag_name} on {dist.name}")
+                existing_lag = t.cast("Interfaces", existing_lag)
+                return InterfaceRecord(device=dist, name=lag_name)
 
-        lag_numbers = sorted([int(lag.name.partition("hannel")[2]) for lag in lags])  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            lag_numbers = sorted([int(lag.name.partition("hannel")[2]) for lag in lags])  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             target_lag_number = lag_numbers[-1] + 1 if lag_numbers else 1
         else:
             try:
