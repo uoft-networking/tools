@@ -4,20 +4,19 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from rest_framework import permissions
-from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 from rest_framework.response import Response
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import ValidationError
 from rest_framework import status, fields as f
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
-
 
 from uoft_core import txt
 
 if TYPE_CHECKING:
     from uoft_aruba import Settings as ArubaSettings
 
-class InputError(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
+
+class InputError(ValidationError):
     default_detail = txt(
         """
         DELETE requests on this endpoint must include a JSON payload with a 'mac-address' 
@@ -28,7 +27,7 @@ class InputError(APIException):
     default_code = "invalid_input"
 
 
-class ArubaBlocklistView(APIView):
+class ArubaBlocklistView(ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def __init__(self, **kwargs) -> None:
@@ -87,7 +86,7 @@ class ArubaBlocklistView(APIView):
             ),
         ],
     )
-    def get(self, request, format=None):
+    def list(self, request, format=None):
         """
         Get the current aggregated WiFi authentication block list (aka 'stm blocklist')
         from the aruba controllers
@@ -179,4 +178,3 @@ class ArubaBlocklistView(APIView):
             "detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"
         }
         return Response(res, status=status.HTTP_202_ACCEPTED)
-    
