@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 import uuid
 
@@ -9,7 +10,7 @@ from django.test.client import RequestFactory
 from django_jinja.backend import Jinja2
 from jinja2.loaders import FileSystemLoader
 from jinja2 import Environment, StrictUndefined
-from nautobot.apps.testing import run_job_for_testing, TransactionTestCase
+from uoft_core import logging
 
 
 fixtures_dir = Path(__file__).parent / "fixtures"
@@ -41,7 +42,7 @@ def _golden_config_data(device_name):
     return device, device_data
 
 
-@pytest.mark.end_to_end
+#@pytest.mark.end_to_end
 class NautobotTests:
     def test_golden_config(self, _nautobot_initialized, mocker):
         from ..golden_config import transposer
@@ -134,10 +135,16 @@ class NautobotTests:
 
         Path("hazmat/test.xlsx").unlink()
 
-class PortActivationTestCase(TransactionTestCase):
-    def setUp(self):
-        super().setUp()
-        from nautobot.users.models import User
-
-        self.user = User.objects.get(username="helpdesk_service_account")  # pyright: ignore[reportAttributeAccessIssue]
-    
+    def test_port_activation(self, _nautobot_initialized, mocker):
+        from nautobot.extras.management.commands.runjob import Command
+        d = {
+            "device": "a2-testlab",
+            "extra_data": {
+                "lldp_packet": "Ether(dst='01:80:c2:00:00:0e', src='54:8a:ba:c0:2b:97', type=35020)/LLDPDU()/LLDPDUChassisID(_type=1, _length=7, subtype=4, id='54:8a:ba:c0:2b:80')/LLDPDUPortID(_type=2, _length=9, subtype=5, id=b'Gi1/0/23')/LLDPDUTimeToLive(_type=3, _length=2, ttl=120)/LLDPDUSystemName(_type=5, _length=35, system_name=b'a1-testlab.netmgmt.utsc.utoronto.ca')/LLDPDUSystemDescription(_type=6, _length=255, description=b'Cisco IOS Software [Gibraltar], Catalyst L3 Switch Software (CAT3K_CAA-UNIVERSALK9-M), Version 16.12.14, RELEASE SOFTWARE (fc1)\\nTechnical Support: http://www.cisco.com/techsupport\\nCopyright (c) 1986-2025 by Cisco Systems, Inc.\\nCompiled Mon 08-Sep-25 08:50')/LLDPDUPortDescription(_type=4, _length=25, description=b'[--alext-test-mac-lldp--]')/LLDPDUSystemCapabilities(_type=7, _length=4, reserved_5_available=0, reserved_4_available=0, reserved_3_available=0, reserved_2_available=0, reserved_1_available=0, two_port_mac_relay_available=0, s_vlan_component_available=0, c_vlan_component_available=0, station_only_available=0, docsis_cable_device_available=0, telephone_available=0, router_available=1, wlan_access_point_available=0, mac_bridge_available=1, repeater_available=0, other_available=0, reserved_5_enabled=0, reserved_4_enabled=0, reserved_3_enabled=0, reserved_2_enabled=0, reserved_1_enabled=0, two_port_mac_relay_enabled=0, s_vlan_component_enabled=0, c_vlan_component_enabled=0, station_only_enabled=0, docsis_cable_device_enabled=0, telephone_enabled=0, router_enabled=0, wlan_access_point_enabled=0, mac_bridge_enabled=1, repeater_enabled=0, other_enabled=0)/LLDPDUManagementAddress(_type=8, _length=12, _management_address_string_length=5, management_address_subtype=1, management_address=b'\\n\\x0e\\x1e\\xfa', interface_numbering_subtype=3, interface_number=0, _oid_string_length=0, object_id=b'')/LLDPDUGenericOrganisationSpecific(_type=127, _length=6, org_code=32962, subtype=1, data=b'\\x02\\x9a')/LLDPDUGenericOrganisationSpecific(_type=127, _length=9, org_code=4623, subtype=1, data=b'\\x03l\\x01\\x00\\x1e')/LLDPDUEndOfLLDPDU(_type=0, _length=0)",
+            },
+            "interface": "GigabitEthernet0/5",
+            "port_label": "hw103c-testing",
+            "role": "Desktop PC",
+            "room": ""
+        }
+        Command().handle(local=False, username='helpdesk_service_account', job='uoft_nautobot.jobs.HelpdeskPortActivation', profile=False, data=json.dumps(d))

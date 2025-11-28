@@ -3936,6 +3936,9 @@ dependencies = [
     { name = "uoft-aruba" },
     { name = "uoft-bluecat" },
     { name = "uoft-core" },
+    { name = "uoft-librenms" },
+    { name = "uoft-paloalto" },
+    { name = "uoft-scripts" },
     { name = "uoft-ssh" },
 ]
 
@@ -3963,6 +3966,9 @@ requires-dist = [
     { name = "uoft-aruba", editable = "projects/aruba" },
     { name = "uoft-bluecat", editable = "projects/bluecat" },
     { name = "uoft-core", editable = "projects/core" },
+    { name = "uoft-librenms", editable = "projects/librenms" },
+    { name = "uoft-paloalto", editable = "projects/paloalto" },
+    { name = "uoft-scripts", editable = "projects/scripts" },
     { name = "uoft-ssh", editable = "projects/ssh" },
 ]
 
