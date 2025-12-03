@@ -146,9 +146,9 @@ class SyncManager:
             "dictionary_item_added",
             "dictionary_item_removed",
         }
-        assert (
-            set(diff.keys()) <= expected_diff_types
-        ), f"Deepdiff has identified unexpected type[s] of change: {set(diff.keys()) - expected_diff_types}"
+        assert set(diff.keys()) <= expected_diff_types, (
+            f"Deepdiff has identified unexpected type[s] of change: {set(diff.keys()) - expected_diff_types}"
+        )
 
         delta = deepdiff.Delta(diff)
 
@@ -268,9 +268,7 @@ def show_golden_config_data(
 ):
     nb = get_api(dev)
     device = t.cast(Record, nb.dcim.devices.get(name=device_name))
-    gql_query = t.cast(
-        str, t.cast(Record, nb.extras.graphql_queries.get(name="golden_config")).query
-    )
+    gql_query = t.cast(str, t.cast(Record, nb.extras.graphql_queries.get(name="golden_config")).query)
     data = nb.graphql.query(gql_query, {"device_id": device.id})
     print(json.dumps(data.json["data"]["device"], indent=2))
 
@@ -283,9 +281,7 @@ def trigger_golden_config_intended(
     nb = get_api(dev)
     device: Record = nb.dcim.devices.get(name=device_name)
     job = nb.extras.jobs.get(name="Generate Intended Configurations")
-    job_result = nb.extras.jobs.run(
-        job_id=job.id, data={"device": [device.id]}
-    ).job_result
+    job_result = nb.extras.jobs.run(job_id=job.id, data={"device": [device.id]}).job_result
     print(
         "A new `Generate Intended Configurations` job run has been triggered. Job status / results can be found here:"
     )
@@ -301,9 +297,7 @@ def template_filter_info(
 
     for template_file in templates_dir.glob("templates/**/*.j2"):
         logger.info(f"Scanning {template_file}")
-        for match in re.finditer(
-            r"\|\s*([a-zA-Z_][a-zA-Z0-9_]*)", template_file.read_text()
-        ):
+        for match in re.finditer(r"\|\s*([a-zA-Z_][a-zA-Z0-9_]*)", template_file.read_text()):
             filter_name = match.group(1).strip()
             found_filters.add(filter_name)
             logger.debug(filter_name)
@@ -362,9 +356,7 @@ def run_job(dev: bool, job_name: str, data: dict):
     job_result: JobResults = nb.extras.jobs.run(  # pyright: ignore
         job_id=job.id, data=data
     ).job_result  # pyright: ignore
-    con.print(
-        f"A new '{job_name}' job run has been triggered. Job status / results can be found here:"
-    )
+    con.print(f"A new '{job_name}' job run has been triggered. Job status / results can be found here:")
     url = t.cast(str, job_result.url).replace("/api/", "/")
     con.print(f"[link={url}]{url}[/link]")
     con.print("Waiting for job to complete...")
@@ -398,12 +390,8 @@ def push_changes_to_nautobot(
     import subprocess
 
     # make sure git status is clean
-    git_status = subprocess.run(
-        ["git", "status", "--porcelain"], capture_output=True, cwd=templates_dir
-    )
-    assert (
-        git_status.returncode == 0
-    ), "This command is meant to be run AFTER you've committed your changes."
+    git_status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, cwd=templates_dir)
+    assert git_status.returncode == 0, "This command is meant to be run AFTER you've committed your changes."
 
     logger.info("Pushing local changes to gitlab")
     subprocess.run(["git", "push"], check=True, cwd=templates_dir)
@@ -419,11 +407,10 @@ def test_templates_in_nautobot(
     push_changes_to_nautobot(templates_dir, dev)
     nb = get_api(dev)
     all_platform_uuids: list[str] = [
-        p.id for p in nb.dcim.platforms.all()  # pyright: ignore
+        p.id  # pyright: ignore
+        for p in nb.dcim.platforms.all()
     ]  # pyright: ignore
-    job_result = run_job(
-        dev, "Generate Intended Configurations", {"platform": all_platform_uuids}
-    )
+    job_result = run_job(dev, "Generate Intended Configurations", {"platform": all_platform_uuids})
     run_job(
         dev,
         "Perform Configuration Compliance",
@@ -449,9 +436,7 @@ def _device_family_id(nb, prompt, model):
         )
         return device_families_by_name[family_name]
     else:
-        logger.info(
-            f"Unable to automatically determine device family based on part number {model}"
-        )
+        logger.info(f"Unable to automatically determine device family based on part number {model}")
         if not prompt.get_bool(
             "has_device_family",
             "Should this device_type belong to a device family?",
@@ -475,7 +460,9 @@ def _device_family_id(nb, prompt, model):
 
 def _manufacturer_id(nb, manufacturer):
     mfg = nb.dcim.manufacturers.get(name=manufacturer)
-    if not mfg:
+    if mfg:
+        logger.info(f"Manufacturer {manufacturer} found with id {mfg.id}")
+    else:
         logger.info(f"Manufacturer {manufacturer} not found, creating...")
         mfg = nb.dcim.manufacturers.create(name=manufacturer)
     return mfg.id
@@ -517,11 +504,12 @@ def device_type_add_or_update(
 
     # the device_type dictionary ALMOST perfectly matches the structure expected by the Nautobot API
     # for device_types
+    _manufacturer_id(nb, manufacturer)
     model = device_type["model"]
 
     if existing_device_type := t.cast(
         Record,
-        nb.dcim.device_types.get(model=model, manufacturer=device_type["manufacturer"]),
+        nb.dcim.device_types.get(model=model, manufacturer=manufacturer),
     ):
         logger.info(f"Device type {model} already exists in Nautobot")
         if not prompt.get_bool(
@@ -552,19 +540,25 @@ def device_type_add_or_update(
         except KeyError:
             pass
 
+        logger.info(f"Creating device type {model}...")
         res = t.cast(Record, nb.dcim.device_types.create(nb_data))
         device_type_id = res.id
 
     logger.info(f"Device type {model} created with id {device_type_id}")
 
-    def _populate_interface(interface):
+    def _populate_interface(
+        interface, parent_type: t.Literal["device", "module"] = "device", parent_id: str | None = None
+    ):
         interface_data = dict(
-            device_type=device_type_id,
             name=interface.get("name"),
             type=interface.get("type"),
             mgmt_only=interface.get("mgmt_only"),
             description=interface.get("description"),
         )
+        if parent_type == "device":
+            interface_data["device_type"] = parent_id
+        else:
+            interface_data["module_type"] = parent_id
         if interface_data["description"] is None:
             del interface_data["description"]
         if interface_data["mgmt_only"] is None:
@@ -577,92 +571,200 @@ def device_type_add_or_update(
             # in this case, we can ignore the error
             pass
 
-    def _populate_console_port(console_port):
+    def _populate_console_port(
+        console_port, parent_type: t.Literal["device", "module"] = "device", parent_id: str | None = None
+    ):
         console_port_data = dict(
-            device_type=device_type_id,
             name=console_port.get("name"),
             type=console_port.get("type"),
             description=console_port.get("description"),
         )
+        if parent_type == "device":
+            console_port_data["device_type"] = parent_id
+        else:
+            console_port_data["module_type"] = parent_id
         if console_port_data["description"] is None:
             del console_port_data["description"]
         try:
             nb.dcim.console_port_templates.create(console_port_data)
+            logger.info(f"Created console port {console_port_data['name']}")
         except pynautobot.RequestError:
             # in case of updating an existing device type, some or all console ports
             # will already exist. in this case, we can ignore the error
             pass
 
-    def _populate_power_port(power_port):
+    def _populate_power_port(
+        power_port, parent_type: t.Literal["device", "module"] = "device", parent_id: str | None = None
+    ):
         power_port_data = dict(
-            device_type=device_type_id,
             name=power_port.get("name"),
             type=power_port.get("type"),
             description=power_port.get("description"),
         )
+        if parent_type == "device":
+            power_port_data["device_type"] = parent_id
+        else:
+            power_port_data["module_type"] = parent_id
         if power_port_data["description"] is None:
             del power_port_data["description"]
         try:
             nb.dcim.power_port_templates.create(power_port_data)
+            logger.info(f"Created power port {power_port_data['name']}")
         except pynautobot.RequestError:
             # in case of updating an existing device type, some or all power ports
             # will already exist. in this case, we can ignore the error
             pass
 
-    def _populate_module_bay(module_bay):
-        mb_name = module_bay.get("name")
-        if prompt.get_bool(
-            "load_module",
-            f"{model} defines a module bay called {mb_name}. "
-            "Would you like to link a module into it?",
-        ):
-            modules_available = [
-                f.stem
-                for f in Path("module-types").joinpath(manufacturer).glob("*.yaml")
-            ]
-            module_file_name = prompt.get_from_choices(
-                "module",
-                modules_available,
-                "Select a module to link to this module bay",
-            )
-            module_file = Path("module-types").joinpath(
-                manufacturer, f"{module_file_name}.yaml"
-            )
-            module_data = loads(module_file.read_text())
-            _populate_device_type_components(module_data)
+    _rear_ports_defined = {}
 
-    def _populate_device_type_components(component_data):
+    def _populate_rear_port(
+        rear_port, parent_type: t.Literal["device", "module"] = "device", parent_id: str | None = None
+    ):
+        rear_port_data = dict(
+            name=rear_port.get("name"),
+            type=rear_port.get("type"),
+            positions=rear_port.get("positions"),
+            description=rear_port.get("description"),
+        )
+        if parent_type == "device":
+            rear_port_data["device_type"] = parent_id
+        else:
+            rear_port_data["module_type"] = parent_id
+        if rear_port_data["description"] is None:
+            del rear_port_data["description"]
+        try:
+            record = nb.dcim.rear_port_templates.create(rear_port_data)
+            _rear_ports_defined[rear_port_data["name"]] = record.id  # pyright: ignore
+            logger.info(f"Created rear port {rear_port_data['name']}")
+        except pynautobot.RequestError:
+            # in case of updating an existing device type, some or all rear ports
+            # will already exist. in this case, we can ignore the error
+            record = nb.dcim.rear_port_templates.get(name=rear_port_data["name"])
+            _rear_ports_defined[rear_port_data["name"]] = record.id  # pyright: ignore
+            logger.info(f"Found existing rear port {rear_port_data['name']}")
+
+    def _populate_front_port(
+        front_port, parent_type: t.Literal["device", "module"] = "device", parent_id: str | None = None
+    ):
+        front_port_data = dict(
+            name=front_port.get("name"),
+            type=front_port.get("type"),
+            rear_port_position=front_port.get("rear_port_position"),
+            description=front_port.get("description"),
+        )
+        rear_port_name = front_port["rear_port"]
+        rear_port_template = _rear_ports_defined.get(rear_port_name)
+        if parent_type == "device":
+            front_port_data["device_type"] = parent_id
+            if not rear_port_template:
+                rear_port_template = nb.dcim.rear_port_templates.get(
+                    device_type=device_type_id,
+                    name=rear_port_name,
+                ).id  # pyright: ignore
+        else:
+            front_port_data["module_type"] = parent_id
+            if not rear_port_template:
+                rear_port_template = nb.dcim.rear_port_templates.get(
+                    module_type=parent_id,
+                    name=rear_port_name,
+                ).id  # pyright: ignore
+        if not rear_port_template:
+            logger.error(f"Rear port {rear_port_name} not found for front port {front_port['name']}")
+            return
+        front_port_data["rear_port_template"] = rear_port_template
+        if front_port_data["description"] is None:
+            del front_port_data["description"]
+        try:
+            nb.dcim.front_port_templates.create(front_port_data)
+            logger.info(f"Created front port {front_port_data['name']}")
+        except pynautobot.RequestError:
+            # in case of updating an existing device type, some or all front ports
+            # will already exist. in this case, we can ignore the error
+            pass
+
+    def _create_module_type(manufacturer):
+        modules_available = [f.stem for f in Path("module-types").joinpath(manufacturer).glob("*.yaml")]
+        module_file_name = prompt.get_from_choices(
+            "module",
+            modules_available,
+            "Select a module type to link to this module bay",
+        )
+        module_file = Path("module-types").joinpath(manufacturer, f"{module_file_name}.yaml")
+        module_data = loads(module_file.read_text())
+        module_type_data = dict(
+            name=module_data.get("name"),
+            model=module_data.get("model"),
+            part_number=module_data.get("part_number"),
+            manufacturer=_manufacturer_id(nb, manufacturer),
+        )
+        try:
+            module_type_record = nb.dcim.module_types.create(module_type_data)
+            _populate_device_type_components(module_data, parent_type="module", parent_id=module_type_record.id)  # pyright: ignore[reportAttributeAccessIssue]
+            logger.info(f"Created module type {module_type_data['name']}")
+        except pynautobot.RequestError:
+            # in case of updating an existing device type, some or all module types
+            # will already exist. in this case, we can ignore the error
+            pass
+
+    def _populate_module_bay(
+        module_bay, parent_type: t.Literal["device", "module"] = "module", parent_id: str | None = None
+    ):
+        mb_name = module_bay.get("name")
+        logger.info(f"{model} defines a module bay called {mb_name}.")
+        while prompt.get_bool(
+            "Would you like to import a[nother] module type from this manufacturer?",
+            "Would you like to import a[nother] module type from this manufacturer?",
+        ):
+            _create_module_type(manufacturer)
+        module_bay_data = dict(
+            name=mb_name,
+            description=module_bay.get("description"),
+            position=module_bay.get("position"),
+        )
+        if parent_type == "device":
+            module_bay_data["device_type"] = parent_id
+        else:
+            module_bay_data["module_type"] = parent_id
+        try:
+            nb.dcim.module_bay_templates.create(module_bay_data)
+            logger.info(f"Created module bay {module_bay_data['name']}")
+        except pynautobot.RequestError:
+            pass
+
+    def _populate_device_type_components(
+        component_data, parent_type: t.Literal["device", "module"] = "device", parent_id: str | None = None
+    ):
         # component_data could be the device_type dict,
         # or it could be a dict loaded from a module
         if interfaces := component_data.get("interfaces"):
             logger.info(f"Creating interfaces for {model}")
             for interface in interfaces:
-                _populate_interface(interface)
+                _populate_interface(interface, parent_type=parent_type, parent_id=parent_id)
 
         if console_ports := component_data.get("console-ports"):
             logger.info(f"Creating console ports for {model}")
             for console_port in console_ports:
-                _populate_console_port(console_port)
+                _populate_console_port(console_port, parent_type=parent_type, parent_id=parent_id)
 
         if power_ports := component_data.get("power-ports"):
             logger.info(f"Creating power ports for {model}")
             for power_port in power_ports:
-                _populate_power_port(power_port)
+                _populate_power_port(power_port, parent_type=parent_type, parent_id=parent_id)
 
-        if "rear-ports" in component_data or "front-ports" in component_data:
-            # TODO: add support for front and rear ports to support patch panels
-            logger.error(
-                f"{model} defines rear-ports or front-ports, which are not yet supported by this script. Skipping..."
-            )
-            logger.error(
-                "Please create these manually in Nautobot or ask my creator to add support for them."
-            )
+        if rear_ports := component_data.get("rear-ports"):
+            logger.info(f"Creating rear ports for {model}")
+            for rear_port in rear_ports:
+                _populate_rear_port(rear_port, parent_type=parent_type, parent_id=parent_id)
+        if front_ports := component_data.get("front-ports"):
+            logger.info(f"Creating front ports for {model}")
+            for front_port in front_ports:
+                _populate_front_port(front_port, parent_type=parent_type, parent_id=parent_id)
 
         if module_bays := component_data.get("module-bays"):
             for module_bay in module_bays:
-                _populate_module_bay(module_bay)
+                _populate_module_bay(module_bay, parent_type=parent_type, parent_id=parent_id)
 
-    _populate_device_type_components(device_type)
+    _populate_device_type_components(device_type, parent_type="device", parent_id=device_type_id)
 
     logger.info("Done!")
 
@@ -716,9 +818,7 @@ def new_switch(
         "Select a manufacturer for this switch",
     )
 
-    logger.info(
-        f"Loading list of available {manufacturer} Device Types from Nautobot..."
-    )
+    logger.info(f"Loading list of available {manufacturer} Device Types from Nautobot...")
     dt, dt_id = _select_from_queryset(
         prompt,
         nb,
@@ -758,8 +858,7 @@ def new_switch(
 
     logger.info("Loading list of Locations from Nautobot...")
     locations = {
-        t.cast(str, obj["display"]): t.cast(str, obj["id"])
-        for obj in t.cast(list[Record], nb.dcim.locations.all())
+        t.cast(str, obj["display"]): t.cast(str, obj["id"]) for obj in t.cast(list[Record], nb.dcim.locations.all())
     }
 
     def _new_room():
@@ -780,11 +879,7 @@ def new_switch(
                 location_type={"name": "Room"},
                 parent=locations[building_name],
                 status={"name": "Active"},
-                custom_fields=dict(
-                    room_number=prompt.get_string(
-                        "room_number", "Enter the room number (ex. AC290)"
-                    )
-                ),
+                custom_fields=dict(room_number=prompt.get_string("room_number", "Enter the room number (ex. AC290)")),
             ),
         )
         return location_name, t.cast(str, location_record.id)
@@ -817,14 +912,10 @@ def new_switch(
     logger.info("Loading list of available device Tags from Nautobot...")
     available_tags = {
         t.cast(str, tag["name"]): t.cast(str, tag["id"])
-        for tag in t.cast(
-            list[Record], nb.extras.tags.filter(content_types="dcim.device")
-        )
+        for tag in t.cast(list[Record], nb.extras.tags.filter(content_types="dcim.device"))
     }
     while True:
-        if not prompt.get_bool(
-            "add_tag", "Would you like to add a tag to this switch?"
-        ):
+        if not prompt.get_bool("add_tag", "Would you like to add a tag to this switch?"):
             break
         tag_name = prompt.get_from_choices(
             "tag",
@@ -860,9 +951,7 @@ def new_switch(
         "override_os_version",
         "Would you like to override the OS version for this device?",
     ):
-        os_version = prompt.get_string(
-            "os_version", "Enter the OS version for this device"
-        )
+        os_version = prompt.get_string("os_version", "Enter the OS version for this device")
         config_context["os_version"] = os_version
 
     logger.info("Checking to see if Device already exists in Nautobot...")
@@ -899,14 +988,10 @@ def new_switch(
             ),
         )
 
-    logger.info(
-        f"Checking to see if {name}/{interface_name} already exists in Nautobot..."
-    )
+    logger.info(f"Checking to see if {name}/{interface_name} already exists in Nautobot...")
     mgmt_interface = nb.dcim.interfaces.get(device=device.id, name=interface_name)
     if not mgmt_interface:
-        logger.info(
-            f"Creating primary interface {interface_name} for {name} in Nautobot..."
-        )
+        logger.info(f"Creating primary interface {interface_name} for {name} in Nautobot...")
         mgmt_interface = nb.dcim.interfaces.create(
             device=device.id,
             name=interface_name,
@@ -945,14 +1030,10 @@ def new_switch(
                 dns_name=f"{name}.netmgmt.utsc.utoronto.ca",
             ),
         )
-        if prompt.get_bool(
-            "push to bluecat", "Would you like to push this IP address to Bluecat?"
-        ):
+        if prompt.get_bool("push to bluecat", "Would you like to push this IP address to Bluecat?"):
             # from uoft_bluecat.cli import add_or_update_ip
 
-            raise NotImplementedError(
-                "Bluecat integration not yet implemented, talk to Alex T"
-            )
+            raise NotImplementedError("Bluecat integration not yet implemented, talk to Alex T")
 
     logger.info(f"Associating {primary_ip4} with {interface_name}...")
     try:
@@ -962,9 +1043,7 @@ def new_switch(
         )
     except pynautobot.RequestError as e:
         if "must make a unique set" in e.args[0]:
-            logger.info(
-                f"IP Address {primary_ip4} is already associated with {interface_name}"
-            )
+            logger.info(f"IP Address {primary_ip4} is already associated with {interface_name}")
         else:
             raise e
 
@@ -997,13 +1076,9 @@ def regen_interfaces(
     device_type: Record = nb.dcim.device_types.get(
         id=device.device_type.id  # pyright: ignore
     )  # pyright: ignore
-    logger.info(
-        f"Regenerating entries for {device_name} based on device type {device_type.model}"
-    )
+    logger.info(f"Regenerating entries for {device_name} based on device type {device_type.model}")
     logger.info("Regenerating interfaces...")
-    for i_t in t.cast(
-        list[Record], nb.dcim.interface_templates.filter(device_type=device_type.id)
-    ):
+    for i_t in t.cast(list[Record], nb.dcim.interface_templates.filter(device_type=device_type.id)):
         try:
             nb.dcim.interfaces.create(
                 device=device.id,
@@ -1020,9 +1095,7 @@ def regen_interfaces(
             else:
                 raise e
     logger.info("Regenerating console ports...")
-    for c_t in t.cast(
-        list[Record], nb.dcim.console_port_templates.filter(device_type=device_type.id)
-    ):
+    for c_t in t.cast(list[Record], nb.dcim.console_port_templates.filter(device_type=device_type.id)):
         nb.dcim.console_ports.create(
             device=device.id,
             name=c_t.name,
@@ -1031,9 +1104,7 @@ def regen_interfaces(
             description=c_t.description,
         )
     logger.info("Regenerating power ports...")
-    for p_t in t.cast(
-        list[Record], nb.dcim.power_port_templates.filter(device_type=device_type.id)
-    ):
+    for p_t in t.cast(list[Record], nb.dcim.power_port_templates.filter(device_type=device_type.id)):
         nb.dcim.power_ports.create(
             device=device.id,
             name=p_t.name,
@@ -1076,9 +1147,7 @@ def rebuild_switch(
         "Select a manufacturer for this switch",
     )
 
-    logger.info(
-        f"Loading list of available {manufacturer} Device Types from Nautobot..."
-    )
+    logger.info(f"Loading list of available {manufacturer} Device Types from Nautobot...")
     device_type, dt_id = _select_from_queryset(
         prompt,
         nb,
@@ -1112,10 +1181,7 @@ def rebuild_switch(
         platform = None
     # find all interfaces / console ports / power ports associated with this device which came from the old device type
     # delete them
-    old_interfaces = [
-        i.name
-        for i in nb.dcim.interface_templates.filter(device_type=device.device_type.id)
-    ]
+    old_interfaces = [i.name for i in nb.dcim.interface_templates.filter(device_type=device.device_type.id)]
     logger.warning("This script will delete the following interfaces:")
     logger.info(old_interfaces)
     if not prompt.get_bool("delete_interfaces", "Do you want to continue?"):
@@ -1125,21 +1191,13 @@ def rebuild_switch(
             interface.delete()
 
     logger.info("Deleting old console ports...")
-    old_console_ports = [
-        c.name
-        for c in nb.dcim.console_port_templates.filter(
-            device_type=device.device_type.id
-        )
-    ]
+    old_console_ports = [c.name for c in nb.dcim.console_port_templates.filter(device_type=device.device_type.id)]
     for console_port in nb.dcim.console_ports.filter(device=device.id):
         if console_port.name in old_console_ports:
             console_port.delete()
 
     logger.info("Deleting old power ports...")
-    old_power_ports = [
-        p.name
-        for p in nb.dcim.power_port_templates.filter(device_type=device.device_type.id)
-    ]
+    old_power_ports = [p.name for p in nb.dcim.power_port_templates.filter(device_type=device.device_type.id)]
     for power_port in nb.dcim.power_ports.filter(device=device.id):
         if power_port.name in old_power_ports:
             power_port.delete()
@@ -1159,11 +1217,7 @@ def rebuild_switch(
     regen_interfaces(name, dev)
 
     # Add a note to the device object
-    device.notes.create(
-        dict(
-            note=f"Device has been rebuilt from device type {old_device_type} to {device_type}"
-        )
-    )
+    device.notes.create(dict(note=f"Device has been rebuilt from device type {old_device_type} to {device_type}"))
 
 
 def generate_compliance_commands(
@@ -1292,9 +1346,7 @@ query ($feature: String) {
                 platform=r["device"]["platform"]["name"],
                 status=r["device"]["status"]["name"],
                 software_version=(
-                    r["device"]["software_version"]["version"]
-                if r["device"]["software_version"]
-                    else None
+                    r["device"]["software_version"]["version"] if r["device"]["software_version"] else None
                 ),
                 device_type=r["device"]["device_type"]["model"],
             ),
@@ -1381,18 +1433,14 @@ def _devices_with_matching_line(
     config_type: t.Literal["actual", "intended"] = "actual",
 ):
     logger.info(f"Please wait, searching for devices with matching line: '{line}'")
-    matching_devices = [
-        c.device for c in compliance_data if line in getattr(c, config_type)
-    ]
+    matching_devices = [c.device for c in compliance_data if line in getattr(c, config_type)]
     tab = Table(title=f"Devices with matching line: {line}")
     tab.add_column("Device")
     tab.add_column("Status")
     tab.add_column("Platform Version")
     tab.add_column("Device Type")
     for device in matching_devices:
-        tab.add_row(
-            device.name, device.status, device.software_version, device.device_type
-        )
+        tab.add_row(device.name, device.status, device.software_version, device.device_type)
     return tab
 
 
@@ -1441,23 +1489,13 @@ def _generate_statistics_summary(
     tab.add_column(have_column)
 
     def row(title, key):
-        out_of_total = [
-            r
-            for r in compliance_data
-            if getattr(r.device, key) == getattr(report.device, key)
-        ]
+        out_of_total = [r for r in compliance_data if getattr(r.device, key) == getattr(report.device, key)]
         out_of_total_count = f"{len(out_of_total)}/{len(compliance_data)}"
-        out_of_total_percent = (
-            f"({len(out_of_total) / len(compliance_data) * 100:.2f}%)"
-        )
+        out_of_total_percent = f"({len(out_of_total) / len(compliance_data) * 100:.2f}%)"
 
-        have_this_line = [
-            r for r in out_of_total if line in getattr(r, config_type).splitlines()
-        ]
+        have_this_line = [r for r in out_of_total if line in getattr(r, config_type).splitlines()]
         have_this_line_count = f"{len(have_this_line)}/{len(out_of_total)}"
-        have_this_line_percent = (
-            f"({len(have_this_line) / len(out_of_total) * 100:.2f}%)"
-        )
+        have_this_line_percent = f"({len(have_this_line) / len(out_of_total) * 100:.2f}%)"
         tab.add_row(
             f"Devices with matching {title} ({getattr(report.device, key)})",
             out_of_total_count + out_of_total_percent,
@@ -1502,9 +1540,7 @@ def explore_compliance(feature: str):
     for report in compliance_data:
         if report.in_compliance:
             continue
-        report_config_table, extra_config, missing_config = (
-            _generate_report_comparison_table(report)
-        )
+        report_config_table, extra_config, missing_config = _generate_report_comparison_table(report)
         con.print(report_config_table)
         side = Prompt.ask(
             "Do you want to explore the left or right (l/r) side of this report? Press enter to skip to next report",
@@ -1520,15 +1556,11 @@ def explore_compliance(feature: str):
                 config_type = "intended"
                 line = missing_config[line_number - 1]
 
-            stats_table = _generate_statistics_summary(
-                compliance_data, report, line, config_type=config_type
-            )
+            stats_table = _generate_statistics_summary(compliance_data, report, line, config_type=config_type)
             con.print(stats_table)
 
             if Confirm.ask("Do you want to see a list of devices with matching line?"):
-                devices_report = _devices_with_matching_line(
-                    line, compliance_data, config_type=config_type
-                )
+                devices_report = _devices_with_matching_line(line, compliance_data, config_type=config_type)
                 con.print(devices_report)
             input("Press enter to continue...")
 
@@ -1542,9 +1574,7 @@ def get_or_assign_oob_ip(switch_hostname: str, dev: bool = False) -> str:
 
     mgmt_intf = nb.dcim.interfaces.get(device=switch.id, name="Management1")
     if not mgmt_intf:
-        raise Exception(
-            f"Switch {switch_hostname} does not have a Management1 interface"
-        )
+        raise Exception(f"Switch {switch_hostname} does not have a Management1 interface")
     mgmt_intf = t.cast("Record", mgmt_intf)
     if not mgmt_intf.enabled:
         logger.info(f"Enabling Management1 interface on {switch_hostname}")
@@ -1552,16 +1582,12 @@ def get_or_assign_oob_ip(switch_hostname: str, dev: bool = False) -> str:
 
     # intf role
     if mgmt_intf.role is None or mgmt_intf.role.name == "Management":
-        logger.info(
-            f"Setting Management1 interface role to Management on {switch_hostname}"
-        )
+        logger.info(f"Setting Management1 interface role to Management on {switch_hostname}")
         role = nb.extras.roles.get(name="Management")
         mgmt_intf.update(dict(role=role))
 
     if len(mgmt_intf.ip_addresses) == 0:  # pyright: ignore[reportArgumentType]
-        logger.warning(
-            f"Switch {switch_hostname} does not have an OOB IP address assigned"
-        )
+        logger.warning(f"Switch {switch_hostname} does not have an OOB IP address assigned")
         oob_pfx = nb.ipam.prefixes.get(prefix="192.168.64.0/22")
         logger.warning(f"Assigning next available IP to {switch_hostname}")
         oob_ip = oob_pfx.available_ips.create(  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
