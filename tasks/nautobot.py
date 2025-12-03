@@ -230,3 +230,28 @@ def rebase_nautobot_custom_fork():
         git push --force-with-lease --set-upstream origin utsc-custom      
         """)
     )
+
+
+def test_port_activation_mac():
+    run("scp projects/scripts/uoft_scripts/nautobot/port_activation.py testlab-mac-mini:~/")
+    try:
+        run(
+            "ssh -L 5678:localhost:5678 -t testlab-mac-mini 'bash -lc \"sudo uv run --script "
+            "/Users/alex/port_activation.py\"'"
+        )
+    except CalledProcessError as e:
+        print("Port activation script exited with code", e.returncode)
+
+def test_port_activation_mac_compiled():
+    run("scp projects/scripts/uoft_scripts/nautobot/port_activation.py testlab-mac-mini:~/")
+    try:
+        run(
+            "ssh -L 5678:localhost:5678 -t testlab-mac-mini ./port-activation --interface en0"
+        )
+    except CalledProcessError as e:
+        print("Port activation script exited with code", e.returncode)
+
+def package_port_activation_mac():
+    run("scp projects/scripts/uoft_scripts/nautobot/port_activation.py testlab-mac-mini:~/")
+    run("ssh testlab-mac-mini ./build_pex.sh")
+    run("ssh testlab-mac-mini './science lift build'")
