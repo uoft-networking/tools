@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 DEBUG_MODE = False
 
+
 def _version_callback(value: bool):
     if not value:
         return
@@ -64,11 +65,13 @@ def callback(
         DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
+
 class DeviceType(str, Enum):
     autodetect = "autodetect"
     cisco_ios = "cisco_ios"
     arista_eos = "arista_eos"
     aruba_aoscx = "aruba_aoscx"
+
 
 @app.command()
 def rename_switch(
@@ -81,7 +84,7 @@ def rename_switch(
     Rename a switch in Nautobot, LibreNMS, Bluecat, and via SSH
     """
     logger.info(f"Renaming {old_name} to {new_name}")
-    device_type_name = device_type.value # type: ignore
+    device_type_name = device_type.value  # type: ignore
     from uoft_librenms import Settings as LibreNMSSettings
     from .nautobot import Settings as NautobotSettings
     from uoft_bluecat import Settings as BluecatSettings
@@ -107,7 +110,7 @@ def rename_switch(
     logger.success("Changed name in Nautobot")
 
     logger.info("Changing name in Bluecat address and host record(s)...")
-    with BluecatSettings.from_cache().alt_api_connection() as bluecat:
+    with BluecatSettings.from_cache().get_api_connection() as bluecat:
         bc_addr = bluecat.get("/addresses/", params=dict(filter=f"address:'{ip_address}'")).json()["data"][0]
         bc_addr["name"] = new_name
         bluecat.put(f"/addresses/{bc_addr['id']}", json=bc_addr, comment=f"Renaming {old_name} to {new_name}")
@@ -138,7 +141,7 @@ def rename_switch(
         device_type_name = t.cast(str, guesser.autodetect())
         ssh_c["device_type"] = device_type_name
     with ConnectHandler(**ssh_c) as ssh:
-        ssh.send_config_set(config_commands=[f'hostname {new_name}'])
+        ssh.send_config_set(config_commands=[f"hostname {new_name}"])
         ssh.send_command("write memory")
         logger.success("Changed device's hostname through SSH")
 

@@ -33,7 +33,8 @@ dependencies = [
   "grpcio >= 1.71",
   "grpcio_reflection >= 1.71",
   "protobuf >= 5",
-  "cloudvision >= 1.23"
+  "cloudvision >= 1.23",
+  "scapy >= 2.4.5"
 ]
 
 [project.scripts]

@@ -80,7 +80,7 @@ class NautobotInventory(Inventory):
         return api.graphql.query(query).json["data"]["devices"]
 
     @classmethod
-    def from_nautobot(cls) -> "NautobotInventory":
+    def from_nautobot(cls, dev: bool = False) -> "NautobotInventory":
         """Load of Nornir inventory.
 
         Returns:
@@ -165,7 +165,7 @@ class NautobotInventory(Inventory):
         return cls(hosts=hosts, groups=Groups(), defaults=defaults)
 
 
-def get_nornir(concurrent=True, concurrency=25):
+def get_nornir(concurrent=True, concurrency=25, dev=False):
     ConnectionPluginRegister.register("netmiko", Netmiko)
     ConnectionPluginRegister.register("napalm", Napalm)
     config = Config()
@@ -174,7 +174,7 @@ def get_nornir(concurrent=True, concurrency=25):
     else:
         runner = SerialRunner()
     state = GlobalState(dry_run=False)
-    nr = Nornir(inventory=NautobotInventory.from_nautobot(), runner=runner, data=state, config=config)
+    nr = Nornir(inventory=NautobotInventory.from_nautobot(dev), runner=runner, data=state, config=config)
     return nr
 
 

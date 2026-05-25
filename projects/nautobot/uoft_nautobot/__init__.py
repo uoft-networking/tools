@@ -101,7 +101,7 @@ class Settings(BaseSettings):
             return cls.json_loads(raw_val)
 
     def get_db_connection(self):
-        return f"postgresql://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+        return f"postgresql://{self.db_user}:{self.db_password.get_secret_value()}@{self.db_host}:{self.db_port}/{self.db_name}"
 
     def get_redis_connection(self, database_number=0):
         scheme = "rediss" if self.redis_ssl else "redis"

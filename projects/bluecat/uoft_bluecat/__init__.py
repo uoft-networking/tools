@@ -21,14 +21,17 @@ class Settings(BaseSettings):
         default_factory=set,
         description="Network IDs that contain only DHCP-assigned addresses",
     )
+    configuration: str | None = Field('UTSCProduction', description="BlueCat configuration name")
 
     class Config(BaseSettings.Config):
         app_name = "bluecat"
 
-    def get_api_connection(self):
+    def get_api_connection(self, configuration: str | None = None):
         from .api import API
 
-        return API(self.url, self.username, self.password.get_secret_value())
+        configuration = configuration or self.configuration
+
+        return API(self.url, self.username, self.password.get_secret_value(), configuration=configuration)
 
 
 class STGSettings(Settings):

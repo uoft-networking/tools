@@ -101,6 +101,7 @@ import _cog as c; c.gen_conf_table('uoft_bluecat')
 | username | str |  |  | admin |
 | password | SecretStr |  |  |  |
 | dhcp_only_network_ids | int |  | Network IDs that contain only DHCP-assigned addresses |  |
+| configuration | str |  | BlueCat configuration name | UTSCProduction |
 <!--[[[end]]] -->
 
 ## License

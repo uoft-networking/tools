@@ -349,7 +349,7 @@ _pass_installed = None
 def _is_pass_installed():
     global _pass_installed
     if _pass_installed is None:
-        _pass_installed = bool(which("pass"))
+        _pass_installed = bool(which(_pass_cmd))
     return _pass_installed
 
 # dynamically inheriting from the cls of Path is an unfortunate necessity

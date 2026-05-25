@@ -1,6 +1,6 @@
-from django.urls import path
+from rest_framework import routers
 from .views import ArubaBlocklistView
 
-urlpatterns = [
-    path('aruba-blocklist/', ArubaBlocklistView.as_view(), name='aruba-blocklist'),
-]
+router = routers.DefaultRouter()
+router.register(viewset=ArubaBlocklistView, prefix='aruba-blocklist', basename='aruba-blocklist')
+urlpatterns = router.urls
