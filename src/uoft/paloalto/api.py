@@ -57,7 +57,7 @@ class API(APIBase):
     def commit(self):
         assert self.api_key, "API key is required to commit changes"
         logger.info("Committing changes")
-        res = self.post(self.url / 'api', params=dict(type='commit', cmd='<commit></commit>'))
+        res = self.post(self.url / "api", params=dict(type="commit", cmd="<commit></commit>"))
         msg = res.text.partition("<msg>")[2].partition("</msg>")[0]
         logger.info(f"Commit result: {msg}")
         return msg
@@ -160,7 +160,9 @@ class API(APIBase):
             json={"entry": [payload]},
         ).json()
 
-    def network_soft_delete(self, name: str, netmask: str, description: str | None = None, tags: set[str] | None = None):
+    def network_soft_delete(
+        self, name: str, netmask: str, description: str | None = None, tags: set[str] | None = None
+    ):
         logger.info(f"Adding 'net_type:deleted' tag to network '{name}'")
         tags = tags or set()
         for tag in list(tags):
@@ -168,4 +170,3 @@ class API(APIBase):
                 tags.remove(tag)
         tags.add("net_type:deleted")
         return self.network_update(name, netmask, description, tags)
-        

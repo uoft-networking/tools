@@ -12,9 +12,7 @@ from .version import __version__
 
 
 class SSHSettings(SSHSettingsBase):
-    nautobot: Credentials = Field(
-        description="Credentials for the Nautobot user, typically has read-only access."
-    )
+    nautobot: Credentials = Field(description="Credentials for the Nautobot user, typically has read-only access.")
 
 
 class LDAPSettings(BaseModel):
@@ -23,9 +21,7 @@ class LDAPSettings(BaseModel):
     cert_is_self_signed: bool = False
     bind_dn: str
     bind_password: SecretStr
-    user_search_base: str = (
-        "OU=UTORIDStaff,OU=Staff Users,DC=utscad,DC=utsc,DC=utoronto,DC=ca"
-    )
+    user_search_base: str = "OU=UTORIDStaff,OU=Staff Users,DC=utscad,DC=utsc,DC=utoronto,DC=ca"
     user_attribute_map: dict[str, str] = Field(
         default_factory=lambda: {
             "first_name": "givenName",
@@ -113,9 +109,7 @@ class Settings(BaseSettings):
         if username or password:
             creds = f"{username}:{password}@"
 
-        return (
-            f"{scheme}://{creds}{self.redis_host}:{self.redis_port}/{database_number}"
-        )
+        return f"{scheme}://{creds}{self.redis_host}:{self.redis_port}/{database_number}"
 
     def all_groups(self):
         return {
@@ -133,8 +127,7 @@ class UofTPluginConfig(NautobotAppConfig):
     author_email = "alex.tremblay@utoronto.ca"
     version = __version__
     description = (
-        "A Plugin containing all the extensions and customizations to Nautobot that the "
-        "UofT networking teams need"
+        "A Plugin containing all the extensions and customizations to Nautobot that the UofT networking teams need"
     )
     base_url = "uoft"
     min_version = "0.9"

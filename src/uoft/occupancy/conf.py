@@ -37,7 +37,7 @@ class Department(BaseModel):
     departmental_users: list[str]  # Optional
     watermarks: dict[str, int]  # Optional
     apgroups: dict[str, list[str]]  # Required
-    ranges: list[str] # Required
+    ranges: list[str]  # Required
 
 
 class Occupancy_Tracking(SQLModel, table=True):

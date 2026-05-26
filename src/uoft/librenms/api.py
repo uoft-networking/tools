@@ -16,20 +16,17 @@ class LibreNMSRESTAPI(APIBase):
         verify: bool | str = True,
     ) -> None:
         super().__init__(base_url, api_root="/api/v0", verify=verify)
-        self.headers.update(
-            {
+        self.headers.update({
             "Content-Type": "application/json",
             "Accept": "application/json",
             "X-Auth-Token": token,
-            }
-        )
+        })
 
     @property
     def alerts(self):
         url = self.api_url / "alerts"
 
         class Alerts:
-
             @staticmethod
             def get_alert(alert: int):
                 """
@@ -95,7 +92,6 @@ class LibreNMSRESTAPI(APIBase):
         url = self.api_url / "rules"
 
         class AlertRules:
-
             @staticmethod
             def get_alert_rule(rule: int):
                 """
@@ -225,7 +221,6 @@ class LibreNMSRESTAPI(APIBase):
         url = self.api_url / "devices"
 
         class Devices:
-
             @staticmethod
             def del_device(device: str):
                 """
@@ -375,15 +370,13 @@ class LibreNMSRESTAPI(APIBase):
                 :param height: graph height, defaults to 300.
                 :param output: how the graph should be outputted (base64, display), defaults to display.
                 """
-                parameters = dict(
-                    {
+                parameters = dict({
                     "from": date_from,
                     "to": date_to,
                     "width": width,
                     "height": height,
                     "output": output,
-                    }
-                )
+                })
                 return self.get(url / f"{device}/{graph_type}", params=parameters).json()
 
             @staticmethod
@@ -446,16 +439,14 @@ class LibreNMSRESTAPI(APIBase):
                 :param disabled: Filter the result by disabled (Equals)
                 :param ignore: Filter the result by ignore (Equals)
                 """
-                parameters = dict(
-                    {
+                parameters = dict({
                     "type": filter_type,
                     "id": component_id,
                     "label": label,
                     "status": status,
                     "disabled": disabled,
                     "ignore": ignore,
-                    }
-                )
+                })
                 return self.get(url / f"{device}/components", params=parameters).json()
 
             @staticmethod
@@ -491,8 +482,7 @@ class LibreNMSRESTAPI(APIBase):
                 :param disabled:
                 :param error:
                 """
-                data = dict(
-                    {
+                data = dict({
                     component_id: {
                         "type": component_type,
                         "label": label,
@@ -501,8 +491,7 @@ class LibreNMSRESTAPI(APIBase):
                         "disabled": disabled,
                         "error": error,
                     }
-                    }
-                )
+                })
                 return self.put(url / f"{device}/components", json=data).json()
 
             @staticmethod
@@ -559,15 +548,13 @@ class LibreNMSRESTAPI(APIBase):
                 :param interface_description: Will use ifDescr to lookup the port instead of ifName when true.
                 Pass the ifDescr value you want to search as you would ifName.
                 """
-                parameters = dict(
-                    {
+                parameters = dict({
                     "from": date_from,
                     "to": date_to,
                     "width": width,
                     "height": height,
                     "ifDescr": interface_description,
-                    }
-                )
+                })
                 interface_name = interface_name.replace("/", "%2F")
                 return self.get(
                     url / f"{device}/ports/{interface_name}/{port_type}",
@@ -656,8 +643,7 @@ class LibreNMSRESTAPI(APIBase):
                 :param os: OS short name for the device (defaults to ping).
                 :param hardware: Device hardware.
                 """
-                data = dict(
-                    {
+                data = dict({
                     "hostname": hostname,
                     "overwrite_ip": overwrite_ip,
                     "port": port,
@@ -675,8 +661,7 @@ class LibreNMSRESTAPI(APIBase):
                     "snmp_disable": snmp_disable,
                     "os": os,
                     "hardware": hardware,
-                    }
-                )
+                })
                 return self.post(url, json=data).json()
 
             @staticmethod
@@ -702,12 +687,10 @@ class LibreNMSRESTAPI(APIBase):
                 :param field: Column name within the database (can be an array of fields)
                 :param data: Data to update the column with (can be an array of data)
                 """
-                data = dict(
-                    {
+                data = dict({
                     "field": field,
                     "data": data,
-                    }
-                )
+                })
                 return self.patch(url / device, json=data).json()
 
             @staticmethod
@@ -755,11 +738,9 @@ class LibreNMSRESTAPI(APIBase):
                 :param device: Can be either the device hostname or ID
                 :param parent_ids: One or more parent IDs or hostnames
                 """
-                data = dict(
-                    {
+                data = dict({
                     "parent_ids": parent_ids,
-                    }
-                )
+                })
                 return self.post(url / device / "parents", json=data).json()
 
             @staticmethod
@@ -771,11 +752,9 @@ class LibreNMSRESTAPI(APIBase):
                 :param parent_ids: One or more parent IDs or hostnames.
                 If not specified deletes all parents from host.
                 """
-                data = dict(
-                    {
+                data = dict({
                     "parent_ids": parent_ids,
-                    }
-                )
+                })
                 return self.delete(url / device / "parents", data=data).json()
 
             @staticmethod
@@ -825,13 +804,11 @@ class LibreNMSRESTAPI(APIBase):
                 :param devices: required if type == static.
                 A list of devices that should be included in this group. This is a static list of devices
                 """
-                data: dict[str, Any] = dict(
-                    {
+                data: dict[str, Any] = dict({
                     "name": name,
                     "type": group_type,
                     "desc": desc,
-                    }
-                )
+                })
                 if group_type == "static":
                     data.update({"devices": devices})
                 elif group_type == "dynamic":
@@ -900,12 +877,10 @@ class LibreNMSRESTAPI(APIBase):
                 For example specifying the chassis (entPhysicalIndex) will retrieve
                     all items where the chassis is the parent.
                 """
-                parameters = dict(
-                    {
+                parameters = dict({
                     "entPhysicalClass": ent_physical_class,
                     "entPhysicalContainedIn": ent_physical_contained_in,
-                    }
-                )
+                })
                 return self.get(url / device, params=parameters).json()
 
             @staticmethod
@@ -927,12 +902,10 @@ class LibreNMSRESTAPI(APIBase):
                 For example specifying the chassis (entPhysicalIndex) will
                     retrieve all items where the chassis is the parent.
                 """
-                parameters = dict(
-                    {
+                parameters = dict({
                     "entPhysicalClass": ent_physical_class,
                     "entPhysicalContainedIn": ent_physical_contained_in,
-                    }
-                )
+                })
                 return self.get(url / device / "all", params=parameters).json()
 
         return Inventory
@@ -953,13 +926,11 @@ class LibreNMSRESTAPI(APIBase):
                 :param lat: Latitude
                 :param lng: Longitude
                 """
-                data = dict(
-                    {
+                data = dict({
                     "location": location,
                     "lat": lat,
                     "lng": lng,
-                    }
-                )
+                })
                 return self.post(url, json=data).json()
 
             @staticmethod
@@ -980,12 +951,10 @@ class LibreNMSRESTAPI(APIBase):
                 :param lat: Latitude
                 :param lng: Longitude
                 """
-                data = dict(
-                    {
+                data = dict({
                     "lat": lat,
                     "lng": lng,
-                    }
-                )
+                })
                 return self.patch(url / location, json=data).json()
 
         return Locations

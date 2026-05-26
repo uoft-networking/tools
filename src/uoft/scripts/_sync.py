@@ -243,7 +243,7 @@ class SyncManager:
             if orphaned_records
             else ""
         )
-        total_records = ', '.join(filter(lambda x: x, [records_to_create, records_to_update, orphaned_records]))
+        total_records = ", ".join(filter(lambda x: x, [records_to_create, records_to_update, orphaned_records]))
         msg = f"Found {total_records}" if total_records else "No records to synchronize, everything is in sync!"
         logger.info(msg)
 
@@ -363,8 +363,7 @@ class NautobotTarget(Target):
                 ip_addr_id = ip6["id"]
             elif device_status != "Active":
                 logger.warning(
-                    f"Nautobot: Device {nb_device['name']} is not active and "
-                    "does not have an IP address, skipping..."
+                    f"Nautobot: Device {nb_device['name']} is not active and does not have an IP address, skipping..."
                 )
                 continue
             else:
@@ -951,7 +950,7 @@ class BluecatTarget(Target):
         logger.info(f"Bluecat: Deleting {len(prefixes)} prefixes")
         # sort prefixes by prefix length, from highest to lowest,
         # so that we delete child prefixes before parent prefixes
-        for pfx in sorted(prefixes.values(), key= lambda x: x.ip_network.prefixlen, reverse=True):
+        for pfx in sorted(prefixes.values(), key=lambda x: x.ip_network.prefixlen, reverse=True):
             id_ = self.syncdata.local_ids[pfx.prefix]
             msg = f"Deleting prefix {pfx.prefix} ({pfx.type})"
             logger.info(f"Bluecat: {msg}")

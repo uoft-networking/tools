@@ -24,15 +24,9 @@ class Generate(BaseModel):
 
 
 class Deploy(BaseModel):
-    ssh_pass_cmd: str = Field(
-        description="shell command to aquire the console server ssh password"
-    )
-    terminal_pass_cmd: str = Field(
-        description="shell command to aquire the switch's terminal access password"
-    )
-    enable_pass_cmd: str = Field(
-        description="shell command to aquire the switch's enable password"
-    )
+    ssh_pass_cmd: str = Field(description="shell command to aquire the console server ssh password")
+    terminal_pass_cmd: str = Field(description="shell command to aquire the switch's terminal access password")
+    enable_pass_cmd: str = Field(description="shell command to aquire the switch's enable password")
     targets: dict[str, str] = Field(
         description=chomptxt(
             """
@@ -84,6 +78,7 @@ class Settings(BaseSettings):
     debug: bool = Field(False, description="whether to permanently enable debug mode")
 
     class Config(BaseSettings.Config):
-        app_name = 'switchconfig'
+        app_name = "switchconfig"
+
 
 settings = Settings.from_cache

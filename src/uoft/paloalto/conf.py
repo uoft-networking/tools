@@ -71,7 +71,8 @@ def _write_ca_bundle(path):
     # curl <cert_url> | openssl x509 -outform PEM >> ~/.cache/uoft-tools/ca_bundle.crt
     # then find and download the next cert in the chain, and repeat until you have all the certs in the chain.
     with path.open("w") as f:
-        f.write(txt(
+        f.write(
+            txt(
                 """-----BEGIN CERTIFICATE-----
             MIIDrjCCAzOgAwIBAgIQNb50Y4yz6d4oBXC3l4CzZzAKBggqhkjOPQQDAzCBiDEL
             MAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNl
@@ -178,4 +179,5 @@ def _write_ca_bundle(path):
             q1p8oZFA+OBcz3FYWpDIe5j0NWKlw9hXsTyPY/HeZUV59akskSOSRSmDfe8wJDPX
             58uB9/7lud0G3x0pxQAcffP0ayKavNwDTw4UfJ34cEw=
             -----END CERTIFICATE-----"""
-        ))
+            )
+        )

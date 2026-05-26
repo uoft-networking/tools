@@ -31,17 +31,18 @@ logger = logging.getLogger(__name__)
 
 TERM_SRV_TYP = t.Literal["tripplite", "airconsole"]
 
+
 def _terminal_server_ssh_session(
     terminal_server: str,
     port: int,
-    terminal_server_type: TERM_SRV_TYP = 'tripplite',
+    terminal_server_type: TERM_SRV_TYP = "tripplite",
 ):
-    if terminal_server_type == 'airconsole':
+    if terminal_server_type == "airconsole":
         # airconsole encodes the serial port number into the SSH port number,
         # runs a separate SSH server for each port
         creds = SSHSettings.from_cache().airconsole
         username = creds.username
-        extra_args = ['-p', f"40{port:02d}"]  # Airconsole uses port numbers like 4001, 4002, etc.
+        extra_args = ["-p", f"40{port:02d}"]  # Airconsole uses port numbers like 4001, 4002, etc.
     else:
         # tripplite terminal servers encode the serial port number into SSH username
         # using the username format <username>:port<port>
@@ -91,7 +92,7 @@ def _get_onboarding_token():
     # Call the method
     res = method(request=token_request)
 
-    return res.enrollmentToken.token # pyright: ignore[reportAttributeAccessIssue]
+    return res.enrollmentToken.token  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def _put_switch_in_config_mode(ssh: "UofTPexpectSpawn"):
@@ -248,7 +249,9 @@ def _wait_for_switch_to_come_online(ip: str):
     logger.success(f"{ip} is now online!")
 
 
-def initial_provision(switch_hostname: str, terminal_server: str, port: int, terminal_server_type: TERM_SRV_TYP = 'tripplite'):
+def initial_provision(
+    switch_hostname: str, terminal_server: str, port: int, terminal_server_type: TERM_SRV_TYP = "tripplite"
+):
     """
     Given a switch hostname, terminal server, and port,
     connect to the switch via the terminal server
@@ -281,7 +284,7 @@ def initial_provision(switch_hostname: str, terminal_server: str, port: int, ter
     for line in track(minimum_config, description="Pushing config to switch...", console=console()):
         logger.debug(f"Sending command: {line}")
         ssh.sendline(line)
-        res = ssh.expect([r"%.*", TIMEOUT], timeout=0.5)
+        res = ssh.expect([r"%.*#", TIMEOUT], timeout=0.5)
         if res == 0:
             logger.error(f"Command {line} failed with error: {ssh.after}")
             raise RuntimeError(f"Command {line} failed with error: {ssh.after}")
@@ -293,10 +296,15 @@ def initial_provision(switch_hostname: str, terminal_server: str, port: int, ter
     ssh.sendline("wr mem")
 
 
-def onboard_into_cvp(switch_name: str, oob = True):
+def onboard_into_cvp(switch_name: str, oob=True):
     s = SSHSettings.from_cache()
     logger.info(f"Onboarding switch {switch_name} into CVP...")
-    ssh = get_ssh_session(switch_name, username=s.personal.username, password=s.personal.password.get_secret_value(), accept_unknown_host=True)
+    ssh = get_ssh_session(
+        switch_name,
+        username=s.personal.username,
+        password=s.personal.password.get_secret_value(),
+        accept_unknown_host=True,
+    )
     onboarding_token = _get_onboarding_token()
 
     ssh.expect(r"([a-zA-Z0-9-]+)>")
@@ -318,7 +326,8 @@ def onboard_into_cvp(switch_name: str, oob = True):
     logger.info("Configuring TerminAttr daemon...")
     ssh.expect(r"([a-zA-Z0-9-]+)\(config\)#")
     ssh.sendline("daemon TerminAttr")
-    cmd = ("exec /usr/bin/TerminAttr -smashexcludes=ale,flexCounter,hardware,kni,pulse,strata "
+    cmd = (
+        "exec /usr/bin/TerminAttr -smashexcludes=ale,flexCounter,hardware,kni,pulse,strata "
         "-cvaddr=apiserver.arista.io:443 -cvauth=token-secure,/tmp/cv-onboarding-token "
         "-cvproxy=http://dante.utsc.utoronto.ca:3128 -taillogs --disableaaa"
     )
@@ -335,7 +344,9 @@ def onboard_into_cvp(switch_name: str, oob = True):
     logger.success("Switch has been onboarded into CVP. It should show up in CVP momentarily.")
 
 
-def wipe_switch(terminal_server: str, port: int, reenable_ztp_mode: bool = False, terminal_server_type: TERM_SRV_TYP = 'tripplite'):
+def wipe_switch(
+    terminal_server: str, port: int, reenable_ztp_mode: bool = False, terminal_server_type: TERM_SRV_TYP = "tripplite"
+):
     """
     Given a terminal server and port,
     wipe the Arista switch attached to that port
@@ -589,10 +600,6 @@ def map_stack_connections(
 
     nr.run(get_lldp_data)
 
-    # import pickle
-    # pickle.dump(lldp_data_raw, open('.uoft_core.debug.arista_lldp.pkl', 'wb'))
-    # lldp_data_raw = pickle.load(open(".uoft_core.debug.arista_lldp.pkl", "rb"))
-
     lldp_data = _parse_lldp_data(
         lldp_data_raw, dist_switch_hostname, arista_switch_names, dist_lag_number=dist_lag_number
     )
@@ -711,7 +718,6 @@ def map_stack_connections(
             remote_intf = t.cast("Interfaces", remote_intf)
             remote_intf.update(remote_intf_data)
 
-
     _get_or_create_intfs(lldp_data.spine2.lag_to_dist)
     _get_or_create_intfs(lldp_data.spine1.lag_to_dist)
     # do spine1 after spine2, so the dist-switch lag label points to spine1 instead of spine2
@@ -809,7 +815,7 @@ def push_nautobot_config_to_switches(*arista_switch_names: str):
             raise e
             ssh.exit_config_mode("commit")
         ssh.send_command("write memory")
-        return Result(host, f"Config pushed to {host.name}")
+        return Result(host, f"Config pushed to {host.name}", changed=True)
 
     arista_switches.run(update_config, raise_on_error=True)
     logger.success(f"Successfully pushed intended configs to switches: {', '.join(arista_switch_names)}")

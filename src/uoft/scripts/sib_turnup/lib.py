@@ -73,6 +73,7 @@ def is_port_unconfigured(confs: str) -> bool:
 
     return conf == unconfigured
 
+
 def go(
     switch: str,
     intf: str,
@@ -96,7 +97,7 @@ def go(
             password=s.personal.password.get_secret_value(),
         )
     logger.info(f"Running command: show run int {intf}")
-    current_conf: str = ssh.send_command(f"show run int {intf}") # pyright: ignore[reportAssignmentType]
+    current_conf: str = ssh.send_command(f"show run int {intf}")  # pyright: ignore[reportAssignmentType]
     current_conf = current_conf.partition("!")[2]
     print(current_conf)
     logger.info(f"Running comand: show lldp neighbors {intf}")

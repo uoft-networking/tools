@@ -60,9 +60,9 @@ class API(APIBase):
         pass
 
     def get(self, url, params: dict[str, Any] | None = None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
-        if params and 'skip_configuration_filtering' in params:
+        if params and "skip_configuration_filtering" in params:
             # explicitly skip configuration filtering
-            del params['skip_configuration_filtering']
+            del params["skip_configuration_filtering"]
         elif self.configuration:
             # add configuration filter if not already set
             if not params or "filter" not in params:
@@ -259,7 +259,7 @@ class API(APIBase):
         type_: Literal["IPv4Address", "IPv6Address"] | None = None,
         parent_id: str | int | None = None,
         name: str | None = None,
-        comment: str = "Address created by uoft_bluecat tool",
+        comment: str = "Address created by uoft-bluecat tool",
         state: IPAddressState = "STATIC",
         create_reverse_record: bool = True,
         **kwargs,
@@ -294,7 +294,7 @@ class API(APIBase):
                 # this is a workaround for the bluecat API's limitations
                 gw_id = self.get(url, params=dict(limit=1, filter="state:'GATEWAY'")).json()["data"][0]["id"]
                 res = self.put(
-                    f"/addresses/{gw_id}", json=json, comment="GW updated by uoft_bluecat tool", **kwargs
+                    f"/addresses/{gw_id}", json=json, comment="GW updated by uoft-bluecat tool", **kwargs
                 ).json()  # pyright: ignore[reportArgumentType]
             else:
                 raise e
@@ -305,7 +305,7 @@ class API(APIBase):
         self,
         address_id: str | int,
         name: str | None = None,
-        comment: str = "Address updated by uoft_bluecat tool",
+        comment: str = "Address updated by uoft-bluecat tool",
         state: IPAddressState = "STATIC",
         create_reverse_record: bool | None = None,
         **kwargs,
@@ -354,7 +354,7 @@ class API(APIBase):
         return res["data"][0]
 
     def create_zone(
-        self, dns_zone: str, view_id: int | None = None, comment: str = "Zone created by uoft_bluecat tool", **kwargs
+        self, dns_zone: str, view_id: int | None = None, comment: str = "Zone created by uoft-bluecat tool", **kwargs
     ):
         """
         Create a new DNS zone in Bluecat.
@@ -381,7 +381,7 @@ class API(APIBase):
         return self.post(f"/views/{view_id}/zones", json=json, comment=comment, **kwargs).json()  # pyright: ignore[reportArgumentType]
 
     def update_zone(
-        self, zone_id: int, json: dict[str, Any], comment: str = "Zone updated by uoft_bluecat tool", **kwargs
+        self, zone_id: int, json: dict[str, Any], comment: str = "Zone updated by uoft-bluecat tool", **kwargs
     ):
         """
         Update an existing zone in Bluecat.
@@ -416,7 +416,7 @@ class API(APIBase):
         name: str,
         address_id: int,
         zone_id: int,
-        comment: str = "Host record created by uoft_bluecat tool",
+        comment: str = "Host record created by uoft-bluecat tool",
     ):
         json = ts.hostrecord_post(
             name=name,
@@ -438,7 +438,7 @@ class API(APIBase):
         self,
         record_id: int,
         record: dict[str, Any],
-        comment: str = "Host record updated by uoft_bluecat tool",
+        comment: str = "Host record updated by uoft-bluecat tool",
         **kwargs,
     ):
         """
@@ -455,7 +455,7 @@ class API(APIBase):
         """
         return self.put(f"/resourceRecords/{record_id}", json=record, comment=comment, **kwargs).json()
 
-    def delete_host_record(self, record_id: int, comment: str = "Host record deleted by uoft_bluecat tool", **kwargs):
+    def delete_host_record(self, record_id: int, comment: str = "Host record deleted by uoft-bluecat tool", **kwargs):
         """
         Delete an existing host record in Bluecat.
 
@@ -476,7 +476,7 @@ class API(APIBase):
         type_: Literal["IPv4Network", "IPv6Network"] | None = None,
         prefix_length: int | None = None,
         name: str | None = None,
-        comment: str = "Network created by uoft_bluecat tool",
+        comment: str = "Network created by uoft-bluecat tool",
         **kwargs,
     ):
         json = kwargs.setdefault("json", {})
@@ -497,7 +497,7 @@ class API(APIBase):
         return self.post(url, comment=comment, **kwargs).json()
 
     def update_network(
-        self, id: int, json: dict[str, Any], comment: str = "Network updated by uoft_bluecat tool", **kwargs
+        self, id: int, json: dict[str, Any], comment: str = "Network updated by uoft-bluecat tool", **kwargs
     ):
         """
         Update an existing network in Bluecat.
@@ -520,7 +520,7 @@ class API(APIBase):
         type_: Literal["IPv4Block", "IPv6Block"] | None = None,
         prefix_length: int | None = None,
         name: str | None = None,
-        comment: str = "Block created by uoft_bluecat tool",
+        comment: str = "Block created by uoft-bluecat tool",
         **kwargs,
     ):
         json = kwargs.setdefault("json", {})
@@ -543,7 +543,7 @@ class API(APIBase):
         return self.post(url, comment=comment, **kwargs).json()
 
     def update_block(
-        self, id: int, json: dict[str, Any], comment: str = "Block updated by uoft_bluecat tool", **kwargs
+        self, id: int, json: dict[str, Any], comment: str = "Block updated by uoft-bluecat tool", **kwargs
     ):
         """
         Update an existing block in Bluecat.
@@ -563,13 +563,13 @@ class API(APIBase):
         # bluecat does not support filtering servers by state (eg ENABLED) or by profile (eg DNS_DHCP_SERVER_*)
         # so we have to fetch all servers and filter them ourselves
         params = kwargs.pop("params", {})
-        params['fields'] = 'embed(deploymentRoles)'
+        params["fields"] = "embed(deploymentRoles)"
         all_servers = self.get(
             "/servers",
             params=params,
             **kwargs,
-        ).json()['data']
-        dns_servers = [s for s in all_servers if 'DNS_DHCP_SERVER_' in s['profile'] and s['state'] == 'ENABLED']
+        ).json()["data"]
+        dns_servers = [s for s in all_servers if "DNS_DHCP_SERVER_" in s["profile"] and s["state"] == "ENABLED"]
         if len(dns_servers) == 0:
             raise ValueError("No enabled DNS/DHCP servers found")
         return dns_servers
@@ -578,15 +578,13 @@ class API(APIBase):
         self,
         server_id: int,
         service: Literal["DHCPv4", "DNS"],
-        comment: str = "Deploy changes by uoft_bluecat tool",
+        comment: str = "Deploy changes by uoft-bluecat tool",
         **kwargs,
     ):
         payload = dict(type="FullDeployment", service=service)
-        return self.post(
-            f"/servers/{server_id}/deployments", json=payload, comment=comment, **kwargs
-        ).json()
+        return self.post(f"/servers/{server_id}/deployments", json=payload, comment=comment, **kwargs).json()
 
     def deployment_status(self, deployment_id: int, **kwargs):
         params = kwargs.pop("params", {})
-        params['skip_configuration_filtering'] = True
+        params["skip_configuration_filtering"] = True
         return self.get(f"/deployments/{deployment_id}", params=params, **kwargs).json()

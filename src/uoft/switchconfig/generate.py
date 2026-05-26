@@ -11,7 +11,7 @@ from .util import (
     get_comment_block_schema,
     construct_model_from_comment_block_schema,
     create_python_module,
-    normalize_extension_name
+    normalize_extension_name,
 )
 
 from uoft.core import logging
@@ -30,9 +30,11 @@ JINJA_OPTS = {
     "trim_blocks",
     "lstrip_blocks",
     "newline_sequence",
-    "keep_trailing_newline",}
+    "keep_trailing_newline",
+}
 
-class ExtensionModule():
+
+class ExtensionModule:
     filters: Optional[dict[str, Callable]] = None
     tests: Optional[dict[str, Callable[[Any], bool]]] = None
     globals: Optional[dict[str, Any]] = None
@@ -74,7 +76,7 @@ def get_template_extension(template: Path) -> Optional[ExtensionModule]:
     if extension_name in sys.modules:
         template_module = sys.modules[extension_name]
     else:
-        template_module =  create_python_module(extension_name, extension_file)
+        template_module = create_python_module(extension_name, extension_file)
 
     return ExtensionModule(template_module)
 
@@ -87,7 +89,7 @@ def validate_data_for_template(template: Path, extension: Optional[ExtensionModu
     if extension is not None and extension.model is not None:
         logger.trace(f"Validating data using model {extension.model}")
         return model_questionnaire(extension.model, data)
-    if (comment_block_schema := get_comment_block_schema(template.read_text())):
+    if comment_block_schema := get_comment_block_schema(template.read_text()):
         logger.trace("Validating data using comment block schema")
         model = construct_model_from_comment_block_schema(comment_block_schema)
         return model_questionnaire(model, data)
@@ -95,11 +97,10 @@ def validate_data_for_template(template: Path, extension: Optional[ExtensionModu
     return data
 
 
-
 def render_template(template: Path, input_data: dict[str, Any] | None = None):
     input_data = input_data or {}
     extension = get_template_extension(template)
-    logger.trace(f'input data: {input_data}')
+    logger.trace(f"input data: {input_data}")
     if extension and extension.preprocess_data:
         logger.trace("Found `preprocess_data` function in template extension module, passing input data through that")
         template_data = extension.preprocess_data(input_data)

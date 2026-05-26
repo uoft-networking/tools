@@ -42,9 +42,7 @@ class ArubaBlocklistView(ViewSet):
             200: inline_serializer(
                 name="aruba_stm_blacklist_get",
                 fields={
-                    "STA": f.CharField(
-                        help_text='The mac address which has been blocked (ex: "d2:9a:3d:db:a6:e8")'
-                    ),
+                    "STA": f.CharField(help_text='The mac address which has been blocked (ex: "d2:9a:3d:db:a6:e8")'),
                     "block-time(sec)": f.CharField(
                         help_text="How many seconds ago the mac address was added to the block list"
                     ),
@@ -120,12 +118,7 @@ class ArubaBlocklistView(ViewSet):
         res = {}
         for c in self.controllers:
             with c as conn:
-                res.update(
-                    {
-                        entry["STA"]: entry
-                        for entry in conn.wlan.get_ap_client_blocklist()
-                    }
-                )
+                res.update({entry["STA"]: entry for entry in conn.wlan.get_ap_client_blocklist()})
         return Response(list(res.values()))
 
     @extend_schema(
@@ -134,18 +127,14 @@ class ArubaBlocklistView(ViewSet):
             202: inline_serializer(
                 name="aruba_stm_blacklist_remove",
                 fields={
-                    "detail": f.CharField(
-                        help_text="A message confirming the results of the operation"
-                    ),
+                    "detail": f.CharField(help_text="A message confirming the results of the operation"),
                 },
             ),
         },
         examples=[
             OpenApiExample(
                 "ex1",
-                {
-                    "detail": "mac address '10:02:b5:27:bb:0e' has been removed from the aruba stm blocklist"
-                },
+                {"detail": "mac address '10:02:b5:27:bb:0e' has been removed from the aruba stm blocklist"},
             )
         ],
     )
@@ -174,7 +163,5 @@ class ArubaBlocklistView(ViewSet):
         with self.mobility_master as conn:
             conn.wlan.blmgr_blocklist_remove(mac)
 
-        res = {
-            "detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"
-        }
+        res = {"detail": f"mac address '{mac}' has been removed from the aruba stm blocklist"}
         return Response(res, status=status.HTTP_202_ACCEPTED)

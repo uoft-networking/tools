@@ -16,19 +16,19 @@ class EncryptedConfigSecretsProvider(SecretsProvider):
     """
 
     slug = "encrypted-config"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
-    name = "Encrypted Config"   # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+    name = "Encrypted Config"  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
 
     class ParametersForm(BootstrapMixin, forms.Form):  # pyright: ignore[reportIncompatibleMethodOverride]
         """
         User-friendly form for specifying the required parameters of this provider.
         """
+
         config_key = forms.CharField(
-            required=True,
-            help_text="dotted path to the key in the `uoft_nautobot.Settings` class"
+            required=True, help_text="dotted path to the key in the `uoft_nautobot.Settings` class"
         )
 
     @classmethod
-    def get_value_for_secret(cls, secret, obj=None, **kwargs): # pyright: ignore[reportIncompatibleMethodOverride]
+    def get_value_for_secret(cls, secret, obj=None, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
         """Retrieve the appropriate Settings class variable's value."""
         rendered_parameters = secret.rendered_parameters(obj=obj)
         if "config_key" not in rendered_parameters:
@@ -39,9 +39,7 @@ class EncryptedConfigSecretsProvider(SecretsProvider):
             for key in key_path:
                 s = getattr(s, key)
         except KeyError:
-            raise SecretValueNotFoundError(
-                secret, cls, f'Undefined key "{rendered_parameters["config_key"]}"!'
-            )
+            raise SecretValueNotFoundError(secret, cls, f'Undefined key "{rendered_parameters["config_key"]}"!')
         if isinstance(s, SecretStr):
             s = s.get_secret_value()
         return s
