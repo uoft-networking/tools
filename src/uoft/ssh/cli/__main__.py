@@ -2,7 +2,6 @@
 A toolkit for working with SSH. Wrappers, Ansible convenience features, Nornir integration, etc
 """
 
-import re
 import typing as t
 import sys
 import socket
@@ -11,6 +10,16 @@ import typer
 
 from uoft.core import logging
 from uoft.core.console import console
+from ..conf import Settings
+from ..util import (
+    get_ssh_session,
+    HostKeyChanged,
+    HostKeyAlgorithmMismatch,
+    KeyExchangeMethodMismatch,
+    UnknownHostKey,
+    SSHSessionError,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,75 +46,6 @@ app = typer.Typer(
 )
 
 
-class HostKeyChanged(Exception):
-    pass
-
-
-class UnknownHostKey(Exception):
-    pass
-
-
-class HostKeyAlgorithmMismatch(Exception):
-    def __init__(self, theirs: str, *args: object) -> None:
-        self.theirs = theirs
-        super().__init__(*args)
-
-
-class KeyExchangeMethodMismatch(HostKeyAlgorithmMismatch):
-    pass
-
-
-class SSHSessionError(Exception):
-    """Base class for SSH session errors."""
-
-def get_ssh_session(
-    host: str,
-    username: str,
-    password: str,
-    command: str | None = None,
-    accept_unknown_host=False,
-    extra_args: list[str] = [""],
-):
-    command_line = f"ssh {' '.join(extra_args)} {username}@{host}"
-    if command:
-        command_line += f" {command}"
-    logger.debug(f"Running command: {command_line}")
-
-    child = UofTPexpectSpawn(command_line, encoding="utf-8")
-    logger.info("Waiting for password prompt")
-
-    match = child.expect(
-        [
-            "[pP]assword:",
-            "has changed and you have requested strict checking",
-            r"no matching (host key type|key exchange method) found. Their offer: (.*)",
-            r"The authenticity of host '[^']*' can't be established",
-            child.EOF
-        ]
-    )
-    if match == 1:
-        raise HostKeyChanged("Host key has changed")
-    elif match == 2:
-        logger.error(t.cast(str, child.after).strip())  # type: ignore
-        mismatch_type = t.cast(re.Match, child.match).group(1).strip()  # type: ignore
-        value = t.cast(re.Match, child.match).group(2).strip()  # type: ignore
-        if mismatch_type == "host key type":
-            raise HostKeyAlgorithmMismatch(value)
-        elif mismatch_type == "key exchange method":
-            raise KeyExchangeMethodMismatch(value)
-    elif match == 3:
-        if accept_unknown_host:
-            logger.info(f"Adding host key for {host} to known_hosts")
-            child.sendline("yes")
-        else:
-            raise UnknownHostKey("Host key is unknown")
-    elif match == 4:
-        raise SSHSessionError(child.before)
-
-    child.sendline(password)
-    return child
-
-
 @app.command(
     context_settings={
         "max_content_width": 120,
@@ -118,26 +58,25 @@ def get_ssh_session(
 # TODO: implement support for exploding submodels in Settings.wrap_typer_command
 def ssh(
     ctx: typer.Context,
-    host:t.Annotated[str, typer.Argument(help="The hostname or IP address of the remote server")],
-    command:t.Annotated[
+    host: t.Annotated[str, typer.Argument(help="The hostname or IP address of the remote server")],
+    command: t.Annotated[
         str | None,
         typer.Option(
-            help="The command to run on the remote server. "
-            "Interactive shell will be launched if no command specified",
+            help="The command to run on the remote server. Interactive shell will be launched if no command specified",
         ),
     ] = None,
     login_as_admin: t.Annotated[
         bool, typer.Option("--login-as-admin", help="Login as admin user (instead of using your utorid)")
     ] = False,
-    terminal_server:t.Annotated[
+    terminal_server: t.Annotated[
         bool,
         typer.Option("--terminal-server", help="Use the terminal server credentials to login (instead of your utorid)"),
     ] = False,
-    debug:t.Annotated[bool, typer.Option("--debug", help="Turn on debug logging", envvar="DEBUG")] = False,
-    trace:t.Annotated[
+    debug: t.Annotated[bool, typer.Option("--debug", help="Turn on debug logging", envvar="DEBUG")] = False,
+    trace: t.Annotated[
         bool, typer.Option("--trace", help="Turn on trace logging. implies --debug", envvar="TRACE")
     ] = False,
-    _:t.Annotated[
+    _: t.Annotated[
         t.Optional[bool],
         typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
     ] = None,

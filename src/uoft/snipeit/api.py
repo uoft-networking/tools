@@ -1,6 +1,6 @@
 import requests
 import re
-from . import Settings
+from .conf import Settings
 
 
 class SnipeITAPI:
@@ -38,11 +38,11 @@ class SnipeITAPI:
         r = requests.post(checkout_url, json=payload, headers=headers)
         data = r.json()
         if "status" in data and data["status"] == "error":
-            raise Exception(f'{data["messages"]}')
+            raise Exception(f"{data['messages']}")
         r = requests.put(status_url, json=payload, headers=headers)
         data = r.json()
         if "status" in data and data["status"] == "error":
-            raise Exception(f'{data["messages"]}')
+            raise Exception(f"{data['messages']}")
 
     def lookup_locations_raw(self):
         query_url = f"https://{self.hostname}/api/v1/locations"

@@ -1,7 +1,7 @@
 import threading
 import logging
 
-import uoft_librenms
+import uoft.librenms.conf
 
 from .._sync import DatasetName, SyncManager, Target, SyncData, DeviceModel, NautobotTarget
 
@@ -13,7 +13,7 @@ class LibreNMSTarget(Target):
 
     def __init__(self) -> None:
         super().__init__()
-        settings = uoft_librenms.Settings.from_cache()
+        settings = uoft.librenms.conf.Settings.from_cache()
         self.url = settings.url
         self.token = settings.token
 
@@ -24,7 +24,7 @@ class LibreNMSTarget(Target):
     def api(self):
         # get a thread-local copy of the api object
         if not hasattr(self._local_ns, "api"):
-            self._local_ns.api = uoft_librenms.LibreNMSRESTAPI(self.url, token=self.token.get_secret_value())
+            self._local_ns.api = uoft.librenms.conf.LibreNMSRESTAPI(self.url, token=self.token.get_secret_value())
         return self._local_ns.api
 
     def load_data(self, datasets: set):
@@ -49,12 +49,10 @@ class LibreNMSTarget(Target):
         )
 
 
-
 def get_devices(dev: bool = False):
-    from uoft_core import Timeit
+    from uoft.core import Timeit
 
     t = Timeit()
-
 
     # load data into the sync manager
     datasets: set[DatasetName] = {"devices"}

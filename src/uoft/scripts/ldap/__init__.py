@@ -1,4 +1,5 @@
-from uoft_core import BaseSettings, SecretStr
+from uoft.core import BaseSettings, SecretStr
+
 
 class Settings(BaseSettings):
     bind_username: str

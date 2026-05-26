@@ -8,14 +8,14 @@ import typer
 from typing import Annotated, Optional
 
 from uoft.core import logging
-from . import Settings
-from .create import snipe_create_asset
-from .checkout import snipe_checkout_asset
+from ..conf import Settings
+from ..create import snipe_create_asset
+from ..checkout import snipe_checkout_asset
 from .generate import generate_label as snipe_generate_label
 from .print import system_print_label
 from .batch import snipe_batch_provision
-from .serial_lookup import snipe_serial_lookup
-from .location_lookup import snipe_location_lookup
+from ..serial_lookup import snipe_serial_lookup
+from ..location_lookup import snipe_location_lookup
 
 logger = logging.getLogger(__name__)
 

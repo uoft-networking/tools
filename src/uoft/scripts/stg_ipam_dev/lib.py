@@ -8,8 +8,8 @@ from datetime import date
 from ipaddress import IPv4Network, IPv6Network
 from time import monotonic_ns
 
-from uoft_core import BaseSettings, SecretStr
-from uoft_core import logging
+from uoft.core import BaseSettings, SecretStr
+from uoft.core import logging
 
 from sqlmodel import Field, SQLModel, Session, create_engine, select
 import sqlalchemy as sa
@@ -447,8 +447,7 @@ def sync_to_nautobot():
 
 
 def sync_to_paloalto(commit: bool):
-
-    from uoft_paloalto import Settings as PaloAltoSettings
+    from uoft.paloalto.conf import Settings as PaloAltoSettings
 
     s = Settings.from_cache()
     pa = PaloAltoSettings.from_cache().get_api_connection()
@@ -456,7 +455,7 @@ def sync_to_paloalto(commit: bool):
     # PaloAlto tech support claims that making API requests one at a time to a single rest api server
     # may be "causing too much load", and ask us to split the requests across multiple servers
     # so we're going to do that here temporarily, in order to demonstrate no performance difference
-    from uoft_paloalto.api import API
+    from uoft.paloalto.api import API
 
     pas = PaloAltoSettings.from_cache()
     pa2 = API(

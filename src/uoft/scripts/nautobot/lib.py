@@ -36,9 +36,9 @@ from . import (
     get_settings,
     get_api,
 )
-from uoft_core.types import BaseModel
-from uoft_core import logging
-from uoft_core.console import console
+from uoft.core.types import BaseModel
+from uoft.core import logging
+from uoft.core.console import console
 
 import pynautobot
 from pynautobot.core.response import Record
@@ -203,7 +203,7 @@ def sync_from_bluecat(
     interactive: bool = True,
     on_orphan: OnOrphanAction = OnOrphanAction.prompt,
 ):
-    from uoft_core import Timeit
+    from uoft.core import Timeit
     from .. import _sync
     import typer
 
@@ -243,9 +243,7 @@ def sync_from_bluecat(
     done()
 
 
-def _get_jinja_env(templates_dir: Path):
-    from .. import _jinja
-    from uoft_core import jinja_library
+    from uoft.core import jinja
 
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(templates_dir),
@@ -494,7 +492,7 @@ def device_type_add_or_update(
     device_type_file = Path("device-types").joinpath(manufacturer, f"{model}.yaml")
 
     # read the device type file
-    from uoft_core.yaml import loads
+    from uoft.core.yaml import loads
 
     device_type = loads(device_type_file.read_text())
 
@@ -1031,7 +1029,7 @@ def new_switch(
             ),
         )
         if prompt.get_bool("push to bluecat", "Would you like to push this IP address to Bluecat?"):
-            # from uoft_bluecat.cli import add_or_update_ip
+            # from uoft.bluecat.cli import add_or_update_ip
 
             raise NotImplementedError("Bluecat integration not yet implemented, talk to Alex T")
 

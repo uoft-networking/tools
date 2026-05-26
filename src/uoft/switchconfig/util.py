@@ -19,7 +19,8 @@ import string
 import secrets
 
 
-from . import config, types
+from . import types
+from .conf import config
 
 from uoft.core import txt, create_python_module
 from uoft.core import logging

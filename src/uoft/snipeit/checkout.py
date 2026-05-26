@@ -1,6 +1,6 @@
 import typing as t
 
-from . import settings
+from .conf import settings
 from .api import SnipeITAPI
 from uoft.core.prompt import Prompt
 

@@ -1,6 +1,6 @@
 import typer
 
-from . import Settings
+from ..stg_ipam_dev import Settings
 
 app = typer.Typer(
     name="stg-ipam-dev",
@@ -18,7 +18,7 @@ def callback():
 
 @app.command()
 def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to the Palo Alto API")):
-    from . import lib
+    from ..stg_ipam_dev import lib
 
     lib.sync_to_paloalto(commit=commit)
 
@@ -26,6 +26,6 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
 @app.command()
 def sync_to_nautobot():
     """Syncronize networks and contacts from the database behind ipam.utoronto.ca into nautobot"""
-    from . import lib
+    from ..stg_ipam_dev import lib
 
     lib.sync_to_nautobot()

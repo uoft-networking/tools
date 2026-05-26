@@ -1,9 +1,9 @@
 import typing as t
 from pathlib import Path
 
-from uoft_core import logging
+from uoft.core import logging
 
-from . import OnOrphanAction, ComplianceReportGoal
+from ..nautobot import OnOrphanAction, ComplianceReportGoal
 
 import typer
 
@@ -23,7 +23,7 @@ def _validate_templates_dir(templates_dir):
 
 
 def _autocomplete_hostnames(ctx: typer.Context, partial: str):
-    from . import get_api
+    from ..nautobot import get_api
     from pynautobot.models.extras import Record
 
     dev = ctx.params.get("dev", False)
@@ -70,7 +70,7 @@ TemplatesPath: t.TypeAlias = t.Annotated[Path, typer.Option(exists=True, callbac
 
 @app.command()
 def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: OnOrphanAction = OnOrphanAction.prompt):
-    from . import lib
+    from ..nautobot import lib
 
     lib.sync_from_bluecat(
         dev=dev,
@@ -87,7 +87,7 @@ def show_golden_config_data(
     """
     Show the golden config data for a device.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.show_golden_config_data(device_name, dev=dev)
 
@@ -100,7 +100,7 @@ def trigger_golden_config_intended(
     """
     Trigger the generation of intended config for a device.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.trigger_golden_config_intended(device_name, dev=dev)
 
@@ -116,7 +116,7 @@ def template_filter_info(
         templates_dir (Path): The directory containing the template filters.
     """
     templates_dir = _validate_templates_dir(templates_dir)
-    from . import lib
+    from ..nautobot import lib
 
     lib.template_filter_info(templates_dir)
 
@@ -139,7 +139,7 @@ def test_golden_config_templates(
         dev (bool): Whether to use the development environment.
         print_output (bool): Whether to print the output of the test.
     """
-    from . import lib
+    from ..nautobot import lib
 
     templates_dir = _validate_templates_dir(templates_dir)
     lib.test_golden_config_templates(
@@ -156,7 +156,7 @@ def push_changes_to_nautobot(
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
 ):
-    from . import lib
+    from ..nautobot import lib
 
     templates_dir = _validate_templates_dir(templates_dir)
     lib.push_changes_to_nautobot(templates_dir, dev=dev)
@@ -167,7 +167,7 @@ def test_templates_in_nautobot(
     templates_dir: TemplatesPath = Path("."),
     dev: bool = False,
 ):
-    from . import lib
+    from ..nautobot import lib
 
     templates_dir = _validate_templates_dir(templates_dir)
     lib.test_templates_in_nautobot(templates_dir, dev=dev)
@@ -186,7 +186,7 @@ def device_type_add_or_update(
     Args:
         dev (bool): Whether to use the development environment.
     """
-    from . import lib
+    from ..nautobot import lib
 
     # check to make sure this command is being run from within the device-types library repo
     _assert_cwd_is_devicetype_library()
@@ -204,7 +204,7 @@ def new_switch(
     This command will create a new switch in Nautobot with the necessary configurations.
     It will prompt for the device type and other required information.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.new_switch(dev=dev)
 
@@ -226,7 +226,7 @@ def regen_interfaces(
     When run, this script will generate new interface / console port / power port entries for this switch in nautobot
     based on the interface / console port / power port entries in the device type assigned to this switch
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.regen_interfaces(device_name, dev=dev)
 
@@ -242,7 +242,7 @@ def rebuild_switch(
     This script would be useful if, for example, you're replacing a switch with a newer model,
     while keeping the hostname and ip address the same.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.rebuild_switch(set_status_to_planned=set_status_to_planned, dev=dev)
 
@@ -279,7 +279,7 @@ def generate_compliance_commands(
     Prints the generated commands as a JSON object if `merge_with` is not provided.
     If `merge_with` is provided, updates the specified JSON file with the merged commands.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.generate_compliance_commands(
         feature=feature,
@@ -311,7 +311,7 @@ def explore_compliance(
     Prints tables and prompts to the console for interactive exploration.
     Waits for user input to proceed through reports and options.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.explore_compliance(feature)
 
@@ -326,7 +326,7 @@ def get_or_assign_oob_ip(
     This command retrieves the OOB IP address for a device if it exists.
     If it does not exist, it assigns next available OOB IP address to the device.
     """
-    from . import lib
+    from ..nautobot import lib
 
     lib.get_or_assign_oob_ip(device_name, dev=False)
 
@@ -343,7 +343,7 @@ def check_golden_config_backup_job(
 
     This command checks the status of the golden config backup job and prints the result.
     """
-    from . import lib
+    from ..nautobot import lib
     from subprocess import run
 
     succeeded, details = lib.latest_backup_job_succeeded()
@@ -359,7 +359,7 @@ def check_golden_config_backup_job(
                 email_to,
             ],
             input="The latest Golden Config Backup job has failed. see "
-            f"<a href=\"https://engine.netmgmt.utsc.utoronto.ca/extras/job-results/{details['id']}\">"
+            f'<a href="https://engine.netmgmt.utsc.utoronto.ca/extras/job-results/{details["id"]}">'
             "the logs</a> for details",
             text=True,
             check=True,

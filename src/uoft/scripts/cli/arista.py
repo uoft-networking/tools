@@ -26,11 +26,12 @@ app = typer.Typer(name="arista", result_callback=prettyprinter_result_callback, 
 @app.command()
 def onboard_into_cvp(
     switch: t.Annotated[str, typer.Argument(help="Switch hostname")],
-    oob: t.Annotated[bool, typer.Option(help="configure switch to talk to CVP over OOB management VRF")] = True):
+    oob: t.Annotated[bool, typer.Option(help="configure switch to talk to CVP over OOB management VRF")] = True,
+):
     """Take a configured, SSH-accessible Arista switch
     and onboard it into CVP using a CVP onboarding token
     """
-    from . import lib
+    from ..arista import lib
 
     return lib.onboard_into_cvp(switch_name=switch, oob=oob)
 
@@ -49,7 +50,7 @@ def initial_provision(
     to get it online and accessible via SSH over OOB
     (including RADIUS auth)
     """
-    from . import lib
+    from ..arista import lib
 
     terminal_server_type = "airconsole" if airconsole else "tripplite"
 
@@ -69,7 +70,7 @@ def wipe_switch(
     and reset it to factory defaults.
     This is used for testing and debugging.
     """
-    from . import lib
+    from ..arista import lib
 
     terminal_server_type = "airconsole" if airconsole else "tripplite"
 
@@ -85,7 +86,7 @@ def map_stack_connections(
         list[str],
         typer.Argument(help="List of Arista switch hostnames to organize into a stack", metavar="HOSTNAME..."),
     ],
-    dist_lag_number: t.Annotated[ # pyright: ignore[reportRedeclaration]
+    dist_lag_number: t.Annotated[  # pyright: ignore[reportRedeclaration]
         int | None,
         typer.Option(
             help="Port channel number to use for the dist switch downlink to the spine switches. "
@@ -101,7 +102,7 @@ def map_stack_connections(
     if len(arista_switch_names) < 2:
         typer.echo("You must provide at least two Arista switch hostnames to form a stack.", err=True)
         raise typer.Exit(code=1)
-    from . import lib
+    from ..arista import lib
 
     if dist_lag_number is None:
         dist_lag_number: str = "auto"
@@ -118,7 +119,7 @@ def push_nautobot_config_to_switches(
 ):
     """Given a switch hostname, pull ip_address and intended config from Nautobot
     push config to switch via SSH"""
-    from . import lib
+    from ..arista import lib
 
     try:
         lib.push_nautobot_config_to_switches(*arista_switch_names)
@@ -149,7 +150,8 @@ def breakout_interfaces(
     - create Ethernet97/2, Ethernet97/3, Ethernet97/4 with type SFP28 (25GE),
     """
 
-    from . import lib
+    from ..arista import lib
+
     lib.breakout_interface(switch_name, interface_name)
 
 

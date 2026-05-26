@@ -1,6 +1,7 @@
 """
 API Wrapper and (hopefully soon) CLI interface for the LibreNMS REST API
 """
+
 from typing import Annotated, Optional
 import sys
 
@@ -17,7 +18,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(
@@ -26,6 +27,7 @@ def _version_callback(value: bool):
     )
     raise typer.Exit()
 
+
 app = typer.Typer(
     name="librenms",
     context_settings={"max_content_width": 120, "help_option_names": ["-h", "--help"]},
@@ -33,9 +35,10 @@ app = typer.Typer(
     help=__doc__,  # Use this module's docstring as the main program help text
 )
 
+
 @app.callback()
-#@Settings.wrap_typer_command
-#TODO: implement click paramtype support for Settings AnyHttpUrl
+# @Settings.wrap_typer_command
+# TODO: implement click paramtype support for Settings AnyHttpUrl
 def callback(
     version: Annotated[
         Optional[bool],
@@ -78,6 +81,7 @@ def cli():
             raise
         logger.error(e)
         sys.exit(1)
+
 
 def _debug():
     "Debugging function, only used in active debugging sessions."

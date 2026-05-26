@@ -19,7 +19,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(
@@ -79,6 +79,7 @@ def network_list():
     for n in networks:
         print(f"{n['@name']:30} => {n['ip-netmask']}")
 
+
 @app.command()
 def network_create(name: str, netmask: str, description: t.Optional[str] = None, tags: t.Optional[list[str]] = None):
     """Create a network object in the Palo Alto API"""
@@ -98,6 +99,7 @@ def network_delete(name: str):
     api.network_delete(name)
     logger.success(f"Deleted network '{name}'")
 
+
 @app.command()
 def commit():
     """Commit changes to the Palo Alto API"""
@@ -106,6 +108,7 @@ def commit():
     api.login()
     api.commit()
     logger.success("Changes committed")
+
 
 def cli():
     try:

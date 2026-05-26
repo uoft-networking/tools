@@ -4,9 +4,9 @@ from pathlib import Path
 import json
 
 from uoft.core import logging
-from . import Settings, settings
-from .generate import render_template, model_questionnaire
-from .deploy import deploy_to_console
+from ..conf import Settings, settings
+from ..generate import render_template, model_questionnaire
+from ..deploy import deploy_to_console
 
 from uoft.core import (
     DataFileFormats,
@@ -59,7 +59,7 @@ prompt = Prompt(util)
 def initialize_config(value: bool):
     if not value:
         return
-    from . import ConfigModel
+    from ..conf import ConfigModel
 
     config_files = [str(x) for x in util.config.writable_or_creatable_files]
     try:
@@ -325,7 +325,7 @@ def deprecated():
 def _debug():
     # Debug code goes here
     # from .util import construct_model_instance_interactively
-    # #from uoft_switchconfig.types import *
+    # #from uoft.switchconfig.types import *
 
     # class SubModel(BaseModel):
     #     id: int = Field(description="The VLAN ID of this VLAN, Example: 100")

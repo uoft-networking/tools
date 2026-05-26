@@ -56,8 +56,9 @@ AUTHOR
     Alex Tremblay
 
 """
+
 # Local imports
-from . import settings
+from ..conf import settings
 
 # Std Lib imports
 import sys
@@ -84,10 +85,10 @@ LOG = getLogger(__name__)
 
 @dataclass
 class Args:
-    type: str|None = None
-    item_num: str|None = None
-    input_file: str|Path = DEFAULT_IN_FILE_PATH
-    output_file: str|Path = DEFAULT_OUT_FILE_PATH
+    type: str | None = None
+    item_num: str | None = None
+    input_file: str | Path = DEFAULT_IN_FILE_PATH
+    output_file: str | Path = DEFAULT_OUT_FILE_PATH
     show_available_fields: bool = False
 
     def process_inputs(self):
@@ -99,9 +100,7 @@ class Args:
         input_file_prompt = """
 Please provide the filepath where your template odt file can be found 
 (ie. "~/Downloads/Asset-Template.odt")
-Template File path [{}]> """.format(
-            str(DEFAULT_IN_FILE_PATH)
-        )
+Template File path [{}]> """.format(str(DEFAULT_IN_FILE_PATH))
         if not self.input_file:
             if not sys.stdout.isatty():
                 sys.stderr.write(
@@ -116,8 +115,7 @@ Template File path [{}]> """.format(
                     self.input_file = str(DEFAULT_IN_FILE_PATH)
                 else:
                     raise Exception(
-                        "There is no template file at {}. Please check and try "
-                        "again".format(str(DEFAULT_IN_FILE_PATH))
+                        "There is no template file at {}. Please check and try again".format(str(DEFAULT_IN_FILE_PATH))
                     )
             else:  # User supplied file path
                 self.input_file = choice
@@ -277,16 +275,14 @@ def render_to_pdf(output_file):
     notify("Done! The newly-generated asset label can be found at " + str(out_file_pdf))
     out_dir = str(output_file.parent)
     if sys.platform == "darwin":
-        run(
-            [
+        run([
             "/Applications/LibreOffice.app/Contents/MacOS/soffice",
             "--convert-to",
             "pdf",
             "--outdir",
             out_dir,
             str(output_file),
-            ]
-        )
+        ])
     elif sys.platform == "linux":
         run(["soffice", "--convert-to", "pdf", "--outdir", out_dir, str(output_file)])
 
@@ -301,7 +297,7 @@ def render_to_pdf(output_file):
 def show_available_fields(type_, item_num):
     """Prints a list of all available fields for the given asset number"""
     data = get_info_from_server(type_, item_num)
-    print("Here are the available fields for this particular " "inventory item:")
+    print("Here are the available fields for this particular inventory item:")
     for key, value in data.items():
         key_name = "{{{{{}}}}}".format(key)
         print("{:15} = {}".format(key_name, value))
@@ -538,7 +534,6 @@ def pack_template(tempdir, output_file, compression_info):
     if output_file.exists():
         output_file.unlink()  # unlink means delete
     with ZipFile(str(output_file), "x", compression=ZIP_DEFLATED) as label_file:
-
         for file in tempdir.glob("**/*"):
             arcname = file.relative_to(tempdir)
             compress_type = compression_info.get(arcname)

@@ -1,4 +1,4 @@
-from . import Role
+from ..sib_turnup import Role
 
 from typing import Annotated
 from typer import Typer, Argument, Option
@@ -27,7 +27,7 @@ def go(
     passthrough: Annotated[bool, Option(help="This VOIP port will have passthrough configured")] = False,
     default: Annotated[bool, Option(help="Default the interface before applying the config")] = False,
 ):
-    from . import lib
+    from ..sib_turnup import lib
 
     lib.go(
         switch=switch,
@@ -79,6 +79,6 @@ def parse(msg: str | None = None):
     Interface         : Realtek USB GbE Family Controller
     Type              : LLDP
     """
-    from . import lib
+    from ..sib_turnup import lib
 
     lib.parse(msg)

@@ -3,10 +3,11 @@
 
 from . import Role
 
-from uoft_core import lst
-from uoft_core import logging
-from uoft_ssh import Settings
+from uoft.core import lst
+from uoft.core import logging
+from uoft.ssh.conf import Settings
 from netmiko import ConnectHandler
+
 logger = logging.getLogger(__name__)
 
 

@@ -1,5 +1,5 @@
 from requests import Session
-from . import Settings
+from .conf import Settings
 
 
 class phpIPAMRESTAPIClient:

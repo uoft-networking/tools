@@ -1,6 +1,6 @@
 from importlib.resources import files
 from textwrap import wrap
-from . import settings
+from ..conf import settings
 from .mkinventorylabel import get_info_from_server
 import typing as t
 from PIL import Image, ImageDraw, ImageFont

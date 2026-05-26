@@ -1,14 +1,15 @@
 """
 A collection of tools to interact with a phpIPAM instance, and to feed data into ansible.
 """
+
 from typing import Annotated, Optional
 import sys
 
 import typer
 from uoft.core import logging
-from . import Settings
-from .ansible_lookup import phpipam_ansible_lookup
-from .serial_lookup import phpipam_serial_lookup
+from ..conf import Settings
+from ..ansible_lookup import phpipam_ansible_lookup
+from ..serial_lookup import phpipam_serial_lookup
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(

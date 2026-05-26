@@ -8,7 +8,7 @@ import typer
 from uoft.core import logging
 from collections import defaultdict
 from sqlmodel import SQLModel, Session, create_engine
-from . import Settings, Occupancy_Tracking, RawRecord
+from ..conf import Settings, Occupancy_Tracking, RawRecord
 import json
 import concurrent.futures
 
@@ -24,7 +24,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(

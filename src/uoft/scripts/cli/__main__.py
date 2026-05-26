@@ -163,7 +163,7 @@ def update_switch_intf_configs(
     update the interface configurations on the switch
     to match the intended config from Nautobot.
     """
-    from . import update_switch_intf_configs
+    from ..other import update_switch_intf_configs
 
     update_switch_intf_configs(switch_hostname, *intf_names)
 

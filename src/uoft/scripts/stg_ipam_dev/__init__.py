@@ -1,7 +1,7 @@
-
 from ipaddress import IPv4Network, IPv6Network
 
-from uoft_core import BaseSettings, SecretStr, Field
+from uoft.core import BaseSettings, SecretStr, Field
+
 
 class Settings(BaseSettings):
     user: str

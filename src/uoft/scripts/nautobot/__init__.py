@@ -1,9 +1,9 @@
 import typing as t
 import re
 
-from uoft_core.types import SecretStr
-from uoft_core import BaseSettings, Field, StrEnum, logging
-from uoft_core.console import console
+from uoft.core.types import SecretStr
+from uoft.core import BaseSettings, Field, StrEnum, logging
+from uoft.core.console import console
 
 if t.TYPE_CHECKING:
     from pynautobot.models.extras import Record
@@ -16,6 +16,7 @@ if t.TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class Settings(BaseSettings):
     """Settings for the nautobot_cli application."""
 
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
 
     def api_connection(self):
         import pynautobot
+
         return pynautobot.api(url=self.url, token=self.token.get_secret_value(), threading=True)
 
 
@@ -68,9 +70,11 @@ def get_api(dev: bool = False):
             PROD_NB_API = get_settings(dev).api_connection()
         return PROD_NB_API
 
+
 def run_job(dev: bool, job_name: str, data: dict):
     import time
     from pynautobot.models.extras import Jobs, JobResults, Record
+
     nb = get_api(dev)
     con = console()
     job = t.cast(Jobs | None, nb.extras.jobs.get(name=job_name))
@@ -199,6 +203,7 @@ def get_minimum_viable_config(switch_hostname: "str | NautobotDeviceRecord") -> 
                 # Needed for CVP to work over the dante proxy
                 "ip domain lookup",
                 "ip name-server",
+                "ntp"
             ],
         )
     )

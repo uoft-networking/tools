@@ -1,6 +1,6 @@
 from typing import Optional
 
-from . import Settings
+from ..ldap import Settings
 
 import typer
 
@@ -18,12 +18,12 @@ def _():
 def user(
     name: str,
 ):
-    from . import lib
+    from ..ldap import lib
 
     lib.user(name)
 
 @app.command()
 def group(name: Optional[str] = "", attributes: str = "cn,name,member,objectClass"):
-    from . import lib
+    from ..ldap import lib
 
     lib.group(name, attributes)

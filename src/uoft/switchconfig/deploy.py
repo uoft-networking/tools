@@ -1,6 +1,6 @@
 import time
 
-from . import settings
+from .conf import settings
 
 from uoft.core import shell
 import pexpect
@@ -83,18 +83,14 @@ def deploy_to_console(target: str):
         elif match == 2:
             # "Switch>"
             terminal_now_available()
-            status.console.print(
-                "This switch is uninitialized. Entering enable mode now..."
-            )
+            status.console.print("This switch is uninitialized. Entering enable mode now...")
             p.sendline("enable")
             time.sleep(0.5)
             continue
         elif match == 3:
             # "Username:"
             terminal_now_available()
-            status.console.print(
-                "This switch has been at least partially initialized. Logging in now..."
-            )
+            status.console.print("This switch has been at least partially initialized. Logging in now...")
             p.sendline(username)
             time.sleep(0.5)
             continue
@@ -102,18 +98,14 @@ def deploy_to_console(target: str):
             # "Password:"
             terminal_now_available()
             status.console.print("Entering switch password...")
-            status.update(
-                task_id, description="Waiting for switch authentication to complete..."
-            )
+            status.update(task_id, description="Waiting for switch authentication to complete...")
             p.sendline(terminal_pass)
             time.sleep(0.5)
             continue
         elif match == 5:
             # r"([a-zA-Z0-9-]+)>"
             terminal_now_available()
-            status.console.print(
-                "We are now logged into a partially initialized switch. Entering 'enable' mode..."
-            )
+            status.console.print("We are now logged into a partially initialized switch. Entering 'enable' mode...")
             p.sendline("enable")
             time.sleep(0.5)
             res = p.expect(["Password:", pexpect.TIMEOUT], timeout=3)
@@ -127,26 +119,20 @@ def deploy_to_console(target: str):
         elif match == 6:
             # r"([a-zA-Z0-9-]+)\(config\)#"
             terminal_now_available()
-            status.console.print(
-                "Entered 'configure terminal' mode. Ready to process configuration"
-            )
+            status.console.print("Entered 'configure terminal' mode. Ready to process configuration")
             time.sleep(0.5)
             break
         elif match == 7:
             # r"([a-zA-Z0-9-]+)#"
             terminal_now_available()
-            status.console.print(
-                "We have successfully entered 'enable' mode. Entering 'configure terminal' mode..."
-            )
+            status.console.print("We have successfully entered 'enable' mode. Entering 'configure terminal' mode...")
             p.sendline("configure terminal")
             time.sleep(0.5)
             continue
         elif match == 8:
             # r"([a-zA-Z0-9-]+)\(([a-z-]+)\)#"
             terminal_now_available()
-            status.console.print(
-                "This switch is in one of the configure modes. Dropping back down to enable mode..."
-            )
+            status.console.print("This switch is in one of the configure modes. Dropping back down to enable mode...")
             p.sendcontrol("c")
             time.sleep(0.5)
             continue

@@ -1,5 +1,5 @@
-from . import settings
-from .api import SnipeITAPI
+from ..conf import settings
+from ..api import SnipeITAPI
 from .generate import generate_label
 from .print import system_print_label
 import sys
