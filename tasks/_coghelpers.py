@@ -19,12 +19,21 @@ def gen_conf_table(module_path: str, class_name: str = "Settings"):
     cog.outl("""\
         | Option | Type | Title | Description | Default |
         | ------ | ---- | ----- | ----------- | ------- |""")
-    module = importlib.import_module(module_path)
     try:
-        from uoft_core import BaseSettings
+        from uoft.core import BaseSettings
     except ImportError:
         from typing import Any as BaseSettings
-    settings: BaseSettings = getattr(module, class_name)
+    # the settings class will be in the package's __init__.py file if it has one
+    # or in {package}.conf if the package is set up as a pep420 namespace package
+    try:
+        module = importlib.import_module(module_path)
+        settings: BaseSettings = getattr(module, class_name)
+    except (ModuleNotFoundError, AttributeError):
+        try:
+            module = importlib.import_module(f"{module_path}.conf")
+            settings: BaseSettings = getattr(module, class_name)
+        except (ModuleNotFoundError, AttributeError):
+            raise ImportError(f"Could not find a {class_name} class in either {module_path} or {module_path}.conf")
     for name, field in settings.__fields__.items():
         title = field.field_info.title or ""
         desc = field.field_info.description or ""
@@ -33,41 +42,73 @@ def gen_conf_table(module_path: str, class_name: str = "Settings"):
         | {name} | {field.type_.__name__} | {title} | {desc} | {default} |")
 
 
-def all_projects_as_python_list():
-    "Generate a list of all projects in the uoft-* namespace."
-    projects = sorted([p for p in Path("projects").iterdir() if p.is_dir()])
-    cog.outl("ALL_PROJECTS = [")
-    for p in projects:
-        cog.outl(f'    "{p.name}",')
+def gen_prelude_exports():
+    """
+    A prelude is an importable module that imports and re-exports symbols from a bunch of different 
+    modules and packages, usually as a convenience for use in scripts and REPLs. The correct way to write a 
+    prelude in python is to import all the symbols you need in the prelude module, and then set that module's
+     __all__ to a list of strings of the symbols you want to export. This is super tedious to write and maintain, 
+     since you have to manually keep the __all__ list in sync with the actual imports, so here we automate the process
+    """
+    import ast
+    prelude_file = cog.inFile  # pyright: ignore[reportAttributeAccessIssue]
+    with open(prelude_file, "r") as f:
+        tree = ast.parse(f.read())
+    exports = []
+
+    class SymbolTracker(ast.NodeVisitor):
+        # ast.Import and ast.ImportFrom both expose their imported symbols as ast.alias objects
+        # We don't need to walk the import nodes themselves, we can get what we need from the ast.alias objects themselves
+        def visit_alias(self, node):
+            if node.asname:
+                exports.append(node.asname)
+            else:
+                name = node.name.split(".")[0]  # only export the top-level name, ex import package.sub.module would only export "package"
+                exports.append(name)
+
+        # preludes may also define and export their own symbols, so we need to track those as well
+        def visit_FunctionDef(self, node):
+            if node.name.startswith("_"):
+                return
+            exports.append(node.name)
+
+        def visit_ClassDef(self, node):
+            if node.name.startswith("_"):
+                return
+            exports.append(node.name)
+
+        def visit_Assign(self, node):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    if target.id.startswith("_"):
+                        continue
+                    exports.append(target.id)
+
+    # Walk the AST
+    visitor = SymbolTracker()
+    visitor.visit(tree)
+
+    # generate the __all__ variable
+    cog.outl("__all__ = [")
+    for symbol in sorted(exports):
+        cog.outl(f'    "{symbol}",')
     cog.outl("]")
 
 
-def all_projects_as_dependencies():
-    "Generate a list of all projects in the uoft-* namespace as dependencies."
-    for p in sorted(Path("projects").iterdir(), key=lambda x: x.name):
-        if not p.is_dir():
-            continue
-        cog.outl(f'    "uoft-{p.name}",')
-    for p in sorted(Path("custom-forks").iterdir(), key=lambda x: x.name):
-        if not p.is_dir():
-            continue
-        if p.name.startswith("_"):
-            continue
-        cog.outl(f'    "{p.name}",')
-
-
-def all_projects_as_uv_sources():
-    "Generate a list of all projects in the uoft-* namespace as uv sources."
-    for p in sorted(Path("projects").iterdir(), key=lambda x: x.name):
-        if not p.is_dir():
-            continue
-        cog.outl(f"uoft-{p.name} = {{ workspace = true }}")
-    for p in sorted(Path("custom-forks").iterdir(), key=lambda x: x.name):
-        if not p.is_dir():
-            continue
-        if p.name.startswith("_"):
-            continue
-        cog.outl(f"{p.name} = {{ workspace = true }}")
+def all_projects_as_python_list():
+    "Generate a list of all projects in the uoft-* namespace."
+    from . import all_projects, REPO_ROOT
+    projects = []
+    for p in all_projects():
+        path = p.relative_to(REPO_ROOT / "src")
+        path = str(path)
+        if '/' in path:
+            path = path.replace('/', '.')
+        projects.append(path)
+    cog.outl("ALL_PROJECTS = [")
+    for p in projects:
+        cog.outl(f'    "{p}",')
+    cog.outl("]")
 
 
 def lazy_import(source):
@@ -174,13 +215,17 @@ def lazy_import(source):
 
 def all_importable_modules():
     "Generate a list of all importable modules in the monorepo"
+    from task_runner import REPO_ROOT
     cog.outl("importable_modules = [")
-    for p in Path(".").rglob("projects/*/uoft_*/**/*.py"):
+    for p in Path(REPO_ROOT/"src").rglob("**/*.py"):
+        p = p.relative_to(REPO_ROOT / "src")
         if "tests" in p.parts:
             continue
         if "_vendor" in p.parts:
             continue
-        parts = list(p.parent.parts[2:])
+        if p == Path("src/apps"):
+            continue
+        parts = list(p.parent.parts)
         if p.stem != "__init__":
             parts.append(p.stem)
         r = ".".join(parts)
@@ -188,8 +233,29 @@ def all_importable_modules():
     cog.outl("]")
 
 
-if __name__ == "__main__":
-    all_importable_modules()
+def compute_pants_dist_deps(path: str):
+    """
+    Given the path to a project, compute the dependencies that should be 
+    added to any pex_binary or scie_binary target for that project.
+    """
+    from task_runner import run, REPO_ROOT
+    all_deps = run(f"pants dependencies --transitive src/{path}", cap=True).splitlines()
+    resolved_deps = set()
+    for dep in filter(lambda d: ':dist' in d, all_deps):
+        resolved_deps.add(dep)
+    for dep in resolved_deps:
+        cog.outl(f'        "{dep}",')
+
+
+def version_expression():
+    from task_runner import REPO_ROOT
+    from setuptools_scm import get_version
+    version = get_version(root=str(REPO_ROOT))
+    cog.outl(f'__version__ = "{version}"')
+
+def _debug():
+    "debug with ./run --debug exec tasks._coghelpers:_debug"
+    compute_pants_dist_deps("uoft_nautobot")
     # test lazy_imports
     # lazy_import("""
     #     # LazyLoad

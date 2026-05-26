@@ -2,24 +2,43 @@ from pathlib import Path
 
 from task_runner import run, REPO_ROOT
 
-from . import all_projects_by_name, run_cog
 
 from ._macros import macros, zxpy  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType] # noqa: F401
 
 
-def cog_files():
+def cog_update():
+    """
+    Update the cog file registry,
+    the registry of all files in the repo which cog should be run against
+    """
+    from shutil import which
+
+    rg_path = ""
+    if rg := which("ripgrep"):
+        rg_path = rg
+    elif rg := which("ripgrep.rg"):
+        rg_path = rg
+    else:
+        raise RuntimeError(
+            "ripgrep is required to update the cog file registry. "
+            "See https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation "
+            "for installation instructions."
+        )
+    res = run(f"{rg_path} --glob !tasks/* --files-with-matches --fixed-strings '[[[cog' {REPO_ROOT}", cap=True)
+    Path('.cog-files').write_text(res.strip())
+
+
+def cog_run():
     "Run cog against all cog files in the repo"
-    run_cog(
-        "projects/*/README.md projects/core/uoft_core/tests/*.py "
-        "projects/*/uoft_*/__main__.py projects/*/uoft_*/cli.py pyproject.toml"
-    )
+    target_files = Path('.cog-files')
+    if not target_files.exists():
+        print("cog file registry not found, updating...")
+        cog_update()
 
-
-def update_pyproject_build_hooks():
-    """update all pyproject.py build hooks"""
-    for project in all_projects_by_name():
-        print(f"updating build hook for {project}")
-        run(f"cp tasks/_new_project/template/pyproject.py projects/{project}/pyproject.py")
+    from cogapp import Cog
+    # -r = inplace edit (replace the input file with the output)
+    # -p = prologue, prepend this line to the top of each cog block before executing it
+    Cog().callable_main(["cog", "-r", "-pimport tasks._coghelpers", "@.cog-files"])
 
 
 def debug_pydantic(undo: bool = False):
@@ -35,5 +54,5 @@ def debug_pydantic(undo: bool = False):
 
 
 def lock():
-    """update the monorepo uv lock file"""
-    run("uv lock --refresh")
+    """update the monorepo lock file"""
+    run("pants generate-lockfiles --resolve=python-default")
