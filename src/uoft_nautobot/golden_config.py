@@ -1,19 +1,48 @@
 from typing import TYPE_CHECKING
+from pathlib import Path
 
 from passlib.hash import sha512_crypt
 from django.http import HttpRequest
 from django_jinja.backend import Jinja2
+from django.conf import settings
 from jinja2 import Environment, StrictUndefined
 from . import Settings
-
-import base64
-from hashlib import scrypt
-import string
-import secrets
 
 if TYPE_CHECKING:
     from nautobot_golden_config.models import GoldenConfig
 
+
+# Temp hack until we can add support for this into the golden config plugin itself
+from jinja2.sandbox import SandboxedEnvironment
+from uoft.core.jinja import _update_env, import_from_module
+import nautobot_golden_config.utilities.helper
+import nautobot_golden_config.nornir_plays.config_intended
+import nautobot_golden_config.api.views
+
+# replacement for nautobot_golden_config.utilities.helper.get_django_env
+def get_django_env():
+    """Load Django Jinja filters from the Django jinja template engine, and add them to the jinja_env.
+
+    Returns:
+        SandboxedEnvironment
+    """
+    # import or re-import the filters module for each git repo, in case it has changed since the last time we imported it
+
+    # Use a custom Jinja2 environment instead of Django's to avoid HTML escaping
+    jinja_env = SandboxedEnvironment(**nautobot_golden_config.utilities.helper.JINJA_ENV)
+    jinja_env.filters = nautobot_golden_config.utilities.helper.engines["jinja"].env.filters # pyright: ignore[reportAttributeAccessIssue]
+    
+    # bufix for timing bug: if get_django_env is called before any of the git repository datasources 
+    # are loaded, then the filters won't be loaded yet and we need to load them here
+    for filter_file in Path(settings.GIT_ROOT).glob('**/filters.py'):
+        import_from_module(filter_file.parent, force=False)
+
+    _update_env(jinja_env)
+    return jinja_env
+
+nautobot_golden_config.utilities.helper.get_django_env = get_django_env
+nautobot_golden_config.nornir_plays.config_intended.get_django_env = get_django_env
+nautobot_golden_config.api.views.get_django_env = get_django_env
 
 def transposer(data: dict):
     """This function exists to pre-process graphql data before it's passed to the jinja template."""
@@ -44,9 +73,7 @@ def inject_secrets(intended_config: str, configs: "GoldenConfig", request: HttpR
 
     s = Settings.from_cache()
     secrets = dict(
-        enable_hash=encrypt_type9(s.ssh.enable_secret.get_secret_value()),
         enable_sha512=sha512_crypt.using(rounds=5000).hash(s.ssh.enable_secret.get_secret_value()),
-        admin_hash=encrypt_type9(s.ssh.admin.password.get_secret_value()),
         admin_sha512=sha512_crypt.using(rounds=5000).hash(s.ssh.admin.password.get_secret_value()),
         netdisco_snmp_pw=s.ssh.other["snmp_netdisco"].get_secret_value(),
         radius_key_cisco_ciphertext_1=s.ssh.other["radius_key_cisco_ciphertext_1"].get_secret_value(),
@@ -59,70 +86,3 @@ def inject_secrets(intended_config: str, configs: "GoldenConfig", request: HttpR
 
     template = jinja_env.from_string(intended_config)
     return template.render(**secrets)
-
-
-ALPHABET = string.ascii_letters + string.digits
-CISCO_BASE64_ENCODING_CHARS = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-STD_BASE64_ENCODING_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-
-
-def type9_encode(data: bytes) -> str:
-    encoding_translation_table = str.maketrans(
-        STD_BASE64_ENCODING_CHARS,
-        CISCO_BASE64_ENCODING_CHARS,
-    )
-    res = base64.b64encode(data).decode().translate(encoding_translation_table)
-
-    # and strip off the trailing '='
-    res = res[:-1]
-    return res
-
-
-def type9_decode(data: str) -> bytes:
-    encoding_translation_table = str.maketrans(
-        CISCO_BASE64_ENCODING_CHARS,
-        STD_BASE64_ENCODING_CHARS,
-    )
-    # add back the trailing '='
-    data += "=="
-    res = data.translate(encoding_translation_table)
-    res = base64.b64decode(res)
-    return res
-
-
-def encrypt_type9(unencrypted_password: str, salt: str | None = None) -> str:
-    """Given an unencrypted password of Cisco Type 9 password, encypt it.
-
-    Args:
-        unencrypted_password: A password that has not been encrypted, and will be compared against.
-        salt: a 14-character string that can be set by the operator. Defaults to random generated one.
-
-    Returns:
-        The encrypted password.
-
-    Examples:
-        >>> from netutils.password import encrypt_type9
-        >>> encrypt_type9("123456")
-        "$9$cvWdfQlRRDKq/U$VFTPha5VHTCbSgSUAo.nPoh50ZiXOw1zmljEjXkaq1g"
-        >>> encrypt_type9("123456", "cvWdfQlRRDKq/U")
-        "$9$cvWdfQlRRDKq/U$VFTPha5VHTCbSgSUAo.nPoh50ZiXOw1zmljEjXkaq1g"
-    """
-
-    if salt:
-        if len(salt) != 14:
-            raise ValueError("Salt must be 14 characters long.")
-    else:
-        # salt must always be a 14-byte-long printable string, often includes symbols
-        salt = "".join(secrets.choice(CISCO_BASE64_ENCODING_CHARS) for _ in range(14))
-
-    key = scrypt(unencrypted_password.encode(), salt=salt.encode(), n=2**14, r=1, p=1, dklen=32)
-
-    # Cisco type 9 uses a different base64 encoding than the standard one, so we need to translate from
-    # the standard one to the Cisco one.
-    hash = type9_encode(key)
-
-    return f"$9${salt}${hash}"
-
-
-def _debug():
-    pass

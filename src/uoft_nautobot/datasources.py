@@ -1,7 +1,7 @@
 from pathlib import Path
 import typing as t
 
-from .jinja_filters import import_repo_filters_module
+from uoft.core import jinja
 
 from nautobot.apps.datasources import DatasourceContent
 from nautobot.extras.datasources.git import GitRepository
@@ -53,7 +53,9 @@ def refresh_graphql_queries(repository_record: GitRepository, job_result, delete
     # When this file changes (as part of a git pull) we want to reload the filters module
     # in the running nautobot instance. Since we use the same repo to store our filters.py file and
     # our graphql queries, we can use this datasource function to trigger the reload.
-    import_repo_filters_module(repo_path, force=True)
+    # TODO: somehow cache the last modified time of the filters.py file, and only reload if 
+    # it has changed, to avoid unnecessary reloads and potential performance issues
+    jinja.import_from_module(repo_path)
 
 
 # Register that DeviceType records can be loaded from a Git repository,

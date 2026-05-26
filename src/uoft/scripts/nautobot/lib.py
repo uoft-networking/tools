@@ -243,6 +243,7 @@ def sync_from_bluecat(
     done()
 
 
+def get_jinja_env(templates_dir: Path):
     from uoft.core import jinja
 
     env = jinja2.Environment(
@@ -252,11 +253,8 @@ def sync_from_bluecat(
         lstrip_blocks=True,
         autoescape=False,
     )
-    _jinja.import_repo_filters_module(templates_dir)
-    # the _jinja module registers filters when it's imported,
-    # and the templates_dir's filters.py file registers filters / functions / extensions when it's imported
-    # we need to update the environment with the filters / functions / extensions from both
-    jinja_library._update_env(env)
+    jinja.import_from_module(templates_dir, force=False)
+    jinja._update_env(env)
     return env
 
 
@@ -302,12 +300,13 @@ def template_filter_info(
     found_filters = sorted(found_filters)
     found_filters = "\n- ".join(found_filters)
     logger.info(f"Your templates use the following filters: \n- {found_filters}")
-    env = _get_jinja_env(templates_dir)
+    env = get_jinja_env(templates_dir)
     filters = [f for f in env.filters]
     filters = sorted(filters)
     filters = "\n- ".join(filters)
     logger.info(f"You have the following filters available: \n- {filters}")
 
+_cached_jinja_env = None
 
 def test_golden_config_templates(
     device_name: str,
@@ -315,8 +314,10 @@ def test_golden_config_templates(
     templates_dir: Path = Path("."),
     dev: bool = False,
     print_output: bool = True,
+    cache_jinja_env: bool = True,
 ):
     import typer
+    global _cached_jinja_env
 
     nb = get_api(dev)
     device = t.cast(Record | None, nb.dcim.devices.get(name=device_name))
@@ -338,7 +339,13 @@ def test_golden_config_templates(
 
     # we need to set up a jinja environment which mimics the behaviour of the one set up by
     # nautobot for rendering golden config templates
-    env = _get_jinja_env(templates_dir)
+    if cache_jinja_env and _cached_jinja_env:
+        env = _cached_jinja_env
+    else:
+        env = get_jinja_env(templates_dir)
+        if cache_jinja_env:
+            _cached_jinja_env = env
+
     tmpl = env.get_template("templates/entrypoint.j2")
     text = tmpl.render(data)
     if print_output:

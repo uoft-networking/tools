@@ -9,7 +9,17 @@ from uoft.scripts.base import interface_name_normalize
 
 class EscalationRequired(Exception):
     """Exception raised when escalation is required for port activation."""
+
     pass
+
+
+ROLE_CHOICES = [
+    ("Desktop PC", "Desktop PC"),
+    ("VOIP Phone", "VOIP Phone"),
+    ("Printer", "Printer"),
+    ("Deactivate", "Deactivate"),
+    ("Other", "Other"),
+]
 
 
 class HelpdeskPortActivation(j.Job):
@@ -34,11 +44,7 @@ class HelpdeskPortActivation(j.Job):
 
     role = j.ChoiceVar(
         label="Role",
-        choices=[
-            ("Desktop PC", "Desktop PC"),
-            ("VOIP Phone", "VOIP Phone"),
-            ("Other", "Other"),
-        ],
+        choices=ROLE_CHOICES,
     )
 
     port_label = j.StringVar(min_length=5, max_length=100, label="Port label to apply")
@@ -49,25 +55,19 @@ class HelpdeskPortActivation(j.Job):
         required=False,
     )
 
-    def run(
-        self, device: str, interface: str, role: str, port_label: str, extra_data: dict
-    ):
+    def run(self, device: str, interface: str, role: str, port_label: str, extra_data: dict):
         device_obj = Device.objects.filter(name=device).first()
         if not device_obj:
             raise ValueError(f"Device {device} not found.")
         self.logger.info("Found device: %s", device_obj, extra=dict(object=device_obj))
 
         interface = interface_name_normalize(interface)
-        interface_obj = Interface.objects.filter(
-            device=device_obj, name=interface
-        ).first()
+        interface_obj = Interface.objects.filter(device=device_obj, name=interface).first()
         if not interface_obj:
             raise ValueError(f"Interface {interface} on device {device} not found.")
-        self.logger.info(
-            "Found interface: %s", interface_obj, extra=dict(object=interface_obj)
-        )
+        self.logger.info("Found interface: %s", interface_obj, extra=dict(object=interface_obj))
 
-        if role not in ["Desktop PC", "VOIP Phone", "Other"]:
+        if role not in [c[0] for c in ROLE_CHOICES]:
             raise ValueError(
                 f"Role {role} is not permitted for helpdesk activation. Valid roles are: Desktop PC, VOIP Phone, Other."
             )
@@ -78,19 +78,19 @@ class HelpdeskPortActivation(j.Job):
         elif role == "VOIP Phone":
             vlan = 306
             role_obj = Role.objects.get(name="VOIP")
+        elif role == "Printer":
+            vlan = 240
+            role_obj = Role.objects.get(name="Access")
+        elif role == "Deactivate":
+            vlan = 666  # Default VLAN for deactivated ports
+            role_obj = None
         else:
-            raise EscalationRequired(
-                "'Other' role not yet implemented in HelpdeskPortActivation job."
-            )
+            raise EscalationRequired("'Other' role not yet implemented in HelpdeskPortActivation job.")
         self.logger.info("Role selected: %s", role_obj, extra=dict(object=role_obj))
 
-        vlan_obj = VLAN.objects.filter(
-            vid=vlan, vlan_group=device_obj.vlan_group
-        ).first()
+        vlan_obj = VLAN.objects.filter(vid=vlan, vlan_group=device_obj.vlan_group).first()
         if not vlan_obj:
-            raise ValueError(
-                f"VLAN {vlan} not found in VLAN group {device_obj.vlan_group}."
-            )
+            raise ValueError(f"VLAN {vlan} not found in VLAN group {device_obj.vlan_group}.")
         self.logger.info("Found VLAN: %s", vlan_obj, extra=dict(object=vlan_obj))
 
         self.logger.info("Port label to apply: %s", port_label)
@@ -149,20 +149,29 @@ class PortActivation(j.Job):
 
     label = j.StringVar(min_length=5, max_length=100, label="Port label to apply")
 
-    def run(
-        self, device: Device, interface: Interface, role: Role, vlan: VLAN, label: str
-    ):
+    def run(self, device: Device, interface: Interface, role: Role | None, vlan: VLAN, label: str):
+        if role is None:
+            self.logger.info(f"Deactivating interface {interface.name} on device {device.name}.")
+        else:
             self.logger.info(
                 f"Configuring interface {interface.name} on device {device.name} with role {role.name}, VLAN {vlan.vid}, and label {label}."
             )
+        if vlan.vlan_group != device.vlan_group:
+            # when running this job manually, the UI doesn't properly 
+            # filter the VLAN choices based on the device's VLAN group 
+            # like it should, so we have to try to manually coerce it
+            correct_vlan = VLAN.objects.filter(vid=vlan.vid, vlan_group=device.vlan_group).first()
+            if not correct_vlan:
+                raise ValueError(f"VLAN {vlan.vid} not found in VLAN group {device.vlan_group}.")
+            vlan = correct_vlan
         interface.enabled = True
         interface.role = role
         interface.mode = "access"
         interface.label = label
         interface.untagged_vlan = vlan  # pyright: ignore[reportAttributeAccessIssue]
-        interface.label = label
         interface.validated_save()
         from nautobot.extras.jobs import JobResult
+
         JobResult.status
         # I cannot for the life of me, no matter what I try, get Golden Config's IntendedJob to run
         # from within another job properly. So we have to do this the hard way:
@@ -177,9 +186,7 @@ class PortActivation(j.Job):
         from nautobot.extras.models import GitRepository
         from pathlib import Path
 
-        templates_dir = GitRepository.objects.get(
-            name="golden_config_templates"
-        ).filesystem_path
+        templates_dir = GitRepository.objects.get(name="golden_config_templates").filesystem_path
         templates_dir = Path(templates_dir)
 
         switch_name = device.name
@@ -191,13 +198,9 @@ class PortActivation(j.Job):
             dev=settings.DEBUG,
         )
         interface_cfg = filter_config(cfg, [f"interface {interface.name}"])[0]
-        self.logger.debug(
-            f"Intended configuration for interface {interface.name}:\n{interface_cfg}"
-        )
+        self.logger.debug(f"Intended configuration for interface {interface.name}:\n{interface_cfg}")
 
-        self.logger.info(
-            f"Connecting to device {device.name} via SSH to apply configuration..."
-        )
+        self.logger.info(f"Connecting to device {device.name} via SSH to apply configuration...")
 
         from netmiko import (
             ConnectHandler,
@@ -214,19 +217,15 @@ class PortActivation(j.Job):
             ssh_auth = s.ssh.personal
         ssh: BaseConnection = ConnectHandler(
             device_type=device.platform.network_driver,  # pyright: ignore[reportAttributeAccessIssue]
-            host=str(
-                device.primary_ip.address.ip
-            ),  # pyright: ignore[reportAttributeAccessIssue]
+            host=str(device.primary_ip.address.ip),  # pyright: ignore
             username=ssh_auth.username,
             password=ssh_auth.password.get_secret_value(),
             secret=s.ssh.enable_secret.get_secret_value(),
         )
 
-        self.logger.info(
-            f"Applying configuration to interface {interface.name} on device {device.name}..."
-        )
+        self.logger.info(f"Applying configuration to interface {interface.name} on device {device.name}...")
         ssh.enable()
-        ssh.send_config_set(interface_cfg.splitlines())
+        ssh.send_config_set([f"default interface {interface.name}", *interface_cfg.splitlines()])
         self.logger.info(f"Saving configuration on device {device.name}...")
         ssh.save_config()
         ssh.disconnect()
