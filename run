@@ -32,7 +32,36 @@ if [ -d "$HERE/.venv" ]; then
     run_script "$0" "$@"
 fi
 
-# If not, try to find a uv installation
+echo "No .venv directory found. The bootstrapping process will now begin. Press enter to continue" >&2
+read -r
+
+# Find or install pants
+echo "Finding pants..." >&2
+pants_bin=""
+find_pants() {
+    # search in $PATH
+    if command -v pants >/dev/null 2>&1; then
+        pants_bin=$(which pants)
+        return
+    fi
+    # search in pants's standard install location, in case it's not in $PATH
+    if command -v "$HOME/.local/bin/pants" >/dev/null 2>&1; then
+        pants_bin="$HOME/.local/bin/pants"
+        return
+    fi
+    echo "This script requires pants to be installed"
+    echo "Would you like to install it using the official installer? [Y/n]"
+    read -r yn
+    case $yn in
+        [Nn]* ) exit 1;;
+        * ) curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash;;
+    esac
+    find_pants
+}
+find_pants
+
+# Find or install uv
+echo "Aquiring uv..." >&2
 uv_bin=""
 find_uv() {
     # search in $PATH
@@ -47,28 +76,67 @@ find_uv() {
             return
         fi
     done
-    echo "This script requires uv to be installed"
-    echo "Would you like to install it using the official installer? [Y/n]"
-    read -r yn
-    case $yn in
-        [Nn]* ) exit 1;;
-        * ) curl -sSfL https://astral.sh/uv/install.sh | sh;;
-    esac
-    find_uv
+
+    # use pants to install uv if not found
+    "$pants_bin" export --bin=uv
+    uv_bin="$HERE/dist/export/bin/uv"
 }
-find_uv
 
 # Install monorepo virtualenv
-echo "using uv to install monorepo virtualenv..."
+echo "Cloning git submodules..." >&2
 git submodule update --init
-"$uv_bin" sync --frozen
+# generate the venv and editable installs of all projects
+echo "Generating virtualenv..." >&2
+"$pants_bin" export --resolve=python-default
+
+echo "Finalizing virtualenv setup..." >&2
+
+# pants-generated venv will be placed in a folder matching the exact python 
+# version (e.g. 3.10.12). if we upgrade our targeted python version, we want
+# this script to automatically pick up the latest version available within that
+# folder
+available_venvs=( "$HERE"/dist/export/python/virtualenvs/python-default/* )
+# sort available venvs by version number and pick the latest one
+target=$(printf '%s\n' "${available_venvs[@]}" | sort -V | tail -n 1)
+
+ln -sf "$target" "$HERE/.venv"
+
+# editable install all custom forks
+for dir in "$HERE"/custom-forks/*; do
+    # Must be a directory and name must not start with underscore
+    if [[ -d "$dir" && $(basename "$dir") != _* ]]; then 
+        echo "editable installing $(basename "$dir")..."
+        "$HERE/.venv/bin/pip" install -e "$dir"
+    fi
+done
 
 # This symlink is not necessary for the task runner to work, but it is necessary for type checking
 # and autocomplete to work in the task modules
-ln -s "$HERE/run" $HERE/.venv/lib/python3.10/site-packages/task_runner.py
+shopt -s nullglob
+matches=( "$HERE"/.venv/lib/python*/site-packages )
+shopt -u nullglob
 
-"$HERE/.venv/bin/python" -s "$0" --install-completion-in-virtualenv
+if (( ${#matches[@]} == 0 )); then
+    echo "Error: could not find site-packages directory in virtualenv" >&2
+    exit 1
+fi
 
+site_packages_dir="${matches[0]}"
+echo "$site_packages_dir"
+ln -s "$HERE/run" "$site_packages_dir/task_runner.py"
+
+"$HERE/.venv/bin/python" -s "$HERE/run" --install-completion-in-virtualenv
+
+# copy vscode suspenders LSP data into place
+mkdir -p "$HERE/.pants.d/suspenders"
+cp $HERE/pants-plugins/_suspenders_LSP_data/* "$HERE/.pants.d/suspenders/"
+
+# remove the debugpy cli tool that ships with the debugpy package. 
+# We don't use it and it shadows the debugpy command provided by 
+# vscode's python debugger extension, 
+rm -f "$HERE/.venv/bin/debugpy"
+
+echo "Done setting up the development environment, executing requested task now..." >&2
 run_script "$0" "$@"
 """
 
@@ -91,6 +159,7 @@ import logging
 from contextlib import contextmanager
 import functools
 import typer
+from typer.core import TyperGroup
 
 from rich.console import Console
 
@@ -217,7 +286,7 @@ def sudo(cmd: str, user: str = "root", login=False, capture_output=True, **kwarg
 
     kwargs = t.cast(dict[str, t.Any], dict(cwd=REPO_ROOT, timeout=5) | kwargs)
     try:
-        passcmd = os.environ.get('PASS_CMD', 'pass')
+        passcmd = os.environ.get("PASS_CMD", "pass")
         passwd = run(f"{passcmd} sudo", cap=True)
     except subprocess.CalledProcessError:
         logger.warning(
@@ -395,7 +464,7 @@ def _create_root_app():
     def _handle_vscode_remote(vscode_ipc: str, port: int):
         # the VSCode Remote extension does not support `code --open-url {url}` with a `vscode://` extension
         # This may change in the future, but for now we need to bypass this limitation by using the VSCode IPC
-        # secket to send the `vscode://` url to the VSCode instance server directly
+        # socket to send the `vscode://` url to the VSCode instance server directly
         import requests
 
         from urllib3.connection import HTTPConnection
@@ -414,7 +483,7 @@ def _create_root_app():
             def __init__(self):
                 super().__init__("localhost")
 
-            def _new_conn(self): # pyright: ignore[reportIncompatibleMethodOverride]
+            def _new_conn(self):  # pyright: ignore[reportIncompatibleMethodOverride]
                 return VSCodeIPCConnection()
 
         class VSCodeIPCAdapter(HTTPAdapter):
@@ -423,7 +492,7 @@ def _create_root_app():
 
         session = requests.Session()
         session.mount("vscode://", VSCodeIPCAdapter())
-        session.post(
+        r = session.post(
             "vscode://",
             headers={"content-type": "application/json", "accept": "application/json"},
             json={
@@ -431,6 +500,19 @@ def _create_root_app():
                 "uris": [_get_vscode_debug_launcher_url(port)],
             },
         )
+        r.raise_for_status()
+
+    def vscode_debug_legacy(port: int):
+        vscode_ipc = os.environ.get("VSCODE_IPC_HOOK_CLI")
+        if vscode_ipc:
+            # If VSCode is running in a remote SSH or container session, this gets pretty complex
+            _handle_vscode_remote(vscode_ipc, port)
+        else:
+            # If VSCode is running locally (ie not using the Remote SSH or Remote Containers extensions),
+            # this is pretty straightforward
+            import subprocess
+
+            subprocess.run(["code", "--open-url", _get_vscode_debug_launcher_url(port)])
 
     @app.callback()
     def _(
@@ -463,14 +545,6 @@ def _create_root_app():
                 is_eager=True,
             ),
         ] = False,
-        exec_: t.Annotated[
-            t.Optional[str],
-            typer.Option(
-                "--exec",
-                help="Execute a python function in the virtualenv (ex: --exec uoft_aruba.cli:_debug "
-                + "to execute the _debug function in the uoft_aruba.cli module)",
-            ),
-        ] = None,
     ):
         # Callback to process task runner global options
         if verbose:
@@ -490,16 +564,7 @@ def _create_root_app():
             # If we're in a local vscode terminal session, we need to tell VSCode to connect to the debug adapter
             # using fabiospampinato.vscode-debug-launcher extension
             if os.environ.get("TERM_PROGRAM") == "vscode":
-                vscode_ipc = os.environ.get("VSCODE_IPC_HOOK_CLI")
-                if vscode_ipc:
-                    # If VSCode is running in a remote SSH or container session, this gets pretty complex
-                    _handle_vscode_remote(vscode_ipc, port)
-                else:
-                    # If VSCode is running locally (ie not using the Remote SSH or Remote Containers extensions),
-                    # this is pretty straightforward
-                    import subprocess
-
-                    subprocess.run(["code", "--open-url", _get_vscode_debug_launcher_url(port)])
+                vscode_debug_legacy(port)
 
             # If we're not in a VSCode terminal window, we will need to prompt the user to connect to the debug adapter
             # with their preferred editor's debugger
@@ -508,18 +573,18 @@ def _create_root_app():
 
         if dry_run:
             if ctx.invoked_subcommand and (func := typer.main.get_group(app).commands.get(ctx.invoked_subcommand)):
-                print_func_source(func)
-                raise typer.Exit(0)
+                if not isinstance(func, TyperGroup):
+                    print_func_source(func)
+                    raise typer.Exit(0)
+                # TODO: fix this somehow
+                # ex `./run --dry-run repo. lock` results in `ctx.inoked_subcommand` being `repo.`, not `repo. lock`
+                # no idea how to get the actual invoked subcommand within that task group :(
+                print("--dry-run doesn't yet work with tasks inside task groups, sorry")
+                raise typer.Exit(1)
             # We need to pass the dry run flag into the context so that tasks can check it
             if not ctx.obj:
                 ctx.obj = {}
             ctx.obj["dry_run"] = True
-        if exec_:
-            module_name, func_name = exec_.split(":")
-            module = import_module(module_name)
-            func = getattr(module, func_name)
-            func()
-            raise typer.Exit(0)
 
     return app
 

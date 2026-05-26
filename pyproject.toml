@@ -9,23 +9,65 @@ authors = [
 ]
 license = { text = "MIT" }
 dependencies = [
-    # [[[cog
-    # import _cog as c; c.all_projects_as_dependencies()
-    # ]]]
-    "uoft-aruba",
-    "uoft-bluecat",
-    "uoft-core",
-    "uoft-librenms",
-    "uoft-nautobot",
-    "uoft-occupancy",
-    "uoft-paloalto",
-    "uoft-phpipam",
-    "uoft-scripts",
-    "uoft-snipeit",
-    "uoft-ssh",
-    "uoft-switchconfig",
-    "nautobot",
-    # [[[end]]]
+    "typer>=0.12",
+    "rich >= 12.2",
+    "requests >= 2.20",
+    "pydantic >= 2.0",
+    "python-dotenv >= 1.0",
+    "typing-extensions >= 4.9",
+    "yarl >= 1.9",
+    "sentry-sdk >= 1.4",
+    "semver >= 3.0",
+    "python-jose >= 3.0.0",
+    "nautobot_ssot >= 2.7",
+    "nautobot_golden_config >= 2.3",
+    "nautobot-device-onboarding >= 3.0",
+    "debugpy >= 1.8",
+    "django-debug-toolbar >= 4.4",
+    "ptpython >= 3.0.29",
+    "html-table-parser-python3 >=0.2.0",
+    "django-environ >= 0.11",
+    "napalm >= 4.1",
+    "napalm-aruba-cx >= 0.1",
+    "python-box >= 7.2",
+    "glom >= 23.5",
+    "openpyxl >= 3.1",
+    "pynautobot >= 2.2",
+    "deepdiff >= 7.0",
+    "pytz >= 2024",
+    "passlib >= 1.7",
+    "jinja2 >= 3.0",
+    "deepdiff >= 7.0",
+    "python-box >= 7.2",
+    "glom >= 23.5",
+    "prompt-toolkit >= 3.0.19",
+    "rich >= 10.7.0",
+    "pyquery >= 1.4.0",
+    "ldap3 >= 2.9",
+    "nornir_napalm >= 0.4",
+    "nornir_netmiko >= 1.0",
+    "nornir_nautobot >= 3.2",
+    "sqlmodel >= 0.0.22",
+    "psycopg >= 3.2",
+    "grpcio >= 1.71",
+    "grpcio_reflection >= 1.71",
+    "protobuf >= 5",
+    "cloudvision >= 1.23",
+    "scapy >= 2.4.5",
+    "pystache >= 0.6",
+    "qrcode >= 7.4",
+    "pillow >= 10.3",
+    "pexpect @ git+https://github.com/pexpect/pexpect@eb2820cec514c3ed5482e80ad3438cd31f2fa1ef",
+    "arrow >= 1.1.1",
+    "paramiko >= 2.7.2",
+    "ssh-python >= 1.1.1",
+    "questionary >= 2.1",
+    "netmiko >= 4.0",
+    "jedi >= 0.18.1",
+    "urllib3",                                                                                   # no version specifier, follow whichever version requests uses
+    "sqlalchemy >= 2.0",
+    "nornir >= 3.0",
+    "nautobot @ git+https://github.com/utsc-networking/nautobot@utsc-custom",
 ]
 
 [build-system]
@@ -49,53 +91,29 @@ dev-dependencies = [
     "pyyaml-include >= 1.2, < 2.0",
     "copier-templates-extensions >= 0.3.0",
     "ptpython[ptipython] >= 3.0.29",
-    "pytest >= 7.0",
+    "pytest >= 8.1",
     "pytest-cov >= 5.0",
     "pytest-mock >= 3.6",
     "pytest-recording >= 0.13",
     "ruff >= 0.5.0",
     "setuptools_scm >= 7",
     "tomlkit >= 0.11",
-    "typer >= 0.12",
     "scalene >= 1.5.38",
     "mypy >= 1.6",
     "coconut >= 3.0.3",
     "shellingham >= 1.5.4",
-    "pexpect @ git+https://github.com/pexpect/pexpect@eb2820cec514c3ed5482e80ad3438cd31f2fa1ef",
     "lazyasd >= 0.1.4",
     "pip >= 23.3.1",
     "mcpyrate >= 3.6.0",
     "tuna >= 0.5",
-    "debugpy >= 1.5.0",
     "basedpyright>=1.29.1",
 ]
 
-[tool.uv.workspace]
-members = ["projects/*", "custom-forks/*"]
-exclude = ["custom-forks/_patches"]
-
-[tool.uv.sources]
-# [[[cog
-# import _cog as c; c.all_projects_as_uv_sources()
-# ]]]
-uoft-aruba = { workspace = true }
-uoft-bluecat = { workspace = true }
-uoft-core = { workspace = true }
-uoft-librenms = { workspace = true }
-uoft-nautobot = { workspace = true }
-uoft-occupancy = { workspace = true }
-uoft-paloalto = { workspace = true }
-uoft-phpipam = { workspace = true }
-uoft-scripts = { workspace = true }
-uoft-snipeit = { workspace = true }
-uoft-ssh = { workspace = true }
-uoft-switchconfig = { workspace = true }
-nautobot = { workspace = true }
-# [[[end]]]
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-testpaths = ["tests", "projects/**/tests"]
+minversion = "8.1"
+addopts = "--import-mode=importlib"
+testpaths = ["src/**/tests"]
 norecursedirs = [
     "**/fixtures",
     "dist",
@@ -115,18 +133,18 @@ norecursedirs = [
 python_files = ["test_*.py", "*_test.py", "*_tests.py"]
 python_classes = ["Test*", "*Test", "*Tests"]
 python_functions = ["test_*", "*_test", "*_tests"]
+consider_namespace_packages = true
 
-
-[tool.pylsp-mypy]
-enabled = true
-dmypy = true
-overrides = [
-    "--python-executable",
-    ".venv/bin/python",
-    # putting a true here tells pylsp-mypy to include all the 
-    # default command line args, instead of replacing them
-    true,
-]
+# [tool.pylsp-mypy]
+# enabled = true
+# dmypy = true
+# overrides = [
+#     "--python-executable",
+#     ".venv/bin/python",
+#     # putting a true here tells pylsp-mypy to include all the 
+#     # default command line args, instead of replacing them
+#     true,
+# ]
 
 
 [tool.ruff]
@@ -163,7 +181,7 @@ target-version = "py310"
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-typing-modules = ["uoft_core.types"]
+typing-modules = ["uoft.core.types"]
 
 # Enable Flake's "E", "W", and "F" codes by default.
 select = ["E", "W", "F", "RUF"]
@@ -179,11 +197,8 @@ exclude = [
     "hazmat",
     "**/.dev_data",
     "**/_private",
-    "utm-tools"
+    "utm-tools",
 ]
-ignore = [
-    "**/_vendor",
-    "**/uoft_core/**/yaml"
-  ]
+ignore = ["**/_vendor", "src/uoft/core/**/yaml"]
 enableTypeIgnoreComments = false
 typeCheckingMode = 'standard'

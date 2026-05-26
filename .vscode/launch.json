@@ -89,7 +89,7 @@
             "name": "Python: Select module to debug",
             "type": "python",
             "request": "launch",
-            "module": "uoft_core",
+            "module": "uoft.core",
             "console": "integratedTerminal",
             "env": {
                 "PYDEBUG": "1"
