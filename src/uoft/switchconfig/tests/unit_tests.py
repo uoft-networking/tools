@@ -2,19 +2,19 @@
 
 from typing import TYPE_CHECKING
 from pathlib import Path
-from uoft_switchconfig import Settings
-from uoft_switchconfig.cli import template_name_completion, console_name_completion
-from uoft_switchconfig.generate import render_template, model_questionnaire
-from uoft_core import txt
+from uoft.switchconfig.conf import Settings
+from uoft.switchconfig.cli.__main__ import template_name_completion, console_name_completion
+from uoft.switchconfig.generate import render_template, model_questionnaire
+from uoft.core import txt
 import pytest
 
-from uoft_switchconfig.util import (
+from uoft.switchconfig.util import (
     CommentBlockField,
     get_comment_block_schema,
     model_source_from_comment_block_schema,
     construct_model_from_comment_block_schema,
 )
-from uoft_core import txt
+from uoft.core import txt
 
 if TYPE_CHECKING:
     from pytest_mock import MockFixture
@@ -33,12 +33,8 @@ SIMPLE_INTERMEDIARY = {
         desc="(aka alpha code) Example: SW",
         default=None,
     ),
-    "room_code": CommentBlockField(
-        name="room_code", type="str", desc="Example: 254A", default=None
-    ),
-    "tr_code": CommentBlockField(
-        name="tr_code", type="str", desc="Telecom Room code, Example: 2r", default=None
-    ),
+    "room_code": CommentBlockField(name="room_code", type="str", desc="Example: 254A", default=None),
+    "tr_code": CommentBlockField(name="tr_code", type="str", desc="Telecom Room code, Example: 2r", default=None),
     "user_id": CommentBlockField(
         name="user_id",
         type="str",
@@ -73,18 +69,14 @@ ADVANCED_INTERMEDIARY = {
             desc="(aka alpha code) Example: SW",
             default=None,
         ),
-        "room_code": CommentBlockField(
-            name="switch.room_code", type="str", desc="Example: 254A", default="200E"
-        ),
+        "room_code": CommentBlockField(name="switch.room_code", type="str", desc="Example: 254A", default="200E"),
         "tr_code": CommentBlockField(
             name="switch.tr_code",
             type="str",
             desc="Telecom Room code, Example: 2r",
             default=None,
         ),
-        "vlan_id": CommentBlockField(
-            name="switch.vlan_id", type="int", desc="vlan number", default="500"
-        ),
+        "vlan_id": CommentBlockField(name="switch.vlan_id", type="int", desc="vlan number", default="500"),
         "ip": {
             "address": CommentBlockField(
                 name="switch.ip.address",
@@ -105,39 +97,34 @@ ADVANCED_INTERMEDIARY = {
 
 class CLITests:
     "integration tests for the CLI code"
+
     def template_name_completion_test(self):
         class MockContext:
             params = {"cache_dir": Path(__file__).parent / "fixtures/templates"}
 
         res = template_name_completion(MockContext(), "")  # pyright: ignore[reportArgumentType]
-        assert set(res) == set(
-            [
+        assert set(res) == set([
             "comment-block-schema-test.j2",
             "data-model-test.j2",
             "subdirectory/template.j2",
             "subdirectory/other_template.j2",
-            ]
-        )
+        ])
 
         res = template_name_completion(MockContext(), "subdir")  # pyright: ignore[reportArgumentType]
-        assert set(res) == set(
-            [
+        assert set(res) == set([
             "subdirectory/template.j2",
             "subdirectory/other_template.j2",
-            ]
-        )
+        ])
 
         res = template_name_completion(MockContext(), "subdirectory/tem")  # pyright: ignore[reportArgumentType]
-        assert set(res) == set(
-            [
+        assert set(res) == set([
             "subdirectory/template.j2",
-            ]
-        )
+        ])
 
     def console_name_completion_test(self, mocker: "MockFixture"):
         mock_settings = Settings(
-            generate={"templates_dir": Path(__file__).parent / "templates"}, # type: ignore
-            deploy=dict( # type: ignore
+            generate={"templates_dir": Path(__file__).parent / "templates"},  # type: ignore
+            deploy=dict(  # type: ignore
                 ssh_pass_cmd="echo ssh_pass",
                 terminal_pass_cmd="echo terminal_pass",
                 enable_pass_cmd="echo enable_pass",
@@ -151,13 +138,12 @@ class CLITests:
                     airconsole7="airconsole:4007",
                     airconsole8="airconsole:4008",
                     newconsole="console:22",
-                )
+                ),
             ),
         )
-        mocker.patch.object(Settings, '_instance', mock_settings)
+        mocker.patch.object(Settings, "_instance", mock_settings)
         res = console_name_completion("")
-        assert set(res) == set(
-            [
+        assert set(res) == set([
             "airconsole1",
             "airconsole2",
             "airconsole3",
@@ -167,15 +153,14 @@ class CLITests:
             "airconsole7",
             "airconsole8",
             "newconsole",
-            ]
-        )
+        ])
 
         res = console_name_completion("newco")
         assert res == ["newconsole"]
 
 
 class UtilTests:
-    "Unit tests for uoft_switchconfig.util"
+    "Unit tests for uoft.switchconfig.util"
 
     def get_comment_block_schema_test(self):
         """
@@ -238,7 +223,6 @@ class UtilTests:
         )
         assert res == ADVANCED_INTERMEDIARY
 
-
     def model_source_from_comment_block_schema_test(self):
         schema = SIMPLE_INTERMEDIARY
 
@@ -299,7 +283,6 @@ class UtilTests:
 
             """
         )
-
 
     def construct_model_from_comment_block_schema_test(self):
         from pydantic.v1 import BaseModel

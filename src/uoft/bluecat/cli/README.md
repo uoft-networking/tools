@@ -1,4 +1,4 @@
-# uoft_bluecat
+# uoft.bluecat
 
 CLI and API to manage a Bluecat instance
 
@@ -13,7 +13,7 @@ We recommend you install this software with [pipx](https://pypa.github.io/pipx/)
 
 ```console
 $ python3.10 -m pip install --user pipx
-$ pipx install uoft_bluecat
+$ pipx install uoft.bluecat
 ```
 
 If you don't have or cannot easily get python3.10, you can run the following commands to download a standalone python3.10 binary and use it to install pipx:
@@ -93,7 +93,7 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import _cog as c; c.gen_conf_table('uoft_bluecat')
+tasks._coghelpers.gen_conf_table('uoft.bluecat')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |

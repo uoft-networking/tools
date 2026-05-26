@@ -1,7 +1,7 @@
-from .. import Settings
+from ..conf import Settings
 from ..api import API
-from uoft_core.api import RESTAPIError
-from uoft_core.types import IPAddress
+from uoft.core.api import RESTAPIError
+from uoft.core.types import IPAddress
 
 from typing import Any, Literal
 

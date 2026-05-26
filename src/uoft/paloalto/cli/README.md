@@ -1,4 +1,4 @@
-# uoft_paloalto
+# uoft.paloalto
 
 CLI and API to work with Paloalto products (NSM, etc)
 
@@ -13,7 +13,7 @@ We recommend you install this software with [pipx](https://pypa.github.io/pipx/)
 
 ```console
 $ python3.10 -m pip install --user pipx
-$ pipx install uoft_paloalto
+$ pipx install uoft.paloalto
 ```
 
 If you don't have or cannot easily get python3.10, you can run the following commands to download a standalone python3.10 binary and use it to install pipx:
@@ -93,7 +93,7 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import _cog as c; c.gen_conf_table('uoft_paloalto')
+tasks._coghelpers.gen_conf_table('uoft.paloalto')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |

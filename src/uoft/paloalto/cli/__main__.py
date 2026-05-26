@@ -7,9 +7,9 @@ import sys
 
 import typer
 
-from uoft_core import logging
-from uoft_core.types import SecretStr
-from . import Settings
+from uoft.core import logging
+from uoft.core.types import SecretStr
+from ..conf import Settings
 
 logger = logging.getLogger(__name__)
 

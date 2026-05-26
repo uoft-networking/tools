@@ -23,12 +23,12 @@ import threading
 import re
 import concurrent.futures as cf
 
-from uoft_core.api import RESTAPIError
-from uoft_core.types import IPNetwork, BaseModel, Field
-from uoft_core.prompt import Prompt
-from uoft_bluecat import Settings as BluecatSettings
-from uoft_librenms import Settings as LibrenmsSettings
-from uoft_core import logging
+from uoft.core.api import RESTAPIError
+from uoft.core.types import IPNetwork, BaseModel, Field
+from uoft.core.prompt import Prompt
+from uoft.bluecat.conf import Settings as BluecatSettings
+from uoft.librenms.conf import Settings as LibrenmsSettings
+from uoft.core import logging
 
 import pynautobot
 import pynautobot.core.endpoint

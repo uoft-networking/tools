@@ -1,9 +1,9 @@
 from typing import Any, Literal, overload
 from functools import cached_property
 
-from uoft_core.api import APIBase, RESTAPIError
-from uoft_core import logging
-from uoft_core.types import IPAddress, IPNetwork
+from uoft.core.api import APIBase, RESTAPIError
+from uoft.core import logging
+from uoft.core.types import IPAddress, IPNetwork
 
 from . import type_stubs as ts
 

@@ -1,17 +1,12 @@
 from importlib.metadata import version
-from uoft_aruba.api import ArubaRESTAPIClient
-from uoft_core import BaseSettings
+from uoft.aruba.api import ArubaRESTAPIClient
+from uoft.core import BaseSettings
 from sqlmodel import SQLModel, Field
 from datetime import datetime
 from typing_extensions import TypedDict
 from typing import Optional
 from sqlalchemy import Column, JSON
-from uoft_core.types import BaseModel, SecretStr
-
-# All of our projects are distributed as packages, so we can use the importlib.metadata
-# module to get the version of the package.
-assert __package__
-__version__ = version(__package__)  # type: ignore
+from uoft.core.types import BaseModel, SecretStr
 
 
 RawRecord = TypedDict(

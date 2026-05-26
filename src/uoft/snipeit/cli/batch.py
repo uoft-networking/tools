@@ -4,7 +4,7 @@ from .generate import generate_label
 from .print import system_print_label
 import sys
 import typing as t
-from uoft_core.prompt import Prompt
+from uoft.core.prompt import Prompt
 
 
 def snipe_batch_provision(names: list[str], model_id: int, location_id: int | None = None):  # type: ignore

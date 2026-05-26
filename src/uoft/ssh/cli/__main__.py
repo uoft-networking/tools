@@ -9,10 +9,8 @@ import socket
 
 import typer
 
-from uoft_core import logging
-from uoft_core.console import console
-from . import Settings
-from .pexpect_utils import UofTPexpectSpawn
+from uoft.core import logging
+from uoft.core.console import console
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +20,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(

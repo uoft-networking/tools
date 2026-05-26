@@ -2,9 +2,9 @@ from collections import OrderedDict
 import json
 import typing as t
 
-from uoft_core import logging, txt
-from uoft_core.console import console
-from uoft_ssh import Settings as SSHSettings
+from uoft.core import logging, txt
+from uoft.core.console import console
+from uoft.ssh.conf import Settings as SSHSettings
 
 from .nautobot import get_api
 

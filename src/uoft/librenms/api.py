@@ -1,6 +1,6 @@
 from typing import Literal, List, Any
 
-from uoft_core.api import APIBase
+from uoft.core.api import APIBase
 from . import typing as t
 
 

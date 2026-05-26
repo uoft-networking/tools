@@ -1,9 +1,9 @@
 # pylint: disable=unused-argument
 from typing import TYPE_CHECKING
 from pathlib import Path
-from uoft_switchconfig.generate import render_template, model_questionnaire
-from uoft_switchconfig.util import create_python_module
-from uoft_core import txt
+from uoft.switchconfig.generate import render_template, model_questionnaire
+from uoft.switchconfig.util import create_python_module
+from uoft.core import txt
 import pytest
 
 if TYPE_CHECKING:

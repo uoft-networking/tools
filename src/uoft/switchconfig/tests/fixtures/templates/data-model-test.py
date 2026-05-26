@@ -9,7 +9,7 @@ The process_template_data function in this template module demonstrates two diff
 interactively getting and validating template data
 """
 
-from uoft_core.types import BaseModel, IPv4Address, IPv4Network, Path, Literal
+from uoft.core.types import BaseModel, IPv4Address, IPv4Network, Path, Literal
 from pydantic.v1 import Field
 
 PATH = Path(__file__).parent
@@ -62,9 +62,7 @@ GLOBALS = {}
 
 class DeskSwitch(BaseModel):
     kind: Literal["deskswitch"]
-    user_id: str = Field(
-        description="user_id of the person this deskswitch is for, Example: someuser"
-    )
+    user_id: str = Field(description="user_id of the person this deskswitch is for, Example: someuser")
 
 
 class Podium(BaseModel):
@@ -83,9 +81,7 @@ class Switch(BaseModel):
     network: IPv4Network = Field(
         description="network address of the mgmt network in CIDR notation, Example: 10.14.1.0/24"
     )
-    ip: IPv4Address = Field(
-        description="IP address of this switch on the mgmt network, Example: 10.14.1.33"
-    )
+    ip: IPv4Address = Field(description="IP address of this switch on the mgmt network, Example: 10.14.1.33")
 
     @property
     def hostname(self):

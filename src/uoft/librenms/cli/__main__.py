@@ -6,8 +6,8 @@ import sys
 
 import typer
 
-from . import Settings
-from uoft_core import logging
+from ..conf import Settings
+from uoft.core import logging
 
 logger = logging.getLogger(__name__)
 

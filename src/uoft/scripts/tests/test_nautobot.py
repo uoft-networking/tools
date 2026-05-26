@@ -1,4 +1,5 @@
-from uoft_scripts.nautobot import lib, cli
+from uoft.scripts.cli import nautobot
+from uoft.scripts.nautobot import lib
 from pathlib import Path
 import socket
 from subprocess import Popen, PIPE
@@ -8,7 +9,7 @@ import pytest
 from pytest_mock import MockerFixture
 import requests
 
-from uoft_core import debug_cache
+from uoft.core import debug_cache
 
 
 @pytest.fixture(scope="session")
@@ -48,7 +49,7 @@ def nautobot_running():
 @debug_cache
 def get_all_interfaces(device=None):
     """Get all interfaces from Nautobot."""
-    from uoft_core import shell
+    from uoft.core import shell
 
     stdout = shell("pass nautobot-secrets")
     for line in stdout.splitlines():
@@ -92,7 +93,7 @@ def mock_sync_data(mocker: MockerFixture):
     # import pickle
     # fixtures = Path(__file__).parent / "fixtures/_private"
     # fixtures.mkdir(exist_ok=True, parents=True)
-    # from uoft_scripts import _sync
+    # from uoft.scripts import _sync
 
     # # nautobot
     # nautobot_orig = nautobot.NautobotManager.load_data_raw
@@ -109,7 +110,7 @@ def mock_sync_data(mocker: MockerFixture):
     #         return data
 
     # mocker.patch(
-    #     "uoft_scripts.nautobot.NautobotManager.load_data_raw", new=nautobot_new
+    #     "uoft.scripts.nautobot.NautobotManager.load_data_raw", new=nautobot_new
     # )
 
     # # bluecat
@@ -126,7 +127,7 @@ def mock_sync_data(mocker: MockerFixture):
     #             pickle.dump(data, f)
     #         return data
 
-    # mocker.patch("uoft_scripts.nautobot.BluecatManager.load_data_raw", new=new_method)
+    # mocker.patch("uoft.scripts.nautobot.BluecatManager.load_data_raw", new=new_method)
 
 
 # TODO: rewrite these tests to use the new _sync.Target classes
@@ -148,8 +149,8 @@ def test_multithreaded_sync(nautobot_running):
 
 
 def test_autocomplete_hostnames(mocker):
-    all_hostanames = cli._autocomplete_hostnames(ctx=mocker.Mock(), partial="")
-    access_switches = cli._autocomplete_hostnames(ctx=mocker.Mock(), partial="a1-")
+    all_hostanames = nautobot._autocomplete_hostnames(ctx=mocker.Mock(), partial="")
+    access_switches = nautobot._autocomplete_hostnames(ctx=mocker.Mock(), partial="a1-")
     assert isinstance(all_hostanames, list)
     assert isinstance(access_switches, list)
     assert len(all_hostanames) > len(access_switches)
@@ -166,7 +167,7 @@ def test_trigger_golden_config_intended():
 def test_golden_config_templates():
     # TODO: fix this terrible hack, should not bake specific paths into the code
     templates_dir = Path(
-        "~/uoft-tools/projects/nautobot/uoft_nautobot/tests/fixtures/_private/.gitlab_repo"
+        "~/uoft-tools/projects/nautobot/uoft.nautobot/tests/fixtures/_private/.gitlab_repo"
     ).expanduser()
     lib.push_changes_to_nautobot(templates_dir)
     lib.test_golden_config_templates("d1-ia", templates_dir=templates_dir)

@@ -1,6 +1,4 @@
-from importlib.metadata import version
-
-from uoft_core import logging
+from uoft.core import logging
 
 # All of our projects are distributed as packages, so we can use the importlib.metadata 
 # module to get the version of the package.

@@ -1,4 +1,4 @@
-from uoft_core.types import SecretStr
+from uoft.core.types import SecretStr
 
 from django import forms
 from nautobot.apps.secrets import SecretsProvider

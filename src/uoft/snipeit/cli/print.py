@@ -1,4 +1,4 @@
-from uoft_core import shell
+from uoft.core import shell
 
 
 def system_print_label():

@@ -5,7 +5,7 @@ from typing import Annotated, Optional
 import sys
 
 import typer
-from uoft_core import logging
+from uoft.core import logging
 from . import Settings
 from .ansible_lookup import phpipam_ansible_lookup
 from .serial_lookup import phpipam_serial_lookup

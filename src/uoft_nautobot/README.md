@@ -93,7 +93,7 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import _cog as c; c.gen_conf_table('uoft_nautobot')
+tasks._coghelpers.gen_conf_table('uoft_nautobot')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |

@@ -93,7 +93,7 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import _cog as c; c.gen_conf_table('uoft_ssh')
+tasks._coghelpers.gen_conf_table('uoft.ssh')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
@@ -102,6 +102,7 @@ import _cog as c; c.gen_conf_table('uoft_ssh')
 | personal | Credentials |  | Your personal credentials. |  |
 | other | SecretStr |  | Other, optional credentials. |  |
 | terminal_server | Credentials |  | Credentials for the tripplite terminal servers. |  |
+| airconsole | Credentials |  | Credentials for the Airconsole terminal servers. |  |
 <!--[[[end]]] -->
 
 ## License

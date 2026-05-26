@@ -38,7 +38,7 @@ from pynautobot import api, RequestError
 from pynautobot.models.extras import Jobs
 from rich.progress import Progress
 
-from uoft_core import logging, console
+from uoft.core import logging, console
 
 NAUTOBOT_URL = "https://engine.netmgmt.utsc.utoronto.ca"
 

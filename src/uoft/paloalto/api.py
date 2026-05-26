@@ -1,9 +1,9 @@
 from functools import cached_property
 from pathlib import Path
 
-from uoft_core.api import APIBase
-from uoft_core.types import SecretStr
-from uoft_core import logging
+from uoft.core.api import APIBase
+from uoft.core.types import SecretStr
+from uoft.core import logging
 
 logger = logging.getLogger(__name__)
 

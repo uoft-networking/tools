@@ -10,7 +10,7 @@ from django.test.client import RequestFactory
 from django_jinja.backend import Jinja2
 from jinja2.loaders import FileSystemLoader
 from jinja2 import Environment, StrictUndefined
-from uoft_core import logging
+from uoft.core import logging
 
 
 fixtures_dir = Path(__file__).parent / "fixtures"

@@ -3,12 +3,12 @@ from typing import Annotated, Optional
 from pathlib import Path
 import json
 
-from uoft_core import logging
+from uoft.core import logging
 from . import Settings, settings
 from .generate import render_template, model_questionnaire
 from .deploy import deploy_to_console
 
-from uoft_core import (
+from uoft.core import (
     DataFileFormats,
     File,
     UofTCoreError,
@@ -16,8 +16,8 @@ from uoft_core import (
     parse_config_file,
     write_config_file,
 )
-from uoft_core.console import console
-from uoft_core.other import Prompt
+from uoft.core.console import console
+from uoft.core.other import Prompt
 
 import typer
 
@@ -29,7 +29,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(

@@ -1,17 +1,15 @@
-from importlib.metadata import version
 import typing
 
 from nautobot.apps import NautobotAppConfig
-from uoft_core import BaseSettings, Field, SecretStr
-from uoft_core.types import BaseModel
-from uoft_aruba import Settings as ArubaSettings
-from uoft_ssh import Settings as SSHSettingsBase, Credentials
-from uoft_bluecat import Settings as BluecatSettings
+from uoft.core import BaseSettings, Field, SecretStr
+from uoft.core.types import BaseModel
+from uoft.aruba.conf import Settings as ArubaSettings
+from uoft.ssh.conf import Settings as SSHSettingsBase
+from uoft.bluecat.conf import Settings as BluecatSettings
+from uoft.ssh.conf import Credentials
 
-# All of our projects are distributed as packages, so we can use the importlib.metadata 
-# module to get the version of the package.
-assert __package__
-__version__ = version(__package__) # type: ignore
+from .version import __version__
+
 
 class SSHSettings(SSHSettingsBase):
     nautobot: Credentials = Field(

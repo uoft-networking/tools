@@ -70,9 +70,9 @@ def generate_label_image(fields: dict[str, str], width: int, max_height: int) ->
     image = Image.new("L", (width, max_height), color=255)
     draw = ImageDraw.Draw(image)
 
-    regular_font_file: BytesIO = files("uoft_snipeit").joinpath("DejavuSans-mono-regular.ttf").open("rb") # pyright: ignore[reportAssignmentType]
+    regular_font_file: BytesIO = files("uoft.snipeit.cli").joinpath("DejavuSans-mono-regular.ttf").open("rb")  # pyright: ignore[reportAssignmentType]
     regular = ImageFont.truetype(regular_font_file, font_size)
-    bold_font_file: BytesIO = files("uoft_snipeit").joinpath("DejavuSans-mono-bold.ttf").open("rb") # pyright: ignore[reportAssignmentType]
+    bold_font_file: BytesIO = files("uoft.snipeit.cli").joinpath("DejavuSans-mono-bold.ttf").open("rb")  # pyright: ignore[reportAssignmentType]
     bold = ImageFont.truetype(bold_font_file, font_size)
 
     # In order to calculate how many characters we can fit on a line, we need to know how wide the font is.

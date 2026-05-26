@@ -1,4 +1,4 @@
-# uoft_occupancy
+# uoft.occupancy
 
 Occupancy tracking
 
@@ -13,7 +13,7 @@ We recommend you install this software with [pipx](https://pypa.github.io/pipx/)
 
 ```console
 $ python3.10 -m pip install --user pipx
-$ pipx install uoft_occupancy
+$ pipx install uoft.occupancy
 ```
 
 If you don't have or cannot easily get python3.10, you can run the following commands to download a standalone python3.10 binary and use it to install pipx:
@@ -93,11 +93,11 @@ Configuration is loaded from the following sources in order:
 Configuration Options:
 <!--
 [[[cog 
-import _cog as c; c.gen_conf_table('uoft_occupancy')
+tasks._coghelpers.gen_conf_table('uoft.occupancy')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |
-| psql_database | str |  |  | annotation=NoneType required=True title='PSQL Database name' description='The username used to manage the PSQL database.' |
+| psql_database | str |  |  | annotation=NoneType required=True title='PSQL Database name' description='The name of the PSQL database.' |
 | psql_host | str |  |  | annotation=NoneType required=True title='PSQL hostname' description='The hostname of the PSQL database.' |
 | psql_user | str |  |  | annotation=NoneType required=True title='PSQL username' description='The username used to manage the PSQL database.' |
 | psql_password | SecretStr |  |  | annotation=NoneType required=True title='PSQL database password' description='The password used to manage the PSQL database.' |

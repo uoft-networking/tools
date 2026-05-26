@@ -4,7 +4,7 @@ from nautobot.extras.models import Role
 from nautobot.ipam.models import VLAN
 from django.conf import settings
 
-from uoft_scripts import interface_name_normalize
+from uoft.scripts.base import interface_name_normalize
 
 
 class EscalationRequired(Exception):
@@ -170,7 +170,7 @@ class PortActivation(j.Job):
         # issue with graphql queries deep within the IntendedJob implementation logic.
         # Lucky for us, i already wrote a "clean room" reimplementation of the intended config generation logic
         # for the purpose of testing our templates before commiting them, so we can just borrow that code here.
-        from uoft_scripts.nautobot.lib import (
+        from uoft.scripts.nautobot.lib import (
             test_golden_config_templates,
             filter_config,
         )

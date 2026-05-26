@@ -1,6 +1,6 @@
 from pexpect import spawn, EOF, TIMEOUT
 
-from uoft_core import logging
+from uoft.core import logging
 
 logger = logging.getLogger(__name__)
 

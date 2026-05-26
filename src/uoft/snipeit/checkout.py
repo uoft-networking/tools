@@ -2,7 +2,7 @@ import typing as t
 
 from . import settings
 from .api import SnipeITAPI
-from uoft_core.prompt import Prompt
+from uoft.core.prompt import Prompt
 
 
 def snipe_checkout_asset(asset: int, location_id: int | None, name: str | None):  # type: ignore

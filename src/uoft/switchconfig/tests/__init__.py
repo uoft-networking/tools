@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING
 
-from uoft_switchconfig import Config
+from uoft.switchconfig.conf import Config
 
 from prompt_toolkit.output import DummyOutput
 
 if TYPE_CHECKING:
-    from uoft_core.tests import MockedUtil
+    from uoft.core.tests import MockedUtil
     from prompt_toolkit.application.current import AppSession
     from prompt_toolkit.input.base import PipeInput
 
     class MockPTApp(AppSession):
-        input: PipeInput # pyright: ignore[reportIncompatibleMethodOverride]
+        input: PipeInput  # pyright: ignore[reportIncompatibleMethodOverride]
 
     class MockedConfig(Config):
         util: MockedUtil

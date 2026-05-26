@@ -1,8 +1,8 @@
-from .. import Settings
+from ..conf import Settings
 import typing as t
 import pytest
 from pathlib import Path
-from uoft_core._vendor.dict_typer import get_type_definitions
+from uoft.core._vendor.dict_typer import get_type_definitions
 
 fixtures_dir = Path(__file__).parent / "fixtures"
 
@@ -27,9 +27,7 @@ class LibreNMSTests:
         res = "from typing import List, Optional, Union, TypedDict"
 
         data = api.devices.list_devices()
-        res += get_type_definitions(
-            data, "Devices", name_map={"DevicesItem0": "Device"}
-        )
+        res += get_type_definitions(data, "Devices", name_map={"DevicesItem0": "Device"})
         res += "\n\n"
 
         data = api.ports.get_port_info(1)
@@ -37,9 +35,7 @@ class LibreNMSTests:
         res += "\n\n"
 
         data = api.ports.get_port_ip_info(45526)
-        res += get_type_definitions(
-            data, "PortIPs", name_map={"AddressesItem0": "PortIP"}
-        )
+        res += get_type_definitions(data, "PortIPs", name_map={"AddressesItem0": "PortIP"})
         res += "\n\n"
 
         data = api.device_groups.get_devicegroups()
@@ -56,9 +52,7 @@ class LibreNMSTests:
 
         data = api.devices.get_components("d1-aa.netmgmt.utsc.utoronto.ca")
         data["components"] = list(data["components"].values())
-        res += get_type_definitions(
-            data, "Components", name_map={"ComponentsItem0": "Component"}
-        )
+        res += get_type_definitions(data, "Components", name_map={"ComponentsItem0": "Component"})
         res += "\n\n"
 
         data = api.switching.list_vlans()
@@ -71,4 +65,3 @@ class LibreNMSTests:
 
         print(res)
         print()
-

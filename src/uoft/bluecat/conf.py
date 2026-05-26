@@ -1,14 +1,7 @@
-from importlib.metadata import version
-
-from uoft_core.logging import getLogger
-from uoft_core import BaseSettings, Field, SecretStr
+from uoft.core.logging import getLogger
+from uoft.core import BaseSettings, Field, SecretStr
 
 logger = getLogger(__name__)
-
-# All of our projects are distributed as packages, so we can use the importlib.metadata
-# module to get the version of the package.
-assert __package__
-__version__ = version(__package__)
 
 
 class Settings(BaseSettings):
@@ -21,7 +14,7 @@ class Settings(BaseSettings):
         default_factory=set,
         description="Network IDs that contain only DHCP-assigned addresses",
     )
-    configuration: str | None = Field('UTSCProduction', description="BlueCat configuration name")
+    configuration: str | None = Field("UTSCProduction", description="BlueCat configuration name")
 
     class Config(BaseSettings.Config):
         app_name = "bluecat"

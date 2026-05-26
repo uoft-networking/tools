@@ -9,7 +9,7 @@ def prettyprinter_result_callback(result, *args, **kwargs):
     if result is None:
         return
 
-    from uoft_core.console import stdout_console
+    from uoft.core.console import stdout_console
 
     # special case for strings
     if isinstance(result, str):

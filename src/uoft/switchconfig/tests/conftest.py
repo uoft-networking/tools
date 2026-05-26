@@ -3,13 +3,13 @@ import pytest
 
 from . import CapturedOutput
 
-from uoft_switchconfig import config
+from uoft.switchconfig.conf import config
 
 from prompt_toolkit.application import create_app_session
 from prompt_toolkit.input import create_pipe_input
 
 if TYPE_CHECKING:
-    from uoft_core.tests import MockedUtil
+    from uoft.core.tests import MockedUtil
     from pytest_mock import MockerFixture
 
 

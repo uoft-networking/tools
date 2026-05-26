@@ -6,10 +6,10 @@ import sys
 from typing import Annotated, Optional
 
 import typer
-from uoft_core import logging
-from uoft_core.console import console
+from uoft.core import logging
+from uoft.core.console import console
 
-from . import Settings
+from ..conf import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(
@@ -73,7 +73,7 @@ def add_or_update_ip(
     ip: Annotated[str, typer.Argument(help="IP address to add or update")],
     hostname: Annotated[str, typer.Argument(help="Hostname to add or update")],
 ):
-    from uoft_core.types import IPAddress
+    from uoft.core.types import IPAddress
 
     try:
         address = IPAddress(ip)
@@ -115,7 +115,7 @@ def add_or_update_host_record(
         str, typer.Option(help="Domain name to add the host record to, e.g. example.com")
     ] = "netmgmt.utsc.utoronto.ca",
 ):
-    from uoft_core.types import IPAddress
+    from uoft.core.types import IPAddress
 
     try:
         address = IPAddress(ip)

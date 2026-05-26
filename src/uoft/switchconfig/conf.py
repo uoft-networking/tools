@@ -1,16 +1,11 @@
 from functools import cached_property
 from typing import Optional
-from importlib.metadata import version
 from pathlib import Path
 
-from uoft_core import Util, UofTCoreError, chomptxt, BaseSettings, logging
+from uoft.core import Util, UofTCoreError, chomptxt, BaseSettings, logging
 
 from pydantic.v1 import BaseModel, Field
 
-# All of our projects are distributed as packages, so we can use the importlib.metadata 
-# module to get the version of the package.
-assert __package__
-__version__ = version(__package__) # type: ignore
 
 logger = logging.getLogger(__name__)
 

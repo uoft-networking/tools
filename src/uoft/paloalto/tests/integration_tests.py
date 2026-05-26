@@ -1,5 +1,5 @@
 import pytest
-from .. import Settings
+from ..conf import Settings
 
 
 def test_address_groups():

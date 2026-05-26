@@ -2,14 +2,14 @@ import sys
 import typing as t
 from enum import Enum
 
-from .ldap.cli import app as ldap_app
-from .nautobot.cli import app as nautobot_app
-from .librenms.cli import app as librenms_app
-from .sib_turnup.cli import app as sib_turnup_app
-from .stg_ipam_dev.cli import app as stg_ipam_dev_app
-from .arista.cli import app as arista_app
+from .ldap import app as ldap_app
+from .nautobot import app as nautobot_app
+from .librenms import app as librenms_app
+from .sib_turnup import app as sib_turnup_app
+from .cli import app as stg_ipam_dev_app
+from .arista import app as arista_app
 
-from uoft_core import logging
+from uoft.core import logging
 
 import typer
 
@@ -22,7 +22,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(
@@ -85,12 +85,12 @@ def rename_switch(
     """
     logger.info(f"Renaming {old_name} to {new_name}")
     device_type_name = device_type.value  # type: ignore
-    from uoft_librenms import Settings as LibreNMSSettings
-    from .nautobot import Settings as NautobotSettings
-    from uoft_bluecat import Settings as BluecatSettings
-    from uoft_ssh import Settings as SSHSettings
+    from uoft.librenms.conf import Settings as LibreNMSSettings
+    from ..nautobot import Settings as NautobotSettings
+    from uoft.bluecat.conf import Settings as BluecatSettings
+    from uoft.ssh.conf import Settings as SSHSettings
     from netmiko import ConnectHandler, SSHDetect
-    from uoft_ssh.util import register_aoscx
+    from uoft.ssh.util import register_aoscx
     from pynautobot.models.extras import Record
 
     register_aoscx()
@@ -195,7 +195,7 @@ def deprecated():
         cmd = app
     elif (from_ := "utsc.scripts aruba") in cmdline:
         to = "uoft-aruba"
-        from uoft_aruba.cli import app as aruba_app
+        from uoft.aruba.cli.__main__ import app as aruba_app
 
         cmd = aruba_app
     else:

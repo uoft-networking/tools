@@ -5,7 +5,7 @@ Occupancy tracking
 from typing import Annotated, Optional
 import sys
 import typer
-from uoft_core import logging
+from uoft.core import logging
 from collections import defaultdict
 from sqlmodel import SQLModel, Session, create_engine
 from . import Settings, Occupancy_Tracking, RawRecord

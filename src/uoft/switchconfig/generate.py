@@ -14,7 +14,7 @@ from .util import (
     normalize_extension_name
 )
 
-from uoft_core import logging
+from uoft.core import logging
 
 logger = logging.getLogger(__name__)
 

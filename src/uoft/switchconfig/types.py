@@ -84,7 +84,7 @@ from typing import (
 )
 from pathlib import Path
 
-from netaddr import IPAddress, IPNetwork
+from uoft.core._vendor.netaddr import IPAddress, IPNetwork
 from pydantic.v1 import BaseModel, Field  # pylint: disable=no-name-in-module
 from pydantic.v1.types import (
     NoneStr,
@@ -137,7 +137,7 @@ from pydantic.v1.types import (
     FutureDate,
 )
 
-from uoft_core import StrEnum
+from uoft.core import StrEnum
 
 
 class Choice(BaseModel):

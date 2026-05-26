@@ -2,7 +2,7 @@ import time
 
 from . import settings
 
-from uoft_core import shell
+from uoft.core import shell
 import pexpect
 from rich.progress import Progress, SpinnerColumn, TaskID
 

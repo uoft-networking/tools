@@ -7,7 +7,7 @@ import sys
 import typer
 from typing import Annotated, Optional
 
-from uoft_core import logging
+from uoft.core import logging
 from . import Settings
 from .create import snipe_create_asset
 from .checkout import snipe_checkout_asset
@@ -25,7 +25,7 @@ DEBUG_MODE = False
 def _version_callback(value: bool):
     if not value:
         return
-    from . import __version__
+    from ..version import __version__
     import sys
 
     print(

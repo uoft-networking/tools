@@ -1,6 +1,6 @@
-# uoft_phpipam
+# uoft.phpipam
 
-A collection of tool to interact with a phpIPAM instance.
+A collection of tools to interact with a phpIPAM instance.
 
 ## Usage
 
@@ -27,7 +27,7 @@ We recommend you install this software with [pipx](https://pypa.github.io/pipx/)
 
 ```console
 $ python3.10 -m pip install --user pipx
-$ pipx install uoft_phpipam
+$ pipx install uoft.phpipam
 ```
 
 If you don't have or cannot easily get python3.10, you can run the following commands to download a standalone python3.10 binary and use it to install pipx:
@@ -116,7 +116,7 @@ Do not supply a password for this password store if you intend to use these tool
 
 <!--
 [[[cog 
-import _cog as c; c.gen_conf_table('uoft_phpipam')
+tasks._coghelpers.gen_conf_table('uoft.phpipam')
 ]]] -->
 | Option | Type | Title | Description | Default |
 | ------ | ---- | ----- | ----------- | ------- |

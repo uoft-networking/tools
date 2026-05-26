@@ -10,10 +10,10 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import status, fields as f
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
 
-from uoft_core import txt
+from uoft.core import txt
 
 if TYPE_CHECKING:
-    from uoft_aruba import Settings as ArubaSettings
+    from uoft.aruba.conf import Settings as ArubaSettings
 
 
 class InputError(ValidationError):

@@ -5,18 +5,18 @@ import typing as t
 import os
 
 from pexpect import TIMEOUT
-from uoft_core.console import console
-from uoft_ssh.cli import get_ssh_session
-from uoft_ssh import Settings as SSHSettings
-from uoft_core import logging
-from uoft_core import BaseSettings, SecretStr
-from netmiko.exceptions import ConfigInvalidException
+from uoft.core.console import console
+from uoft.ssh.util import get_ssh_session
+from uoft.ssh.conf import Settings as SSHSettings
+from uoft.core import logging
+from uoft.core import BaseSettings, SecretStr
+from netmiko.exceptions import ConfigInvalidException, ReadTimeout
 
-from .. import interface_name_normalize, interface_name_denormalize
+from ..base import interface_name_normalize, interface_name_denormalize
 
 
 if t.TYPE_CHECKING:
-    from uoft_ssh.pexpect_utils import UofTPexpectSpawn
+    from uoft.ssh.pexpect_utils import UofTPexpectSpawn
     from pynautobot.models.dcim import Devices, Interfaces
 
 
