@@ -1,16 +1,3 @@
-#!/usr/bin/env -S uv run --script
-
-# /// script
-# requires-python = ">=3.10, <3.11"
-# dependencies = [
-#     "uoft-core @ file:///Users/alex/uoft_core-2025.2.dev68+g5681129b.d20251020-py3-none-any.whl",
-#     "scapy",
-#     "debugpy",
-#     "pynautobot",
-#     "questionary",
-#     "typer",
-# ]
-# ///
 """
 This is the UTSC port activation tool.
 
@@ -21,12 +8,13 @@ and triggers a Nautobot job to activate the port accordingly.
 
 import os
 import sys
+import socket
 from pathlib import Path
 from platform import platform
 import re
 import subprocess
 from datetime import datetime
-from typing import TypedDict
+from typing import TypedDict, Optional, Annotated
 import time
 
 from scapy.all import sniff, conf, Packet
@@ -37,10 +25,15 @@ from questionary import text, select, password, confirm
 from pynautobot import api, RequestError
 from pynautobot.models.extras import Jobs
 from rich.progress import Progress
+from http.client import RemoteDisconnected
 
 from uoft.core import logging, console
 
 NAUTOBOT_URL = "https://engine.netmgmt.utsc.utoronto.ca"
+
+# [[[cog tasks._coghelpers.version_expression()]]]
+__version__ = "2025.2.dev100+g3f68310b.d20260428"
+# [[[end]]]
 
 app = typer.Typer(
     name="port-activation",
@@ -50,7 +43,13 @@ app = typer.Typer(
 logger = logging.getLogger(__name__)
 
 
-# FIXME: this function is duplicated from uoft_scripts/__init__.py
+def _version_callback(value: bool):
+    if not value:
+        return
+    print(f"port-activation v{__version__}")
+    raise typer.Exit()
+
+# FIXME: this function is duplicated from uoft.scripts/__init__.py
 # once we have pants-based packaging sorted, we should be able to import this
 # from there instead of maintaining a duplicate copy
 def interface_name_normalize(intf_name: str) -> str:
@@ -115,11 +114,9 @@ def get_or_update_intfs_list(interface: str | None = None) -> list[NetworkInterf
         # On MacOS, interface selection is easy. We just parse the output of `ifconfig`
         # and look for `enX` interfaces that have `1000baseT` in their media type field
         intfs = []
-        ifconfig_output = subprocess.run(
-            ["ifconfig"], capture_output=True, text=True, check=True
-        ).stdout
+        ifconfig_output = subprocess.run(["ifconfig"], capture_output=True, text=True, check=True).stdout
         for intf_block in re.split(r"\n(?!\t)", ifconfig_output, flags=re.MULTILINE):
-            if "media: " not in intf_block or "1000baseT" not in intf_block:
+            if "media: " not in intf_block or ("1000baseT" not in intf_block and "2500Base-T" not in intf_block):
                 continue
             intf_name, _, intf_block = intf_block.partition(":")
             intfs.append(conf.ifaces[intf_name])
@@ -151,30 +148,61 @@ class LLDPData(TypedDict):
     port_desc: str
     packet: Packet
 
+def get_own_hostname() -> str:
+    return socket.gethostname().partition(".")[0]  # return the short hostname, without domain
 
 def get_lldp_data(intfs: list[NetworkInterface]) -> LLDPData:
     logger.info("Please plug in network cable now if it's not already plugged in.")
     logger.info("Listening for LLDP packet...")
     logger.info("Press Ctrl+C to abort.")
-    logger.warning(
-        "This process may take up to 60 seconds depending on the switch you are connected to."
-    )
+    logger.warning("This process may take up to 60 seconds depending on the switch you are connected to.")
     progress = Progress(console=console.console())
     progress.add_task("Waiting for LLDP packet...", total=None)
     progress.start()
 
     res = dict(switch=None, port=None, port_desc=None, packet=None)
 
+    def get_switch_name(packet: Packet) -> str:
+        switch = packet.getlayer(lldp.LLDPDUSystemName).system_name  # pyright: ignore[reportOptionalMemberAccess]
+        if isinstance(switch, bytes):
+            switch = switch.decode()
+        return switch
+
+    def check_packet(packet: Packet) -> bool:
+        packet_valid = all([
+            packet.haslayer(lldp.LLDPDUSystemName),
+            packet.haslayer(lldp.LLDPDUPortID),
+            hasattr(packet.getlayer(lldp.LLDPDUSystemName), "system_name"),
+            hasattr(packet.getlayer(lldp.LLDPDUPortID), "id"),
+        ])
+        if not packet_valid:
+            logger.warning("Received LLDP packet is missing required layers/attributes, ignoring...")
+            logger.debug(packet.show(dump=True))
+            return False
+
+        # TODO better heuristic for detecting "reflected" packets
+        if get_switch_name(packet).lower() == get_own_hostname().lower():
+            logger.warning("Received LLDP packet appears to be reflected (switch name matches own hostname), ignoring...")
+            logger.debug(packet.show(dump=True))
+            return False
+        return True
+
     def process_packet(packet: Packet):
-        res["switch"] = packet.getlayer(
-            lldp.LLDPDUSystemName
-        ).system_name.decode()  # pyright: ignore[reportOptionalMemberAccess]
-        res["port"] = packet.getlayer(
-            lldp.LLDPDUPortID
-        ).id.decode()  # pyright: ignore[reportOptionalMemberAccess]
-        res["port_desc"] = packet.getlayer(
-            lldp.LLDPDUPortDescription
-        ).description.decode()  # pyright: ignore[reportOptionalMemberAccess]
+        switch = get_switch_name(packet)
+        res["switch"] = switch  # pyright: ignore[reportArgumentType]
+        port = packet.getlayer(lldp.LLDPDUPortID).id  # pyright: ignore[reportOptionalMemberAccess]
+        if isinstance(port, bytes):
+            port = port.decode()
+        res["port"] = port  # pyright: ignore[reportArgumentType]
+        if packet.haslayer(lldp.LLDPDUPortDescription):
+            port_desc = packet.getlayer(lldp.LLDPDUPortDescription).description  # pyright: ignore[reportOptionalMemberAccess]
+            if isinstance(port_desc, bytes):
+                port_desc = port_desc.decode()
+        else:
+            # on some arista switches, if the port doesn't have a description set,
+            # the LLDP Port Description TLV is omitted entirely
+            port_desc = ""
+        res["port_desc"] = port_desc  # pyright: ignore[reportArgumentType]
 
         # Store the entire packet for later use
         res["packet"] = packet  # pyright: ignore[reportArgumentType]
@@ -187,14 +215,19 @@ def get_lldp_data(intfs: list[NetworkInterface]) -> LLDPData:
     sniff(
         filter=f"ether proto {lldp.LLDP_ETHER_TYPE}",  # BPF filter. see https://www.ibm.com/docs/en/qsip/7.4?topic=queries-berkeley-packet-filters
         prn=process_packet,
+        lfilter=check_packet,
         iface=intfs,
         count=1,  # Capture only one packet
     )
     progress.stop()
 
-    assert res["switch"]
-    assert res["port"]
-    assert res["port_desc"]
+    try:
+        assert res["switch"] is not None
+        assert res["port"] is not None
+        assert res["port_desc"] is not None
+    except AssertionError:
+        logger.error("User Cancelled")  # sniff has no timeout, so the only way to get here is if the user hit Ctrl+C
+        sys.exit(1)
     logger.success(
         "Aquired the following data through LLDP: Switch: "
         f"{res['switch']}, Port: {res['port']}, Port Description: {res['port_desc']}"
@@ -203,7 +236,7 @@ def get_lldp_data(intfs: list[NetworkInterface]) -> LLDPData:
 
 
 def remote_debugger():
-    import debugpy
+    import debugpy # pyright: ignore[reportMissingImports]
 
     debugpy.listen(("localhost", 5678))
     print("Waiting for debugger to attach...")
@@ -215,9 +248,7 @@ def nautobot_api():
     token_path = Path("/var/root/.nautobot_token")
     if not token_path.exists():
         logger.warning("Nautobot token file not found at /var/root/.nautobot_token.")
-        token = password(
-            "Please enter your Nautobot API token: ", validate=lambda x: len(x) == 40
-        ).unsafe_ask()
+        token = password("Please enter your Nautobot API token: ", validate=lambda x: len(x) == 40).unsafe_ask()
         token_path.write_text(token)
         token_path.chmod(0o600)
     else:
@@ -232,17 +263,63 @@ def nautobot_api():
 def prompt_for_port_label() -> str:
     logger.info("Please enter the port label for this port.")
     logger.info("Should include switch closet id (ex: '2C'), room number (ex: 'SW209'), port label (ex: 'D118')")
-    return text(
-        "Port label: "
-    ).unsafe_ask()
+    return text("Port label: ", validate=lambda s: len(s) > 4).unsafe_ask()
 
+
+def get_port_label(lldp_data: LLDPData):
+    existing_port_label = lldp_data["port_desc"].strip().partition("[--")[2].rpartition("--]")[0]
+
+    if existing_port_label and existing_port_label != lldp_data["port"]:
+        logger.info(f"Port description found from LLDP: '{existing_port_label}'")
+        logger.info("Should ideally look something like '3W-AC313D-A08' or '2C-SW209-D118', etc")
+        if confirm(
+            f"Is '{existing_port_label}' correct?",
+            instruction="Press 'Enter' to accept, or 'N' to enter a different port label",
+        ).unsafe_ask():
+            port_label = existing_port_label
+        else:
+            port_label = prompt_for_port_label()
+    else:
+        port_label = prompt_for_port_label()
+    return port_label
+
+def prompt_for_role():
+    role = select(
+        "What kind of device are you looking to activate?",
+        choices=[
+            "Desktop PC",
+            "VOIP Phone",
+            "Printer",
+            "Deactivate",
+            "Other",
+        ],
+    ).unsafe_ask()
+    return role
+
+def handle_failure(job_result):
+    if job_result.result is None:  # pyright: ignore
+        logger.error("Failed to activate port due to unknown error")
+    else:
+        if hasattr(job_result.result, "exc_type") and hasattr(job_result.result, "exc_message"):  # pyright: ignore
+            logger.error(f"Failed to activate port due to: {job_result.result.exc_type}: {job_result.result.exc_message}")  # pyright: ignore
+        elif hasattr(job_result.result, "exc_message"):  # pyright: ignore
+            logger.error(f"Failed to activate port due to: {job_result.result.exc_message}")  # pyright: ignore
+        elif hasattr(job_result.result, "exc_type"):  # pyright: ignore
+            logger.error(f"Failed to activate port due to: {job_result.result.exc_type}")  # pyright: ignore
+        else:
+            logger.error(f"Failed to activate port due to unknown error: {job_result.result}")  # pyright: ignore
+    logger.warning("Please notify the networking team for assistance and share the following context with them:")
+    logger.warning(f"{NAUTOBOT_URL}/extras/job-results/{job_result.id}/")  # pyright: ignore
 
 @app.command()
 def main(
     debug: bool = typer.Option(False, help="Enable debug mode"),
-    interface: str | None = typer.Option(
-        None, help="Specify a single network interface to monitor for LLDP packets"
-    ),
+    dap: bool = typer.Option(False, help="Enable debug adapter protocol (remote debugging)"),
+    interface: str | None = typer.Option(None, help="Specify a single network interface to monitor for LLDP packets"),
+    version: Annotated[
+        Optional[bool],
+        typer.Option("--version", callback=_version_callback, is_eager=True, help="Show version information and exit"),
+    ] = None,
 ):
     # make sure we're running as root
     if os.geteuid() != 0:
@@ -256,8 +333,9 @@ def main(
             target = sys.argv[0]
         os.execvp("sudo", ["sudo", target, *sys.argv[1:]])
 
-    if debug:
+    if dap:
         remote_debugger()
+    if debug:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
@@ -266,44 +344,26 @@ def main(
     intfs = get_or_update_intfs_list(interface)
     if len(intfs) == 0:
         logger.error("No ethernet interfaces found to monitor for LLDP packets")
-        logger.warning("Specifically, no interfaces with 1000baseT media type were found when running `ifconfig`")
+        logger.warning(
+            "Specifically, no interfaces with 1000baseT or 2500Base-T media type were found when running `ifconfig`"
+        )
         sys.exit(1)
     logger.info("Monitoring interfaces: %s", [i.name for i in intfs])
     lldp_data = get_lldp_data(intfs)
-
+    confirm("Please unplug the network cable now and press Enter to continue.").unsafe_ask()
     # Now we need the rest of the info to send to Nautobot
 
-    existing_port_label = lldp_data["port_desc"].strip()
-    
-    if existing_port_label and existing_port_label != lldp_data["port"]:
-        logger.info(f"Port description found from LLDP: '{existing_port_label}'")
-        logger.info("Should ideally look something like '3W-AC313D-A08' or '2C-SW209-D118', etc")
-        if confirm(
-            f"Is '{existing_port_label}' correct?",
-            instruction="Press 'Enter' to accept, or 'N' to enter a different port label",
-        ).unsafe_ask():
-            port_label = existing_port_label
-        else:
-            port_label = prompt_for_port_label()
-    else:
-        port_label = prompt_for_port_label()
-    role = select(
-        "What kind of device are you looking to activate?",
-        choices=[
-            "Desktop PC",
-            "VOIP Phone",
-            "Other",
-        ],
-    ).unsafe_ask()
+    port_label = get_port_label(lldp_data)
+    role = prompt_for_role()
 
     nautobot = nautobot_api()
 
     progress = Progress(console=console.console())
     task_id = progress.add_task("Activating port...", total=None)
     progress.start()
-    job = nautobot.extras.jobs.run( # pyright: ignore[reportAttributeAccessIssue, reportCallIssue]
-        job_name='Helpdesk Port Activation', data=dict(
-            device=lldp_data["switch"].partition(".")[0], # lldp switch name is sometimes FQDN, sometimes not
+    payload = (
+        dict(
+            device=lldp_data["switch"].partition(".")[0],  # lldp switch name is sometimes FQDN, sometimes not
             interface=lldp_data["port"],
             role=role,
             port_label=port_label,
@@ -313,22 +373,35 @@ def main(
             ),
         )
     )
+    try:
+        job = nautobot.extras.jobs.run(  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue]
+            job_name="Helpdesk Port Activation", data=payload
+        )
+    except (RequestError, RemoteDisconnected) as e:
+        logger.exception("Failed to start port activation job:", exc_info=False)
+        logger.info("Please pass this information to the networking team to complete activation:")
+        logger.info(payload)
+        sys.exit(1)
     jr = job.job_result  # pyright: ignore
-    while jr.status.value in ["PENDING", "STARTED"]: # pyright: ignore
-        jr = nautobot.extras.job_results.get(jr.id) # pyright: ignore
-        progress.update(task_id, description=f"Activating port... (status: {jr.status.value})") # pyright: ignore
+    while jr.status.value in ["PENDING", "STARTED"]:  # pyright: ignore
+        try:
+            jr = nautobot.extras.job_results.get(jr.id)  # pyright: ignore
+        except (RequestError, RemoteDisconnected) as e:
+            logger.exception("Failed to get job result:")
+            logger.info("Please pass this information to the networking team to complete activation:")
+            logger.info(payload)
+            sys.exit(1)
+        progress.update(task_id, description=f"Activating port... (status: {jr.status.value})")  # pyright: ignore
         time.sleep(0.5)
 
     progress.stop()
     if jr.status.value == "FAILURE":  # pyright: ignore
-        logger.error(f"Failed to activate port due to: {jr.result.exc_type}") # pyright: ignore
-        logger.warning("Please notify the networking team for assistance and share the following context with them:")
-        logger.warning(f"{NAUTOBOT_URL}/extras/job-results/{jr.id}/") # pyright: ignore
+        handle_failure(jr)
     else:
         logger.success("Port activated successfully!")
         logger.info("Please disconnect and reconnect the network cable to test connectivity.")
         logger.info("If necessary, the networking team can review the port activation details at the following URL:")
-        logger.info(f"{NAUTOBOT_URL}/extras/job-results/{jr.id}/") # pyright: ignore
+        logger.info(f"{NAUTOBOT_URL}/extras/job-results/{jr.id}/")  # pyright: ignore
 
 
 if __name__ == "__main__":
