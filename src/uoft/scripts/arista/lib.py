@@ -813,7 +813,14 @@ def push_nautobot_config_to_switches(*arista_switch_names: str):
             if isinstance(e, ConfigInvalidException):
                 return Result(host, f"Config for {host.name} is invalid: {e.with_traceback(None)}", failed=True)
             raise e
+        try:
             ssh.exit_config_mode("commit")
+        except ReadTimeout:
+            # if config involved changing mgmt int, default route, or other things that could cause us to lose connectivity
+            # check to see if the switch is still online
+            if not ssh.is_alive():
+                logger.error(f"Switch {host.name} appears to have gone offline after config commit, likely due to a config change that affected connectivity. Please check the switch and fix any issues before trying again.")
+                return Result(host, failed=True, changed=True, result=f"Config pushed to {host.name}, but the switch appears to have gone offline")
         ssh.send_command("write memory")
         return Result(host, f"Config pushed to {host.name}", changed=True)
 
@@ -833,11 +840,11 @@ def breakout_interface(switch_name: str, interface_name: str):
     from ..nautobot import get_api, Record
 
     nb = get_api(dev=False)
-    switch: Record | None = nb.dcim.devices.get(name=switch_name) # pyright: ignore[reportAssignmentType]
+    switch: Record | None = nb.dcim.devices.get(name=switch_name)  # pyright: ignore[reportAssignmentType]
     if not switch:
         raise ValueError(f"Switch {switch_name} not found in Nautobot")
 
-    interface: Record | None = nb.dcim.interfaces.get(device=switch.id, name=interface_name) # pyright: ignore[reportAssignmentType]
+    interface: Record | None = nb.dcim.interfaces.get(device=switch.id, name=interface_name)  # pyright: ignore[reportAssignmentType]
     if not interface:
         raise ValueError(f"Interface {interface_name} not found on switch {switch_name}")
 
@@ -849,7 +856,7 @@ def breakout_interface(switch_name: str, interface_name: str):
     base_name = interface_name.rpartition("/")[0]
     for i in range(2, 5):
         new_interface_name = f"{base_name}/{i}"
-        if nb.dcim.interfaces.get(device=switch.id, name=new_interface_name): # pyright: ignore[reportArgumentType]
+        if nb.dcim.interfaces.get(device=switch.id, name=new_interface_name):  # pyright: ignore[reportArgumentType]
             logger.info(f"Interface {new_interface_name} already exists on {switch_name}, skipping creation")
             continue
         logger.info(f"Creating interface {new_interface_name} on {switch_name} with type SFP28 (25GE)")
@@ -863,257 +870,6 @@ def breakout_interface(switch_name: str, interface_name: str):
         )
 
     logger.success(f"Successfully broke out 100G {interface_name} on {switch_name} into 4 x 25G interfaces")
-
-
-@t.no_type_check
-def _cvp_onboarding():
-    # This function was an excercise in frustration, and an attempt to figure out how to use the CVP gRPC API
-    # to automate provisioning of a switch through cloudvision itself.
-    # it was abandoned when we found out that the sections of the CVP API we needed to use were
-    # simultaneously difficult to use, poorly documented, and primed to be deprecated/replaced
-    # with something else in the next software release.
-    # The code below is a mess, and should not be used as an example of how to use the CVP gRPC API.
-    # It is here for reference only, and may be removed in the future.
-    from .lib import Settings
-    from uoft_core.api import APIBase
-    import grpc
-    from google.protobuf import wrappers_pb2 as protobuf
-    from fmp import wrappers_pb2 as fmp_protobuf
-    from arista.studio.v1 import services as studio_svc, models as studio_models
-    from arista.workspace.v1 import workspace_pb2 as workspace_models, services as workspace_svc
-
-    class GRPC:
-        def __init__(self, token):
-            self.channel = grpc.secure_channel(
-                target="www.cv-prod-na-northeast1-b.arista.io:443",
-                credentials=grpc.composite_channel_credentials(
-                    grpc.ssl_channel_credentials(),
-                    grpc.access_token_call_credentials(token),
-                ),
-            )
-
-            # --- studio_svc ServiceStub wrappers ---
-            class AssignedTags:
-                nonlocal self
-                stub = studio_svc.AssignedTagsServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.AssignedTagsStreamRequest())
-
-            self.AssignedTags = AssignedTags
-
-            class AssignedTagsConfig:
-                nonlocal self
-                stub = studio_svc.AssignedTagsConfigServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.AssignedTagsConfigStreamRequest())
-
-            self.AssignedTagsConfig = AssignedTagsConfig
-
-            class AutofillAction:
-                nonlocal self
-                stub = studio_svc.AutofillActionServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.AutofillActionStreamRequest())
-
-            self.AutofillAction = AutofillAction
-
-            class AutofillActionConfig:
-                nonlocal self
-                stub = studio_svc.AutofillActionConfigServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.AutofillActionConfigStreamRequest())
-
-            self.AutofillActionConfig = AutofillActionConfig
-
-            class Inputs:
-                nonlocal self
-                stub = studio_svc.InputsServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.InputsStreamRequest())
-
-                @classmethod
-                def get_one(cls, studio_id, workspace_id, paths: list[str]):
-                    return cls.stub.GetOne(
-                        studio_svc.InputsRequest(
-                            key=studio_models.InputsKey(
-                                studio_id=protobuf.StringValue(value=studio_id),
-                                workspace_id=protobuf.StringValue(value=workspace_id),
-                                path=fmp_protobuf.RepeatedString(values=paths),
-                            )
-                        )
-                    )
-
-            self.Inputs = Inputs
-
-            class InputsConfig:
-                nonlocal self
-                stub = studio_svc.InputsConfigServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.InputsConfigStreamRequest())
-
-            self.InputsConfig = InputsConfig
-
-            class SecretInput:
-                nonlocal self
-                stub = studio_svc.SecretInputServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.SecretInputStreamRequest())
-
-            self.SecretInput = SecretInput
-
-            class Studio:
-                nonlocal self
-                stub = studio_svc.StudioServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.StudioStreamRequest())
-
-            self.Studio = Studio
-
-            class StudioConfig:
-                nonlocal self
-                stub = studio_svc.StudioConfigServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls) -> t.Generator[studio_svc.StudioConfigStreamResponse, None, None]:
-                    return cls.stub.GetAll(studio_svc.StudioConfigStreamRequest())
-
-            self.StudioConfig = StudioConfig
-
-            class StudioSummary:
-                nonlocal self
-                stub = studio_svc.StudioSummaryServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(studio_svc.StudioSummaryStreamRequest())
-
-            self.StudioSummary = StudioSummary
-
-            # --- workspace_svc ServiceStub wrappers ---
-            class Workspace:
-                nonlocal self
-                stub = workspace_svc.WorkspaceServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(workspace_svc.WorkspaceStreamRequest())
-
-                @classmethod
-                def get_one(cls, workspace_id):
-                    return cls.stub.GetOne(
-                        workspace_svc.WorkspaceStreamRequest(
-                            partial_eq_filter=[
-                                workspace_models.Workspace(
-                                    key=workspace_models.WorkspaceKey(
-                                        workspace_id=protobuf.StringValue(value=workspace_id)
-                                    )
-                                )
-                            ]
-                        )
-                    )
-
-            self.Workspace = Workspace
-
-            class WorkspaceBuild:
-                nonlocal self
-                stub = workspace_svc.WorkspaceBuildServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(workspace_svc.WorkspaceBuildStreamRequest())
-
-            self.WorkspaceBuild = WorkspaceBuild
-
-            class WorkspaceConfig:
-                nonlocal self
-                stub = workspace_svc.WorkspaceConfigServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(workspace_svc.WorkspaceConfigStreamRequest())
-
-            self.WorkspaceConfig = WorkspaceConfig
-
-            class WorkspaceSyncConfig:
-                nonlocal self
-                stub = workspace_svc.WorkspaceSyncConfigServiceStub(self.channel)
-
-                @classmethod
-                def get_all(cls):
-                    return cls.stub.GetAll(workspace_svc.WorkspaceSyncConfigStreamRequest())
-
-            self.WorkspaceSyncConfig = WorkspaceSyncConfig
-
-    class CVPAPI(APIBase):
-        def __init__(self, token):
-            super().__init__(base_url="https://cv-prod-na-northeast1-b.arista.io", api_root="/api")
-            self.cookies.update({"access_token": token})
-            self.headers.update({"Authorization": f"Bearer {token}"})
-            self._grpc = None
-
-        @property
-        def grpc(self):
-            if not self._grpc:
-                self._grpc = GRPC(self.cookies["access_token"])
-            return self._grpc
-
-    cvp_token = Settings.from_cache().cvp_token.get_secret_value()
-    cvp_api = CVPAPI(cvp_token)
-
-    # TODO: check AutofillAction and AutofillActionConfig for a1-ev0c-arista
-    # /cvpserver/inventory was a bust
-    # StudioService was a bust
-    # StudioConfigServer was a bust, but will be useful later
-    # StudioSummaryService was a bust
-    # inventory.DeviceService was a bust
-    # inventory.DeviceOnboarding was a bust
-    # inventory.DeviceOnboardinConfig - couldn't figure it out
-    # InputsService - ALMOST there, has exactly what we need, but does not include a1-ev0c-arista
-    # InputsConfigService - This is the endpoint we need to submit the data to
-    # studio_topology.* - I'll be honest, i got lost here. there's so many services,
-    # with no clear indication of what they do or how to use them
-    r = list([r.value for r in cvp_api.grpc.AutofillAction.get_all()])
-    r2 = list([r.value for r in cvp_api.grpc.AutofillActionConfig.get_all()])
-    print(r)
-    print(r2)
-    id = next(iter(cvp_api.grpc.StudioConfig.get_all())).value.key.studio_id.value
-    id == "TOPOLOGY"
-    # topology_schema = cvp_api.get("/resources/studio/v1/StudioConfig",
-    #   params={'key.studioId': 'TOPOLOGY', 'key.workspaceId': 'builtin-studios-v0.99-topology'})
-    # topology_schema = topology_schema.json()['value']['inputSchema']
-
-    # grpc_channel = grpc.secure_channel(
-    #     target="www.cv-prod-na-northeast1-b.arista.io:443",
-    #     credentials=grpc.composite_channel_credentials(
-    #         grpc.ssl_channel_credentials(), grpc.access_token_call_credentials(access_token=cvp_token)
-    #     ),
-    # )
-    # studio_config_stub = studio_svc.StudioConfigServiceStub(grpc_channel)
-    # workspace_config_stub = workspace_svc.WorkspaceServiceStub(grpc_channel)
-
-    my_workspace = cvp_api.grpc.Workspace.get_one(workspace_id="a1-ev0c-arista")
-    topology_studio = cvp_api.grpc.Studio.get_one(studio_id="TOPOLOGY")
-    print(my_workspace, topology_studio)
-    # assert 'TOPOLOGY' in studios_by_id, "TOPOLOGY studio not found in CVP"
-    # topology_studio = studios_by_id['TOPOLOGY']
-
-    return r
 
 
 def _debug():
