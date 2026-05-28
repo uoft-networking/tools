@@ -20,7 +20,9 @@ def uoft_python_lib(dist_kwargs: dict | None = None, sources_kwargs: dict | None
     )
 
 
-def uoft_python_cli(dist_kwargs: dict | None = None, sources_kwargs: dict | None = None, **kwargs):
+def uoft_python_cli(
+    dist_kwargs: dict | None = None, sources_kwargs: dict | None = None, pex_kwargs: dict | None = None, **kwargs
+):
     """A convenience macro for defining lib, dist, pex, and scie targets in uoft projects that are CLIs."""
     # need to derive cli name (eg uoft-aruba) and module path (eg uoft.aruba.cli) from path (eg src/uoft/aruba/cli)
     path = build_file_dir()
@@ -55,11 +57,14 @@ def uoft_python_cli(dist_kwargs: dict | None = None, sources_kwargs: dict | None
         **dist_kwargs,
     )
 
+    pex_kwargs = pex_kwargs or {}
+    pex_kwargs.setdefault("dependencies", []).append(":dist")
+
     pex_binary(
         name="pex",
-        dependencies=[":dist"],
         entry_point=f"{mod_path}.__main__:cli",
         include_tools=True,
         output_path=f"{file_name}.pex",
         scie="lazy",
+        **pex_kwargs,
     )

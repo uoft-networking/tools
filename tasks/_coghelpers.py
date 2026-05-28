@@ -241,9 +241,14 @@ def compute_pants_dist_deps(path: str):
     from task_runner import run, REPO_ROOT
     all_deps = run(f"pants dependencies --transitive src/{path}", cap=True).splitlines()
     resolved_deps = set()
-    for dep in filter(lambda d: ':dist' in d, all_deps):
-        resolved_deps.add(dep)
-    for dep in resolved_deps:
+    for dep in filter(lambda d: ':lib' in d, all_deps):
+        target_dir = dep.rpartition(":")[0].rpartition("/")[0]
+        if target_dir == f"src/{path}":
+            # dependency on the local dist target is already 
+            # automatically specified in the uoft_python_cli() macro
+            continue
+        resolved_deps.add(f"{target_dir}:dist")
+    for dep in sorted(resolved_deps):
         cog.outl(f'        "{dep}",')
 
 

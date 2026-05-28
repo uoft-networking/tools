@@ -25,6 +25,11 @@ def cog_update():
             "for installation instructions."
         )
     res = run(f"{rg_path} --glob !tasks/* --files-with-matches --fixed-strings '[[[cog' {REPO_ROOT}", cap=True)
+    
+    # ripgrep sometimes returns files in different order. 
+    # We sort the list here to minimize churn in the 
+    # .cog-files registry
+    res = "\n".join(sorted(res.strip().splitlines()))
     Path('.cog-files').write_text(res.strip())
 
 

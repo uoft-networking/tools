@@ -27,15 +27,15 @@ pex_binary(
     dependencies=[
         ":dist", 
         # [[[cog tasks._coghelpers.compute_pants_dist_deps('uoft_nautobot')]]]
+        "src/uoft/aruba/cli:dist",
+        "src/uoft/aruba:dist",
         "src/uoft/bluecat:dist",
+        "src/uoft/core:dist",
         "src/uoft/librenms:dist",
+        "src/uoft/paloalto:dist",
+        "src/uoft/scripts:dist",
         "src/uoft/ssh:dist",
         "src/uoft_nautobot:dist",
-        "src/uoft/aruba:dist",
-        "src/uoft/paloalto:dist",
-        "src/uoft/core:dist",
-        "src/uoft/scripts:dist",
-        "src/uoft/aruba/cli:dist",
         # [[[end]]]
     ],
     include_tools=True,
