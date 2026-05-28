@@ -37,19 +37,18 @@ class Uv(ExternalTool):
 
 class UvSubsystem(GoalSubsystem):
     name = "uv-tool"
-    help = "Run uv to manage Python dependencies"
+    help = "Placeholder to make uv pants-exportable"
 
 
 class UvGoal(Goal):
-    """Run uv to manage Python dependencies"""
+    """Placeholder to make uv pants-exportable"""
     subsystem_cls = UvSubsystem
     environment_behavior = Goal.EnvironmentBehavior.LOCAL_ONLY
 
 
 @goal_rule
-async def run_uv(uv: Uv, plat: Platform) -> UvGoal:
-    downloaded_uv = await download_external_tool(uv.get_request(plat))
-    return UvGoal(0)
+async def make_uv_exportable(uv: Uv, plat: Platform) -> UvGoal:
+    raise NotImplementedError("This goal is not yet implemented. Please export and use uv directly for now.")
 
 
 def rules():

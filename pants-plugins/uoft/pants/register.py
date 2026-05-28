@@ -1,4 +1,4 @@
-from . import synthetic_targets, custom_setup_kwargs, uv
+from . import synthetic_targets, custom_setup_kwargs, uv, ripgrep
 
 
 def rules():
@@ -6,4 +6,5 @@ def rules():
         *synthetic_targets.rules(),
         *custom_setup_kwargs.rules(),
         *uv.rules(),
+        *ripgrep.rules(),
     ]

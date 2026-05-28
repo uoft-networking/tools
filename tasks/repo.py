@@ -19,11 +19,9 @@ def cog_update():
     elif rg := which("ripgrep.rg"):
         rg_path = rg
     else:
-        raise RuntimeError(
-            "ripgrep is required to update the cog file registry. "
-            "See https://github.com/BurntSushi/ripgrep?tab=readme-ov-file#installation "
-            "for installation instructions."
-        )
+        print("Aquiring ripgrep...")
+        run("pants export --bin=ripgrep")
+        rg_path = REPO_ROOT / "dist/export/bin/ripgrep"
     res = run(f"{rg_path} --glob !tasks/* --files-with-matches --fixed-strings '[[[cog' {REPO_ROOT}", cap=True)
     
     # ripgrep sometimes returns files in different order. 
