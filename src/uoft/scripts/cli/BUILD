@@ -15,7 +15,6 @@ uoft_python_cli(
             "src/uoft/paloalto:dist",
             "src/uoft/scripts:dist",
             "src/uoft/ssh:dist",
-            "src/uoft_nautobot:dist",
             # [[[end]]]
         ]
     ),

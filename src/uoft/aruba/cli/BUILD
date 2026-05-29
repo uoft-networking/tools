@@ -7,7 +7,6 @@ uoft_python_cli(
     pex_kwargs = dict(
         dependencies = [
             # [[[cog tasks._coghelpers.compute_pants_dist_deps('uoft/aruba/cli')]]]
-            "src/uoft/aruba/cli:dist",
             "src/uoft/aruba:dist",
             "src/uoft/core:dist",
             # [[[end]]]

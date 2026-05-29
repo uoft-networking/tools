@@ -239,7 +239,7 @@ def compute_pants_dist_deps(path: str):
     added to any pex_binary or scie_binary target for that project.
     """
     from task_runner import run, REPO_ROOT
-    all_deps = run(f"pants dependencies --transitive src/{path}", cap=True).splitlines()
+    all_deps = run(f"pants dependencies --transitive src/{path}:dist", cap=True).splitlines()
     resolved_deps = set()
     for dep in filter(lambda d: ':lib' in d, all_deps):
         target_dir = dep.rpartition(":")[0].rpartition("/")[0]

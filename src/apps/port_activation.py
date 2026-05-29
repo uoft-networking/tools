@@ -32,7 +32,7 @@ from uoft.core import logging, console
 NAUTOBOT_URL = "https://engine.netmgmt.utsc.utoronto.ca"
 
 # [[[cog tasks._coghelpers.version_expression()]]]
-__version__ = "2026.2.dev11+g681eb384.d20260527"
+__version__ = "2026.2.dev13+gf1b1a146.d20260529"
 # [[[end]]]
 
 app = typer.Typer(
