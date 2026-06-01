@@ -1,4 +1,5 @@
 from tempfile import NamedTemporaryFile
+from pathlib import Path
 
 from task_runner import run, sudo, REPO_ROOT
 
@@ -11,36 +12,42 @@ def pipx_raw(command: str):
     with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
         run(f"uv export --no-hashes --no-emit-workspace --output-file {req_file.name}", cap=True)
         print(f"Using constraints file: {req_file.name}")
-        with_pipargs = f'--pip-args "--constraint {req_file.name} --config-settings dependencies=local"'
+        with_pipargs = f'--pip-args "--force --find-links dist/ --constraint {req_file.name}"'
         sudo(
             f"{GLOBAL_PIPX} {command} {with_pipargs}",
         )
 
 
-def pipx_install(root_project: str, packages: list[str] | None = None):
-    """install a package to /usr/local/bin through pipx"""
-    pipx_raw(f"install --force projects/{root_project}")
+def pipx_install(root_project: str|Path, packages: list[str|Path] | None = None, extra_args: str = "", root_project_name: str | None = None):
+    """install a package (ie uoft.scripts of uoft_nautobot) to /usr/local/bin through pipx"""
+    run("pants package :: --filter-target-type=python_distribution") # if package is already built, this is a no-op
+    pipx_raw(f"install --force {extra_args} {root_project}")
 
     if packages:
-        packages = [f"projects/{p}" for p in packages]
-        packages_str = " ".join(packages)
+        packages_str = " ".join([str(p) for p in packages])
         pipx_raw(
-            f"inject --include-apps uoft_{root_project} {packages_str}",
+            f"inject --include-apps {root_project_name or root_project} {packages_str}",
         )
 
 
 def all_projects():
-    return sorted(REPO_ROOT.glob("projects/*"))
+    res: list[Path] = []
+    # add all top-level folders in src except `uoft` and `apps`
+    for folder in REPO_ROOT.glob("src/*"):
+        if folder.is_dir() and folder.name not in {"uoft", "apps"}:
+            res.append(folder)
+
+    for folder in (REPO_ROOT / "src/uoft").iterdir():
+        if folder.is_dir():
+            res.append(folder)
+    return sorted(res, key=lambda p: p.name)
 
 
 def all_projects_by_name():
-    return set([p.name for p in all_projects()])
+    return list(set([str(p.relative_to(REPO_ROOT / "src")).replace("/", ".") for p in all_projects()]))
 
 
 def all_projects_by_name_except_core():
-    return all_projects_by_name().symmetric_difference({"core"})
-
-def run_cog(files: str):
-    run(
-        f"cog -r -I {REPO_ROOT}/tasks/ {files}"
-    )
+    res = all_projects_by_name()
+    res.remove("uoft.core")
+    return res

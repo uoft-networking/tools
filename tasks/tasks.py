@@ -6,8 +6,8 @@ from textwrap import dedent
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from shutil import rmtree
+from importlib import import_module
 
-from . import pipx_install, all_projects_by_name, all_projects_by_name_except_core, run_cog
 from task_runner import run, REPO_ROOT
 
 from ._macros import macros, zxpy  # noqa: F401 # pyright: ignore[reportAttributeAccessIssue]
@@ -16,33 +16,52 @@ import typer
 
 
 def _get_prompt():
-    from uoft_core import Util
-    from uoft_core.prompt import Prompt
+    from uoft.core import Util
+    from uoft.core.prompt import Prompt
 
     return Prompt(Util("uoft-tools").history_cache)
 
 
+def exec(cmd: str):
+    "Execute a python function in the virtualenv (ex: --exec uoft.aruba.cli:_debug to execute the _debug function in the uoft.aruba.cli module)"
+    module_name, func_name = cmd.split(":")
+    module = import_module(module_name)
+    func = getattr(module, func_name)
+    func()
+    raise typer.Exit(0)
+
+
 def list_projects():
     """list all projects"""
+    from tasks import all_projects_by_name
     return all_projects_by_name()
 
 
 @no_type_check
 def build(project: str):
     """build sdist and wheel packages for a given project"""
-    print(f"building {project} from projects/{project}")
-    run(f"uv build --package uoft_{project} --out-dir {REPO_ROOT}/dist")
-    rmtree(REPO_ROOT / "projects" / project / ".pdm-build")
+    print(f"building {project}")
+    run(f"pants package src/{project}")
 
 
 @no_type_check
-def build_all(clean: bool = False):
+def build_all(clean_first: bool = False):
     """build sdist and wheel packages for all projects"""
-    if clean:
-        rmtree(REPO_ROOT / "dist")
-    for project in all_projects_by_name():
-        build(project)
+    if clean_first:
+        clean()
 
+    run("pants package ::")
+
+def clean():
+    """clean dist/ directory"""
+    # delete everything in dist/ except for `export`
+    dist = REPO_ROOT / "dist"
+    for item in dist.iterdir():
+        if item.name != "export":
+            if item.is_dir():
+                rmtree(item)
+            else:
+                item.unlink()
 
 def test(project: str):
     """run tests for a given project"""
@@ -56,8 +75,12 @@ def test_all():
 
 
 def test_inline(cmd: str):
-    """run tests with an i-process pytest invocation"""
+    """
+    run tests with an in-process pytest invocation,
+    useful when combined with --debug
+    """
     from pytest import main as pytest_main
+
     pytest_args = cmd.split(" ")
     pytest_main(pytest_args)
 
@@ -75,16 +98,14 @@ def new_project(name: str):
     # copier does not like being run inside of an invoke task runner,
     # so we shell out to the system to call it instead
     return_code = os.system(
-        f"copier copy --trust -d name={name} tasks/_new_project/template {REPO_ROOT}/projects/{name}"
+        f"copier copy --trust -d name={name} tasks/_new_project/template {REPO_ROOT}/src/uoft/{name}"
     )
     if not return_code == 0:
         raise Exception("copier failed")
-    # add the new project to the top-level pyproject.toml file
-    run_cog('pyproject.toml')
-    # add the new project to the lock file and install in editable mode
-    from .repo import lock
-    lock()
-    run("uv sync --frozen")
+
+    # tell pants about the new dist to beuild an editable install for it
+    run("pants generate-lockfiles")
+    run("pants export --resolve=python-default")
 
 
 def repl(project: Annotated[Optional[str], typer.Argument()] = None):
@@ -92,9 +113,9 @@ def repl(project: Annotated[Optional[str], typer.Argument()] = None):
     if not project:
         project = "core"
 
-    assert (REPO_ROOT / f"projects/{project}").exists(), f"Project {project} does not exist"
+    assert (REPO_ROOT / f"src/uoft/{project}").exists(), f"Project {project} does not exist"
 
-    print(f"starting repl with uoft_{project} imported")
+    print(f"starting repl with uoft/.{project} imported")
     with TemporaryDirectory() as tmpdir:
         prelude = Path(tmpdir) / "prelude.py"
         prelude.write_text(
@@ -104,14 +125,17 @@ def repl(project: Annotated[Optional[str], typer.Argument()] = None):
                     import os
                     import json
                     from pathlib import Path
-                    from uoft_core import shell, txt, lst, chomptxt
-                    from uoft_core.prompt import Prompt
+                    from uoft.core import shell, txt, lst, chomptxt
+                    from uoft.core.prompt import Prompt
                     from rich.pretty import pprint
-                    import uoft_{project}
-                    if hasattr(uoft_{project}, "Settings"):
-                        Settings = uoft_{project}.Settings
+                    import uoft.{project}
                     print("The following modules/functions are imported and available:")
-                    print("os, sys, json, Path, shell, txt, lst, chomptxt, Prompt, pprint, uoft_{project}, Settings")
+                    print("os, sys, json, Path, shell, txt, lst, chomptxt, Prompt, pprint, uoft.{project}")
+                    try:
+                        from uoft.{project}.conf import Settings
+                        print("`Settings` from uoft.{project}.conf is also imported")
+                    except ImportError:
+                        pass
                 """
             )
         )
@@ -119,28 +143,27 @@ def repl(project: Annotated[Optional[str], typer.Argument()] = None):
 
 
 def global_install(package: str):
-    """install a package to /usr/local/bin through pipx"""
+    """install a package (ie uoft.aruba) to /usr/local/bin through pipx"""
+    from tasks import pipx_install
     pipx_install(package)
 
 
 def global_install_all():
     """install all packages to /usr/local/bin through pipx"""
+    from tasks import all_projects_by_name_except_core, pipx_install
     projects = all_projects_by_name_except_core()
-    pipx_install("core", list(projects))
+    pipx_install("uoft.core", list(projects))
 
 
 def package_inspect():
     """list the contents of an sdist or wheel file in the dist/ directory"""
 
-    os.chdir(REPO_ROOT / "dist")
+    dist = REPO_ROOT / "dist"
+    os.chdir(dist)
     prompt = _get_prompt()
     package = prompt.get_path("package", "Enter a filename for a package to inspect", fuzzy_search=True)
-    if package.name.endswith(".tar.gz"):
-        run(f"tar -tvf {package}")
-    elif package.name.endswith(".whl"):
-        run(f"unzip -l {package}")
-    else:
-        raise Exception(f"Unknown package type: {package}")
+    cmd = "tar -tvf" if package.name.endswith(".tar.gz") else "unzip -l"
+    run(f"{cmd} {package}", cwd=dist)
 
 
 def package_peek():
@@ -191,8 +214,9 @@ def profile_import_time(cmd: str):
     stderr = res.stderr.decode("utf-8")
     Path("importtime.txt").write_text(stderr)
     import sys
+
     try:
-        subprocess.run('tuna importtime.txt', shell=True)
+        subprocess.run("tuna importtime.txt", shell=True)
     except KeyboardInterrupt:
         pass
     Path("importtime.txt").unlink()
@@ -200,7 +224,7 @@ def profile_import_time(cmd: str):
 
 def uoft():
     """run the uoft cli"""
-    from uoft_core import __main__ as cli
+    from uoft.core import __main__ as cli
     import sys
 
     # remove all arguments before "uoft" from sys.argv

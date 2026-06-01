@@ -1,0 +1,2759 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "Pants configuration file schema: https://www.pantsbuild.org/",
+  "additionalProperties": true,
+  "type": "object",
+  "properties": {
+    "GLOBAL": {
+      "description": "Options to control the overall behavior of Pants.",
+      "type": "object",
+      "properties": {
+        "level": {
+          "description": "Set the logging level.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#level",
+          "default": "info",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        },
+        "spec_files": {
+          "description": "Read additional specs (target addresses, files, and/or globs), one per line, from these files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#spec_files",
+          "default": [],
+          "type": "array"
+        },
+        "pantsd": {
+          "description": "Enables use of the Pants daemon (pantsd).\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsd",
+          "default": true,
+          "type": "boolean"
+        },
+        "sandboxer": {
+          "description": "Enables use of the sandboxer process.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#sandboxer",
+          "default": false,
+          "type": "boolean"
+        },
+        "concurrent": {
+          "description": "Enable concurrent runs of Pants.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#concurrent",
+          "default": false,
+          "type": "boolean"
+        },
+        "local_cache": {
+          "description": "Whether to cache process executions in a local cache persisted to disk at `--local-store-dir`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_cache",
+          "default": true,
+          "type": "boolean"
+        },
+        "session_end_tasks_timeout": {
+          "description": "The time in seconds to wait for still-running \"session end\" tasks to complete before finishing completion of a Pants invocation.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#session_end_tasks_timeout",
+          "default": 3,
+          "type": "number"
+        },
+        "remote_provider": {
+          "description": "The type of provider to use, if using a remote cache and/or remote execution, See https://www.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_provider",
+          "default": "reapi",
+          "enum": [
+            "reapi",
+            "experimental-file",
+            "experimental-github-actions-cache"
+          ]
+        },
+        "remote_execution": {
+          "description": "Enables remote workers for increased parallelism.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution",
+          "default": false,
+          "type": "boolean"
+        },
+        "remote_cache_read": {
+          "description": "Whether to enable reading from a remote cache.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_cache_read",
+          "default": false,
+          "type": "boolean"
+        },
+        "remote_cache_write": {
+          "description": "Whether to enable writing results to a remote cache.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_cache_write",
+          "default": false,
+          "type": "boolean"
+        },
+        "colors": {
+          "description": "Whether Pants should use colors in output or not.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#colors",
+          "default": false,
+          "type": "boolean"
+        },
+        "dynamic_ui": {
+          "description": "Display a dynamically-updating console UI as Pants runs.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#dynamic_ui",
+          "default": false,
+          "type": "boolean"
+        },
+        "dynamic_ui_renderer": {
+          "description": "If `--dynamic-ui` is enabled, selects the renderer.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#dynamic_ui_renderer",
+          "default": "indicatif-spinner",
+          "enum": [
+            "indicatif-spinner",
+            "experimental-prodash"
+          ]
+        },
+        "tag": {
+          "description": "Include only targets with these tags (optional '+' prefix) or without these tags ('-' prefix).\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#tag",
+          "default": [],
+          "type": "array"
+        },
+        "loop": {
+          "description": "Run goals continuously as file changes are detected.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#loop",
+          "default": false,
+          "type": "boolean"
+        },
+        "keep_sandboxes": {
+          "description": "Controls whether Pants will clean up local directories used as chroots for running processes.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#keep_sandboxes",
+          "default": "never",
+          "enum": [
+            "always",
+            "on_failure",
+            "never"
+          ]
+        },
+        "backend_packages": {
+          "description": "Register functionality from these backends.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#backend_packages",
+          "default": [],
+          "type": "array"
+        },
+        "plugins": {
+          "description": "Allow backends to be loaded from these plugins (usually released through PyPI).\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#plugins",
+          "default": [],
+          "type": "array"
+        },
+        "plugins_force_resolve": {
+          "description": "Re-resolve plugins, even if previously resolved.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#plugins_force_resolve",
+          "default": false,
+          "type": "boolean"
+        },
+        "show_log_target": {
+          "description": "Display the target where a log message originates in that log message's output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#show_log_target",
+          "default": false,
+          "type": "boolean"
+        },
+        "log_levels_by_target": {
+          "description": "Set a more specific logging level for one or more logging targets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#log_levels_by_target",
+          "default": {},
+          "type": "object"
+        },
+        "log_show_rust_3rdparty": {
+          "description": "Whether to show/hide logging done by 3rdparty Rust crates used by the Pants engine.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#log_show_rust_3rdparty",
+          "default": false,
+          "type": "boolean"
+        },
+        "ignore_warnings": {
+          "description": "Ignore logs and warnings matching these strings.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#ignore_warnings",
+          "default": [],
+          "type": "array"
+        },
+        "pants_version": {
+          "description": "Use this Pants version.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_version",
+          "default": "<pants_version>",
+          "type": "string"
+        },
+        "pants_bin_name": {
+          "description": "The name of the script or binary used to invoke Pants.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_bin_name",
+          "default": "pants",
+          "type": "string"
+        },
+        "pants_workdir": {
+          "description": "Write intermediate logs and output files to this dir.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_workdir",
+          "default": "<buildroot>/.pants.d/workdir",
+          "type": "string"
+        },
+        "pants_physical_workdir_base": {
+          "description": "When set, a base directory in which to store `--pants-workdir` contents.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_physical_workdir_base",
+          "default": null,
+          "type": "string"
+        },
+        "pants_distdir": {
+          "description": "Write end products, such as the results of `pants package`, to this dir.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_distdir",
+          "default": "<buildroot>/dist",
+          "type": "string"
+        },
+        "pants_subprocessdir": {
+          "description": "The directory to use for tracking subprocess metadata.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_subprocessdir",
+          "default": "<buildroot>/.pants.d/pids",
+          "type": "string"
+        },
+        "pants_config_files": {
+          "description": "Paths to Pants config files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_config_files",
+          "default": [
+            "<buildroot>/pants.toml"
+          ],
+          "type": "array"
+        },
+        "pantsrc": {
+          "description": "Use pantsrc files located at the paths specified in the global option `pantsrc_files`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsrc",
+          "default": true,
+          "type": "boolean"
+        },
+        "pantsrc_files": {
+          "description": "Override config with values from these files, using syntax matching that of `--pants-config-files`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsrc_files",
+          "default": [
+            "/etc/pantsrc",
+            "~/.pants.rc",
+            ".pants.rc"
+          ],
+          "type": "array"
+        },
+        "pythonpath": {
+          "description": "Add these directories to PYTHONPATH to search for plugins.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pythonpath",
+          "default": [],
+          "type": "array"
+        },
+        "verify_config": {
+          "description": "Verify that all config file values correspond to known options.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#verify_config",
+          "default": true,
+          "type": "boolean"
+        },
+        "stats_record_option_scopes": {
+          "description": "Option scopes to record in stats on run completion.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#stats_record_option_scopes",
+          "default": [
+            "*"
+          ],
+          "type": "array"
+        },
+        "pants_ignore": {
+          "description": "Paths to ignore for all filesystem operations performed by pants (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_ignore",
+          "default": [
+            ".*/",
+            "/dist/",
+            "__pycache__",
+            "!.semgrep/",
+            "!.github/"
+          ],
+          "type": "array"
+        },
+        "pants_ignore_use_gitignore": {
+          "description": "Include patterns from `.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pants_ignore_use_gitignore",
+          "default": true,
+          "type": "boolean"
+        },
+        "logdir": {
+          "description": "Write logs to files under this directory.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#logdir",
+          "default": null,
+          "type": "string"
+        },
+        "pantsd_timeout_when_multiple_invocations": {
+          "description": "The maximum amount of time to wait for the invocation to start until raising a timeout exception.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsd_timeout_when_multiple_invocations",
+          "default": 60,
+          "type": "number"
+        },
+        "pantsd_max_memory_usage": {
+          "description": "The maximum memory usage of the pantsd process.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsd_max_memory_usage",
+          "default": "4GiB"
+        },
+        "print_stacktrace": {
+          "description": "Print the full exception stack trace for any errors.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#print_stacktrace",
+          "default": false,
+          "type": "boolean"
+        },
+        "engine_visualize_to": {
+          "description": "A directory to write execution and rule graphs to as `dot` files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#engine_visualize_to",
+          "default": null
+        },
+        "pantsd_pailgun_port": {
+          "description": "The port to bind the Pants nailgun server to.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsd_pailgun_port",
+          "default": 0,
+          "type": "number"
+        },
+        "pantsd_invalidation_globs": {
+          "description": "Filesystem events matching any of these globs will trigger a daemon restart.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#pantsd_invalidation_globs",
+          "default": [],
+          "type": "array"
+        },
+        "rule_threads_core": {
+          "description": "The number of threads to keep active and ready to execute `@rule` logic (see also: `--rule-threads-max`).\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#rule_threads_core",
+          "default": "max(2, #cores/2)",
+          "type": "number"
+        },
+        "rule_threads_max": {
+          "description": "The maximum number of threads to use to execute `@rule` logic.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#rule_threads_max",
+          "default": null,
+          "type": "number"
+        },
+        "local_store_dir": {
+          "description": "Directory to use for the local file store, which stores the results of subprocesses run by Pants.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_store_dir",
+          "default": "$XDG_CACHE_HOME/lmdb_store",
+          "type": "string"
+        },
+        "local_store_shard_count": {
+          "description": "The number of LMDB shards created for the local store.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_store_shard_count",
+          "default": 16,
+          "type": "number"
+        },
+        "local_store_processes_max_size_bytes": {
+          "description": "The maximum size in bytes of the local store containing process cache entries.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_store_processes_max_size_bytes",
+          "default": 16000000000,
+          "type": "number"
+        },
+        "local_store_files_max_size_bytes": {
+          "description": "The maximum size in bytes of the local store containing files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_store_files_max_size_bytes",
+          "default": 256000000000,
+          "type": "number"
+        },
+        "local_store_directories_max_size_bytes": {
+          "description": "The maximum size in bytes of the local store containing directories.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_store_directories_max_size_bytes",
+          "default": 16000000000,
+          "type": "number"
+        },
+        "named_caches_dir": {
+          "description": "Directory to use for named global caches for tools and processes with trusted, concurrency-safe caches.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#named_caches_dir",
+          "default": "$XDG_CACHE_HOME/named_caches",
+          "type": "string"
+        },
+        "local_execution_root_dir": {
+          "description": "Directory to use for local process execution sandboxing.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#local_execution_root_dir",
+          "default": "<tmp_dir>",
+          "type": "string"
+        },
+        "cache_content_behavior": {
+          "description": "Controls how the content of cache entries is handled during process execution.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#cache_content_behavior",
+          "default": "fetch",
+          "enum": [
+            "fetch",
+            "validate",
+            "defer"
+          ]
+        },
+        "ca_certs_path": {
+          "description": "Path to a file containing PEM-format CA certificates used for verifying secure connections when downloading files required by a build.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#ca_certs_path",
+          "default": null,
+          "type": "string"
+        },
+        "process_total_child_memory_usage": {
+          "description": "The maximum memory usage for all \"pooled\" child processes.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_total_child_memory_usage",
+          "default": null
+        },
+        "process_per_child_memory_usage": {
+          "description": "The default memory usage for a single \"pooled\" child process.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_per_child_memory_usage",
+          "default": "512MiB"
+        },
+        "process_execution_local_parallelism": {
+          "description": "Number of concurrent processes that may be executed locally.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_execution_local_parallelism",
+          "default": "#cores",
+          "type": "number"
+        },
+        "process_execution_remote_parallelism": {
+          "description": "Number of concurrent processes that may be executed remotely.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_execution_remote_parallelism",
+          "default": 128,
+          "type": "number"
+        },
+        "process_execution_cache_namespace": {
+          "description": "The cache namespace for process execution.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_execution_cache_namespace",
+          "default": null,
+          "type": "string"
+        },
+        "process_execution_local_enable_nailgun": {
+          "description": "Whether or not to use nailgun to run JVM requests that are marked as supporting nailgun.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_execution_local_enable_nailgun",
+          "default": true,
+          "type": "boolean"
+        },
+        "process_execution_graceful_shutdown_timeout": {
+          "description": "The time in seconds to wait when gracefully shutting down an interactive process (such as one opened using `pants run`) before killing it.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#process_execution_graceful_shutdown_timeout",
+          "default": 3,
+          "type": "number"
+        },
+        "remote_instance_name": {
+          "description": "Name of the remote instance to use by remote caching and remote execution.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_instance_name",
+          "default": null,
+          "type": "string"
+        },
+        "remote_ca_certs_path": {
+          "description": "Path to a PEM file containing CA certificates used for verifying secure connections to `[GLOBAL].\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_ca_certs_path",
+          "default": null,
+          "type": "string"
+        },
+        "remote_client_certs_path": {
+          "description": "Path to a PEM file containing client certificates used for verifying secure connections to `[GLOBAL].\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_client_certs_path",
+          "default": null,
+          "type": "string"
+        },
+        "remote_client_key_path": {
+          "description": "Path to a PEM file containing a private key used for verifying secure connections to `[GLOBAL].\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_client_key_path",
+          "default": null,
+          "type": "string"
+        },
+        "remote_oauth_bearer_token": {
+          "description": "An oauth token to use for gGRPC connections to `[GLOBAL].\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_oauth_bearer_token",
+          "default": null,
+          "type": "string"
+        },
+        "remote_store_address": {
+          "description": "The URI of a server/entity used as a remote file store.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_address",
+          "default": null,
+          "type": "string"
+        },
+        "remote_store_headers": {
+          "description": "Headers to set on remote store requests.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_headers",
+          "default": "{}",
+          "type": "object"
+        },
+        "remote_store_chunk_bytes": {
+          "description": "Size in bytes of chunks transferred to/from the remote file store.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_chunk_bytes",
+          "default": 1048576,
+          "type": "number"
+        },
+        "remote_store_rpc_retries": {
+          "description": "Number of times to retry any RPC to the remote store before giving up.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_rpc_retries",
+          "default": 2,
+          "type": "number"
+        },
+        "remote_store_rpc_concurrency": {
+          "description": "The number of concurrent requests allowed to the remote store service.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_rpc_concurrency",
+          "default": 128,
+          "type": "number"
+        },
+        "remote_store_rpc_timeout_millis": {
+          "description": "Timeout value for remote store RPCs (not including streaming requests) in milliseconds.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_rpc_timeout_millis",
+          "default": 30000,
+          "type": "number"
+        },
+        "remote_store_batch_api_size_limit": {
+          "description": "The maximum total size of blobs allowed to be sent in a single batch API call to the remote store.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_batch_api_size_limit",
+          "default": 4194304,
+          "type": "number"
+        },
+        "remote_store_batch_load_enabled": {
+          "description": "Whether to enable batch load requests to the remote store.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_store_batch_load_enabled",
+          "default": false,
+          "type": "boolean"
+        },
+        "remote_cache_warnings": {
+          "description": "How frequently to log remote cache failures at the `warn` log level.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_cache_warnings",
+          "default": "backoff",
+          "enum": [
+            "ignore",
+            "first_only",
+            "backoff",
+            "always"
+          ]
+        },
+        "remote_cache_rpc_concurrency": {
+          "description": "The number of concurrent requests allowed to the remote cache service.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_cache_rpc_concurrency",
+          "default": 128,
+          "type": "number"
+        },
+        "remote_cache_rpc_timeout_millis": {
+          "description": "Timeout value for remote cache RPCs in milliseconds.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_cache_rpc_timeout_millis",
+          "default": 1500,
+          "type": "number"
+        },
+        "remote_execution_address": {
+          "description": "The URI of a server/entity used as a remote execution scheduler.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution_address",
+          "default": null,
+          "type": "string"
+        },
+        "remote_execution_headers": {
+          "description": "Headers to set on remote execution requests.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution_headers",
+          "default": "{}",
+          "type": "object"
+        },
+        "remote_execution_overall_deadline_secs": {
+          "description": "Overall timeout in seconds for each remote execution request from time of submission\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution_overall_deadline_secs",
+          "default": 3600,
+          "type": "number"
+        },
+        "remote_execution_rpc_concurrency": {
+          "description": "The number of concurrent requests allowed to the remote execution service.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution_rpc_concurrency",
+          "default": 128,
+          "type": "number"
+        },
+        "remote_execution_append_only_caches_base_path": {
+          "description": "Sets the base path to use when setting up an append-only cache for a process running remotely.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution_append_only_caches_base_path",
+          "default": null,
+          "type": "string"
+        },
+        "watch_filesystem": {
+          "description": "Set to False if Pants should not watch the filesystem for changes.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#watch_filesystem",
+          "default": true,
+          "type": "boolean"
+        },
+        "file_downloads_retry_delay": {
+          "description": "When Pants downloads files (for example, for the `http_source` source), Pants will retry the download if a \"retryable\" error occurs.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#file_downloads_retry_delay",
+          "default": 0.2,
+          "type": "number"
+        },
+        "file_downloads_max_attempts": {
+          "description": "When Pants downloads files (for example, for the `http_source` source), Pants will retry the download if a \"retryable\" error occurs.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#file_downloads_max_attempts",
+          "default": 4,
+          "type": "number"
+        },
+        "allow_deprecated_macos_versions": {
+          "description": "Silence warnings/errors about running Pants on these versions of macOS.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#allow_deprecated_macos_versions",
+          "default": [],
+          "type": "array"
+        },
+        "unmatched_build_file_globs": {
+          "description": "What to do when files and globs specified in BUILD files, such as in the `sources` field, cannot be found.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#unmatched_build_file_globs",
+          "default": "warn",
+          "enum": [
+            "ignore",
+            "warn",
+            "error"
+          ]
+        },
+        "unmatched_cli_globs": {
+          "description": "What to do when command line arguments, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#unmatched_cli_globs",
+          "default": "error",
+          "enum": [
+            "ignore",
+            "warn",
+            "error"
+          ]
+        },
+        "build_patterns": {
+          "description": "The naming scheme for BUILD files, i.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#build_patterns",
+          "default": [
+            "BUILD",
+            "BUILD.*"
+          ],
+          "type": "array"
+        },
+        "build_ignore": {
+          "description": "Path globs or literals to ignore when identifying BUILD files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#build_ignore",
+          "default": [],
+          "type": "array"
+        },
+        "build_file_prelude_globs": {
+          "description": "Python files to evaluate and whose symbols should be exposed to all BUILD files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#build_file_prelude_globs",
+          "default": [],
+          "type": "array"
+        },
+        "subproject_roots": {
+          "description": "Paths that correspond with build roots for any subproject that this project depends on.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#subproject_roots",
+          "default": [],
+          "type": "array"
+        },
+        "enable_target_origin_sources_blocks": {
+          "description": "Enable fine grained target analysis based on line numbers.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#enable_target_origin_sources_blocks",
+          "default": false,
+          "type": "boolean"
+        },
+        "loop_max": {
+          "description": "The maximum number of times to loop when `--loop` is specified.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#loop_max",
+          "default": 4294967296,
+          "type": "number"
+        },
+        "streaming_workunits_report_interval": {
+          "description": "Interval in seconds between when streaming workunit event receivers will be polled.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#streaming_workunits_report_interval",
+          "default": 1,
+          "type": "number"
+        },
+        "streaming_workunits_level": {
+          "description": "The level of workunits that will be reported to streaming workunit event receivers.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#streaming_workunits_level",
+          "default": "debug",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        },
+        "streaming_workunits_complete_async": {
+          "description": "True if stats recording should be allowed to complete asynchronously when `pantsd` is enabled.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#streaming_workunits_complete_async",
+          "default": true,
+          "type": "boolean"
+        },
+        "docker_execution": {
+          "description": "If true, `docker_environment` targets can be used to run builds inside a Docker container.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#docker_execution",
+          "default": true,
+          "type": "boolean"
+        },
+        "remote_execution_extra_platform_properties": {
+          "description": "Platform properties to set on remote execution requests.\nhttps://www.pantsbuild.org/v2.21/docs/reference-global#remote_execution_extra_platform_properties",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "anonymous-telemetry": {
+      "description": "Options related to sending anonymous stats to the Pants project, to aid development.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether to send anonymous telemetry to the Pants project.\nhttps://www.pantsbuild.org/v2.21/docs/reference-anonymous-telemetry#enabled",
+          "default": false,
+          "type": "boolean"
+        },
+        "repo_id": {
+          "description": "An anonymized ID representing this repo.\nhttps://www.pantsbuild.org/v2.21/docs/reference-anonymous-telemetry#repo_id",
+          "default": null,
+          "type": "string"
+        }
+      }
+    },
+    "black": {
+      "description": "The Black Python code formatter (https://black.readthedocs.io/).\n\nThis version of Pants uses `black` version 24.10.0 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use Black when running `pants fmt` and `pants lint`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Arguments to pass directly to Black, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#args",
+          "default": [],
+          "type": "array"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#interpreter_constraints",
+          "default": [
+            "CPython>=3.9,<3.14"
+          ],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#console_script",
+          "default": "black",
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#entry_point",
+          "default": null,
+          "type": "string"
+        },
+        "config": {
+          "description": "Path to a TOML config file understood by Black (https://github.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#config",
+          "default": null
+        },
+        "config_discovery": {
+          "description": "If true, Pants will include any relevant pyproject.\nhttps://www.pantsbuild.org/v2.21/docs/reference-black#config_discovery",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "buildifier": {
+      "description": "Buildifier is a tool for formatting BUILD files with a standard convention.\n\nPants supports running Buildifier on your Pants BUILD files for several reasons:\n  - You might like the style that buildifier uses.\n  - You might be incrementally adopting Pants from Bazel, and are already using buildifier.\n\nPlease note that there are differences from Bazel's BUILD files (which are Starlark) and Pants' BUILD files (which are Python), so buildifier may issue a syntax error. In practice, these errors should be rare. See https://bazel.build/rules/language#differences_with_python.",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use Buildifier when running `pants fmt`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Arguments to pass directly to Buildifier, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#args",
+          "default": [],
+          "type": "array"
+        },
+        "version": {
+          "description": "Use this version of Buildifier.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#version",
+          "default": "8.0.3",
+          "type": "string"
+        },
+        "known_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#known_versions",
+          "default": [
+            "8.0.3|macos_x86_64|b7a3152cde0b3971b1107f2274afe778c5c154dcdf6c9c669a231e3c004f047e|7772208",
+            "8.0.3|macos_arm64|674c663f7b5cd03c002f8ca834a8c1c008ccb527a0a2a132d08a7a355883b22d|7717218",
+            "8.0.3|linux_x86_64|c969487c1af85e708576c8dfdd0bb4681eae58aad79e68ae48882c70871841b7|7876618",
+            "8.0.3|linux_arm64|bdd9b92e2c65d46affeecaefb54e68d34c272d1f4a8c5b54929a3e92ab78820a|7754590",
+            "7.1.2|macos_x86_64|687c49c318fb655970cf716eed3c7bfc9caeea4f2931a2fd36593c458de0c537|7591232",
+            "7.1.2|macos_arm64|d0909b645496608fd6dfc67f95d9d3b01d90736d7b8c8ec41e802cb0b7ceae7c|7528994",
+            "7.1.2|linux_x86_64|28285fe7e39ed23dc1a3a525dfcdccbc96c0034ff1d4277905d2672a71b38f13|7702060",
+            "7.1.2|linux_arm64|c22a44eee37b8927167ee6ee67573303f4e31171e7ec3a8ea021a6a660040437|7568336"
+          ],
+          "type": "array"
+        },
+        "url_template": {
+          "description": "URL to download the tool, either as a single binary file or a compressed file (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#url_template",
+          "default": "https://github.com/bazelbuild/buildtools/releases/download/v{version}/buildifier-{platform}",
+          "type": "string"
+        },
+        "url_platform_mapping": {
+          "description": "A dictionary mapping platforms to strings to be used when generating the URL to download the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#url_platform_mapping",
+          "default": {
+            "linux_arm64": "linux-arm64",
+            "linux_x86_64": "linux-amd64",
+            "macos_arm64": "darwin-arm64",
+            "macos_x86_64": "darwin-amd64"
+          },
+          "type": "object"
+        },
+        "use_unsupported_version": {
+          "description": "What action to take in case the requested version of Buildifier is not supported.\nhttps://www.pantsbuild.org/v2.21/docs/reference-buildifier#use_unsupported_version",
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ]
+        }
+      }
+    },
+    "changed": {
+      "description": "Tell Pants to detect what files and targets have changed from Git.\n\nSee https://www.pantsbuild.org/2.29/docs/using-pants/advanced-target-selection.",
+      "type": "object",
+      "properties": {
+        "since": {
+          "description": "Calculate changes since this Git spec (commit range/SHA/ref).\nhttps://www.pantsbuild.org/v2.21/docs/reference-changed#since",
+          "default": null,
+          "type": "string"
+        },
+        "diffspec": {
+          "description": "Calculate changes contained within a given Git spec (commit range/SHA/ref).\nhttps://www.pantsbuild.org/v2.21/docs/reference-changed#diffspec",
+          "default": null,
+          "type": "string"
+        },
+        "dependents": {
+          "description": "Include direct or transitive dependents of changed targets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-changed#dependents",
+          "default": "none",
+          "enum": [
+            "none",
+            "direct",
+            "transitive"
+          ]
+        }
+      }
+    },
+    "check": {
+      "description": "Run type checking or the lightest variant of compilation available for a language.",
+      "type": "object",
+      "properties": {
+        "only": {
+          "description": "Only run these checkers and skip all others.\nhttps://www.pantsbuild.org/v2.21/docs/reference-check#only",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "cli": {
+      "description": "Options for configuring CLI behavior, such as command line aliases.",
+      "type": "object",
+      "properties": {
+        "alias": {
+          "description": "Register command line aliases.\nhttps://www.pantsbuild.org/v2.21/docs/reference-cli#alias",
+          "default": {},
+          "type": "object"
+        }
+      }
+    },
+    "complete": {
+      "description": "Generates a completion script for the specified shell. The script is printed to stdout.\n\nFor example, `pants complete --shell=zsh > pants-completions.zsh` will generate a zsh completion script and write it to the file `pants-completions.zsh`. You can then source this file in your `.zshrc` file to enable completion for Pants.\n\nThis command is also used by the completion scripts to generate the completion options using passthrough options. This usage is not intended for use by end users, but could be useful for building custom completion scripts.\n\nAn example of this usage is in the bash completion script, where we use the following command: `pants complete -- ${COMP_WORDS[@]}`. This will generate the completion options for the current args, and then pass them to the bash completion script.",
+      "type": "object",
+      "properties": {
+        "shell": {
+          "description": "Which shell completion type should be printed to stdout.\nhttps://www.pantsbuild.org/v2.21/docs/reference-complete#shell",
+          "default": "bash",
+          "enum": [
+            "bash",
+            "zsh"
+          ]
+        }
+      }
+    },
+    "count-loc": {
+      "description": "Count lines of code.",
+      "type": "object",
+      "properties": {}
+    },
+    "coverage-py": {
+      "description": "Configuration for Python test coverage measurement.\n\nThis version of Pants uses `coverage` version 7.10.4 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "filter": {
+          "description": "A list of Python modules or filesystem paths to use in the coverage report, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#filter",
+          "default": [],
+          "type": "array"
+        },
+        "report": {
+          "description": "Which coverage report type(s) to emit.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#report",
+          "default": [
+            "console"
+          ],
+          "enum": [
+            "console",
+            "xml",
+            "html",
+            "raw",
+            "json",
+            "lcov"
+          ]
+        },
+        "global_report": {
+          "description": "If true, Pants will generate a global coverage report.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#global_report",
+          "default": false,
+          "type": "boolean"
+        },
+        "fail_under": {
+          "description": "Fail if the total combined coverage percentage for all tests is less than this number.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#fail_under",
+          "default": null,
+          "type": "number"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#interpreter_constraints",
+          "default": [
+            "CPython>=3.9,<3.14"
+          ],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#console_script",
+          "default": "coverage",
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#entry_point",
+          "default": null,
+          "type": "string"
+        },
+        "output_dir": {
+          "description": "Path to write the Pytest Coverage report to.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#output_dir",
+          "default": "{distdir}/coverage/python",
+          "type": "string"
+        },
+        "config": {
+          "description": "Path to an INI or TOML config file understood by coverage.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#config",
+          "default": null
+        },
+        "config_discovery": {
+          "description": "If true, Pants will include any relevant config files during runs (`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-coverage-py#config_discovery",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "debug-adapter": {
+      "description": "Options used to configure and launch a Debug Adapter server.\n\nSee https://microsoft.github.io/debug-adapter-protocol/ for more information.",
+      "type": "object",
+      "properties": {
+        "host": {
+          "description": "The hostname to use when launching the server.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debug-adapter#host",
+          "default": "127.0.0.1",
+          "type": "string"
+        },
+        "port": {
+          "description": "The port to use when launching the server.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debug-adapter#port",
+          "default": 5678,
+          "type": "number"
+        }
+      }
+    },
+    "debugpy": {
+      "description": "An implementation of the Debug Adapter Protocol for Python (https://github.com/microsoft/debugpy).\n\nThis version of Pants uses `debugpy` version 1.6.7.post1 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments to pass directly to debugpy, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debugpy#args",
+          "default": [],
+          "type": "array"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debugpy#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debugpy#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debugpy#interpreter_constraints",
+          "default": [
+            "CPython>=3.9,<3.14"
+          ],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debugpy#console_script",
+          "default": null,
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-debugpy#entry_point",
+          "default": "debugpy",
+          "type": "string"
+        }
+      }
+    },
+    "dependencies": {
+      "description": "List the dependencies of the input files/targets.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependencies#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "sep": {
+          "description": "String to use to separate lines in line-oriented output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependencies#sep",
+          "default": "\\n",
+          "type": "string"
+        },
+        "transitive": {
+          "description": "List all transitive dependencies.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependencies#transitive",
+          "default": false,
+          "type": "boolean"
+        },
+        "closed": {
+          "description": "Include the input targets in the output, along with the dependencies.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependencies#closed",
+          "default": false,
+          "type": "boolean"
+        },
+        "format": {
+          "description": "Output format for listing dependencies.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependencies#format",
+          "default": "text",
+          "enum": [
+            "text",
+            "json"
+          ]
+        }
+      }
+    },
+    "dependents": {
+      "description": "List all targets that depend on any of the input files/targets.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependents#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "sep": {
+          "description": "String to use to separate lines in line-oriented output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependents#sep",
+          "default": "\\n",
+          "type": "string"
+        },
+        "transitive": {
+          "description": "List all transitive dependents.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependents#transitive",
+          "default": false,
+          "type": "boolean"
+        },
+        "closed": {
+          "description": "Include the input targets in the output, along with the dependents.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependents#closed",
+          "default": false,
+          "type": "boolean"
+        },
+        "format": {
+          "description": "Output format for listing dependents.\nhttps://www.pantsbuild.org/v2.21/docs/reference-dependents#format",
+          "default": "text",
+          "enum": [
+            "text",
+            "json"
+          ]
+        }
+      }
+    },
+    "environments-preview": {
+      "description": "A highly experimental subsystem to allow setting environment variables and executable search paths for different environments, e.g. macOS vs. Linux.",
+      "type": "object",
+      "properties": {
+        "names": {
+          "description": "A mapping of logical names to addresses to environment targets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-environments-preview#names",
+          "default": {},
+          "type": "object"
+        }
+      }
+    },
+    "experimental-deploy": {
+      "description": "Perform a deployment process.",
+      "type": "object",
+      "properties": {
+        "dry_run": {
+          "description": "If true, perform a dry run without deploying anything.\nhttps://www.pantsbuild.org/v2.21/docs/reference-experimental-deploy#dry_run",
+          "default": false,
+          "type": "boolean"
+        },
+        "publish_dependencies": {
+          "description": "If false, don't publish target dependencies before deploying the target.\nhttps://www.pantsbuild.org/v2.21/docs/reference-experimental-deploy#publish_dependencies",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "experimental-explorer": {
+      "description": "Run the Pants Explorer Web UI server.",
+      "type": "object",
+      "properties": {
+        "address": {
+          "description": "Server address to bind to.\nhttps://www.pantsbuild.org/v2.21/docs/reference-experimental-explorer#address",
+          "default": "localhost",
+          "type": "string"
+        },
+        "port": {
+          "description": "Server port to bind to.\nhttps://www.pantsbuild.org/v2.21/docs/reference-experimental-explorer#port",
+          "default": 8000,
+          "type": "number"
+        }
+      }
+    },
+    "export": {
+      "description": "Export Pants data for use in other tools, such as IDEs.\n\n:::caution Exporting tools requires creating a custom lockfile for them\n\nFollow [the instructions for creating tool lockfiles](../../docs/python/overview/lockfiles#lockfiles-for-tools)\n\n:::",
+      "type": "object",
+      "properties": {
+        "resolve": {
+          "description": "Export the specified resolve(s).\nhttps://www.pantsbuild.org/v2.21/docs/reference-export#resolve",
+          "default": [],
+          "type": "array"
+        },
+        "bin": {
+          "description": "Export the specified binaries.\nhttps://www.pantsbuild.org/v2.21/docs/reference-export#bin",
+          "default": [],
+          "type": "array"
+        },
+        "py_resolve_format": {
+          "description": "Export Python resolves using this format.\nhttps://www.pantsbuild.org/v2.21/docs/reference-export#py_resolve_format",
+          "default": "mutable_virtualenv",
+          "enum": [
+            "mutable_virtualenv",
+            "symlinked_immutable_virtualenv"
+          ]
+        },
+        "py_editable_in_resolve": {
+          "description": "When exporting a mutable virtualenv for a resolve, do PEP-660 editable installs of all `python_distribution` targets that own code in the exported resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-export#py_editable_in_resolve",
+          "default": [],
+          "type": "array"
+        },
+        "py_non_hermetic_scripts_in_resolve": {
+          "description": "When exporting a mutable virtualenv for a resolve listed in this option, by default console script shebang lines will be made \"hermetic\".\nhttps://www.pantsbuild.org/v2.21/docs/reference-export#py_non_hermetic_scripts_in_resolve",
+          "default": [],
+          "type": "array"
+        },
+        "py_generated_sources_in_resolve": {
+          "description": "When exporting a mutable virtualenv for a resolve listed in this option, generate sources which result from code generation (for example, the `protobuf_sources` and `thrift_sources` target types) into the mutable virtualenv exported for that resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-export#py_generated_sources_in_resolve",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "export-codegen": {
+      "description": "Write generated files to `dist/codegen` for use outside of Pants.",
+      "type": "object",
+      "properties": {}
+    },
+    "filedeps": {
+      "description": "List all source and BUILD files a target depends on.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filedeps#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "sep": {
+          "description": "String to use to separate lines in line-oriented output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filedeps#sep",
+          "default": "\\n",
+          "type": "string"
+        },
+        "absolute": {
+          "description": "If True, output with absolute path.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filedeps#absolute",
+          "default": false,
+          "type": "boolean"
+        },
+        "globs": {
+          "description": "Instead of outputting filenames, output the original globs used in the BUILD file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filedeps#globs",
+          "default": false,
+          "type": "boolean"
+        },
+        "transitive": {
+          "description": "If True, list files from all dependencies, including transitive dependencies.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filedeps#transitive",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "filter": {
+      "description": "Filter the input targets based on various criteria.\n\nMost of the filtering options below are comma-separated lists of filtering criteria, with an implied logical OR between them, so that a target passes the filter if it matches any of the criteria in the list.\n\nA '-' prefix inverts the sense of the entire comma-separated list, so that a target passes the filter only if it matches _none_ of the criteria in the list.\n\nEach of the filtering options may be specified multiple times, with an implied logical AND between them.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filter#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "sep": {
+          "description": "String to use to separate lines in line-oriented output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filter#sep",
+          "default": "\\n",
+          "type": "string"
+        },
+        "target_type": {
+          "description": "Filter targets based each targets's target type, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filter#target_type",
+          "default": [],
+          "type": "array"
+        },
+        "granularity": {
+          "description": "Filter to rendering only targets declared in BUILD files, only file-level targets, or all targets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filter#granularity",
+          "default": "all",
+          "enum": [
+            "all",
+            "file",
+            "BUILD"
+          ]
+        },
+        "address_regex": {
+          "description": "Filter targets based on each target's address matching the provided regular expressions.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filter#address_regex",
+          "default": [],
+          "type": "array"
+        },
+        "tag_regex": {
+          "description": "Filter targets based on whether any of each target's tags (in the target's `tags` field) matches the provided regular expressions.\nhttps://www.pantsbuild.org/v2.21/docs/reference-filter#tag_regex",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "fix": {
+      "description": "Autofix source code.\n\nThis goal runs tools that make 'semantic' changes to source code, where the meaning of the code may change.\n\nSee also:\n\n- [The `fmt` goal](https://www.pantsbuild.org/2.29/reference/goals/fix will run code-editing tools that may make only\n  syntactic changes, not semantic ones. The `fix` includes running these `fmt` tools by\n  default (see [the `skip_formatters` option](#skip_formatters) to control this).\n\n- [The `lint` goal](https://www.pantsbuild.org/2.29/reference/goals/lint) will validate code is formatted, by running these\n  fixers and checking there's no change.\n\n- Documentation about formatters for various ecosystems, such as:\n  [Python](https://www.pantsbuild.org/2.29/docs/python/overview/linters-and-formatters), [JVM](https://www.pantsbuild.org/jvm/java-and-scala#lint-and-format),\n  [SQL](https://www.pantsbuild.org/2.29/docs/sql#enable-sqlfluff-linter)",
+      "type": "object",
+      "properties": {
+        "only": {
+          "description": "Only run these fixers and skip all others.\nhttps://www.pantsbuild.org/v2.21/docs/reference-fix#only",
+          "default": [],
+          "type": "array"
+        },
+        "skip_formatters": {
+          "description": "If true, skip running all formatters.\nhttps://www.pantsbuild.org/v2.21/docs/reference-fix#skip_formatters",
+          "default": false,
+          "type": "boolean"
+        },
+        "batch_size": {
+          "description": "The target number of files to be included in each fixer batch.\nhttps://www.pantsbuild.org/v2.21/docs/reference-fix#batch_size",
+          "default": 128,
+          "type": "number"
+        }
+      }
+    },
+    "fmt": {
+      "description": "Autoformat source code.\n\nThis goal runs tools that make 'syntactic' changes to source code, where the meaning of the code doesn't (usually) change.\n\nSee also:\n\n- [The `fix` goal](https://www.pantsbuild.org/2.29/reference/goals/fix) will run code-editing tools that may make semantic\n  changes, not just syntactic ones.\n\n- [The `lint` goal](https://www.pantsbuild.org/2.29/reference/goals/lint) will validate code is formatted, by running these\n  formatters and checking there's no change.\n\n- Documentation about formatters for various ecosystems, such as:\n  [Python](https://www.pantsbuild.org/2.29/docs/python/overview/linters-and-formatters), [Go](https://www.pantsbuild.org/2.29/docs/go#gofmt),\n  [JVM](https://www.pantsbuild.org/jvm/java-and-scala#lint-and-format), [Shell](https://www.pantsbuild.org/2.29/docs/shell#shfmt-autoformatter).",
+      "type": "object",
+      "properties": {
+        "only": {
+          "description": "Only run these formatters and skip all others.\nhttps://www.pantsbuild.org/v2.21/docs/reference-fmt#only",
+          "default": [],
+          "type": "array"
+        },
+        "batch_size": {
+          "description": "The target number of files to be included in each formatter batch.\nhttps://www.pantsbuild.org/v2.21/docs/reference-fmt#batch_size",
+          "default": 128,
+          "type": "number"
+        }
+      }
+    },
+    "generate-lockfiles": {
+      "description": "Generate lockfiles for third-party dependencies.",
+      "type": "object",
+      "properties": {
+        "resolve": {
+          "description": "Only generate lockfiles for the specified resolve(s).\nhttps://www.pantsbuild.org/v2.21/docs/reference-generate-lockfiles#resolve",
+          "default": [],
+          "type": "array"
+        },
+        "diff": {
+          "description": "Print a summary of changed distributions after generating the lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-generate-lockfiles#diff",
+          "default": true,
+          "type": "boolean"
+        },
+        "diff_include_unchanged": {
+          "description": "Include unchanged distributions in the diff summary output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-generate-lockfiles#diff_include_unchanged",
+          "default": false,
+          "type": "boolean"
+        },
+        "custom_command": {
+          "description": "If set, lockfile headers will say to run this command to regenerate the lockfile, rather than running `pants generate-lockfiles --resolve=<name>` like normal.\nhttps://www.pantsbuild.org/v2.21/docs/reference-generate-lockfiles#custom_command",
+          "default": null,
+          "type": "string"
+        }
+      }
+    },
+    "generate-snapshots": {
+      "description": "Generate test snapshots.",
+      "type": "object",
+      "properties": {}
+    },
+    "help": {
+      "description": "Display usage message.",
+      "type": "object",
+      "properties": {}
+    },
+    "help-advanced": {
+      "description": "Help for advanced options.",
+      "type": "object",
+      "properties": {}
+    },
+    "help-all": {
+      "description": "Print a JSON object containing all help info.",
+      "type": "object",
+      "properties": {}
+    },
+    "ipython": {
+      "description": "The IPython enhanced REPL (https://ipython.org/).\n\nThis version of Pants uses `ipython` version 8.18.1 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ipython#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ipython#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ipython#console_script",
+          "default": "ipython",
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ipython#entry_point",
+          "default": null,
+          "type": "string"
+        },
+        "ignore_cwd": {
+          "description": "Whether to tell IPython not to put the CWD on the import path.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ipython#ignore_cwd",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "lint": {
+      "description": "Run linters/formatters/fixers in check mode.\n\nThis goal runs tools that check code quality/styling etc, without changing that code. This includes running formatters and fixers, but instead of writing changes back to the workspace, Pants treats any changes they would make as a linting failure.\n\nSee also:\n\n- [The `fmt` goal](https://www.pantsbuild.org/2.29/reference/goals/fix will save the the result of formatters\n  (code-editing tools that make only \"syntactic\" changes) back to the workspace.\n\n- [The `fmt` goal](https://www.pantsbuild.org/2.29/reference/goals/fix will save the the result of fixers\n  (code-editing tools that may make \"semantic\" changes too) back to the workspace.\n\n- Documentation about linters for various ecosystems, such as:\n  [Python](https://www.pantsbuild.org/2.29/docs/python/overview/linters-and-formatters), [Go](https://www.pantsbuild.org/2.29/docs/go),\n  [JVM](https://www.pantsbuild.org/jvm/java-and-scala#lint-and-format), [Shell](https://www.pantsbuild.org/2.29/docs/shell),\n  [Docker](https://www.pantsbuild.org/2.29/docs/docker#linting-dockerfiles-with-hadolint).",
+      "type": "object",
+      "properties": {
+        "only": {
+          "description": "Only run these linters and skip all others.\nhttps://www.pantsbuild.org/v2.21/docs/reference-lint#only",
+          "default": [],
+          "type": "array"
+        },
+        "skip_formatters": {
+          "description": "If true, skip running all formatters in check-only mode.\nhttps://www.pantsbuild.org/v2.21/docs/reference-lint#skip_formatters",
+          "default": false,
+          "type": "boolean"
+        },
+        "skip_fixers": {
+          "description": "If true, skip running all fixers in check-only mode.\nhttps://www.pantsbuild.org/v2.21/docs/reference-lint#skip_fixers",
+          "default": false,
+          "type": "boolean"
+        },
+        "batch_size": {
+          "description": "The target number of files to be included in each linter batch.\nhttps://www.pantsbuild.org/v2.21/docs/reference-lint#batch_size",
+          "default": 128,
+          "type": "number"
+        }
+      }
+    },
+    "list": {
+      "description": "Lists all targets matching the file or target arguments.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-list#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "sep": {
+          "description": "String to use to separate lines in line-oriented output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-list#sep",
+          "default": "\\n",
+          "type": "string"
+        },
+        "documented": {
+          "description": "Print only targets that are documented with a description.\nhttps://www.pantsbuild.org/v2.21/docs/reference-list#documented",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "migrate-call-by-name": {
+      "description": "Migrate from `Get` syntax to call-by-name syntax (#19730). This is a **destructive** operation, so only run this on source controlled files that you are prepared to revert if necessary.\n\nThis goal will attempt to migrate the set of paths/targets specified at the command line if they are part of the \"migration plan\". This migration does not add any new files, but instead modifies existing files in-place without any formatting. The resulting changes should be reviewed, tested, and formatted/linted before committing.\n\nThe migration plan is a JSON representation of the rule graph, which is generated by the engine based on the active backends/rules in the project.\n\nEach item in the migration plan is a rule that contains the old `Get` syntax, the associated input/output types, and the new function to directly call. The migration plan can be dumped as JSON using the `--json` flag, which can be useful for debugging. For example:\n\n{\n    \"filepath\": \"src/python/pants/source/source_root.py\",\n    \"function\": \"get_source_roots\",\n    \"gets\": [{\n        \"input_types\": [{ \"module\": \"pants.source.source_root\", \"name\": \"SourceRootsRequest\" }],\n        \"output_type\": { \"module\": \"pants.source.source_root\", \"name\": \"OptionalSourceRootsResult\" },\n        \"rule_dep\": { \"function\": \"get_optional_source_roots\", \"module\": \"pants.source.source_root\" }\n    }],\n    \"module\": \"pants.source.source_root\"\n}",
+      "type": "object",
+      "properties": {
+        "json": {
+          "description": "Dump the migration plan as JSON\nhttps://www.pantsbuild.org/v2.21/docs/reference-migrate-call-by-name#json",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "nodejs": {
+      "description": "The Node.js Javascript runtime (including Corepack).",
+      "type": "object",
+      "properties": {
+        "package_manager": {
+          "description": "Default Node.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#package_manager",
+          "default": "npm",
+          "type": "string"
+        },
+        "package_managers": {
+          "description": "A mapping of package manager versions to semver releases.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#package_managers",
+          "default": {
+            "npm": "10.9.2",
+            "pnpm": "9.15.6",
+            "yarn": "1.22.22"
+          },
+          "type": "object"
+        },
+        "version": {
+          "description": "Use this version of nodejs.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#version",
+          "default": "v22.14.0",
+          "type": "string"
+        },
+        "known_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#known_versions",
+          "default": [
+            "v22.14.0|macos_arm64|e9404633bc02a5162c5c573b1e2490f5fb44648345d64a958b17e325729a5e42|47035396",
+            "v22.14.0|macos_x86_64|6698587713ab565a94a360e091df9f6d91c8fadda6d00f0cf6526e9b40bed250|48656392",
+            "v22.14.0|linux_arm64|08bfbf538bad0e8cbb0269f0173cca28d705874a67a22f60b57d99dc99e30050|28636440",
+            "v22.14.0|linux_x86_64|69b09dba5c8dcb05c4e4273a4340db1005abeafe3927efda2bc5b249e80437ec|29893360"
+          ],
+          "type": "array"
+        },
+        "url_template": {
+          "description": "URL to download the tool, either as a single binary file or a compressed file (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#url_template",
+          "default": "https://nodejs.org/dist/{version}/node-{version}-{platform}.tar",
+          "type": "string"
+        },
+        "url_platform_mapping": {
+          "description": "A dictionary mapping platforms to strings to be used when generating the URL to download the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#url_platform_mapping",
+          "default": {
+            "linux_arm64": "linux-arm64",
+            "linux_x86_64": "linux-x64",
+            "macos_arm64": "darwin-arm64",
+            "macos_x86_64": "darwin-x64"
+          },
+          "type": "object"
+        },
+        "resolves": {
+          "description": "A mapping of names to lockfile paths used in your project.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#resolves",
+          "default": {},
+          "type": "object"
+        },
+        "extra_env_vars": {
+          "description": "Environment variables to set during package manager operations.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#extra_env_vars",
+          "default": [],
+          "type": "array"
+        },
+        "tools": {
+          "description": "List any additional executable tools required for node processes to work.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#tools",
+          "default": [],
+          "type": "array"
+        },
+        "optional_tools": {
+          "description": "List any additional executable which are not mandatory for node processes to work, but which should be included if available.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#optional_tools",
+          "default": [],
+          "type": "array"
+        },
+        "executable_search_paths": {
+          "description": "The PATH value that will be used to find any tools required to run nodejs processes.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#executable_search_paths",
+          "default": [
+            "<PATH>"
+          ],
+          "type": "array"
+        },
+        "search_path": {
+          "description": "A list of paths to search for Node.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#search_path",
+          "default": [
+            "<PATH>"
+          ],
+          "type": "array"
+        },
+        "corepack_env_vars": {
+          "description": "Environment variables to set for `corepack` invocations.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs#corepack_env_vars",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "nodejs-infer": {
+      "description": "Options controlling which dependencies will be inferred for javascript targets.",
+      "type": "object",
+      "properties": {
+        "imports": {
+          "description": "Infer a target's imported dependencies by parsing import statements from sources.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs-infer#imports",
+          "default": true,
+          "type": "boolean"
+        },
+        "package_json_entry_points": {
+          "description": "Infer a `package_json`'s dependencies by parsing entry point statements from the package.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs-infer#package_json_entry_points",
+          "default": true,
+          "type": "boolean"
+        },
+        "unowned_dependency_behavior": {
+          "description": "How to handle imports that don't have an inferable owner.\nhttps://www.pantsbuild.org/v2.21/docs/reference-nodejs-infer#unowned_dependency_behavior",
+          "default": "warning",
+          "enum": [
+            "error",
+            "warning",
+            "ignore"
+          ]
+        }
+      }
+    },
+    "package": {
+      "description": "Create a distributable package.",
+      "type": "object",
+      "properties": {}
+    },
+    "paths": {
+      "description": "List the paths between two addresses. Either address may represent a group of targets, e.g. `--from=src/app/main.py --to=src/library::`.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-paths#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "from": {
+          "description": "The path starting address\nhttps://www.pantsbuild.org/v2.21/docs/reference-paths#from",
+          "default": null,
+          "type": "string"
+        },
+        "to": {
+          "description": "The path end address\nhttps://www.pantsbuild.org/v2.21/docs/reference-paths#to",
+          "default": null,
+          "type": "string"
+        }
+      }
+    },
+    "peek": {
+      "description": "Display BUILD target info",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-peek#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "exclude_defaults": {
+          "description": "Whether to leave off values that match the target-defined default values.\nhttps://www.pantsbuild.org/v2.21/docs/reference-peek#exclude_defaults",
+          "default": false,
+          "type": "boolean"
+        },
+        "include_dep_rules": {
+          "description": "Whether to include `_dependencies_rules`, `_dependents_rules` and `_applicable_dep_rules` that apply to the target and its dependencies.\nhttps://www.pantsbuild.org/v2.21/docs/reference-peek#include_dep_rules",
+          "default": false,
+          "type": "boolean"
+        },
+        "include_additional_info": {
+          "description": "Whether to include additional information generated by plugins.\nhttps://www.pantsbuild.org/v2.21/docs/reference-peek#include_additional_info",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "pex": {
+      "description": "How Pants uses Pex to run Python subprocesses.",
+      "type": "object",
+      "properties": {
+        "emit_warnings": {
+          "description": "If warnings from Pex should be logged by Pants to the console.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex#emit_warnings",
+          "default": false,
+          "type": "boolean"
+        },
+        "verbosity": {
+          "description": "Set the verbosity level of PEX logging, from 0 (no logging) up to 9 (max logging).\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex#verbosity",
+          "default": 0,
+          "type": "number"
+        },
+        "venv_use_symlinks": {
+          "description": "When possible, use venvs whose site-packages directories are populated with symlinks.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex#venv_use_symlinks",
+          "default": false,
+          "type": "boolean"
+        },
+        "executable_search_paths": {
+          "description": "The PATH value that will be used by the PEX subprocess and any subprocesses it spawns.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex#executable_search_paths",
+          "default": [
+            "<PATH>"
+          ],
+          "type": "array"
+        }
+      }
+    },
+    "pex-binary-defaults": {
+      "description": "Default settings for creating PEX executables.",
+      "type": "object",
+      "properties": {
+        "emit_warnings": {
+          "description": "Whether built PEX binaries should emit PEX warnings at runtime by default.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-binary-defaults#emit_warnings",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "pex-cli": {
+      "description": "The PEX (Python EXecutable) tool (https://github.com/pex-tool/pex).",
+      "type": "object",
+      "properties": {
+        "global_args": {
+          "description": "Arguments to pass directly to pex, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-cli#global_args",
+          "default": [],
+          "type": "array"
+        },
+        "version": {
+          "description": "Use this version of pex.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-cli#version",
+          "default": "v2.55.2",
+          "type": "string"
+        },
+        "known_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-cli#known_versions",
+          "default": [
+            "v2.55.2|macos_x86_64|20ae5530c58fa1144db1c9bc74e3732127c3203f6f6f0731089eca25282ab022|4785641",
+            "v2.55.2|macos_arm64|20ae5530c58fa1144db1c9bc74e3732127c3203f6f6f0731089eca25282ab022|4785641",
+            "v2.55.2|linux_x86_64|20ae5530c58fa1144db1c9bc74e3732127c3203f6f6f0731089eca25282ab022|4785641",
+            "v2.55.2|linux_arm64|20ae5530c58fa1144db1c9bc74e3732127c3203f6f6f0731089eca25282ab022|4785641"
+          ],
+          "type": "array"
+        },
+        "url_template": {
+          "description": "URL to download the tool, either as a single binary file or a compressed file (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-cli#url_template",
+          "default": "https://github.com/pex-tool/pex/releases/download/{version}/pex",
+          "type": "string"
+        },
+        "url_platform_mapping": {
+          "description": "A dictionary mapping platforms to strings to be used when generating the URL to download the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-cli#url_platform_mapping",
+          "default": {},
+          "type": "object"
+        },
+        "use_unsupported_version": {
+          "description": "What action to take in case the requested version of pex is not supported.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pex-cli#use_unsupported_version",
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ]
+        }
+      }
+    },
+    "publish": {
+      "description": "Publish deliverables (assets, distributions, images, etc).",
+      "type": "object",
+      "properties": {
+        "output": {
+          "description": "Filename for JSON structured publish information.\nhttps://www.pantsbuild.org/v2.21/docs/reference-publish#output",
+          "default": null,
+          "type": "string"
+        },
+        "noninteractive_process_output": {
+          "description": "Show stdout/stderr when publishing with noninteractively.\nhttps://www.pantsbuild.org/v2.21/docs/reference-publish#noninteractive_process_output",
+          "default": "all",
+          "enum": [
+            "all",
+            "failed",
+            "none"
+          ]
+        }
+      }
+    },
+    "pyright": {
+      "description": "The Pyright utility for typechecking Python code (https://github.com/microsoft/pyright).",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use Pyright when running `pants check`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pyright#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Arguments to pass directly to Pyright, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pyright#args",
+          "default": [],
+          "type": "array"
+        },
+        "version": {
+          "description": "Version string for the tool in the form package@version (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pyright#version",
+          "default": "pyright@1.1.396",
+          "type": "string"
+        },
+        "binary_name": {
+          "description": "Override the binary to run for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pyright#binary_name",
+          "default": null,
+          "type": "string"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve, instead of the version configured in this subsystem.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pyright#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for Pyright (which is, itself, a NodeJS tool).\nhttps://www.pantsbuild.org/v2.21/docs/reference-pyright#interpreter_constraints",
+          "default": [
+            "CPython>=3.8,<4"
+          ],
+          "type": "array"
+        }
+      }
+    },
+    "pytest": {
+      "description": "The pytest Python test framework (https://docs.pytest.org/).\n\nThis version of Pants uses `pytest` version 8.4.1 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments to pass directly to Pytest, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#args",
+          "default": [],
+          "type": "array"
+        },
+        "xdist_enabled": {
+          "description": "If true, Pants will use `pytest-xdist` (https://pytest-xdist.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#xdist_enabled",
+          "default": false,
+          "type": "boolean"
+        },
+        "skip": {
+          "description": "If true, don't use Pytest when running `pants test`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#console_script",
+          "default": "pytest",
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#entry_point",
+          "default": null,
+          "type": "string"
+        },
+        "junit_family": {
+          "description": "The format of generated junit XML files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#junit_family",
+          "default": "xunit2",
+          "type": "string"
+        },
+        "execution_slot_var": {
+          "description": "If a non-empty string, the process execution slot id (an integer) will be exposed to tests under this environment variable name.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#execution_slot_var",
+          "default": null,
+          "type": "string"
+        },
+        "config": {
+          "description": "Path to a config file understood by Pytest (https://docs.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#config",
+          "default": null
+        },
+        "config_discovery": {
+          "description": "If true, Pants will include all relevant Pytest config files (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-pytest#config_discovery",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "python": {
+      "description": "Options for Pants's Python backend.",
+      "type": "object",
+      "properties": {
+        "interpreter_constraints": {
+          "description": "The Python interpreters your codebase is compatible with.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#interpreter_constraints",
+          "default": [],
+          "type": "array"
+        },
+        "default_run_goal_use_sandbox": {
+          "description": "The default value used for the `run_goal_use_sandbox` field of Python targets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#default_run_goal_use_sandbox",
+          "default": true,
+          "type": "boolean"
+        },
+        "repl_history": {
+          "description": "Whether to use the standard Python command history file when running a repl.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#repl_history",
+          "default": true,
+          "type": "boolean"
+        },
+        "warn_on_python2_usage": {
+          "description": "True if Pants should generate a deprecation warning when Python 2.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#warn_on_python2_usage",
+          "default": true,
+          "type": "boolean"
+        },
+        "interpreter_versions_universe": {
+          "description": "All known Python major/minor interpreter versions that may be used by either your code or tools used by your code.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#interpreter_versions_universe",
+          "default": [
+            "2.7",
+            "3.5",
+            "3.6",
+            "3.7",
+            "3.8",
+            "3.9",
+            "3.10",
+            "3.11",
+            "3.12",
+            "3.13"
+          ],
+          "type": "array"
+        },
+        "enable_resolves": {
+          "description": "Set to true to enable lockfiles for user code.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#enable_resolves",
+          "default": false,
+          "type": "boolean"
+        },
+        "resolves": {
+          "description": "A mapping of logical names to lockfile paths used in your project.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves",
+          "default": {
+            "python-default": "3rdparty/python/default.lock"
+          },
+          "type": "object"
+        },
+        "default_resolve": {
+          "description": "The default value used for the `resolve` field.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#default_resolve",
+          "default": "python-default",
+          "type": "string"
+        },
+        "pip_version": {
+          "description": "Use this version of Pip for resolving requirements and generating lockfiles.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#pip_version",
+          "default": "24.2",
+          "type": "string"
+        },
+        "resolves_to_interpreter_constraints": {
+          "description": "Override the interpreter constraints to use when generating a resolve's lockfile with the `generate-lockfiles` goal.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_to_interpreter_constraints",
+          "default": {},
+          "type": "object"
+        },
+        "resolves_to_constraints_file": {
+          "description": "When generating a resolve's lockfile, use a constraints file to pin the version of certain requirements.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_to_constraints_file",
+          "default": {},
+          "type": "object"
+        },
+        "resolves_to_no_binary": {
+          "description": "When generating a resolve's lockfile, do not use binary packages (i.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_to_no_binary",
+          "default": {},
+          "type": "object"
+        },
+        "resolves_to_only_binary": {
+          "description": "When generating a resolve's lockfile, do not use source packages (i.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_to_only_binary",
+          "default": {},
+          "type": "object"
+        },
+        "resolves_to_excludes": {
+          "description": "Specifies requirements to exclude from a resolve and its           lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_to_excludes",
+          "default": {},
+          "type": "object"
+        },
+        "resolves_to_overrides": {
+          "description": "Specifies a transitive requirement to override in a resolve           and its lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_to_overrides",
+          "default": {},
+          "type": "object"
+        },
+        "invalid_lockfile_behavior": {
+          "description": "The behavior when a lockfile has requirements or interpreter constraints that are not compatible with what the current build is using.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#invalid_lockfile_behavior",
+          "default": "error",
+          "enum": [
+            "error",
+            "ignore",
+            "warn"
+          ]
+        },
+        "resolves_generate_lockfiles": {
+          "description": "If False, Pants will not attempt to generate lockfiles for `[python].\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolves_generate_lockfiles",
+          "default": true,
+          "type": "boolean"
+        },
+        "run_against_entire_lockfile": {
+          "description": "If enabled, when running binaries, tests, and repls, Pants will use the entire lockfile file instead of just the relevant subset.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#run_against_entire_lockfile",
+          "default": false,
+          "type": "boolean"
+        },
+        "resolver_manylinux": {
+          "description": "Whether to allow resolution of manylinux wheels when resolving requirements for foreign linux platforms.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#resolver_manylinux",
+          "default": "manylinux2014",
+          "type": "string"
+        },
+        "tailor_source_targets": {
+          "description": "If true, add `python_sources`, `python_tests`, and `python_test_utils` targets with the `tailor` goal.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#tailor_source_targets",
+          "default": true,
+          "type": "boolean"
+        },
+        "tailor_ignore_empty_init_files": {
+          "description": "If true, don't add `python_sources` targets for `__init__.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#tailor_ignore_empty_init_files",
+          "default": true,
+          "type": "boolean"
+        },
+        "tailor_requirements_targets": {
+          "description": "If true, add `python_requirements`, `poetry_requirements`, and `pipenv_requirements` target generators with the `tailor` goal.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#tailor_requirements_targets",
+          "default": true,
+          "type": "boolean"
+        },
+        "tailor_pex_binary_targets": {
+          "description": "If true, add `pex_binary` targets for Python files named `__main__.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#tailor_pex_binary_targets",
+          "default": false,
+          "type": "boolean"
+        },
+        "tailor_py_typed_targets": {
+          "description": "If true, add `resource` targets for marker files named `py.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#tailor_py_typed_targets",
+          "default": true,
+          "type": "boolean"
+        },
+        "macos_big_sur_compatibility": {
+          "description": "If set, and if running on macOS Big Sur, use `macosx_10_16` as the platform when building wheels.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#macos_big_sur_compatibility",
+          "default": false,
+          "type": "boolean"
+        },
+        "enable_lockfile_targets": {
+          "description": "Create targets for all Python lockfiles defined in `[python].\nhttps://www.pantsbuild.org/v2.21/docs/reference-python#enable_lockfile_targets",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "python-bootstrap": {
+      "description": "Options used to locate Python interpreters.\n\nThis subsystem controls where and how Pants will locate Python, but beyond that it does not control which Python interpreter versions are actually used for your code: see the `python` subsystem for that.",
+      "type": "object",
+      "properties": {
+        "internal_python_build_standalone_info": {
+          "description": "A map from platform to the information needed to download Python Build Standalone.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-bootstrap#internal_python_build_standalone_info",
+          "default": {
+            "linux_arm64": [
+              "https://github.com/astral-sh/python-build-standalone/releases/download/20241008/cpython-3.11.10+20241008-aarch64-unknown-linux-gnu-install_only.tar.gz",
+              "320635e957e13d2e10d70a3031563d032fae9e40e60e5ec32bc353643fae1335",
+              25925875
+            ],
+            "linux_x86_64": [
+              "https://github.com/astral-sh/python-build-standalone/releases/download/20241008/cpython-3.11.10+20241008-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "ff121f14ed113c9da83a45f76c3cf41976fb4419fe406d5cc7066765761c6a4e",
+              29716764
+            ],
+            "macos_arm64": [
+              "https://github.com/astral-sh/python-build-standalone/releases/download/20241008/cpython-3.11.10+20241008-aarch64-apple-darwin-install_only.tar.gz",
+              "ecdc9c042b8f97bff211fcf9425bc51c96acd4037df1565964e89816f2c9564d",
+              17795541
+            ],
+            "macos_x86_64": [
+              "https://github.com/astral-sh/python-build-standalone/releases/download/20241008/cpython-3.11.10+20241008-x86_64-apple-darwin-install_only.tar.gz",
+              "a618c086e0514f681523947e2b66a4dc0c6560f91c36faa072fa6787455df9ea",
+              18165701
+            ]
+          },
+          "type": "object"
+        },
+        "search_path": {
+          "description": "A list of paths to search for Python interpreters.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-bootstrap#search_path",
+          "default": [
+            "<PYENV>",
+            "<ASDF>",
+            "<PATH>"
+          ],
+          "type": "array"
+        },
+        "names": {
+          "description": "The names of Python binaries to search for.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-bootstrap#names",
+          "default": [
+            "python",
+            "python3"
+          ],
+          "type": "array"
+        }
+      }
+    },
+    "python-build-standalone-python-provider": {
+      "description": "A subsystem for Pants-provided Python leveraging Python Build Standalone (or PBS) (https://gregoryszorc.com/docs/python-build-standalone/main/).\n\nEnabling this subsystem will switch Pants from trying to find an appropriate Python on your system to using PBS to download the correct Python(s).\n\nThe Pythons provided by PBS will be used to run any \"user\" code (your Python code as well as any Python-based tools you use, like black or pylint). The Pythons are also read-only to ensure they remain hermetic across runs of different tools and code.\n\nThe Pythons themselves are stored in your `named_caches_dir`: https://www.pantsbuild.org/docs/reference-global#named_caches_dir under `python_build_standalone/<version>`. Wiping the relevant version directory (with `sudo rm -rf`) will force a re-download of Python.\n\nWARNING: PBS does have some behavior quirks, most notably that it has some hardcoded references to build-time paths (such as constants that are found in the `sysconfig` module). These paths may be used when trying to compile some extension modules from source.\n\nFor more info, see https://gregoryszorc.com/docs/python-build-standalone/main/quirks.html.",
+      "type": "object",
+      "properties": {
+        "release_constraints": {
+          "description": "Version constraints on the PBS \"release\" version to ensure only matching PBS releases are considered.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-build-standalone-python-provider#release_constraints",
+          "default": null,
+          "type": "string"
+        },
+        "known_python_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-build-standalone-python-provider#known_python_versions",
+          "default": "<Metadata for versions: 3.10.11, 3.10.12, 3.10.13, 3.10.14, 3.10.15, 3.10.16, 3.10.17, 3.10.18, 3.10.2, 3.10.3, 3.10.4, 3.10.5, 3.10.6, 3.10.7, 3.10.8, 3.10.9, 3.11.1, 3.11.10, 3.11.11, 3.11.12, 3.11.13, 3.11.3, 3.11.4, 3.11.5, 3.11.6, 3.11.7, 3.11.8, 3.11.9, 3.12.0, 3.12.1, 3.12.10, 3.12.11, 3.12.2, 3.12.3, 3.12.4, 3.12.5, 3.12.6, 3.12.7, 3.12.8, 3.12.9, 3.13.0, 3.13.1, 3.13.2, 3.13.3, 3.13.4, 3.13.5, 3.13.6, 3.13.7, 3.8.12, 3.8.13, 3.8.14, 3.8.15, 3.8.16, 3.8.17, 3.8.18, 3.8.19, 3.8.20, 3.9.10, 3.9.11, 3.9.12, 3.9.13, 3.9.14, 3.9.15, 3.9.16, 3.9.17, 3.9.18, 3.9.19, 3.9.20, 3.9.21, 3.9.22, 3.9.23>",
+          "type": "array"
+        }
+      }
+    },
+    "python-dump-source-analysis": {
+      "description": "Dump source analysis for python_source targets.",
+      "type": "object",
+      "properties": {
+        "analysis_flavor": {
+          "description": "The type of information that should be returned.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-dump-source-analysis#analysis_flavor",
+          "default": "dependency_inference",
+          "enum": [
+            "raw_dependency_inference",
+            "dependency_inference"
+          ]
+        }
+      }
+    },
+    "python-infer": {
+      "description": "Options controlling which dependencies will be inferred for Python targets.",
+      "type": "object",
+      "properties": {
+        "imports": {
+          "description": "Infer a target's imported dependencies by parsing import statements from sources.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#imports",
+          "default": true,
+          "type": "boolean"
+        },
+        "string_imports": {
+          "description": "Infer a target's dependencies based on strings that look like dynamic dependencies, such as Django settings files expressing dependencies as strings or pytest plugins listed in the `pytest_plugins` variable in a test module or a conftest file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#string_imports",
+          "default": false,
+          "type": "boolean"
+        },
+        "string_imports_min_dots": {
+          "description": "If `--string-imports` is True, treat valid-looking strings with at least this many dots in them as potential dynamic dependencies.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#string_imports_min_dots",
+          "default": 2,
+          "type": "number"
+        },
+        "assets": {
+          "description": "Infer a target's asset dependencies based on strings that look like Posix filepaths, such as those given to `open` or `pkgutil.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#assets",
+          "default": false,
+          "type": "boolean"
+        },
+        "assets_min_slashes": {
+          "description": "If `--assets` is True, treat valid-looking strings with at least this many forward slash characters as potential assets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#assets_min_slashes",
+          "default": 1,
+          "type": "number"
+        },
+        "init_files": {
+          "description": "Infer a target's dependencies on any `__init__.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#init_files",
+          "default": "content_only",
+          "enum": [
+            "always",
+            "content_only",
+            "never"
+          ]
+        },
+        "conftests": {
+          "description": "Infer a test target's dependencies on any `conftest.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#conftests",
+          "default": true,
+          "type": "boolean"
+        },
+        "entry_points": {
+          "description": "Infer dependencies on targets' entry points, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#entry_points",
+          "default": true,
+          "type": "boolean"
+        },
+        "unowned_dependency_behavior": {
+          "description": "How to handle imports that don't have an inferable owner.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#unowned_dependency_behavior",
+          "default": "warning",
+          "enum": [
+            "error",
+            "warning",
+            "ignore"
+          ]
+        },
+        "ambiguity_resolution": {
+          "description": "When multiple sources provide the same symbol, how to choose the provider to use.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#ambiguity_resolution",
+          "default": "none",
+          "enum": [
+            "none",
+            "by_source_root"
+          ]
+        },
+        "ignored_unowned_imports": {
+          "description": "Unowned imports that should be ignored.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#ignored_unowned_imports",
+          "default": [],
+          "type": "array"
+        },
+        "use_rust_parser": {
+          "description": "Use the new Rust-based, multithreaded, in-process dependency parser.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-infer#use_rust_parser",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "python-native-code": {
+      "description": "Options for building native code using Python, e.g. when resolving distributions.",
+      "type": "object",
+      "properties": {
+        "cpp_flags": {
+          "description": "Override the `CPPFLAGS` environment variable for any forked subprocesses.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-native-code#cpp_flags",
+          "default": [
+            "<CPPFLAGS>"
+          ],
+          "type": "array"
+        },
+        "ld_flags": {
+          "description": "Override the `LDFLAGS` environment variable for any forked subprocesses.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-native-code#ld_flags",
+          "default": [
+            "<LDFLAGS>"
+          ],
+          "type": "array"
+        }
+      }
+    },
+    "python-repos": {
+      "description": "External Python code repositories, such as PyPI.\n\nThese options may be used to point to custom package indexes when resolving requirements.",
+      "type": "object",
+      "properties": {
+        "find_links": {
+          "description": "URLs and/or file paths corresponding to pip's `--find-links` option.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-repos#find_links",
+          "default": [],
+          "type": "array"
+        },
+        "indexes": {
+          "description": "URLs of [PEP-503 compatible](https://peps.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-repos#indexes",
+          "default": [
+            "https://pypi.org/simple/"
+          ],
+          "type": "array"
+        },
+        "path_mappings": {
+          "description": "Mappings to facilitate using local Python requirements when the absolute file paths are different on different users' machines.\nhttps://www.pantsbuild.org/v2.21/docs/reference-python-repos#path_mappings",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "regex-lint": {
+      "description": "Lint your code using regex patterns, e.g. to check for copyright headers.\n\nTo activate this with the `lint` goal, you must set `[regex-lint].config`.\n\nUnlike other linters, this can run on files not owned by targets, such as BUILD files.",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use regex-lint when running `pants lint`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-regex-lint#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "config": {
+          "description": "Config schema is as follows:\nhttps://www.pantsbuild.org/v2.21/docs/reference-regex-lint#config",
+          "default": {},
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "detail_level": {
+          "description": "How much detail to include in the result.\nhttps://www.pantsbuild.org/v2.21/docs/reference-regex-lint#detail_level",
+          "default": "nonmatching",
+          "enum": [
+            "none",
+            "summary",
+            "nonmatching",
+            "names",
+            "all"
+          ]
+        }
+      }
+    },
+    "repl": {
+      "description": "Open a REPL with the specified code loadable.",
+      "type": "object",
+      "properties": {
+        "shell": {
+          "description": "Override the automatically-detected REPL program for the target(s) specified.\nhttps://www.pantsbuild.org/v2.21/docs/reference-repl#shell",
+          "default": null,
+          "type": "string"
+        },
+        "args": {
+          "description": "Arguments to pass directly to the repl program, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-repl#args",
+          "default": [],
+          "type": "array"
+        },
+        "restartable": {
+          "description": "True if the REPL should be restarted if its inputs have changed.\nhttps://www.pantsbuild.org/v2.21/docs/reference-repl#restartable",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "roots": {
+      "description": "List the repo's registered source roots.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the goal's stdout to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-roots#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "sep": {
+          "description": "String to use to separate lines in line-oriented output.\nhttps://www.pantsbuild.org/v2.21/docs/reference-roots#sep",
+          "default": "\\n",
+          "type": "string"
+        }
+      }
+    },
+    "ruff": {
+      "description": "The Ruff Python formatter (https://github.com/astral-sh/ruff).",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use Ruff when running `pants fmt` and `pants fix` and `pants lint`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Arguments to pass directly to Ruff, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#args",
+          "default": [],
+          "type": "array"
+        },
+        "version": {
+          "description": "Use this version of Ruff.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#version",
+          "default": "0.12.5",
+          "type": "string"
+        },
+        "known_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#known_versions",
+          "default": [
+            "0.12.5|macos_x86_64|5af0b2931581a5ed91743c9f669c23cb0db9bb1f0c49f8695ad1443dbc6a9e50|12478716",
+            "0.12.5|macos_arm64|8819b61cff645c1d1671df331bb57c1ab230094b686942bccedde1f888feb522|11719060",
+            "0.12.5|linux_x86_64|79beb4eac07beaea24774709eeb88a87115f1b53f857dcc1155431e642e01ade|12995071",
+            "0.12.5|linux_arm64|f147ccdbe26d35f2752c6d97d158bc8e3b4d1833d283748fc48f350c698a6f7b|11787954",
+            "0.11.13|macos_x86_64|8dcc61306472f75c07af6d0446060e26227d773cee319d21900ac3a1d7bc4955|11085786",
+            "0.11.13|macos_arm64|7d5e8feea7ee5c3962807996cad557e8a0c4d676c1cba6223bfb0e8b2ca07723|10425890",
+            "0.11.13|linux_x86_64|4540e8bc5b2af73c4b79e9e993724b044310eea4aa9003cf05ed4bdee6c25735|11609889",
+            "0.11.13|linux_arm64|1ff8292d610302bc20791f6ab264de499b6d2fbf89030fef915908c564a78e82|10519905",
+            "0.11.5|macos_x86_64|c28725c6421d5834b2cd16c7b13c3831b3363d6d558448d7dd3e0aa695551f94|10882726",
+            "0.11.5|macos_arm64|4a5b1a44412bda817debb67d826a565f11b235744870b509f44102403a3a9e89|10228748",
+            "0.11.5|linux_x86_64|067c1c6c4d6033b65fe788f5310075686110b286a102431fb19883c079e2fca1|11413549",
+            "0.11.5|linux_arm64|77c11c7a70d3bf499915bab5a7691e955f4127164c4cfb7ef4e0773892ed2509|10318966",
+            "0.11.0|macos_x86_64|a208dee9c1a7a063dace746836fd2d7e5f7694d2142700d3964fccf141ada555|10861900",
+            "0.11.0|macos_arm64|09ea313f2aab3844432b46c6c5e3e066b26ae4953f4bac1e545176e5dea22306|10239274",
+            "0.11.0|linux_x86_64|3148cd8131ec4f525551b16a57186f5533c705950269cbee7674d484ca6eefe5|11412993",
+            "0.11.0|linux_arm64|60904d6d51b1a8dd49ab948dd1de33ce439ca872c82faa5dab90fce838539317|10313237",
+            "0.10.0|macos_x86_64|2388af7881c7e50026388e953fa6eab7c1ae94c868926a6185c3cb38f9f15aa2|10862770",
+            "0.10.0|macos_arm64|1da279b8302cd86f50d38fc8ad62cd12f4d07c0c402c13a3bac7dc244c7db138|10224628",
+            "0.10.0|linux_x86_64|5e949f667a1dd76ab4382ba713fed3390ddc6088147ba0eb70fd8aa2ec564751|11399512",
+            "0.10.0|linux_arm64|7b9fe2e2cecde897fb35a1a0bb1ccd10dde3395acd81aea7e5e6b0b24824e7c7|10305951",
+            "0.9.10|macos_x86_64|1e5080489fdf483e7111bb1575f045ec13da2fdbfc6ac5fd58b5d55cf9cd7668|10838186",
+            "0.9.10|macos_arm64|1fccbd53431eaa596f2322494edbdc444f99db651566188fa0a9820c26bbef77|10147621",
+            "0.9.10|linux_x86_64|15e93ee078beb5ec24d1afb02a1cce2a873ac627d378c987adda4f6ab3b5f886|11373081",
+            "0.9.10|linux_arm64|c131df77457ed45aa44b617194563ceea2e29e595c42d06804e04155529423b4|10245226",
+            "0.9.6|macos_x86_64|ec88c095036b25e95391ea202fcc9496d565f4e43152db10785eb9757ea0815d|11663591",
+            "0.9.6|macos_arm64|a3132eb5e3d95f36d378144082276fbed0309789dadb19d8a4c41ec5e80451fb|11124436",
+            "0.9.6|linux_x86_64|c725f57aa11d636f1d7f0f378c604d4db29c4dbb5ff0578f9fbbc578364875df|12568611",
+            "0.9.6|linux_arm64|8f64e97deae1c12f659fd13e6e14d78cf15ed876d1548ac76b235f78ab5803e1|11929444",
+            "0.8.6|macos_x86_64|3ff48d180472a1aee6385ba43606ba6a5a6ab89f16a3ca8ccb234966fe3698c1|10374010",
+            "0.8.6|macos_arm64|d24cfe247de2bfd90d7f0604196247b680e1db5b6c8427cf6e540c38044526f7|10005432",
+            "0.8.6|linux_x86_64|a691c78f045f7202b15620939c4b087f301afe884e42d09a19725f61581aa887|11329234",
+            "0.8.6|linux_arm64|23c5d1dd7eed23d2bd6d340df05a068030e267db28150892a72e3dc97b175164|10868993",
+            "0.7.4|macos_x86_64|9762afafafacd801eb95a086dcd3359075ab5cc4cd1371b7ff0550c44ac4e47c|10223356",
+            "0.7.4|macos_arm64|af9583bff12afbca5d5670334e0187dd60c4d91bc71317d1b2dde70cb1200ba9|9882883",
+            "0.7.4|linux_x86_64|38ff38639f33764acf2cf3c3252e2a214b7f5fedafa67c50909926297dba9229|11172665",
+            "0.7.4|linux_arm64|329ddf6bb4f34fbcba273ecb1460280aa2ad92150a94f58110861b3c4453ce35|10703090",
+            "0.7.2|macos_x86_64|5815756947d0a7b1d90805b07ffb2c376c8a9800e9462d545839dc0d79a091d2|10162492",
+            "0.7.2|macos_arm64|1c9f5a4fc815330d01fd8a56a7a70114ff3ed149bd997ff831524313705ba991|9802953",
+            "0.7.2|linux_x86_64|b769e11a3e23a72692cb97ed762ff28e48534972a8ef447fd5b0d3178a56ffd8|11097578",
+            "0.7.2|linux_arm64|f9342fcca6b58143f316ef3e617f39334edb4c3d15fced5220bd939685f6261d|10651691",
+            "0.6.9|macos_x86_64|34aa37643e30dcb81a3c0e011c3a8df552465ea7580ba92ca727a3b7c6de25d1|10018168",
+            "0.6.9|macos_arm64|b94562393a4bf23f1a48521f5495a8e48de885b7c173bd7ea8206d6d09921633|9697031",
+            "0.6.9|linux_x86_64|39a1cd878962ebc88322b4f6d33cae2292454563028f93a3f1f8ce58e3025b07|11000553",
+            "0.6.9|linux_arm64|73df3729a3381d0918e4640aac4b2653c542f74c7b7843dee8310e2c877e6f2e|10724239",
+            "0.6.4|macos_x86_64|4438cbc80c6aa0e839abc3abb2a869a27113631cb40aa26540572fb53752c432|9463378",
+            "0.6.4|macos_arm64|2648dd09984c82db9f3163ce8762c89536e4bf0e198f17e06a01c0e32214273e|9167424",
+            "0.6.4|linux_x86_64|3ca04aabf7259c59193e4153a865618cad26f73be930ce5f6109e0e6097d037b|10373921",
+            "0.6.4|linux_arm64|a9157a0f062d62c1b1582284a8d10629503f38bc9b7126b614cb7569073180ff|10120541",
+            "0.5.7|macos_x86_64|1f9a7d307f191781fc895947af21d32f8c810c5a5a4cdff16ac53d88a14acd69|8662539",
+            "0.5.7|macos_arm64|b78a09f44dc60d8c894aba6cad55abd3b0eccc0992d60a86f74155fc459e227b|8256430",
+            "0.5.7|linux_x86_64|9a5580536ef9cea7d8e56be8af712ac5cd152c081969ece2fbc3631b30bbb5e8|10263458",
+            "0.5.7|linux_arm64|2509d20ef605fb1c8af37af1f46fefc85e1d72add6e87187cb6543420c05dfb1|9991080",
+            "0.4.10|macos_x86_64|6e96f288d13b68863e79c9f107a0c51660215829726c9d3dc4879c1801fa3140|8490153|https://github.com/astral-sh/ruff/releases/download/v0.4.10/ruff-0.4.10-x86_64-apple-darwin.tar.gz",
+            "0.4.10|macos_arm64|5a4ff81270eee1efa7901566719aca705a3e8d0f1abead96c01caa4678a7762e|8094319|https://github.com/astral-sh/ruff/releases/download/v0.4.10/ruff-0.4.10-aarch64-apple-darwin.tar.gz",
+            "0.4.10|linux_x86_64|332ba368c6e08afc3c5d1c7f6e4fb7bf238b7cbf007b400e6bdf01a0a36ae656|10130989|https://github.com/astral-sh/ruff/releases/download/v0.4.10/ruff-0.4.10-x86_64-unknown-linux-musl.tar.gz",
+            "0.4.10|linux_arm64|75332c97520233b5f95cb3d40bdef13b40e1aa5e6c82a078623993545771f55f|9851689|https://github.com/astral-sh/ruff/releases/download/v0.4.10/ruff-0.4.10-aarch64-unknown-linux-musl.tar.gz",
+            "0.4.9|macos_x86_64|e4d745adb0f5a0b08f2c9ca71e57f451a9b8485ae35b5555d9f5d20fc93a6cb6|8510706|https://github.com/astral-sh/ruff/releases/download/v0.4.9/ruff-0.4.9-x86_64-apple-darwin.tar.gz",
+            "0.4.9|macos_arm64|5f4506d7ec2ae6ac5a48ba309218a4b825a00d4cad9967b7bbcec1724ef04930|8148128|https://github.com/astral-sh/ruff/releases/download/v0.4.9/ruff-0.4.9-aarch64-apple-darwin.tar.gz",
+            "0.4.9|linux_x86_64|5ceba21dad91e3fa05056ca62f278b0178516cfad8dbf08cf2433c6f1eeb92d3|8863118|https://github.com/astral-sh/ruff/releases/download/v0.4.9/ruff-0.4.9-x86_64-unknown-linux-musl.tar.gz",
+            "0.4.9|linux_arm64|00c50563f9921a141ddd4ec0371149f3bbfa0369d9d238a143bcc3a932363785|8106747|https://github.com/astral-sh/ruff/releases/download/v0.4.9/ruff-0.4.9-aarch64-unknown-linux-musl.tar.gz",
+            "0.3.7|macos_x86_64|b1c961c1bed427e74ab72950c6debcb078c82aba0ee347183cc27a9fc8aaa43b|8615221|https://github.com/astral-sh/ruff/releases/download/v0.3.7/ruff-0.3.7-x86_64-apple-darwin.tar.gz",
+            "0.3.7|linux_x86_64|3f8348096f7d9c0a9266c4a821dbc7599ef299983e456b61eb0d5290d8615df8|8905370|https://github.com/astral-sh/ruff/releases/download/v0.3.7/ruff-0.3.7-x86_64-unknown-linux-musl.tar.gz",
+            "0.3.7|linux_arm64|0e79fbefcd813a10fa60250441bbe36978c95d010b64646848fada64b9af61f0|8180808|https://github.com/astral-sh/ruff/releases/download/v0.3.7/ruff-0.3.7-aarch64-unknown-linux-musl.tar.gz",
+            "0.2.2|macos_x86_64|798a2028a783f10f21f11eb59763eabcff9961d4302cdcc37d186ab9f864ca82|7611899|https://github.com/astral-sh/ruff/releases/download/v0.2.2/ruff-0.2.2-x86_64-apple-darwin.tar.gz",
+            "0.2.2|macos_arm64|21454a77f0a5ff8ed23a43327f6de9c2f9f6bab1352ebe87fc03866889fa7fae|7262889|https://github.com/astral-sh/ruff/releases/download/v0.2.2/ruff-0.2.2-aarch64-apple-darwin.tar.gz",
+            "0.2.2|linux_x86_64|044e4dbd46acc12de78a144c24fd9af86003eaba28e83244546d85076a9c7b04|7881552|https://github.com/astral-sh/ruff/releases/download/v0.2.2/ruff-0.2.2-x86_64-unknown-linux-musl.tar.gz",
+            "0.2.2|linux_arm64|e73a37f41acf4a4f44cdb9b587316f0f9eb83b51c3c134d1401501e3f8d65dee|7247275|https://github.com/astral-sh/ruff/releases/download/v0.2.2/ruff-0.2.2-aarch64-unknown-linux-musl.tar.gz",
+            "0.1.15|macos_x86_64|6d006dc427a74cba930717297b0c472856a2be4cfc37cd04309895c11329dc68|7308240|https://github.com/astral-sh/ruff/releases/download/v0.1.15/ruff-0.1.15-x86_64-apple-darwin.tar.gz",
+            "0.1.15|macos_arm64|373c648d693ddaf4f1936a05d3093aabd08553f585c3c3afbbdba41d16b70032|7025376|https://github.com/astral-sh/ruff/releases/download/v0.1.15/ruff-0.1.15-aarch64-apple-darwin.tar.gz",
+            "0.1.15|linux_x86_64|d7389b9743b0b909c364d11bba94d13302171d751430b58c13dcdf248e924276|7605249|https://github.com/astral-sh/ruff/releases/download/v0.1.15/ruff-0.1.15-x86_64-unknown-linux-musl.tar.gz",
+            "0.1.15|linux_arm64|e9ed3c353c4f2b801ed4d21fee2b6159883ad777e959fbbad0b2d2b22e1974c7|7049764|https://github.com/astral-sh/ruff/releases/download/v0.1.15/ruff-0.1.15-aarch64-unknown-linux-musl.tar.gz"
+          ],
+          "type": "array"
+        },
+        "url_template": {
+          "description": "URL to download the tool, either as a single binary file or a compressed file (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#url_template",
+          "default": "https://github.com/astral-sh/ruff/releases/download/{version}/ruff-{platform}.tar.gz",
+          "type": "string"
+        },
+        "url_platform_mapping": {
+          "description": "A dictionary mapping platforms to strings to be used when generating the URL to download the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#url_platform_mapping",
+          "default": {
+            "linux_arm64": "aarch64-unknown-linux-musl",
+            "linux_x86_64": "x86_64-unknown-linux-musl",
+            "macos_arm64": "aarch64-apple-darwin",
+            "macos_x86_64": "x86_64-apple-darwin"
+          },
+          "type": "object"
+        },
+        "use_unsupported_version": {
+          "description": "What action to take in case the requested version of Ruff is not supported.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#use_unsupported_version",
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ]
+        },
+        "config": {
+          "description": "Path to the `pyproject.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#config",
+          "default": null
+        },
+        "config_discovery": {
+          "description": "If true, Pants will include any relevant config files during runs (`pyproject.\nhttps://www.pantsbuild.org/v2.21/docs/reference-ruff#config_discovery",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "run": {
+      "description": "Runs a binary target.\n\nThis goal propagates the return code of the underlying executable.\n\nIf your application can safely be restarted while it is running, you can pass `restartable=True` on your binary target (for supported types), and the `run` goal will automatically restart them as all relevant files change. This can be particularly useful for server applications.",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments to pass directly to the executed target, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-run#args",
+          "default": [],
+          "type": "array"
+        },
+        "debug_adapter": {
+          "description": "Run the interactive process using a Debug Adapter (https://microsoft.\nhttps://www.pantsbuild.org/v2.21/docs/reference-run#debug_adapter",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "scc": {
+      "description": "The Succinct Code Counter, aka `scc` (https://github.com/boyter/scc).",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "Arguments to pass directly to SCC, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-scc#args",
+          "default": [],
+          "type": "array"
+        },
+        "version": {
+          "description": "Use this version of SCC.\nhttps://www.pantsbuild.org/v2.21/docs/reference-scc#version",
+          "default": "3.0.0",
+          "type": "string"
+        },
+        "known_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-scc#known_versions",
+          "default": [
+            "3.0.0|macos_arm64 |846cb1b25025a0794d455719bc17cfb3f588576a58af1d95036f6c654e294f98|2006145",
+            "3.0.0|macos_x86_64|9c3064e477ab36e16204ad34f649372034bca4df669615eff5de4aa05b2ddf1a|2048134",
+            "3.0.0|linux_arm64 |04f9e797b70a678833e49df5e744f95080dfb7f963c0cd34f5b5d4712d290f33|1768037",
+            "3.0.0|linux_x86_64|13ca47ce00b5bd032f97f3af7aa8eb3c717b8972b404b155a378b09110e4aa0c|1948341"
+          ],
+          "type": "array"
+        },
+        "url_template": {
+          "description": "URL to download the tool, either as a single binary file or a compressed file (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-scc#url_template",
+          "default": "https://github.com/boyter/scc/releases/download/v{version}/scc-{version}-{platform}.zip",
+          "type": "string"
+        },
+        "url_platform_mapping": {
+          "description": "A dictionary mapping platforms to strings to be used when generating the URL to download the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-scc#url_platform_mapping",
+          "default": {
+            "linux_arm64": "arm64-unknown-linux",
+            "linux_x86_64": "x86_64-unknown-linux",
+            "macos_arm64": "arm64-apple-darwin",
+            "macos_x86_64": "x86_64-apple-darwin"
+          },
+          "type": "object"
+        },
+        "use_unsupported_version": {
+          "description": "What action to take in case the requested version of SCC is not supported.\nhttps://www.pantsbuild.org/v2.21/docs/reference-scc#use_unsupported_version",
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ]
+        }
+      }
+    },
+    "science": {
+      "description": "A high level tool to build scies with.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "Use this version of science.\nhttps://www.pantsbuild.org/v2.21/docs/reference-science#version",
+          "default": "0.15.1",
+          "type": "string"
+        },
+        "known_versions": {
+          "description": "Known versions to verify downloads against.\nhttps://www.pantsbuild.org/v2.21/docs/reference-science#known_versions",
+          "default": [
+            "0.15.1|linux_arm64|928dddc37d98117b4310d7779b677f04ce25839898e947531b3db9bf4b473d70|9444039",
+            "0.15.1|linux_x86_64|a1b7986a8db40495ffdd7a8e8a20ed6d02f3213f8e2bdd5f3c9f4ce48dd8265f|10948381",
+            "0.15.1|macos_arm64|51aec4fcea783dddc78d54aaa07bbb8a3002d3a0308c75bd12f27eadbc53b3d1|8880820",
+            "0.15.1|macos_x86_64|d57b503c4e1073d7c89c12719b6fca43ffc956e2dfdcd68df180d5899c01b885|9617696"
+          ],
+          "type": "array"
+        },
+        "url_template": {
+          "description": "URL to download the tool, either as a single binary file or a compressed file (e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-science#url_template",
+          "default": "https://github.com/a-scie/lift/releases/download/v{version}/science-{platform}",
+          "type": "string"
+        },
+        "url_platform_mapping": {
+          "description": "A dictionary mapping platforms to strings to be used when generating the URL to download the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-science#url_platform_mapping",
+          "default": {
+            "linux_arm64": "linux-aarch64",
+            "linux_x86_64": "linux-x86_64",
+            "macos_arm64": "macos-aarch64",
+            "macos_x86_64": "macos-x86_64"
+          },
+          "type": "object"
+        },
+        "use_unsupported_version": {
+          "description": "What action to take in case the requested version of science is not supported.\nhttps://www.pantsbuild.org/v2.21/docs/reference-science#use_unsupported_version",
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ]
+        }
+      }
+    },
+    "setup-py-generation": {
+      "description": "Options to control how setup.py is generated from a `python_distribution` target.",
+      "type": "object",
+      "properties": {
+        "generate_setup_default": {
+          "description": "The default value for the `generate_setup` field on `python_distribution` targets.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setup-py-generation#generate_setup_default",
+          "default": true,
+          "type": "boolean"
+        },
+        "first_party_dependency_version_scheme": {
+          "description": "What version to set in `install_requires` when a `python_distribution` depends on other `python_distribution`s.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setup-py-generation#first_party_dependency_version_scheme",
+          "default": "exact",
+          "enum": [
+            "exact",
+            "compatible",
+            "any"
+          ]
+        }
+      }
+    },
+    "setuptools": {
+      "description": "Python setuptools, used to package `python_distribution` targets.\n\nThis version of Pants uses `setuptools` version 80.9.0 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools#requirements",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "setuptools-scm": {
+      "description": "A tool for generating versions from VCS metadata (https://github.com/pypa/setuptools_scm).\n\nThis version of Pants uses `setuptools-scm` version 7.1.0 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools-scm#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools-scm#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools-scm#interpreter_constraints",
+          "default": [
+            "CPython>=3.9,<3.14"
+          ],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools-scm#console_script",
+          "default": null,
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-setuptools-scm#entry_point",
+          "default": "setuptools_scm",
+          "type": "string"
+        }
+      }
+    },
+    "source": {
+      "description": "Configuration for roots of source trees.",
+      "type": "object",
+      "properties": {
+        "root_patterns": {
+          "description": "A list of source root suffixes.\nhttps://www.pantsbuild.org/v2.21/docs/reference-source#root_patterns",
+          "default": [
+            "/",
+            "src",
+            "src/python",
+            "src/py",
+            "src/thrift",
+            "src/protobuf",
+            "src/protos",
+            "src/scala",
+            "src/java"
+          ],
+          "type": "array"
+        },
+        "marker_filenames": {
+          "description": "The presence of a file of this name in a directory indicates that the directory is a source root.\nhttps://www.pantsbuild.org/v2.21/docs/reference-source#marker_filenames",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "stats": {
+      "description": "An aggregator for Pants stats, such as cache metrics.",
+      "type": "object",
+      "properties": {
+        "output_file": {
+          "description": "Output the stats to this file.\nhttps://www.pantsbuild.org/v2.21/docs/reference-stats#output_file",
+          "default": null,
+          "type": "string"
+        },
+        "format": {
+          "description": "Output format for reporting stats.\nhttps://www.pantsbuild.org/v2.21/docs/reference-stats#format",
+          "default": "text",
+          "enum": [
+            "text",
+            "jsonlines"
+          ]
+        },
+        "log": {
+          "description": "At the end of the Pants run, log all counter metrics and summaries of observation histograms, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-stats#log",
+          "default": false,
+          "type": "boolean"
+        },
+        "memory_summary": {
+          "description": "At the end of the Pants run, report a summary of memory usage.\nhttps://www.pantsbuild.org/v2.21/docs/reference-stats#memory_summary",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "subprocess-environment": {
+      "description": "Environment settings for forked subprocesses.",
+      "type": "object",
+      "properties": {
+        "env_vars": {
+          "description": "Environment variables to set for process invocations.\nhttps://www.pantsbuild.org/v2.21/docs/reference-subprocess-environment#env_vars",
+          "default": [
+            "LANG",
+            "LC_CTYPE",
+            "LC_ALL",
+            "SSL_CERT_FILE",
+            "SSL_CERT_DIR"
+          ],
+          "type": "array"
+        }
+      }
+    },
+    "system-binaries": {
+      "description": "System binaries related settings.",
+      "type": "object",
+      "properties": {
+        "system_binary_paths": {
+          "description": "The PATH value that will searched for executables.\nhttps://www.pantsbuild.org/v2.21/docs/reference-system-binaries#system_binary_paths",
+          "default": [
+            "/usr/bin",
+            "/bin",
+            "/usr/local/bin",
+            "/opt/homebrew/bin"
+          ],
+          "type": "array"
+        }
+      }
+    },
+    "tailor": {
+      "description": "Auto-generate BUILD file targets for new source files.\n\nEach specific `tailor` implementation may be disabled through language-specific options, e.g. `[python].tailor_pex_binary_targets` and `[shell-setup].tailor`.",
+      "type": "object",
+      "properties": {
+        "check": {
+          "description": "Do not write changes to disk, only write back what would change.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#check",
+          "default": false,
+          "type": "boolean"
+        },
+        "build_file_name": {
+          "description": "The name to use for generated BUILD files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#build_file_name",
+          "default": "BUILD",
+          "type": "string"
+        },
+        "build_file_header": {
+          "description": "A header, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#build_file_header",
+          "default": null,
+          "type": "string"
+        },
+        "build_file_indent": {
+          "description": "The indent to use when auto-editing BUILD files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#build_file_indent",
+          "default": "    ",
+          "type": "string"
+        },
+        "alias_mapping": {
+          "description": "A mapping from standard target type to custom type to use instead.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#alias_mapping",
+          "default": {},
+          "type": "object"
+        },
+        "ignore_paths": {
+          "description": "Do not edit or create BUILD files at these paths.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#ignore_paths",
+          "default": [],
+          "type": "array"
+        },
+        "ignore_adding_targets": {
+          "description": "Do not add these target definitions.\nhttps://www.pantsbuild.org/v2.21/docs/reference-tailor#ignore_adding_targets",
+          "default": [],
+          "type": "array"
+        }
+      }
+    },
+    "test": {
+      "description": "Run tests.",
+      "type": "object",
+      "properties": {
+        "debug": {
+          "description": "Run tests sequentially in an interactive process.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#debug",
+          "default": false,
+          "type": "boolean"
+        },
+        "debug_adapter": {
+          "description": "Run tests sequentially in an interactive process, using a Debug Adapter (https://microsoft.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#debug_adapter",
+          "default": false,
+          "type": "boolean"
+        },
+        "force": {
+          "description": "Force the tests to run, even if they could be satisfied from cache.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#force",
+          "default": false,
+          "type": "boolean"
+        },
+        "output": {
+          "description": "Show stdout/stderr for these tests.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#output",
+          "default": "failed",
+          "enum": [
+            "all",
+            "failed",
+            "none"
+          ]
+        },
+        "use_coverage": {
+          "description": "Generate a coverage report if the test runner supports it.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#use_coverage",
+          "default": false,
+          "type": "boolean"
+        },
+        "open_coverage": {
+          "description": "If a coverage report file is generated, open it on the local system if the system supports this.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#open_coverage",
+          "default": false,
+          "type": "boolean"
+        },
+        "shard": {
+          "description": "A shard specification of the form \"k/N\", where N is a positive integer and k is a non-negative integer less than N.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#shard",
+          "default": "",
+          "type": "string"
+        },
+        "timeouts": {
+          "description": "Enable test target timeouts.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#timeouts",
+          "default": true,
+          "type": "boolean"
+        },
+        "attempts_default": {
+          "description": "The number of attempts to run tests, in case of a test failure.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#attempts_default",
+          "default": 1,
+          "type": "number"
+        },
+        "extra_env_vars": {
+          "description": "Additional environment variables to include in test processes.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#extra_env_vars",
+          "default": [],
+          "type": "array"
+        },
+        "report": {
+          "description": "Write test reports to `--report-dir`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#report",
+          "default": false,
+          "type": "boolean"
+        },
+        "report_dir": {
+          "description": "Path to write test reports to.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#report_dir",
+          "default": "{distdir}/test/reports",
+          "type": "string"
+        },
+        "timeout_default": {
+          "description": "The default timeout (in seconds) for a test target if the `timeout` field is not set on the target.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#timeout_default",
+          "default": null,
+          "type": "number"
+        },
+        "timeout_maximum": {
+          "description": "The maximum timeout (in seconds) that may be used on a test target.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#timeout_maximum",
+          "default": null,
+          "type": "number"
+        },
+        "batch_size": {
+          "description": "The target maximum number of files to be included in each run of batch-enabled test runners.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#batch_size",
+          "default": 128,
+          "type": "number"
+        },
+        "show_rerun_command": {
+          "description": "If tests fail, show an appropriate `pants test .\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#show_rerun_command",
+          "default": false,
+          "type": "boolean"
+        },
+        "experimental_report_test_result_info": {
+          "description": "Report information about the test results.\nhttps://www.pantsbuild.org/v2.21/docs/reference-test#experimental_report_test_result_info",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
+    "twine": {
+      "description": "The utility for publishing Python distributions to PyPI and other Python repositories.\n\nThis version of Pants uses `twine` version 4.0.2 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use Twine when running `pants publish`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Arguments to pass directly to Twine, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#args",
+          "default": [],
+          "type": "array"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#interpreter_constraints",
+          "default": [
+            "CPython>=3.9,<3.14"
+          ],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#console_script",
+          "default": "twine",
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#entry_point",
+          "default": null,
+          "type": "string"
+        },
+        "config": {
+          "description": "Path to a .\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#config",
+          "default": null
+        },
+        "config_discovery": {
+          "description": "If true, Pants will include all relevant config files during runs (`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#config_discovery",
+          "default": true,
+          "type": "boolean"
+        },
+        "ca_certs_path": {
+          "description": "Path to a file containing PEM-format CA certificates used for verifying secure connections when publishing python distributions.\nhttps://www.pantsbuild.org/v2.21/docs/reference-twine#ca_certs_path",
+          "default": "<inherit>",
+          "type": "string"
+        }
+      }
+    },
+    "update-build-files": {
+      "description": "Format and fix safe deprecations in BUILD files.\n\nThis does not handle the full Pants upgrade. You must still manually change `pants_version` in `pants.toml` and you may need to manually address some deprecations. See https://www.pantsbuild.org/2.29/docs/releases/upgrade-tips for upgrade tips.",
+      "type": "object",
+      "properties": {
+        "check": {
+          "description": "Do not write changes to disk, only write back what would change.\nhttps://www.pantsbuild.org/v2.21/docs/reference-update-build-files#check",
+          "default": false,
+          "type": "boolean"
+        },
+        "fmt": {
+          "description": "Format BUILD files using Black, Ruff or Yapf.\nhttps://www.pantsbuild.org/v2.21/docs/reference-update-build-files#fmt",
+          "default": true,
+          "type": "boolean"
+        },
+        "formatter": {
+          "description": "Which formatter Pants should use to format BUILD files.\nhttps://www.pantsbuild.org/v2.21/docs/reference-update-build-files#formatter",
+          "default": "black",
+          "enum": [
+            "yapf",
+            "black",
+            "ruff",
+            "buildifier"
+          ]
+        },
+        "fix_safe_deprecations": {
+          "description": "Automatically fix deprecations, such as target type renames, that are safe because they do not change semantics.\nhttps://www.pantsbuild.org/v2.21/docs/reference-update-build-files#fix_safe_deprecations",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    },
+    "version": {
+      "description": "Display Pants version.",
+      "type": "object",
+      "properties": {}
+    },
+    "yapf": {
+      "description": "A formatter for Python files (https://github.com/google/yapf).\n\nThis version of Pants uses `yapf` version 0.43.0 by default. Use a dedicated lockfile and the `install_from_resolve` option to control this.",
+      "type": "object",
+      "properties": {
+        "skip": {
+          "description": "If true, don't use yapf when running `pants fmt` and `pants lint`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#skip",
+          "default": false,
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Arguments to pass directly to yapf, e.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#args",
+          "default": [],
+          "type": "array"
+        },
+        "install_from_resolve": {
+          "description": "If specified, install the tool using the lockfile for this named resolve.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#install_from_resolve",
+          "default": null,
+          "type": "string"
+        },
+        "requirements": {
+          "description": "If `install_from_resolve` is specified, install these requirements, at the versions provided by the specified resolve's lockfile.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#requirements",
+          "default": [],
+          "type": "array"
+        },
+        "interpreter_constraints": {
+          "description": "Python interpreter constraints for this tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#interpreter_constraints",
+          "default": [
+            "CPython>=3.9,<3.14"
+          ],
+          "type": "array"
+        },
+        "console_script": {
+          "description": "The console script for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#console_script",
+          "default": "yapf",
+          "type": "string"
+        },
+        "entry_point": {
+          "description": "The entry point for the tool.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#entry_point",
+          "default": null,
+          "type": "string"
+        },
+        "config": {
+          "description": "Path to style file understood by yapf (https://github.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#config",
+          "default": null
+        },
+        "config_discovery": {
+          "description": "If true, Pants will include any relevant config files during runs (`.\nhttps://www.pantsbuild.org/v2.21/docs/reference-yapf#config_discovery",
+          "default": true,
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

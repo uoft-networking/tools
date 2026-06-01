@@ -1,5 +1,98 @@
 [GLOBAL]
-pants_version = "2.27.0"
+pants_version = "2.31.0"
+pythonpath = ["%(buildroot)s/pants-plugins"]
+build_file_prelude_globs = ["pants-plugins/macros.py"]
+backend_packages = [
+    "pants.backend.python",
+    "pants.backend.plugin_development",
+    "pants.backend.experimental.python",
+    "pants.backend.experimental.python.lint.ruff.check",
+    "pants.backend.experimental.python.lint.ruff.format",
+    "pants.backend.experimental.python.typecheck.pyright",
+    "pants.backend.python.providers.experimental.python_build_standalone",
+    "uoft.pants", # our custom plugin
+]
+pants_ignore = ["tasks/_new_project/template"]
+
+# our BUILD files are templated with a macro designed to capture all 
+# the complexities that MAY exist within any of our projects.
+# therefore, we want to ignore any globs that don't match within any given project.
+unmatched_build_file_globs = 'ignore' 
+
+[source]
+root_patterns = ["/src", "/tasks", "/custom_forks", "pants-plugins", "/"]
+
+[python]
+interpreter_constraints = ["CPython>=3.10,<3.11"]
+enable_resolves = true
+pip_version = "latest"
+
+[python.resolves]
+pants-plugins = "pants-plugins/lock.txt"
+python-default = "pyproject.lock"
+
+[python.resolves_to_interpreter_constraints]
+# Pants runs with Python 3.11, so this lets us
+# use different interpreter constraints when
+# generating the lockfile than the rest of our project.
+#
+# Warning: it's still necessary to set the `interpreter_constraints`
+# field on each `python_sources` and `python_tests` target in
+# our plugin! This only impacts how the lockfile is generated.
+pants-plugins = ["==3.11.*"]
+
+[python.resolves_to_constraints_file]
+# pants lockfile generation has no mechanisms to only update a 
+# specific package and its dependencies, it updates every package 
+# to the latest version always.
+# Our workaround is to manage dependencies with uv, export 
+# uv's lockfile as a pip-compatible contraints file, and tell pants
+# to use that constraints file when generating the pants lockfile.
+python-default = "uv.lock.txt"  
+
+[python-infer]
+string_imports = true
+
+# the following are transitive dependencies that are imported
+# in our code but not owned by any target in our repo.
+# without this, pants will complain during `pants check`
+# that it cannot find owners for these imports, even though they're
+# "owned" by dependencies of our direct dependencies.
+ignored_unowned_imports = [
+    "django",
+    "rest_framework",
+    "drf_spectacular",
+    "django_jinja",
+    "social_core",
+    "social_django",
+]
+    
+
+[pytest]
+args = [ '--import-mode=importlib' ]
 
 [subprocess-environment]
-env_vars.add = ["http_proxy", "https_proxy"] # pull in proxy settings from environment and pass them through to all subprocesses
+# pull in proxy settings from environment and pass them through to all subprocesses
+env_vars = [
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+]
+
+[export]
+py_editable_in_resolve = [ "python-default" ]
+py_generated_sources_in_resolve = [ "python-default" ]
+
+[pex-cli]
+version = "v2.92.2"
+known_versions = [ 
+  # if you're wondering why they're all the same, it's cuz pants uses the actual pexed `pex`, not the platform-specific
+  # scie-wrapped pexes available in each release
+  "v2.92.2|macos_arm64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
+  "v2.92.2|macos_x86_64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
+  "v2.92.2|linux_x86_64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
+  "v2.92.2|linux_arm64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502"
+]
