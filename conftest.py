@@ -10,8 +10,8 @@ the conftest.py file at the root of this repository
 from typing import TYPE_CHECKING
 from pathlib import Path
 import os
-from uoft_core.tests import MockFolders
-from uoft_core import logging
+from uoft.core.tests import MockFolders
+from uoft.core import logging
 
 import pytest
 
@@ -38,7 +38,7 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
     marker = request.node.get_closest_marker("app_name")
     app_name = marker.args[0] if marker else "example_app"
 
-    import uoft_core
+    import uoft.core
 
     # To test the config file testing logic of the Util class, we need to mock out all the system calls
     # it makes to return repeatable, predictable paths we can control, regardless of which platform
@@ -47,12 +47,12 @@ def mock_util(tmp_path: Path, mocker: "MockerFixture", request: "FixtureRequest"
     folders = MockFolders(tmp_path, app_name)  # create the folders to use as mocks
 
     # mock out the real folders
-    mocker.patch.object(uoft_core.PlatformDirs, "site_config_path", folders.site_config.dir)
-    mocker.patch.object(uoft_core.PlatformDirs, "user_config_path", folders.user_config.dir)
-    mocker.patch.object(uoft_core.PlatformDirs, "site_data_path", folders.site_cache.parent)
-    mocker.patch.object(uoft_core.PlatformDirs, "user_cache_path", folders.user_cache.parent)
+    mocker.patch.object(uoft.core.PlatformDirs, "site_config_path", folders.site_config.dir)
+    mocker.patch.object(uoft.core.PlatformDirs, "user_config_path", folders.user_config.dir)
+    mocker.patch.object(uoft.core.PlatformDirs, "site_data_path", folders.site_cache.parent)
+    mocker.patch.object(uoft.core.PlatformDirs, "user_cache_path", folders.user_cache.parent)
 
-    util = uoft_core.Util(app_name)  # create the Util instance to be tested
+    util = uoft.core.Util(app_name)  # create the Util instance to be tested
 
     mocker.patch.object(util.config, "common_user_config_dir", folders.user_config.dir)
 

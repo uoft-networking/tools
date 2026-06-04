@@ -6,6 +6,7 @@ import logging
 import time
 from subprocess import CalledProcessError
 from pathlib import Path
+from threading import Thread
 
 import typer
 from task_runner import REPO_ROOT, run, sudo
@@ -26,7 +27,13 @@ def _get_prod_api_session():
     global PROD_API_SESSION
     if PROD_API_SESSION:
         return PROD_API_SESSION
-    base_url, token = run("pass nautobot-api-token", cap=True).splitlines()
+    try:
+        conf = run("passage shared/uoft-nautobot-cli", cap=True).splitlines()
+    except CalledProcessError:
+        raise Exception("Could not retrieve nautobot API token from passage!")
+
+    base_url = conf[0].partition("'")[2].rpartition("'")[0]
+    token = conf[1].partition("'")[2].rpartition("'")[0]
 
     class NautobotSession(Session):
         def request(self, method, url, *args, **kwargs):
@@ -80,6 +87,27 @@ def worker(args: Annotated[List[str] | None, typer.Argument()] = None):
     server(all_args)
 
 
+def worker_and_server():
+    """start both the nautobot dev server and worker instances"""
+    server_thread = Thread(target=start, name="nautobot-server")
+    worker_thread = Thread(target=worker, name="nautobot-worker")
+
+    server_thread.start()
+    # give the server a few seconds to start up before starting the worker
+    # otherwise they both try to import nautobot_config at the same time
+    # and things break
+    time.sleep(5)
+    worker_thread.start()
+    logger.info("Nautobot server and worker are running. Press Ctrl+C to stop.")
+    worker_thread.join()
+    server_thread.join()
+
+
+def run_script(path: str):
+    """run a custom script against the dev nautobot instance"""
+    server(["shell", "--command", f'__import__("runpy").run_path("{path}", init_globals=globals())'])
+
+
 def db_command(cmd: str):
     """run a SQL command against the dev db using nautobot-server dbshell"""
     server(["dbshell", "--", f"--command={cmd}"])
@@ -117,21 +145,125 @@ def prod_shell():
 
 def prod_nbshell():
     """start a nautobot shell as the prod app user"""
-    prod_server(["nbshell", "--ptipython"])
+    prod_server(["nbshell"])
+
+
+NAUTOBOT_CFG = "/opt/nautobot/nautobot_config.py"
+NAUTOBOT_VENV = "/opt/pipx/venvs/nautobot"
 
 
 def deploy_to_prod():
     """build and deploy the current code to prod"""
     systemd("stop", prod=True)
-    pipx_install("nautobot")
+
+    # Back up existing installation
+    sudo(f"cp -f {NAUTOBOT_CFG} {NAUTOBOT_CFG}.bak")
+    sudo(f"cp -rf {NAUTOBOT_VENV} {NAUTOBOT_VENV}.bak")
+    run("/opt/backups/db/actions backup", cap=True)
+
+    # Deploy new
     sudo(
-        "cp projects/nautobot/.dev_data/nautobot_config.py /opt/nautobot/nautobot_config.py",
+        "install --backup=never "
+        "--owner=nautobot --group=nautobot --mode=644 "
+        "projects/nautobot/.dev_data/nautobot_config.py "
+        f"{NAUTOBOT_CFG}"
     )
-    sudo("chown nautobot:nautobot /opt/nautobot/nautobot_config.py")
-    sudo("chmod 644 /opt/nautobot/nautobot_config.py")
+    pipx_install(REPO_ROOT / "custom-forks/nautobot", ["uoft.nautobot"])
     prod_server(["post_upgrade"])
+
     systemd("start", prod=True)
     systemd("status", prod=True)
+
+
+def revert_deployment():
+    systemd("stop", prod=True)
+
+    sudo(cmd=f"rm -rf {NAUTOBOT_VENV}")
+    sudo(cmd=f"mv {NAUTOBOT_VENV}.bak {NAUTOBOT_VENV}")
+    sudo(f"rm -f {NAUTOBOT_CFG}")
+    sudo(f"mv {NAUTOBOT_CFG}.bak {NAUTOBOT_CFG}")
+    run("/opt/backups/db/actions restore", cap=True)
+    prod_server(["post_upgrade"])
+    
+    systemd("start", prod=True)
+    systemd("status", prod=True)
+
+
+def spot_check():
+    """run a few spot-checks against the prod nautobot instance to make sure things are working"""
+    s = _get_prod_api_session()
+
+    # aruba blocklist plugin
+    r = s.get("api/plugins/uoft/aruba-blocklist/")
+    r.raise_for_status()
+    data = r.json()
+    assert isinstance(data, list) and len(data) > 0, "No aruba blocklist entries found"
+
+    # golden config intended job
+    r = s.get("api/extras/jobs/", params={"name": "Generate Intended Configurations"})
+    r.raise_for_status()
+    job_id = r.json()["results"][0]["id"]
+    r = s.post(
+        f"api/extras/jobs/{job_id}/run/",
+        json=dict(
+            data={
+                "device": ["2994ba2a-2aff-44b9-b787-67dfa00255b9"],
+                "fail_job_on_task_failure": True,
+            }
+        ),
+    )
+    try:
+        r.raise_for_status()
+    except Exception as e:
+        logger.error("Failed to start port activation job:")
+        logger.error(r.text)
+        raise e
+    job_result_id = r.json()["job_result"]["id"]
+    while True:
+        time.sleep(1)
+        r = s.get(f"api/extras/job-results/{job_result_id}/")
+        r.raise_for_status()
+        job_result = r.json()
+        if job_result["status"]["value"] == "SUCCESS":
+            break
+        elif job_result["status"]["value"] == "FAILURE":
+            raise Exception("Intended Config job failed!")
+        logger.info("Waiting for intended config job to complete...")
+
+    # port activation job
+    r = s.get("api/extras/jobs/", params={"name": "Helpdesk Port Activation"})
+    r.raise_for_status()
+    job_id = r.json()["results"][0]["id"]
+    r = s.post(
+        f"api/extras/jobs/{job_id}/run/",
+        json=dict(
+            data={
+                "device": "a2-testlab",
+                "extra_data": None,
+                "interface": "GigabitEthernet0/5",
+                "port_label": "testlab-mac-mini",
+                "role": "Desktop PC",
+            }
+        ),
+    )
+    try:
+        r.raise_for_status()
+    except Exception as e:
+        logger.error("Failed to start port activation job:")
+        logger.error(r.text)
+        raise e
+    job_result_id = r.json()["job_result"]["id"]
+    while True:
+        time.sleep(1)
+        r = s.get(f"api/extras/job-results/{job_result_id}/")
+        r.raise_for_status()
+        job_result = r.json()
+        if job_result["status"]["value"] == "SUCCESS":
+            break
+        elif job_result["status"]["value"] == "FAILED":
+            raise Exception("Port activation job failed!")
+        logger.info("Waiting for port activation job to complete...")
+    logger.info("Spot checks passed!")
 
 
 def prod_update_templates():
@@ -201,7 +333,7 @@ def curl_as(endpoint: str, user: str = "me", prod: bool = False, method="GET"):
 
 def rebase_nautobot_custom_fork():
     # this is way too sketchy to try and automate, so i'm just gonna remind myself how to do it
-    from uoft_core import txt
+    from uoft.core import txt
 
     print(
         txt("""
@@ -242,16 +374,34 @@ def test_port_activation_mac():
     except CalledProcessError as e:
         print("Port activation script exited with code", e.returncode)
 
+
 def test_port_activation_mac_compiled():
     run("scp projects/scripts/uoft_scripts/nautobot/port_activation.py testlab-mac-mini:~/")
     try:
-        run(
-            "ssh -L 5678:localhost:5678 -t testlab-mac-mini ./port-activation --interface en0"
-        )
+        run("ssh -L 5678:localhost:5678 -t testlab-mac-mini ./port-activation --interface en0")
     except CalledProcessError as e:
         print("Port activation script exited with code", e.returncode)
+
 
 def package_port_activation_mac():
     run("scp projects/scripts/uoft_scripts/nautobot/port_activation.py testlab-mac-mini:~/")
     run("ssh testlab-mac-mini ./build_pex.sh")
     run("ssh testlab-mac-mini './science lift build'")
+
+
+def push_port_activation_package():
+    run(
+        "lftp -f <(printf '"
+        "set ftp:ssl-force yes\n"
+        "set ftp:ssl-auth TLS\n"
+        "set ftp:ssl-protect-data yes\n"
+        "set ftp:ssl-protect-list yes\n"
+        "set ftp:passive-mode yes\n"
+        "set ssl:verify-certificate no\n"
+        "open ftp://hive.utsc.utoronto.ca\n"
+        "user trembl94\n"
+        "put -O public ../port-activation"
+        "')",
+        executable="/bin/bash",
+        cap=False,
+    )
