@@ -5,8 +5,8 @@ from pants.engine.rules import collect_rules, goal_rule, rule, UnionRule
 from pants.core.util_rules.external_tool import ExternalTool, ExportableTool, TemplatedExternalTool, download_external_tool
 
 
-class Uv(ExternalTool):
-    options_scope = "uv"
+class UvExport(ExternalTool):
+    options_scope = "uv-export"
     help = "Astral's uv python management tool"
 
     default_version = "0.11.4"
@@ -36,23 +36,23 @@ class Uv(ExternalTool):
 
 
 class UvSubsystem(GoalSubsystem):
-    name = "uv-tool"
+    name = "uv-export"
     help = "Placeholder to make uv pants-exportable"
 
 
-class UvGoal(Goal):
-    """Placeholder to make uv pants-exportable"""
-    subsystem_cls = UvSubsystem
-    environment_behavior = Goal.EnvironmentBehavior.LOCAL_ONLY
+# class UvGoal(Goal):
+#     """Placeholder to make uv pants-exportable"""
+#     subsystem_cls = UvSubsystem
+#     environment_behavior = Goal.EnvironmentBehavior.LOCAL_ONLY
 
 
-@goal_rule
-async def make_uv_exportable(uv: Uv, plat: Platform) -> UvGoal:
-    raise NotImplementedError("This goal is not yet implemented. Please export and use uv directly for now.")
+# @goal_rule
+# async def make_uv_exportable(uv: UvExport, plat: Platform) -> UvGoal:
+#     raise NotImplementedError("This goal is not yet implemented. Please export and use uv directly for now.")
 
 
 def rules():
     return (
         *collect_rules(), 
-        UnionRule(ExportableTool, Uv)
+        UnionRule(ExportableTool, UvExport)
     )

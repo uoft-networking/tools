@@ -1,5 +1,5 @@
 [GLOBAL]
-pants_version = "2.31.0"
+pants_version = "2.32.0"
 pythonpath = ["%(buildroot)s/pants-plugins"]
 build_file_prelude_globs = ["pants-plugins/macros.py"]
 backend_packages = [

@@ -73,6 +73,8 @@
 //     "ruff>=0.5.0",
 //     "scalene>=1.5.38",
 //     "scapy>=2.4.5",
+//     "semver>=3.0",
+//     "sentry-sdk>=1.4",
 //     "setuptools_scm>=7",
 //     "shellingham>=1.5.4",
 //     "sqlalchemy>=2.0",
@@ -8081,6 +8083,98 @@
           "artifacts": [
             {
               "algorithm": "sha256",
+              "hash": "9c824d87ba7f7ab4a1890799cec8596f15c1241cb473404ea1cb0c55e4b04746",
+              "url": "https://files.pythonhosted.org/packages/a6/24/4d91e05817e92e3a61c8a21e08fd0f390f5301f1c448b137c57c4bc6e543/semver-3.0.4-py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "afc7d8c584a5ed0a11033af086e8af226a9c0b206f313e0301f8dd7b6b589602",
+              "url": "https://files.pythonhosted.org/packages/72/d1/d3159231aec234a59dd7d601e9dd9fe96f3afff15efd33c1070019b26132/semver-3.0.4.tar.gz"
+            }
+          ],
+          "project_name": "semver",
+          "requires_dists": [],
+          "requires_python": ">=3.7",
+          "version": "3.0.4"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
+              "hash": "3a9b5ddd403f79eb73bd670f75f04485819db53d28f76ced7bc09041cb0dfd6a",
+              "url": "https://files.pythonhosted.org/packages/7b/57/cb205f7d93373120f666b9c5736dc0815524d96a9b278e7a728f018dc22a/sentry_sdk-2.63.0-py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "2a1502bf864769275dbc8c2c9fc7a0f7f5e18358180b615d262d13a31ffba216",
+              "url": "https://files.pythonhosted.org/packages/ba/c8/b3c970a5b186722d276cd40a05b3254e03bccc0208560aff20f612e018e8/sentry_sdk-2.63.0.tar.gz"
+            }
+          ],
+          "project_name": "sentry-sdk",
+          "requires_dists": [
+            "UnleashClient>=6.0.1; extra == \"unleash\"",
+            "aiohttp>=3.5; extra == \"aiohttp\"",
+            "anthropic>=0.16; extra == \"anthropic\"",
+            "apache-beam>=2.12; extra == \"beam\"",
+            "arq>=0.23; extra == \"arq\"",
+            "asttokens; extra == \"pure-eval\"",
+            "asyncpg>=0.23; extra == \"asyncpg\"",
+            "blinker>=1.1; extra == \"flask\"",
+            "blinker>=1.1; extra == \"quart\"",
+            "bottle>=0.12.13; extra == \"bottle\"",
+            "celery-redbeat>=2; extra == \"celery-redbeat\"",
+            "celery>=3; extra == \"celery\"",
+            "certifi",
+            "chalice>=1.16.0; extra == \"chalice\"",
+            "clickhouse-driver>=0.2.0; extra == \"clickhouse-driver\"",
+            "django>=1.8; extra == \"django\"",
+            "executing; extra == \"pure-eval\"",
+            "falcon>=1.4; extra == \"falcon\"",
+            "fastapi>=0.79.0; extra == \"fastapi\"",
+            "flask>=0.11; extra == \"flask\"",
+            "google-genai>=1.29.0; extra == \"google-genai\"",
+            "grpcio>=1.21.1; extra == \"grpcio\"",
+            "httpcore[asyncio]==1.*; extra == \"asyncio\"",
+            "httpcore[http2]==1.*; extra == \"http2\"",
+            "httpx>=0.16.0; extra == \"httpx\"",
+            "huey>=2; extra == \"huey\"",
+            "huggingface_hub>=0.22; extra == \"huggingface-hub\"",
+            "langchain>=0.0.210; extra == \"langchain\"",
+            "langgraph>=0.6.6; extra == \"langgraph\"",
+            "launchdarkly-server-sdk>=9.8.0; extra == \"launchdarkly\"",
+            "litellm!=1.82.7,!=1.82.8,>=1.77.5; extra == \"litellm\"",
+            "litestar>=2.0.0; extra == \"litestar\"",
+            "loguru>=0.5; extra == \"loguru\"",
+            "markupsafe; extra == \"flask\"",
+            "mcp>=1.15.0; extra == \"mcp\"",
+            "openai>=1.0.0; extra == \"openai\"",
+            "openfeature-sdk>=0.7.1; extra == \"openfeature\"",
+            "opentelemetry-distro; extra == \"opentelemetry-experimental\"",
+            "opentelemetry-distro>=0.35b0; extra == \"opentelemetry\"",
+            "opentelemetry-distro[otlp]>=0.35b0; extra == \"opentelemetry-otlp\"",
+            "protobuf>=3.8.0; extra == \"grpcio\"",
+            "pure_eval; extra == \"pure-eval\"",
+            "pydantic-ai>=1.0.0; extra == \"pydantic-ai\"",
+            "pymongo>=3.1; extra == \"pymongo\"",
+            "pyspark>=2.4.4; extra == \"pyspark\"",
+            "quart>=0.16.1; extra == \"quart\"",
+            "rq>=0.6; extra == \"rq\"",
+            "sanic>=0.8; extra == \"sanic\"",
+            "sqlalchemy>=1.2; extra == \"sqlalchemy\"",
+            "starlette>=0.19.1; extra == \"starlette\"",
+            "starlite>=1.48; extra == \"starlite\"",
+            "statsig>=0.55.3; extra == \"statsig\"",
+            "tiktoken>=0.3.0; extra == \"openai\"",
+            "tornado>=6; extra == \"tornado\"",
+            "urllib3>=1.26.11"
+          ],
+          "requires_python": ">=3.6",
+          "version": "2.63.0"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
               "hash": "062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922",
               "url": "https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl"
             },
@@ -9375,6 +9469,8 @@
     "ruff>=0.5.0",
     "scalene>=1.5.38",
     "scapy>=2.4.5",
+    "semver>=3.0",
+    "sentry-sdk>=1.4",
     "setuptools_scm>=7",
     "shellingham>=1.5.4",
     "sqlalchemy>=2.0",
