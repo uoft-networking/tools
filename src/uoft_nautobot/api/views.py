@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from rest_framework import permissions
-from rest_framework.viewsets import ViewSet
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework import status, fields as f
@@ -27,7 +27,7 @@ class InputError(ValidationError):
     default_code = "invalid_input"
 
 
-class ArubaBlocklistView(ViewSet):
+class ArubaBlocklistView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def __init__(self, **kwargs) -> None:
@@ -84,7 +84,7 @@ class ArubaBlocklistView(ViewSet):
             ),
         ],
     )
-    def list(self, request, format=None):
+    def get(self, request, format=None):
         """
         Get the current aggregated WiFi authentication block list (aka 'stm blocklist')
         from the aruba controllers
