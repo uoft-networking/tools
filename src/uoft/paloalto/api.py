@@ -15,22 +15,28 @@ class API(APIBase):
         username: str,
         password: SecretStr,
         api_key: SecretStr | None = None,
+        panorama: bool = True,
         device_group: str | None = None,
         create_missing_tags: bool = False,
-        verify: bool | str = True,
+        **kwargs
     ):
-        super().__init__(base_url, api_root="/restapi/v10.2", verify=verify)
+        super().__init__(base_url, api_root="/restapi/v10.2", **kwargs)
         self.username = username
         self.password = password
         self.api_key = api_key
         self.device_group = device_group
+        self.panorama = panorama
         self.create_missing_tags = create_missing_tags
 
     def login(self):
         # PA NSM REST API supports basic authentication, so the login process is actually quite simple
         self.auth = (self.username, self.password.get_secret_value())
-        if self.api_key:
-            self.headers["X-PAN-KEY"] = self.api_key.get_secret_value()
+
+        if not self.api_key:
+            self.generate_api_key()
+        
+        assert self.api_key, "How did we get here?"
+        self.headers["X-PAN-KEY"] = self.api_key.get_secret_value()
 
     def generate_api_key(self):
         logger.info("Generating API key")
@@ -42,17 +48,20 @@ class API(APIBase):
         # response is XML, so we need to parse out the key
         key = res.text.partition("<key>")[2].partition("</key>")[0]
         self.api_key = SecretStr(key)
-        return key
 
     def default_params(self):
-        if self.device_group:
-            return {"location": "device-group", "device-group": self.device_group}
-        return {"location": "shared"}
+        if self.panorama:
+            if self.device_group:
+                return {"location": "device-group", "device-group": self.device_group}
+            return {"location": "shared"}
+        return {"location": "vsys", "vsys": "vsys1"}
 
     def default_payload(self):
-        if self.device_group:
-            return {"@location": "device-group", "@device-group": self.device_group}
-        return {"@location": "shared"}
+        if self.panorama:
+            if self.device_group:
+                return {"@location": "device-group", "@device-group": self.device_group}
+            return {"@location": "shared"}
+        return {"@location": "vsys", "@vsys": "vsys1"}
 
     def commit(self):
         assert self.api_key, "API key is required to commit changes"
