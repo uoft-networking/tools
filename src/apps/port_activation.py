@@ -32,7 +32,7 @@ from uoft.core import logging, console
 NAUTOBOT_URL = "https://engine.netmgmt.utsc.utoronto.ca"
 
 # [[[cog tasks._coghelpers.version_expression()]]]
-__version__ = "2026.2.dev13+gf1b1a146.d20260529"
+__version__ = "2026.2.dev15+g3c676f75.d20260706"
 # [[[end]]]
 
 app = typer.Typer(
@@ -48,6 +48,7 @@ def _version_callback(value: bool):
         return
     print(f"port-activation v{__version__}")
     raise typer.Exit()
+
 
 # FIXME: this function is duplicated from uoft.scripts/__init__.py
 # once we have pants-based packaging sorted, we should be able to import this
@@ -148,8 +149,10 @@ class LLDPData(TypedDict):
     port_desc: str
     packet: Packet
 
+
 def get_own_hostname() -> str:
     return socket.gethostname().partition(".")[0]  # return the short hostname, without domain
+
 
 def get_lldp_data(intfs: list[NetworkInterface]) -> LLDPData:
     logger.info("Please plug in network cable now if it's not already plugged in.")
@@ -182,7 +185,9 @@ def get_lldp_data(intfs: list[NetworkInterface]) -> LLDPData:
 
         # TODO better heuristic for detecting "reflected" packets
         if get_switch_name(packet).lower() == get_own_hostname().lower():
-            logger.warning("Received LLDP packet appears to be reflected (switch name matches own hostname), ignoring...")
+            logger.warning(
+                "Received LLDP packet appears to be reflected (switch name matches own hostname), ignoring..."
+            )
             logger.debug(packet.show(dump=True))
             return False
         return True
@@ -236,7 +241,7 @@ def get_lldp_data(intfs: list[NetworkInterface]) -> LLDPData:
 
 
 def remote_debugger():
-    import debugpy # pyright: ignore[reportMissingImports]
+    import debugpy  # pyright: ignore[reportMissingImports]
 
     debugpy.listen(("localhost", 5678))
     print("Waiting for debugger to attach...")
@@ -283,6 +288,7 @@ def get_port_label(lldp_data: LLDPData):
         port_label = prompt_for_port_label()
     return port_label
 
+
 def prompt_for_role():
     role = select(
         "What kind of device are you looking to activate?",
@@ -296,12 +302,15 @@ def prompt_for_role():
     ).unsafe_ask()
     return role
 
+
 def handle_failure(job_result):
     if job_result.result is None:  # pyright: ignore
         logger.error("Failed to activate port due to unknown error")
     else:
         if hasattr(job_result.result, "exc_type") and hasattr(job_result.result, "exc_message"):  # pyright: ignore
-            logger.error(f"Failed to activate port due to: {job_result.result.exc_type}: {job_result.result.exc_message}")  # pyright: ignore
+            logger.error(
+                f"Failed to activate port due to: {job_result.result.exc_type}: {job_result.result.exc_message}"
+            )  # pyright: ignore
         elif hasattr(job_result.result, "exc_message"):  # pyright: ignore
             logger.error(f"Failed to activate port due to: {job_result.result.exc_message}")  # pyright: ignore
         elif hasattr(job_result.result, "exc_type"):  # pyright: ignore
@@ -310,6 +319,7 @@ def handle_failure(job_result):
             logger.error(f"Failed to activate port due to unknown error: {job_result.result}")  # pyright: ignore
     logger.warning("Please notify the networking team for assistance and share the following context with them:")
     logger.warning(f"{NAUTOBOT_URL}/extras/job-results/{job_result.id}/")  # pyright: ignore
+
 
 @app.command()
 def main(
@@ -361,24 +371,23 @@ def main(
     progress = Progress(console=console.console())
     task_id = progress.add_task("Activating port...", total=None)
     progress.start()
-    payload = (
-        dict(
-            device=lldp_data["switch"].partition(".")[0],  # lldp switch name is sometimes FQDN, sometimes not
-            interface=lldp_data["port"],
-            role=role,
-            port_label=port_label,
-            extra_data=dict(
-                lldp_packet=lldp_data["packet"].command(),
-                port_desc=lldp_data["port_desc"],
-            ),
-        )
+    logger.info("Sending port activation request to Nautobot...")
+    payload = dict(
+        device=lldp_data["switch"].partition(".")[0],  # lldp switch name is sometimes FQDN, sometimes not
+        interface=lldp_data["port"],
+        role=role,
+        port_label=port_label,
+        extra_data=dict(
+            lldp_packet=lldp_data["packet"].command(),
+            port_desc=lldp_data["port_desc"],
+        ),
     )
     try:
         job = nautobot.extras.jobs.run(  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue]
             job_name="Helpdesk Port Activation", data=payload
         )
     except (RequestError, RemoteDisconnected) as e:
-        logger.exception("Failed to start port activation job:", exc_info=False)
+        logger.exception("Failed to start port activation job:", exc_info=True)
         logger.info("Please pass this information to the networking team to complete activation:")
         logger.info(payload)
         sys.exit(1)
