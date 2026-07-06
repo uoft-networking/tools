@@ -774,32 +774,6 @@ def device_type_add_or_update(
     logger.info("Done!")
 
 
-def _select_from_queryset(
-    prompt,
-    nb,
-    queryset,
-    name,
-    msg,
-    key="name",
-    create_new_callback: t.Callable[[], tuple[str, str]] | None = None,
-    **kwargs,
-) -> tuple[str, str]:
-    mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
-    choices = list(mapping.keys())
-    if create_new_callback:
-        choices = ["Create a new one...", *choices]
-    choice: str = prompt.get_from_choices(
-        name,
-        list(mapping.keys()),
-        msg,
-        completer_opts=dict(ignore_case=True),
-        **kwargs,
-    )
-    if create_new_callback and choice == "Create a new one...":
-        return create_new_callback()
-    return choice, mapping[choice]
-
-
 def new_switch(
     dev: bool = False,
 ):
@@ -812,12 +786,33 @@ def new_switch(
     prompt = Settings._prompt()
     nb = get_api(dev)
 
+    def _select_from_queryset(
+        queryset,
+        name,
+        msg,
+        key="name",
+        create_new_callback: t.Callable[[], tuple[str, str]] | None = None,
+        **kwargs,
+    ) -> tuple[str, str]:
+        mapping: dict[str, str] = {obj[key]: obj["id"] for obj in queryset}
+        choices = list(mapping.keys())
+        if create_new_callback:
+            choices = ["Create a new one...", *choices]
+        choice: str = prompt.get_from_choices(
+            name,
+            choices,
+            msg,
+            completer_opts=dict(ignore_case=True),
+            **kwargs,
+        )
+        if create_new_callback and choice == "Create a new one...":
+            return create_new_callback()
+        return choice, mapping[choice]
+
     name = prompt.get_string("name", "Enter the name of the switch")
 
     logger.info("Loading list of available Manufacturers from Nautobot...")
     manufacturer, manufacturer_id = _select_from_queryset(
-        prompt,
-        nb,
         nb.dcim.manufacturers.all(),
         "manufacturer",
         "Select a manufacturer for this switch",
@@ -825,8 +820,6 @@ def new_switch(
 
     logger.info(f"Loading list of available {manufacturer} Device Types from Nautobot...")
     dt, dt_id = _select_from_queryset(
-        prompt,
-        nb,
         nb.dcim.device_types.filter(manufacturer=manufacturer_id),
         "device_type",
         "Select a device type for this switch",
@@ -844,8 +837,6 @@ def new_switch(
             return
 
     platform, platform_id = _select_from_queryset(
-        prompt,
-        nb,
         nb.dcim.platforms.filter(manufacturer=manufacturer_id),
         "platform",
         "Select a platform for this switch",
@@ -854,8 +845,6 @@ def new_switch(
 
     logger.info("Loading list of Device Roles from Nautobot...")
     role, role_id = _select_from_queryset(
-        prompt,
-        nb,
         nb.extras.roles.filter(content_types="dcim.device"),
         "role",
         "What kind of switch are you creating?",
@@ -912,6 +901,25 @@ def new_switch(
     vlan_group = next(vg for vg in vlan_groups if vg.name == vlan_group_name)
     logger.info(f"Assigning VLAN Group {vlan_group_name} to {name}...")
 
+    # Software Version
+    def _new_software_version():
+        version = prompt.get_string("version", "Enter the software version for this switch")
+        logger.info(f"Creating new software version '{version}'...")
+        version_record = nb.dcim.software_versions.create(
+            platform=platform_id,
+            version=version,
+        )
+        return version, t.cast(str, version_record.id) # pyright: ignore[reportAttributeAccessIssue]
+    
+    version, version_id = _select_from_queryset(
+        nb.dcim.software_versions.filter(platform=platform_id),
+        "software_version",
+        "Select a software version for this switch",
+        key="version",
+        create_new_callback=_new_software_version,
+    )
+    logger.info(f"Selected software version {version} with id {version_id}")
+
     # Tags
     tags = []
     logger.info("Loading list of available device Tags from Nautobot...")
@@ -950,14 +958,6 @@ def new_switch(
         "Primary IPv4 address for this switch in CIDR (ex aa.bb.cc.dd/ee)",
     )
 
-    # optionally override config_context.os_version
-    config_context = {}
-    if prompt.get_bool(
-        "override_os_version",
-        "Would you like to override the OS version for this device?",
-    ):
-        os_version = prompt.get_string("os_version", "Enter the OS version for this device")
-        config_context["os_version"] = os_version
 
     logger.info("Checking to see if Device already exists in Nautobot...")
     if device := t.cast(NautobotDeviceRecord | None, nb.dcim.devices.get(name=name)):
@@ -973,7 +973,7 @@ def new_switch(
                 vlan_group=vlan_group.id,
                 manufacturer=manufacturer_id,
                 tags=tags,
-                local_config_context_data=config_context,
+                software_version=version_id,
             ),
         )
     else:
@@ -1621,4 +1621,4 @@ def latest_backup_job_succeeded():
 
 
 def _debug():
-    latest_backup_job_succeeded()
+    new_switch()

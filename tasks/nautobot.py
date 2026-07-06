@@ -400,7 +400,7 @@ def push_port_activation_package():
         "set ssl:verify-certificate no\n"
         "open ftp://hive.utsc.utoronto.ca\n"
         "user trembl94\n"
-        "put -O public ../port-activation"
+        f"put -O public {REPO_ROOT}/dist/apps/port-activation"
         "')",
         executable="/bin/bash",
         cap=False,
