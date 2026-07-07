@@ -10,14 +10,14 @@ backend_packages = [
     "pants.backend.experimental.python.lint.ruff.format",
     "pants.backend.experimental.python.typecheck.pyright",
     "pants.backend.python.providers.experimental.python_build_standalone",
-    "uoft.pants", # our custom plugin
+    "uoft.pants",                                                          # our custom plugin
 ]
 pants_ignore = ["tasks/_new_project/template"]
 
 # our BUILD files are templated with a macro designed to capture all 
 # the complexities that MAY exist within any of our projects.
 # therefore, we want to ignore any globs that don't match within any given project.
-unmatched_build_file_globs = 'ignore' 
+unmatched_build_file_globs = 'ignore'
 
 [source]
 root_patterns = ["/src", "/tasks", "/custom_forks", "pants-plugins", "/"]
@@ -26,6 +26,7 @@ root_patterns = ["/src", "/tasks", "/custom_forks", "pants-plugins", "/"]
 interpreter_constraints = ["CPython>=3.10,<3.11"]
 enable_resolves = true
 pip_version = "latest"
+resolver = 'uv'
 
 [python.resolves]
 pants-plugins = "pants-plugins/lock.txt"
@@ -41,14 +42,14 @@ python-default = "pyproject.lock"
 # our plugin! This only impacts how the lockfile is generated.
 pants-plugins = ["==3.11.*"]
 
-[python.resolves_to_constraints_file]
-# pants lockfile generation has no mechanisms to only update a 
-# specific package and its dependencies, it updates every package 
-# to the latest version always.
-# Our workaround is to manage dependencies with uv, export 
-# uv's lockfile as a pip-compatible contraints file, and tell pants
-# to use that constraints file when generating the pants lockfile.
-python-default = "uv.lock.txt"  
+# [python.resolves_to_constraints_file]
+# # pants lockfile generation has no mechanisms to only update a 
+# # specific package and its dependencies, it updates every package 
+# # to the latest version always.
+# # Our workaround is to manage dependencies with uv, export 
+# # uv's lockfile as a pip-compatible contraints file, and tell pants
+# # to use that constraints file when generating the pants lockfile.
+# python-default = "uv.lock.txt"
 
 [python-infer]
 string_imports = true
@@ -66,10 +67,10 @@ ignored_unowned_imports = [
     "social_core",
     "social_django",
 ]
-    
+
 
 [pytest]
-args = [ '--import-mode=importlib' ]
+args = ['--import-mode=importlib']
 
 [subprocess-environment]
 # pull in proxy settings from environment and pass them through to all subprocesses
@@ -83,16 +84,16 @@ env_vars = [
 ]
 
 [export]
-py_editable_in_resolve = [ "python-default" ]
-py_generated_sources_in_resolve = [ "python-default" ]
+py_editable_in_resolve = ["python-default"]
+py_generated_sources_in_resolve = ["python-default"]
 
 [pex-cli]
 version = "v2.92.2"
-known_versions = [ 
-  # if you're wondering why they're all the same, it's cuz pants uses the actual pexed `pex`, not the platform-specific
-  # scie-wrapped pexes available in each release
-  "v2.92.2|macos_arm64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
-  "v2.92.2|macos_x86_64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
-  "v2.92.2|linux_x86_64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
-  "v2.92.2|linux_arm64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502"
+known_versions = [
+    # if you're wondering why they're all the same, it's cuz pants uses the actual pexed `pex`, not the platform-specific
+    # scie-wrapped pexes available in each release
+    "v2.92.2|macos_arm64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
+    "v2.92.2|macos_x86_64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
+    "v2.92.2|linux_x86_64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
+    "v2.92.2|linux_arm64|5ccaf151161debe5381d767c7631b39d5516c7106e725c45dbae24aa0e5fe569|5081502",
 ]
