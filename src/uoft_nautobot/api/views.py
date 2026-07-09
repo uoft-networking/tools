@@ -153,7 +153,7 @@ class ArubaBlocklistView(APIView):
         """
         try:
             assert request.data
-            assert "mac-address" in request.data
+            assert "mac-address" in request.data, "Request body must include a 'mac-address' key"
             mac = request.data["mac-address"]
             assert re.match(r"^(([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})$", mac)
         except AssertionError as e:
