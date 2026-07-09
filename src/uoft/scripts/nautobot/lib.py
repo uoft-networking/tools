@@ -306,7 +306,9 @@ def template_filter_info(
     filters = "\n- ".join(filters)
     logger.info(f"You have the following filters available: \n- {filters}")
 
+
 _cached_jinja_env = None
+
 
 def test_golden_config_templates(
     device_name: str,
@@ -317,6 +319,7 @@ def test_golden_config_templates(
     cache_jinja_env: bool = True,
 ):
     import typer
+
     global _cached_jinja_env
 
     nb = get_api(dev)
@@ -906,11 +909,10 @@ def new_switch(
         version = prompt.get_string("version", "Enter the software version for this switch")
         logger.info(f"Creating new software version '{version}'...")
         version_record = nb.dcim.software_versions.create(
-            platform=platform_id,
-            version=version,
+            platform=platform_id, version=version, status={"name": "Active"}
         )
-        return version, t.cast(str, version_record.id) # pyright: ignore[reportAttributeAccessIssue]
-    
+        return version, t.cast(str, version_record.id)  # pyright: ignore[reportAttributeAccessIssue]
+
     version, version_id = _select_from_queryset(
         nb.dcim.software_versions.filter(platform=platform_id),
         "software_version",
@@ -957,7 +959,6 @@ def new_switch(
         "primary_ip4",
         "Primary IPv4 address for this switch in CIDR (ex aa.bb.cc.dd/ee)",
     )
-
 
     logger.info("Checking to see if Device already exists in Nautobot...")
     if device := t.cast(NautobotDeviceRecord | None, nb.dcim.devices.get(name=name)):
