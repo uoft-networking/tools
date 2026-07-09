@@ -178,6 +178,7 @@ def _put_switch_in_config_mode(ssh: "UofTPexpectSpawn"):
     def _():
         logger.info("This (Arista?) switch is uninitialized and in enable mode. Entering config mode now...")
         ssh.sendline("terminal length 0")
+        sleep(0.5)
         ssh.sendline("configure terminal")
         return ssh.multi_expect.reenter_loop()
 
@@ -185,6 +186,7 @@ def _put_switch_in_config_mode(ssh: "UofTPexpectSpawn"):
     def _():
         logger.info("This switch is now in enable mode.")
         ssh.sendline("terminal length 0")
+        sleep(0.5)
         ssh.sendline("configure terminal")
         return ssh.multi_expect.reenter_loop()
 
@@ -291,7 +293,7 @@ def initial_provision(
 
     logger.success(
         "Switch is now ready for onboarding. It can be accessed via SSH with the admin "
-        f"account at IP address {oob_ip} and should show up in CVP momentarily"
+        f"account at IP address {oob_ip}"
     )
     ssh.sendline("wr mem")
 

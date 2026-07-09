@@ -18,25 +18,6 @@ from mcpyrate import unparse, dump
 
 logger = logging.getLogger(__name__)
 
-
-def coco_compile(tree, **kw):
-    """[syntax, decorator] Compile a coconut function to python"""
-    # skip compilation if we're in a shell auto-completion context
-    # shell autocomplete doesn't need to know anything about a function's body to work, it only needs
-    # to know the function's signature, which we're not modifying
-    if _in_completion_context():
-        return tree
-
-    from coconut.api import parse as parse_coco
-
-    cococ_src: str = tree.body[0].value.value
-    compiled_py_src: str = parse_coco(dedent(cococ_src), "block")
-    coco_tree = parse(compiled_py_src)
-    tree.body = coco_tree.body
-    logger.debug(unparse(tree))
-    return tree
-
-
 @no_type_check
 def zxpy(stmts, **kw):
     """[syntax, block] Run python code in a shell

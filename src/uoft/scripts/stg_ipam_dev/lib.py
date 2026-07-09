@@ -7,6 +7,7 @@ import typing as t
 from datetime import date
 from ipaddress import IPv4Network, IPv6Network
 from time import monotonic_ns
+from pathlib import Path
 
 from uoft.core import BaseSettings, SecretStr
 from uoft.core import logging
@@ -17,6 +18,7 @@ import sqlalchemy as sa
 from ..nautobot import get_settings
 from pynautobot.models.extras import Record
 from pynautobot.models.ipam import Prefixes as NautobotPrefixRecord
+from pynautobot.core.query import RequestError
 
 logger = logging.getLogger(__name__)
 
@@ -211,14 +213,22 @@ def get_data():
     return Data(networks=networks, users=users, orgs=orgs)
 
 
-def sync_to_nautobot():
+def sync_to_nautobot(dev: bool):
     """Syncronize networks and contacts from the database behind ipam.utoronto.ca into nautobot"""
 
-    nb = get_settings(dev=True).api_connection()
+    nb = get_settings(dev=dev).api_connection()
 
     data = get_data()
 
+    stg_ipam_filters = Path("/opt/nautobot/stg-ipam-filters.txt").read_text().splitlines()
+
     logger.info("Syncing networks...")
+
+    # get or create the sync tag
+    tag_name = "Sync From uoft-ipam-db"
+    sync_tag = nb.extras.tags.get(name=tag_name)
+    if not sync_tag:
+        sync_tag = nb.extras.tags.create(name=tag_name, content_types=["ipam.prefix", "extras.contact", "extras.team"])
 
     # will need this when syncing contacts
     contacts_to_sync: dict[str, User] = {}
@@ -229,10 +239,28 @@ def sync_to_nautobot():
     logger.info("Loading existing prefixes from Nautobot...")
     nb_prefixes = {p.prefix: p for p in t.cast(list[NautobotPrefixRecord], nb.ipam.prefixes.all())}
     to_create = []
-    to_update = []
+    to_delete = []
 
-    def _create_or_update(pfx, net):
+    def filterfn(net: Network) -> bool:
+        for line in stg_ipam_filters:
+            if line.startswith("#") or not line.strip():
+                continue
+            match line.split(":", 1):
+                case ["s", pattern]:
+                    if net.name.startswith(pattern):
+                        return True
+                case ["n", pattern]:
+                    if net.ip4 and str(net.ip4) == pattern:
+                        return True
+                    if net.ip6 and str(net.ip6) == pattern:
+                        return True
+                case _:
+                    logger.warning(f"Unknown filter type: {line}")
+        return False
+
+    def _add_to_lists(net: Network, pfx: str):
         stg_name = net.name
+        assert net.org is not None, f"Network {net.name} has no org associated with it"
         org_code = data.orgs[net.org].org
         stg_desc = net.description
         stg_comments = net.comments
@@ -259,7 +287,8 @@ def sync_to_nautobot():
                 stg_comments=nb_stg_comments,
                 stg_net_type=nb_stg_net_type,
             ):
-                to_update.append(
+                tags = [{"id": t.id} for t in [sync_tag, *nb_obj.tags]]  # pyright: ignore[reportOptionalIterable]
+                to_delete.append(
                     dict(
                         id=nb_obj.id,
                         description=stg_name,
@@ -267,6 +296,7 @@ def sync_to_nautobot():
                             org_code=org_code,
                             extra=dict(stg_desc=stg_desc, stg_comments=stg_comments, stg_net_type=stg_net_type),
                         ),
+                        tags=tags,
                     )
                 )
             else:
@@ -281,19 +311,22 @@ def sync_to_nautobot():
                     type="container",
                     custom_fields=dict(
                         org_code=org_code,
-                        extra=dict(stg_desc=stg_desc, stg_comments=stg_comments, stg_net_type=stg_net_type),
+                        extra=dict(
+                            stg_desc=stg_desc,
+                            stg_comments=stg_comments,
+                            stg_net_type=stg_net_type,
+                        ),
                     ),
+                    tags=[{"id": sync_tag.id}],  # pyright: ignore[reportAttributeAccessIssue]
                 )
             )
 
-    for net in data.networks.values():
-        if "utsc-" not in net.name:
-            continue
+    for net in filter(filterfn, data.networks.values()):
         assert net.org is not None
         if net.ip4:
-            _create_or_update(str(net.ip4), net)
+            _add_to_lists(net, str(net.ip4))
         if net.ip6:
-            _create_or_update(str(net.ip6), net)
+            _add_to_lists(net, str(net.ip6))
 
         for attr in ["techc", "techc_alt", "adminc", "adminc_alt"]:
             if (uid := getattr(net, attr)) and uid not in contacts_to_sync:
@@ -302,8 +335,8 @@ def sync_to_nautobot():
     logger.info(f"Creating {len(to_create)} new prefixes...")
     nb.ipam.prefixes.create(to_create)
 
-    logger.info(f"Updating {len(to_update)} existing prefixes...")
-    nb.ipam.prefixes.update(to_update)
+    logger.info(f"Updating {len(to_delete)} existing prefixes...")
+    nb.ipam.prefixes.update(to_delete)
 
     # sync contacts
     logger.info("Syncing organizations...")
@@ -314,35 +347,49 @@ def sync_to_nautobot():
     teams_to_create = []
     teams_to_update = []
     for user_id, user in contacts_to_sync.items():
-        if user.type == "UTORid":
+        if user.type in ["UTORid", "Admin"]:
             if user.name in nb_contacts:
                 nb_obj = nb_contacts[user.name]
                 if nb_obj.email != user.email:
+                    tags = [{"id": t.id} for t in [sync_tag, *nb_obj.tags]]  # pyright: ignore[reportOptionalIterable]
                     contacts_to_update.append(
                         dict(
                             id=nb_obj.id,
                             email=user.email,
                             custom_fields=dict(extras=dict(stg_ipam_id=user_id)),
+                            tags=tags,
                         )
                     )
             else:
                 contacts_to_create.append(
-                    dict(name=user.name, email=user.email, custom_fields=dict(extras=dict(stg_ipam_id=user_id)))
+                    dict(
+                        name=user.name,
+                        email=user.email,
+                        custom_fields=dict(extras=dict(stg_ipam_id=user_id)),
+                        tags=[{"id": sync_tag.id}],  # pyright: ignore[reportAttributeAccessIssue]
+                    )
                 )
         elif user.type == "Group":
             if user.name in nb_teams:
                 nb_obj = nb_teams[user.name]
                 if nb_obj.email != user.email:
+                    tags = [{"id": t.id} for t in [sync_tag, *nb_obj.tags]]  # pyright: ignore[reportOptionalIterable]
                     teams_to_update.append(
                         dict(
                             id=nb_obj.id,
                             email=user.email,
                             custom_fields=dict(extras=dict(stg_ipam_id=user_id)),
+                            tags=tags,
                         )
                     )
             else:
                 teams_to_create.append(
-                    dict(name=user.name, email=user.email, custom_fields=dict(extras=dict(stg_ipam_id=user_id)))
+                    dict(
+                        name=user.name,
+                        email=user.email,
+                        custom_fields=dict(extras=dict(stg_ipam_id=user_id)),
+                        tags=[{"id": sync_tag.id}],  # pyright: ignore[reportAttributeAccessIssue]
+                    )
                 )
         else:
             logger.error(f"Not sure how to handle user type {user.type} (user_id: {user_id})")
@@ -363,24 +410,18 @@ def sync_to_nautobot():
     nb_prefixes = t.cast(dict[str | None, Record], {p.prefix: p for p in nb.ipam.prefixes.all()})  # pyright: ignore[reportAttributeAccessIssue]
     logger.info("Associating contacts and teams with prefixes...")
 
-    existing_associations = t.cast(
-        list[Record], nb.extras.contact_associations.filter(associated_object_type="ipam.prefix")
-    )
+    existing_associations = {}
+    for assoc in nb.extras.contact_associations.filter(associated_object_type="ipam.prefix"):
+        pfx_id = assoc.associated_object_id # pyright: ignore[reportAttributeAccessIssue]
+        assert assoc.role and assoc.status, f"Association {assoc.id} is missing role or status" # pyright: ignore[reportAttributeAccessIssue]
+        role = assoc.role.name if assoc.role else None # pyright: ignore[reportAttributeAccessIssue]
+        status = assoc.status.name if assoc.status else None # pyright: ignore[reportAttributeAccessIssue]
+        existing_associations[(pfx_id, role, status)] = assoc
+
     to_create = []
-    to_update = []
+    to_delete = []
 
-    def _existing_association(pfx_id, contact=None, team=None):
-        assert contact or team
-        for assoc in existing_associations:
-            if assoc.associated_object_id == pfx_id:
-                if contact and assoc.contact and assoc.contact.id == contact:
-                    return assoc.id
-                if team and assoc.team and assoc.team.id == team:
-                    return assoc.id
-
-    for net in data.networks.values():
-        if "utsc-" not in net.name:
-            continue
+    for net in filter(filterfn, data.networks.values()):
         pfxs = []
         teams = []
         contacts = []
@@ -389,59 +430,105 @@ def sync_to_nautobot():
         if net.ip6:
             pfxs.append(nb_prefixes[str(net.ip6)])
 
-        if net.techc:
-            if data.users[net.techc].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.techc].name].id, "Support", "Primary"))
-            elif data.users[net.techc].type == "Group":
-                teams.append((nb_teams[data.users[net.techc].name].id, "Support", "Primary"))
-        if net.techc_alt:
-            if data.users[net.techc_alt].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.techc_alt].name].id, "Support", "Secondary"))
-            elif data.users[net.techc_alt].type == "Group":
-                teams.append((nb_teams[data.users[net.techc_alt].name].id, "Support", "Secondary"))
-        if net.adminc:
-            if data.users[net.adminc].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.adminc].name].id, "Administrative", "Primary"))
-            elif data.users[net.adminc].type == "Group":
-                teams.append((nb_teams[data.users[net.adminc].name].id, "Administrative", "Primary"))
-        if net.adminc_alt:
-            if data.users[net.adminc_alt].type == "UTORid":
-                contacts.append((nb_contacts[data.users[net.adminc_alt].name].id, "Administrative", "Secondary"))
-            elif data.users[net.adminc_alt].type == "Group":
-                teams.append((nb_teams[data.users[net.adminc_alt].name].id, "Administrative", "Secondary"))
+        for attr, role in {
+            "techc": ("Support", "Primary"),
+            "techc_alt": ("Support", "Secondary"),
+            "adminc": ("Administrative", "Primary"),
+            "adminc_alt": ("Administrative", "Secondary"),
+        }.items():
+            user_id = getattr(net, attr)
+            if user_id:
+                user = data.users[user_id]
+                if user.type in ["UTORid", "Admin"]:
+                    contacts.append((nb_contacts[user.name].id, role[0], role[1]))
+                elif user.type == "Group":
+                    teams.append((nb_teams[user.name].id, role[0], role[1]))
+                else:
+                    logger.error(f"Not sure how to handle user type {user.type} (user_id: {user_id})")
         for pfx in pfxs:
             for team, role, status in teams:
-                if assoc_id := _existing_association(pfx.id, team=team):
-                    to_update.append(dict(id=assoc_id, role=dict(name=role), status=dict(name=status)))
-                else:
-                    to_create.append(
-                        dict(
-                            associated_object_type="ipam.prefix",
-                            associated_object_id=pfx.id,
-                            team=team,
-                            role=dict(name=role),
-                            status=dict(name=status),
+                if existing_assoc := existing_associations.get((pfx.id, role, status)):
+                    if existing_assoc.team and existing_assoc.team.id == team:
+                        continue
+                    else:
+                        logger.info(
+                            f"Removing existing association for team {team} with role {role} and status {status} on prefix {pfx.prefix}"
                         )
+                        to_delete.append(
+                            dict(
+                                id=existing_assoc.id,
+                            )
+                        )
+                logger.info(
+                    f"Creating association for team {team} with role {role} and status {status} on prefix {pfx.prefix}"
+                )
+                to_create.append(
+                    dict(
+                        associated_object_type="ipam.prefix",
+                        associated_object_id=pfx.id,
+                        team=team,
+                        role=dict(name=role),
+                        status=dict(name=status),
                     )
+                )
             for contact, role, status in contacts:
-                if assoc_id := _existing_association(pfx.id, contact=contact):
-                    to_update.append(dict(id=assoc_id, role=dict(name=role), status=dict(name=status)))
-                else:
-                    to_create.append(
-                        dict(
-                            associated_object_type="ipam.prefix",
-                            associated_object_id=pfx.id,
-                            contact=contact,
-                            role=dict(name=role),
-                            status=dict(name=status),
+                if existing_assoc := existing_associations.get((pfx.id, role, status)):
+                    if existing_assoc.contact and existing_assoc.contact.id == contact:
+                        continue
+                    else:
+                        logger.info(
+                            f"Removing existing association for contact {contact} with role {role} and status {status} on prefix {pfx.prefix}"
                         )
+                        to_delete.append(
+                            dict(
+                                id=existing_assoc.id,
+                            )
+                        )
+                logger.info(
+                    f"Creating association for contact {contact} with role {role} and status {status} on prefix {pfx.prefix}"
+                )
+                to_create.append(
+                    dict(
+                        associated_object_type="ipam.prefix",
+                        associated_object_id=pfx.id,
+                        contact=contact,
+                        role=dict(name=role),
+                        status=dict(name=status),
                     )
+                )
 
+    logger.info(f"Removing {len(to_delete)} old associations...")
+    nb.extras.contact_associations.delete(to_delete)
     logger.info(f"Creating {len(to_create)} new associations...")
     nb.extras.contact_associations.create(to_create)
-    # TODO: figure out what this api endpoint actually WANTS from us for updating
-    # logger.info(f"Updating {len(to_update)} existing associations...")
-    # nb.extras.contact_associations.update(to_update)
+    # logger.info(f"Updating {len(to_delete)} existing associations...")
+    # try:
+    #     # bulk update
+    #     nb.extras.contact_associations.update(to_delete)
+    # except RequestError as e:
+    #     # bulk update failed, probably a single association has a problem.
+    #     # try updating one at a time to get more info about which one is the problem
+    #     logger.warning(
+    #         f"Bulk update failed with error: {e}. "
+    #         "Falling back to sequential updates to identify problematic associations..."
+    #     )
+    #     for assoc in to_delete:
+    #         assoc_id = assoc.pop("id")
+    #         logger.info(
+    #             f"Updating association {assoc_id} with role {assoc['role']['name']} and status {assoc['status']['name']}"  # noqa: E501
+    #         )
+    #         try:
+    #             nb.extras.contact_associations.update(assoc_id, data=assoc)
+    #         except RequestError as e:
+    #             if "already exists" in e.error:
+    #                 # if a team is already linked to a prefix in multiple roles
+    #                 # (ie they are the admin contact and the support contact),
+    #                 # this function sometimes gets the existing associations
+    #                 # mixed up and tries to update one to be the other. Since the other
+    #                 # association already exists, no change is needed and we can just ignore this error
+    #                 logger.warning(f"Association already exists, skipping update for association {assoc_id}")
+    #             else:
+    #                 raise e
 
     logger.success("Done!")
 
@@ -595,5 +682,5 @@ def sync_to_paloalto(commit: bool):
 
 
 def _debug():
-    data = sync_to_paloalto(False)
-    print(data)
+    sync_to_nautobot(True)
+    print()

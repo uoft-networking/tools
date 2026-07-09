@@ -101,8 +101,10 @@ tasks._coghelpers.gen_conf_table('uoft.paloalto')
 | username | str | Username | The username to authenticate with the Palo Alto REST API server. |  |
 | password | SecretStr | Password | The password to authenticate with the Palo Alto REST API server. |  |
 | api_key | SecretStr | API Key | API key to authenticate with the Palo Alto XML API server. Leave blank if you want to generate one later |  |
-| device_group | str | Device Group | The device group to use when managing objects. If not provided, objects will be placed in the 'shared' location. |  |
+| panorama | bool | Panorama | Whether the REST API we're connecting to is a Panorama instance or a Palo Alto device | True |
+| device_group | str | Device Group | The device group to use when managing objects. If not provided, objects will be placed in the 'shared' device group. |  |
 | create_missing_tags | bool | Create Missing Tags | If enabled, missing tags assigned to objects will be created automatically. |  |
+| verify | bool | SSL Verification | Whether to verify SSL certificates when connecting to the Palo Alto REST API server. | True |
 <!--[[[end]]] -->
 
 ## License

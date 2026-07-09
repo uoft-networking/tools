@@ -10,7 +10,7 @@ from threading import Thread
 
 import typer
 from task_runner import REPO_ROOT, run, sudo
-from . import pipx_install
+from . import pipx_raw
 
 PROD_SERVICES = ["nautobot", "nautobot-scheduler", "nautobot-worker"]
 DEV_SERVICES = ["nautobot-dev", "nautobot-dev-scheduler", "nautobot-dev-worker"]
@@ -168,7 +168,8 @@ def deploy_to_prod():
         "projects/nautobot/.dev_data/nautobot_config.py "
         f"{NAUTOBOT_CFG}"
     )
-    pipx_install(REPO_ROOT / "custom-forks/nautobot", ["uoft.nautobot"])
+    run("pants package :: --filter-target-type=python_distribution")  # if package is already built, this is a no-op
+    pipx_raw("inject nautobot uoft_nautobot", exclude_from_constraints=["nautobot"])
     prod_server(["post_upgrade"])
 
     systemd("start", prod=True)
@@ -184,7 +185,7 @@ def revert_deployment():
     sudo(f"mv {NAUTOBOT_CFG}.bak {NAUTOBOT_CFG}")
     run("/opt/backups/db/actions restore", cap=True)
     prod_server(["post_upgrade"])
-    
+
     systemd("start", prod=True)
     systemd("status", prod=True)
 
@@ -198,6 +199,39 @@ def spot_check():
     r.raise_for_status()
     data = r.json()
     assert isinstance(data, list) and len(data) > 0, "No aruba blocklist entries found"
+    r = s.delete("api/plugins/uoft/aruba-blocklist/", json={"mac-address": "de:ad:be:ef:00:00"})
+    r.raise_for_status()
+    data = r.json()
+    assert "detail" in data, "No detail message returned from aruba blocklist delete"
+
+    # git repo sync
+    r = s.get("api/extras/git-repositories/", params={"name": "golden_config_templates"})
+    r.raise_for_status()
+    repo = r.json()["results"][0]
+    r = s.get("api/extras/jobs/", params={"name": "Git Repository: Sync"})
+    r.raise_for_status()
+    job_id = r.json()["results"][0]["id"]
+    r = s.post(
+        f"api/extras/jobs/{job_id}/run/",
+        json=dict(data={"repository": repo["id"]}),
+    )
+    try:
+        r.raise_for_status()
+    except Exception as e:
+        logger.error("Failed to start git repo sync job:")
+        logger.error(r.text)
+        raise e
+    job_result_id = r.json()["job_result"]["id"]
+    while True:
+        time.sleep(1)
+        r = s.get(f"api/extras/job-results/{job_result_id}/")
+        r.raise_for_status()
+        job_result = r.json()
+        if job_result["status"]["value"] == "SUCCESS":
+            break
+        elif job_result["status"]["value"] == "FAILURE":
+            raise Exception("Git repo sync job failed!")
+        logger.info("Waiting for git repo sync job to complete...")
 
     # golden config intended job
     r = s.get("api/extras/jobs/", params={"name": "Generate Intended Configurations"})
@@ -400,7 +434,7 @@ def push_port_activation_package():
         "set ssl:verify-certificate no\n"
         "open ftp://hive.utsc.utoronto.ca\n"
         "user trembl94\n"
-        "put -O public ../port-activation"
+        f"put -O public {REPO_ROOT}/dist/apps/port-activation"
         "')",
         executable="/bin/bash",
         cap=False,

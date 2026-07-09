@@ -24,8 +24,8 @@ def sync_to_paloalto(commit: bool = typer.Option(False, help="Commit changes to 
 
 
 @app.command()
-def sync_to_nautobot():
+def sync_to_nautobot(dev: bool = typer.Option(False, help="Use the development Nautobot instance")):
     """Syncronize networks and contacts from the database behind ipam.utoronto.ca into nautobot"""
     from ..stg_ipam_dev import lib
 
-    lib.sync_to_nautobot()
+    lib.sync_to_nautobot(dev=dev)

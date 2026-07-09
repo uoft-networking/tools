@@ -8,9 +8,12 @@ import mcpyrate.activate # activate the macro system before importing any task m
 GLOBAL_PIPX = "PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx"
 
 
-def pipx_raw(command: str):
+def pipx_raw(command: str, exclude_from_constraints: list[str]|None = None):
     with NamedTemporaryFile(mode="w", prefix="req", suffix=".txt") as req_file:
-        run(f"uv export --no-hashes --no-emit-workspace --output-file {req_file.name}", cap=True)
+        exclude = ""
+        if exclude_from_constraints:
+            exclude = " ".join([f"--no-emit-package {item} " for item in exclude_from_constraints])
+        run(f"uv export --no-hashes --no-emit-workspace {exclude} --output-file {req_file.name}", cap=True)
         print(f"Using constraints file: {req_file.name}")
         with_pipargs = f'--pip-args "--force --find-links dist/ --constraint {req_file.name}"'
         sudo(
@@ -18,7 +21,13 @@ def pipx_raw(command: str):
         )
 
 
-def pipx_install(root_project: str|Path, packages: list[str|Path] | None = None, extra_args: str = "", root_project_name: str | None = None):
+def pipx_install(
+        root_project: str|Path, 
+        packages: list[str|Path] | None = None, 
+        extra_args: str = "", 
+        root_project_name: str | None = None,
+        exclude_from_constraints: list[str] | None = None,
+):
     """install a package (ie uoft.scripts of uoft_nautobot) to /usr/local/bin through pipx"""
     run("pants package :: --filter-target-type=python_distribution") # if package is already built, this is a no-op
     pipx_raw(f"install --force {extra_args} {root_project}")

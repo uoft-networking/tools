@@ -6,7 +6,7 @@ from .ldap import app as ldap_app
 from .nautobot import app as nautobot_app
 from .librenms import app as librenms_app
 from .sib_turnup import app as sib_turnup_app
-from .cli import app as stg_ipam_dev_app
+from .stg_ipam_dev import app as stg_ipam_dev_app
 from .arista import app as arista_app
 
 from uoft.core import logging

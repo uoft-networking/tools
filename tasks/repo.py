@@ -68,7 +68,15 @@ def debug_pydantic(undo: bool = False):
             print(f"renaming {ext.name} to {ext.with_suffix('.so.disabled').name}")
             ext.rename(ext.with_suffix(".so.disabled"))
 
+def add_package(package_name: str):
+    """add a package to the monorepo's dependency list"""
+    run(f"uv add {package_name}")
+
 
 def lock():
     """update the monorepo lock file"""
-    run("pants generate-lockfiles --resolve=python-default")
+    run("pants generate-lockfiles --resolve=python-default --sync")
+
+def update_venv():
+    """update the monorepo's virtualenv"""
+    run("pants export --resolve=python-default")
