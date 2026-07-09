@@ -12,6 +12,7 @@ uoft_python_lib(
             '//:py-deps#napalm',
             '//:py-deps#napalm-aruba-cx',
             '//:py-deps#django-debug-toolbar',
+            '//:py-deps#pyparsing',
         ],
     },
     entry_points={
