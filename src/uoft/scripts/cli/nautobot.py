@@ -78,6 +78,11 @@ def sync_from_bluecat(dev: bool = False, interactive: bool = True, on_orphan: On
         on_orphan=on_orphan,
     )
 
+@app.command()
+def sync_to_paloalto():
+    from ..nautobot import lib
+
+    lib.sync_to_paloalto()
 
 @app.command()
 def show_golden_config_data(

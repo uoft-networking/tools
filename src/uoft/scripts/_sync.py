@@ -1043,9 +1043,24 @@ class LibreNMSTarget(Target):
             hostname=f"{device.hostname}.netmgmt.utsc.utoronto.ca", overwrite_ip=device.ip_address
         )
 
+class PaloAltoTarget(Target):
+    name = "paloalto"
+
+    def __init__(self) -> None:
+        from uoft.paloalto.conf import Settings
+        self.api = Settings.from_cache().get_api_connection()
+
+    def load_data(self, datasets: set[DatasetName]):
+        raw_data = self.load_data_raw()
+
+        local_ids = {}
+        prefixes = {}
+
+    def load_data_raw(self):
+        return self.api.network_list()
 
 def _debug():
-    sm = SyncManager(BluecatTarget(), NautobotTarget(), {"prefixes"}, on_orphan="skip")  # pyright: ignore[reportArgumentType]
+    sm = SyncManager(source=NautobotTarget(), dest=PaloAltoTarget(), datasets={"prefixes"}, on_orphan="skip")  # pyright: ignore[reportArgumentType]
 
     sm.load()
     sm.synchronize()

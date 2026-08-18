@@ -243,6 +243,10 @@ def sync_from_bluecat(
     done()
 
 
+def sync_to_paloalto():
+    pass
+
+
 def get_jinja_env(templates_dir: Path):
     from uoft.core import jinja
 
@@ -777,19 +781,8 @@ def device_type_add_or_update(
     logger.info("Done!")
 
 
-def new_switch(
-    dev: bool = False,
-):
-    """
-    Create a new switch in Nautobot.
-
-    This function will create a new switch in Nautobot with the necessary configurations.
-    It will prompt for the device type and other required information.
-    """
-    prompt = Settings._prompt()
-    nb = get_api(dev)
-
-    def _select_from_queryset(
+def _select_from_queryset(
+        prompt,
         queryset,
         name,
         msg,
@@ -812,10 +805,23 @@ def new_switch(
             return create_new_callback()
         return choice, mapping[choice]
 
+def new_switch(
+    dev: bool = False,
+):
+    """
+    Create a new switch in Nautobot.
+
+    This function will create a new switch in Nautobot with the necessary configurations.
+    It will prompt for the device type and other required information.
+    """
+    prompt = Settings._prompt()
+    nb = get_api(dev)
+
     name = prompt.get_string("name", "Enter the name of the switch")
 
     logger.info("Loading list of available Manufacturers from Nautobot...")
     manufacturer, manufacturer_id = _select_from_queryset(
+        prompt,
         nb.dcim.manufacturers.all(),
         "manufacturer",
         "Select a manufacturer for this switch",
@@ -823,6 +829,7 @@ def new_switch(
 
     logger.info(f"Loading list of available {manufacturer} Device Types from Nautobot...")
     dt, dt_id = _select_from_queryset(
+        prompt,
         nb.dcim.device_types.filter(manufacturer=manufacturer_id),
         "device_type",
         "Select a device type for this switch",
@@ -840,6 +847,7 @@ def new_switch(
             return
 
     platform, platform_id = _select_from_queryset(
+        prompt,
         nb.dcim.platforms.filter(manufacturer=manufacturer_id),
         "platform",
         "Select a platform for this switch",
@@ -848,6 +856,7 @@ def new_switch(
 
     logger.info("Loading list of Device Roles from Nautobot...")
     role, role_id = _select_from_queryset(
+        prompt,
         nb.extras.roles.filter(content_types="dcim.device"),
         "role",
         "What kind of switch are you creating?",
@@ -914,6 +923,7 @@ def new_switch(
         return version, t.cast(str, version_record.id)  # pyright: ignore[reportAttributeAccessIssue]
 
     version, version_id = _select_from_queryset(
+        prompt,
         nb.dcim.software_versions.filter(platform=platform_id),
         "software_version",
         "Select a software version for this switch",
@@ -1147,7 +1157,6 @@ def rebuild_switch(
     logger.info("Loading list of available Manufacturers from Nautobot...")
     manufacturer, manufacturer_id = _select_from_queryset(
         prompt,
-        nb,
         nb.dcim.manufacturers.all(),
         "manufacturer",
         "Select a manufacturer for this switch",
