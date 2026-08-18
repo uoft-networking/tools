@@ -1,0 +1,15 @@
+default:
+  # cache and reuse the venv, invalidate and regen when lock file changes
+  cache:
+    key:
+      files:
+        - pyproject.lock
+    paths:
+      - .venv/
+
+runner-test:
+  script:
+    - ./run --help
+  when: manual
+  tags:
+    - macos
