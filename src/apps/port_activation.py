@@ -296,6 +296,7 @@ def prompt_for_role():
             "Desktop PC",
             "VOIP Phone",
             "Printer",
+            "Lab PC",
             "Deactivate",
             "Other",
         ],

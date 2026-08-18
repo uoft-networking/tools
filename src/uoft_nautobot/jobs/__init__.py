@@ -17,6 +17,7 @@ ROLE_CHOICES = [
     ("Desktop PC", "Desktop PC"),
     ("VOIP Phone", "VOIP Phone"),
     ("Printer", "Printer"),
+    ("Lab PC", "Lab PC"),
     ("Deactivate", "Deactivate"),
     ("Other", "Other"),
 ]
@@ -80,6 +81,9 @@ class HelpdeskPortActivation(j.Job):
             role_obj = Role.objects.get(name="VOIP")
         elif role == "Printer":
             vlan = 240
+            role_obj = Role.objects.get(name="Access")
+        elif role == "Lab PC":
+            vlan = 130
             role_obj = Role.objects.get(name="Access")
         elif role == "Deactivate":
             vlan = 666  # Default VLAN for deactivated ports
