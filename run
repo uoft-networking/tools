@@ -32,7 +32,7 @@ if [ -d "$HERE/.venv" ]; then
     run_script "$0" "$@"
 fi
 
-if [ "${CI:-}" = "true" ]; then
+if [ "${CI:-}" != "true" ]; then
     echo "No .venv directory found. The bootstrapping process will now begin. Press enter to continue" >&2
     read -r
 fi
@@ -53,7 +53,7 @@ find_pants() {
     fi
     if [ "${CI:-}" = "true" ]; then
         echo "Installing pants..."
-        curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash;;
+        curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
     else
         echo "This script requires pants to be installed"
         echo "Would you like to install it using the official installer? [Y/n]"
