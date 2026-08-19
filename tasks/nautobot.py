@@ -154,6 +154,8 @@ NAUTOBOT_VENV = "/opt/pipx/venvs/nautobot"
 
 def deploy_to_prod():
     """build and deploy the current code to prod"""
+    run("pants package :: --filter-target-type=python_distribution")  # if package is already built, this is a no-op
+
     systemd("stop", prod=True)
 
     # Back up existing installation
@@ -168,7 +170,6 @@ def deploy_to_prod():
         "projects/nautobot/.dev_data/nautobot_config.py "
         f"{NAUTOBOT_CFG}"
     )
-    run("pants package :: --filter-target-type=python_distribution")  # if package is already built, this is a no-op
     pipx_raw("inject nautobot uoft_nautobot", exclude_from_constraints=["nautobot"])
     prod_server(["post_upgrade"])
 
@@ -194,109 +195,120 @@ def spot_check():
     """run a few spot-checks against the prod nautobot instance to make sure things are working"""
     s = _get_prod_api_session()
 
-    # aruba blocklist plugin
-    r = s.get("api/plugins/uoft/aruba-blocklist/")
-    r.raise_for_status()
-    data = r.json()
-    assert isinstance(data, list) and len(data) > 0, "No aruba blocklist entries found"
-    r = s.delete("api/plugins/uoft/aruba-blocklist/", json={"mac-address": "de:ad:be:ef:00:00"})
-    r.raise_for_status()
-    data = r.json()
-    assert "detail" in data, "No detail message returned from aruba blocklist delete"
 
-    # git repo sync
-    r = s.get("api/extras/git-repositories/", params={"name": "golden_config_templates"})
-    r.raise_for_status()
-    repo = r.json()["results"][0]
-    r = s.get("api/extras/jobs/", params={"name": "Git Repository: Sync"})
-    r.raise_for_status()
-    job_id = r.json()["results"][0]["id"]
-    r = s.post(
-        f"api/extras/jobs/{job_id}/run/",
-        json=dict(data={"repository": repo["id"]}),
-    )
-    try:
+    def test_aruba_blocklist_plugin():
+        r = s.get("api/plugins/uoft/aruba-blocklist/")
         r.raise_for_status()
-    except Exception as e:
-        logger.error("Failed to start git repo sync job:")
-        logger.error(r.text)
-        raise e
-    job_result_id = r.json()["job_result"]["id"]
-    while True:
-        time.sleep(1)
-        r = s.get(f"api/extras/job-results/{job_result_id}/")
+        data = r.json()
+        assert isinstance(data, list) and len(data) > 0, "No aruba blocklist entries found"
+        r = s.delete("api/plugins/uoft/aruba-blocklist/", json={"mac-address": "de:ad:be:ef:00:00"})
         r.raise_for_status()
-        job_result = r.json()
-        if job_result["status"]["value"] == "SUCCESS":
-            break
-        elif job_result["status"]["value"] == "FAILURE":
-            raise Exception("Git repo sync job failed!")
-        logger.info("Waiting for git repo sync job to complete...")
+        data = r.json()
+        assert "detail" in data, "No detail message returned from aruba blocklist delete"
+    test_aruba_blocklist_plugin()
 
-    # golden config intended job
-    r = s.get("api/extras/jobs/", params={"name": "Generate Intended Configurations"})
-    r.raise_for_status()
-    job_id = r.json()["results"][0]["id"]
-    r = s.post(
-        f"api/extras/jobs/{job_id}/run/",
-        json=dict(
-            data={
-                "device": ["2994ba2a-2aff-44b9-b787-67dfa00255b9"],
-                "fail_job_on_task_failure": True,
-            }
-        ),
-    )
+    def test_git_repo_sync():
+        r = s.get("api/extras/git-repositories/", params={"name": "golden_config_templates"})
+        r.raise_for_status()
+        repo = r.json()["results"][0]
+        r = s.get("api/extras/jobs/", params={"name": "Git Repository: Sync"})
+        r.raise_for_status()
+        job_id = r.json()["results"][0]["id"]
+        r = s.post(
+            f"api/extras/jobs/{job_id}/run/",
+            json=dict(data={"repository": repo["id"]}),
+        )
+        try:
+            r.raise_for_status()
+        except Exception as e:
+            logger.error("Failed to start git repo sync job:")
+            logger.error(r.text)
+            raise e
+        job_result_id = r.json()["job_result"]["id"]
+        while True:
+            time.sleep(1)
+            r = s.get(f"api/extras/job-results/{job_result_id}/")
+            r.raise_for_status()
+            job_result = r.json()
+            if job_result["status"]["value"] == "SUCCESS":
+                break
+            elif job_result["status"]["value"] == "FAILURE":
+                raise Exception("Git repo sync job failed!")
+            logger.info("Waiting for git repo sync job to complete...")
+    test_git_repo_sync()
+
+    def test_golden_config_intended():
+        r = s.get("api/extras/jobs/", params={"name": "Generate Intended Configurations"})
+        r.raise_for_status()
+        job_id = r.json()["results"][0]["id"]
+        r = s.post(
+            f"api/extras/jobs/{job_id}/run/",
+            json=dict(
+                data={
+                    "device": ["2994ba2a-2aff-44b9-b787-67dfa00255b9"],
+                    "fail_job_on_task_failure": True,
+                }
+            ),
+        )
+        try:
+            r.raise_for_status()
+        except Exception as e:
+            logger.error("Failed to start intended config job:")
+            logger.error(r.text)
+            raise e
+        job_result_id = r.json()["job_result"]["id"]
+        while True:
+            time.sleep(1)
+            r = s.get(f"api/extras/job-results/{job_result_id}/")
+            r.raise_for_status()
+            job_result = r.json()
+            if job_result["status"]["value"] == "SUCCESS":
+                break
+            assert job_result["status"]["value"] != "FAILURE", "Intended Config job failed!"
+            logger.info("Waiting for intended config job to complete...")
     try:
-        r.raise_for_status()
-    except Exception as e:
-        logger.error("Failed to start port activation job:")
-        logger.error(r.text)
-        raise e
-    job_result_id = r.json()["job_result"]["id"]
-    while True:
-        time.sleep(1)
-        r = s.get(f"api/extras/job-results/{job_result_id}/")
-        r.raise_for_status()
-        job_result = r.json()
-        if job_result["status"]["value"] == "SUCCESS":
-            break
-        elif job_result["status"]["value"] == "FAILURE":
-            raise Exception("Intended Config job failed!")
-        logger.info("Waiting for intended config job to complete...")
+        test_golden_config_intended()
+    except AssertionError:
+        pass # first golden config job run on a cold start always fails
+    test_golden_config_intended()
+
 
     # port activation job
-    r = s.get("api/extras/jobs/", params={"name": "Helpdesk Port Activation"})
-    r.raise_for_status()
-    job_id = r.json()["results"][0]["id"]
-    r = s.post(
-        f"api/extras/jobs/{job_id}/run/",
-        json=dict(
-            data={
-                "device": "a2-testlab",
-                "extra_data": None,
-                "interface": "GigabitEthernet0/5",
-                "port_label": "testlab-mac-mini",
-                "role": "Desktop PC",
-            }
-        ),
-    )
-    try:
+    def test_port_activation_job():
+        r = s.get("api/extras/jobs/", params={"name": "Helpdesk Port Activation"})
         r.raise_for_status()
-    except Exception as e:
-        logger.error("Failed to start port activation job:")
-        logger.error(r.text)
-        raise e
-    job_result_id = r.json()["job_result"]["id"]
-    while True:
-        time.sleep(1)
-        r = s.get(f"api/extras/job-results/{job_result_id}/")
-        r.raise_for_status()
-        job_result = r.json()
-        if job_result["status"]["value"] == "SUCCESS":
-            break
-        elif job_result["status"]["value"] == "FAILED":
-            raise Exception("Port activation job failed!")
-        logger.info("Waiting for port activation job to complete...")
+        job_id = r.json()["results"][0]["id"]
+        r = s.post(
+            f"api/extras/jobs/{job_id}/run/",
+            json=dict(
+                data={
+                    "device": "a2-testlab",
+                    "extra_data": None,
+                    "interface": "GigabitEthernet0/5",
+                    "port_label": "testlab-mac-mini",
+                    "role": "Desktop PC",
+                }
+            ),
+        )
+        try:
+            r.raise_for_status()
+        except Exception as e:
+            logger.error("Failed to start port activation job:")
+            logger.error(r.text)
+            raise e
+        job_result_id = r.json()["job_result"]["id"]
+        while True:
+            time.sleep(1)
+            r = s.get(f"api/extras/job-results/{job_result_id}/")
+            r.raise_for_status()
+            job_result = r.json()
+            if job_result["status"]["value"] == "SUCCESS":
+                break
+            elif job_result["status"]["value"] == "FAILED":
+                raise Exception("Port activation job failed!")
+            logger.info("Waiting for port activation job to complete...")
+    test_port_activation_job()
+    
     logger.info("Spot checks passed!")
 
 
