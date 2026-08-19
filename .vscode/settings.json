@@ -14,4 +14,7 @@
   "python.analysis.userFileIndexingLimit": 3000,
   "python-envs.defaultEnvManager": "ms-python.python:venv",
   "ruff.importStrategy": "useBundled",
+  "python.analysis.exclude": [
+    "hazmat"
+  ],
 }
