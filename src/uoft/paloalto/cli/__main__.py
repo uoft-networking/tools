@@ -14,6 +14,16 @@ from ..conf import Settings
 logger = logging.getLogger(__name__)
 
 DEBUG_MODE = False
+TARGET_HOST = None
+
+
+def get_settings() -> Settings:
+    """Get the settings for the current host."""
+    global TARGET_HOST
+    s = Settings.from_cache()
+    if TARGET_HOST:
+        s = s.get_host_config(TARGET_HOST)
+    return s
 
 
 def _version_callback(value: bool):
@@ -46,8 +56,18 @@ def callback(
     ] = None,
     debug: bool = typer.Option(False, help="Turn on debug logging", envvar="DEBUG"),
     trace: bool = typer.Option(False, help="Turn on trace logging. implies --debug", envvar="TRACE"),
+    host: t.Annotated[
+        t.Optional[str],
+        typer.Option(
+            "--host",
+            "-H",
+            help="The host to connect to. This should match a key in the 'hosts' section of the config file.",
+            envvar="PALOALTO_HOST",
+        ),
+    ] = None,
 ):
-    global DEBUG_MODE
+    global DEBUG_MODE, TARGET_HOST
+    TARGET_HOST = host
     log_level = "INFO"
     if debug:
         log_level = "DEBUG"
@@ -57,25 +77,21 @@ def callback(
         DEBUG_MODE = True
     logging.basicConfig(level=log_level)
 
+    logger.debug(f"Using config: {Settings.from_cache()}")
+
 
 @app.command()
 def generate_api_key():
     """Generate an API key for the Palo Alto API"""
-    s = Settings.from_cache()
-    api = s.get_api_connection()
-    api.login()
-    key = api.generate_api_key()
-    s.api_key = SecretStr(key)
-    s.interactive_save_config()
+    with get_settings().get_api_connection() as api:
+        print(api.api_key)
 
 
 @app.command()
 def network_list():
     """Get all addresses from the Palo Alto API"""
-    s = Settings.from_cache()
-    api = s.get_api_connection()
-    api.login()
-    networks = api.network_list()
+    with get_settings().get_api_connection() as api:
+        networks = api.network_list()
     for n in networks:
         print(f"{n['@name']:30} => {n['ip-netmask']}")
 
@@ -84,29 +100,24 @@ def network_list():
 def network_create(name: str, netmask: str, description: t.Optional[str] = None, tags: t.Optional[list[str]] = None):
     """Create a network object in the Palo Alto API"""
     tags_set = set(tags) if tags else None
-    s = Settings.from_cache()
-    api = s.get_api_connection()
-    api.login()
-    api.network_create(name, netmask, description, tags=tags_set)
+    with get_settings().get_api_connection() as api:
+        api.network_create(name, netmask, description, tags=tags_set)
+    logger.success(f"Created network '{name}' with netmask '{netmask}'")
 
 
 @app.command()
 def network_delete(name: str):
     """Delete a network object in the Palo Alto API"""
-    s = Settings.from_cache()
-    api = s.get_api_connection()
-    api.login()
-    api.network_delete(name)
+    with get_settings().get_api_connection() as api:
+        api.network_delete(name)
     logger.success(f"Deleted network '{name}'")
 
 
 @app.command()
 def commit():
     """Commit changes to the Palo Alto API"""
-    s = Settings.from_cache()
-    api = s.get_api_connection()
-    api.login()
-    api.commit()
+    with get_settings().get_api_connection() as api:
+        api.commit()
     logger.success("Changes committed")
 
 

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
         title="API Key",
         description="API key to authenticate with the Palo Alto XML API server. "
         "Leave blank if you want to generate one later",
+        prompt=False,
     )
 
     panorama: bool = Field(
@@ -52,8 +53,25 @@ class Settings(BaseSettings):
         default=True,
     )
 
+    hosts: dict[str, dict] = Field(
+        title="Hosts",
+        description="A dictionary of host configurations. The key can be any string, "
+        "and the value is a dictionary of settings for that host.",
+        prompt=False,
+    )
+    
     class Config(BaseSettings.Config):
         app_name = "paloalto"
+
+    def get_host_config(self, host: str):
+        """Get the configuration for a specific host."""
+        # to generate a new host, we use the default settings from the current instance, but create a new instance 
+        # with the host-specific settings overlayed on top of it.
+        host_config = self.hosts.get(host, {})
+        if not host_config:
+            raise ValueError(f"Host '{host}' not found in configuration.")
+        val = self.dict() | host_config
+        return self.__class__(**val)
 
     def get_api_connection(self):
         from .api import API
@@ -68,3 +86,4 @@ class Settings(BaseSettings):
             create_missing_tags=self.create_missing_tags,
             verify=self.verify,
         )
+

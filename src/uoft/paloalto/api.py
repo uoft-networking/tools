@@ -33,9 +33,8 @@ class API(APIBase):
         self.auth = (self.username, self.password.get_secret_value())
 
         if not self.api_key:
-            self.generate_api_key()
-        
-        assert self.api_key, "How did we get here?"
+            self.api_key = SecretStr(self.generate_api_key())
+
         self.headers["X-PAN-KEY"] = self.api_key.get_secret_value()
 
     def generate_api_key(self):
@@ -47,7 +46,7 @@ class API(APIBase):
         )
         # response is XML, so we need to parse out the key
         key = res.text.partition("<key>")[2].partition("</key>")[0]
-        self.api_key = SecretStr(key)
+        return key
 
     def default_params(self):
         if self.panorama:
