@@ -1049,6 +1049,8 @@ class BaseSettings(PydanticBaseSettings, metaclass=BaseSettingsMeta):
                 settings_kwargs[param.name] = value
 
             if settings_kwargs:
+                # TODO: figure out why this doesn't work anymore. when did it stop working? can't remember the last time i tested it :(
+                logger.debug(f"Updating settings with {settings_kwargs}")
                 cls._update_cache_instance(**settings_kwargs)  # pylint: disable=protected-access
             number_of_settings_args = len(func.settings_parameters)  # pyright: ignore[reportFunctionMemberAccess]
             new_args = args[number_of_settings_args:]
