@@ -9,6 +9,7 @@ backend_packages = [
     "pants.backend.experimental.python.lint.ruff.check",
     "pants.backend.experimental.python.lint.ruff.format",
     "pants.backend.experimental.python.typecheck.pyright",
+    #"pants.backend.experimental.python.framework.django",
     "pants.backend.python.providers.experimental.python_build_standalone",
     "uoft.pants",                                                          # our custom plugin
 ]
