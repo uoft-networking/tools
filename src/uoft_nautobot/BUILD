@@ -8,6 +8,7 @@ uoft_python_lib(
             '//:py-deps#nautobot_ssot',
             '//:py-deps#nautobot_golden_config',
             '//:py-deps#nautobot-device-onboarding',
+            '//:py-deps#nautobot_firewall_models',
             '//:py-deps#ptpython',
             '//:py-deps#napalm',
             '//:py-deps#napalm-aruba-cx',

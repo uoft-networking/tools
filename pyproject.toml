@@ -22,6 +22,7 @@ dependencies = [
     "nautobot_ssot >= 2.7",
     "nautobot_golden_config >= 2.3",
     "nautobot-device-onboarding >= 3.0",
+    "nautobot_firewall_models >= 2.2",
     "debugpy >= 1.8",
     "django-debug-toolbar >= 4.4",
     "ptpython >= 3.0.29",
